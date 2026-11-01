@@ -13,7 +13,7 @@ const RDPView = forwardRef<RDPHandle, { grant: Grant }>(function RDPView({ grant
   const ui = useRef<UserInteraction>();
   const closed=useRef(false);
   const [error, setError] = useState('');
-  const [status, setStatus] = useState('正在装载 WASM');
+  const [status, setStatus] = useState('正在准备远程桌面');
   const [clipboard, setClipboard] = useState(false);
   const [resolution, setResolution] = useState('dynamic');
   const ready = useMemo(() => {
@@ -58,10 +58,11 @@ const RDPView = forwardRef<RDPHandle, { grant: Grant }>(function RDPView({ grant
         desktop.addEventListener('ready', (event) => {
           if (disposed) return;
           ui.current = (event as CustomEvent<{ irgUserInteraction: UserInteraction }>).detail.irgUserInteraction;
-          setStatus('WASM 已就绪'); ready.resolve(ui.current);
+          ui.current.setEnableClipboard(false);ui.current.setEnableAutoClipboard(false);
+          setStatus('准备就绪'); ready.resolve(ui.current);
         }, { once: true });
         container.current!.appendChild(desktop);
-      } catch (e) { setError(String(e)); setStatus('WASM 装载失败'); ready.reject(e); }
+      } catch (e) { setError(String(e)); setStatus('远程桌面装载失败'); ready.reject(e); }
     })();
     const unsubscribe = Events.On('rdp:error', (event) => {
       const data = event.data as { id: string; error: string };
@@ -72,6 +73,7 @@ const RDPView = forwardRef<RDPHandle, { grant: Grant }>(function RDPView({ grant
   }, [grant, ready]);
 
   useEffect(() => {
+    if(status!=='已连接')return;
     if (resolution !== 'dynamic') { const [width, height] = resolution.split('x').map(Number); ui.current?.resize(width, height); return; }
     let timer: ReturnType<typeof setTimeout>;
     const observer = new ResizeObserver(([entry]) => {
@@ -80,15 +82,15 @@ const RDPView = forwardRef<RDPHandle, { grant: Grant }>(function RDPView({ grant
     });
     observer.observe(container.current!);
     return () => { clearTimeout(timer); observer.disconnect(); };
-  }, [resolution]);
+  }, [resolution,status]);
 
   return <div className="rdp-view">
     <div className="rdp-toolbar">
-      <Button size="sm" variant="light" onPress={() => ui.current?.ctrlAltDel()}>Ctrl+Alt+Del</Button>
-      <Button size="sm" variant="light" onPress={() => ui.current?.metaKey()}>Windows 键</Button>
-      <select aria-label="远程分辨率" value={resolution} onChange={(e) => setResolution(e.target.value)}><option value="dynamic">适应窗口</option><option value="1280x800">1280 × 800</option><option value="1920x1080">1920 × 1080</option></select>
-      <label><input type="checkbox" checked={clipboard} onChange={(e) => { setClipboard(e.target.checked); ui.current?.setEnableClipboard(e.target.checked); }} /> 文本剪贴板</label>
-      {clipboard && <><Button size="sm" variant="light" onPress={() => { ui.current?.sendClipboardData().catch((e) => setError(String(e))); }}>粘贴到远端</Button><Button size="sm" variant="light" onPress={() => { ui.current?.saveRemoteClipboardData().catch((e) => setError(String(e))); }}>复制到本机</Button></>}
+      <Button size="sm" variant="light" isDisabled={status!=='已连接'} onPress={() => ui.current?.ctrlAltDel()}>Ctrl+Alt+Del</Button>
+      <Button size="sm" variant="light" isDisabled={status!=='已连接'} onPress={() => ui.current?.metaKey()}>Windows 键</Button>
+      <select aria-label="远程分辨率" disabled={status!=='已连接'} value={resolution} onChange={(e) => setResolution(e.target.value)}><option value="dynamic">适应窗口</option><option value="1280x800">1280 × 800</option><option value="1920x1080">1920 × 1080</option></select>
+      <label><input type="checkbox" disabled={status!=='已连接'} checked={clipboard} onChange={(e) => { setClipboard(e.target.checked); ui.current?.setEnableClipboard(e.target.checked); }} /> 文本剪贴板</label>
+      {clipboard && <><Button size="sm" variant="light" isDisabled={status!=='已连接'} onPress={() => { ui.current?.sendClipboardData().catch((e) => setError(String(e))); }}>粘贴到远端</Button><Button size="sm" variant="light" isDisabled={status!=='已连接'} onPress={() => { ui.current?.saveRemoteClipboardData().catch((e) => setError(String(e))); }}>复制到本机</Button></>}
       <Button size="sm" variant="light" onPress={() => { container.current?.requestFullscreen().catch((e) => setError(String(e))); }}>全屏</Button>
     </div>
     <div className="rdp-canvas" ref={container} />
