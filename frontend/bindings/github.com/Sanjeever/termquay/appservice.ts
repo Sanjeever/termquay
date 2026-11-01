@@ -7,19 +7,38 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as rdp$0 from "./internal/rdp/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as ssh$0 from "./internal/ssh/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
+export function CloseRDP(id: string): $CancellablePromise<void> {
+    return $Call.ByID(419661336, id);
+}
+
 export function CloseTerminal(id: string): $CancellablePromise<void> {
     return $Call.ByID(3812665046, id);
 }
 
+export function OpenRDP(host: string, port: number): $CancellablePromise<rdp$0.Grant> {
+    return $Call.ByID(1856620084, host, port).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
 export function OpenTerminal(r: ssh$0.Request): $CancellablePromise<$models.OpenResult> {
     return $Call.ByID(3614603658, r).then(($result: any) => {
-        return $$createType0($result);
+        return $$createType1($result);
+    });
+}
+
+export function ProbeRDP(host: string, port: number): $CancellablePromise<$models.RDPProbe> {
+    return $Call.ByID(3045768502, host, port).then(($result: any) => {
+        return $$createType2($result);
     });
 }
 
@@ -31,5 +50,11 @@ export function TrustHost(host: string, port: number, fingerprint: string): $Can
     return $Call.ByID(1087470266, host, port, fingerprint);
 }
 
+export function TrustRDPCertificate(host: string, port: number, fingerprint: string): $CancellablePromise<void> {
+    return $Call.ByID(3202247973, host, port, fingerprint);
+}
+
 // Private type creation functions
-const $$createType0 = $models.OpenResult.createFrom;
+const $$createType0 = rdp$0.Grant.createFrom;
+const $$createType1 = $models.OpenResult.createFrom;
+const $$createType2 = $models.RDPProbe.createFrom;

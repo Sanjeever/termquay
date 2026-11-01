@@ -10,6 +10,8 @@ TermQuay 是使用 Go、Wails 和 React 构建的开源跨平台远程连接工�
 
 下列产品规划尚未全部实现，未提供稳定安装包。平台、真实远端和功能验收状态见 [handoff.md](handoff.md)。
 
+RDP 连接表单、IronRDP WASM 工作区和 Go RDCleanPath 桥接已接入，包含 TLS/NLA、证书指纹确认及变化阻止。浏览器 WASM 装载与隔离 TLS 桥接测试通过；真实 Windows 画面、输入、剪贴板和尺寸行为待验证。
+
 ## 产品规划
 
 - **连接管理**：SSH 与 RDP 共用嵌套分组，支持搜索、排序、移动和导入导出，连接数量不设置商业限制。

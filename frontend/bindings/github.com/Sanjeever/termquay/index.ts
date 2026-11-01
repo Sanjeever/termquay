@@ -7,5 +7,6 @@ export {
 };
 
 export {
-    OpenResult
+    OpenResult,
+    RDPProbe
 } from "./models.js";

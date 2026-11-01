@@ -23,6 +23,8 @@
 - Wails v3.0.0 + React 18.3.1 + HeroUI 2.8.5 + Tailwind 4.3.3 + Vite 8.2.4 生产构建通过，macOS 26.6.2 arm64 原生窗口启动并查看界面。Wails CLI 位于项目忽略目录 `.tools`。其他平台未验证。
 - SSH 已完成密码与私钥、应用运行期间主机信任、工作区关闭、取消和 PTY 尺寸同步。Streams 每次至多一个 32 KiB 帧等待 xterm.js `write` 回调确认。本地竞态测试通过主机身份、认证失败、背压期间输入、调整尺寸与关闭释放。
 - 应用自身真实 sg1 PTY 测试通过输入、输出及 `stty size` 尺寸核对。测试使用进程输入注入凭据；未写入配置或仓库。高速真实桌面输出、长时间负载和三平台资源回收仍待验证。
+- RDP 已接入 Iron Remote Desktop 0.11.0 + RDP 后端 0.7.0，包内嵌 WASM 随构建分发。浏览器实际执行 WASM 初始化与组件 ready 事件通过；不能据此认定原生 WebView 或真实 Windows 通过。
+- `internal/rdp` 使用标准库 ASN.1 与 gopher-rdp v1.0.8 的 TPKT/X.224 解析，完成 RDCleanPath、强制 TLS/NLA、证书确认及变化阻止、回环来源校验、目标绑定和一次性授权。隔离 TLS 端点的双向转发、错误来源/令牌/目标及关闭测试通过 `-race`。界面接入组合键、文本剪贴板开关、分辨率与全屏；真实目标待用户验证。
 - 用户已提供 SSH 与 WebDAV 测试资源，凭据不得写入本文件或仓库。RDP 功能由 Agent 实现，真实目标由用户稍后验证；实施期间不再向用户提问。
 - 下一步先完成阶段 0 的 Wails 桌面、Streams 终端、RDCleanPath 和 WebDAV 本地及真实验证，再依据验收结果推进。
 

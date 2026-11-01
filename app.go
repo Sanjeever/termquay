@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Sanjeever/termquay/internal/rdp"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -33,6 +34,7 @@ type AppService struct {
 	pendingTrust map[string]string
 	opening      int
 	closed       bool
+	rdp          *rdp.Bridge
 }
 
 func NewAppService() *AppService {
@@ -151,6 +153,9 @@ func (a *AppService) ServiceShutdown() error {
 	a.mu.Unlock()
 	for _, id := range ids {
 		a.CloseTerminal(id)
+	}
+	if a.rdp != nil {
+		return a.rdp.Close()
 	}
 	return nil
 }

@@ -33,3 +33,32 @@ export class OpenResult {
         return new OpenResult($$parsedSource as Partial<OpenResult>);
     }
 }
+
+export class RDPProbe {
+    "fingerprint": string;
+    "trust_required": boolean;
+    "reason": string;
+
+    /** Creates a new RDPProbe instance. */
+    constructor($$source: Partial<RDPProbe> = {}) {
+        if (!("fingerprint" in $$source)) {
+            this["fingerprint"] = "";
+        }
+        if (!("trust_required" in $$source)) {
+            this["trust_required"] = false;
+        }
+        if (!("reason" in $$source)) {
+            this["reason"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RDPProbe instance from a string or object.
+     */
+    static createFrom($$source: any = {}): RDPProbe {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new RDPProbe($$parsedSource as Partial<RDPProbe>);
+    }
+}

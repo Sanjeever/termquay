@@ -36,3 +36,8 @@ textarea { background: #242831; border: 1px solid #3a414c; border-radius: 6px; w
 .error { color: #f3a7a7; font-size: 12px; overflow-wrap: anywhere; }
 .host-trust { display: flex; flex-direction: column; gap: 8px; font-size: 12px; background: #242c30; padding: 12px; border-radius: 6px; }
 .host-trust code { font-size: 10px; overflow-wrap: anywhere; color: #b9d8ce; }
+.rdp-view { display: flex; flex-direction: column; height: 100%; }
+.rdp-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 0 10px 8px 0; border-bottom: 1px solid #2a2e35; }
+.rdp-toolbar select { border: 1px solid #3a414c; border-radius: 5px; background: #242831; padding: 6px; font-size: 12px; }
+.rdp-toolbar label { display: flex; gap: 6px; align-items: center; font-size: 12px; color: #9ba5b2; }
+.rdp-canvas { flex: 1; min-height: 0; min-width: 0; overflow: auto; }
