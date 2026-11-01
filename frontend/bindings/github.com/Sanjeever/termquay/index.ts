@@ -8,6 +8,7 @@ export {
 
 export {
     Catalog,
+    MonitorEvent,
     OpenResult,
     RDPLaunch,
     RDPProbe,

@@ -43,10 +43,11 @@ type AppService struct {
 	backupMu     sync.Mutex
 	preview      *pendingRestore
 	fileSlots    chan struct{}
+	monitors     map[string]context.CancelFunc
 }
 
 func NewAppService() *AppService {
-	return &AppService{terminals: map[string]*pendingTerminal{}, trusted: map[string]string{}, pendingTrust: map[string]string{}, fileSlots: make(chan struct{}, 4)}
+	return &AppService{terminals: map[string]*pendingTerminal{}, trusted: map[string]string{}, pendingTrust: map[string]string{}, fileSlots: make(chan struct{}, 4), monitors: map[string]context.CancelFunc{}}
 }
 
 func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (OpenResult, error) {
@@ -148,7 +149,12 @@ func (a *AppService) CloseTerminal(id string) {
 	a.mu.Lock()
 	p := a.terminals[id]
 	delete(a.terminals, id)
+	cancel := a.monitors[id]
+	delete(a.monitors, id)
 	a.mu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
 	if p != nil {
 		p.timer.Stop()
 		p.terminal.Close()

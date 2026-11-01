@@ -4,6 +4,7 @@ import { ReadDirectory, ReadRemoteFile, SaveRemoteFile, CreateRemoteDirectory, R
 import type { Document, Entry } from '../../../bindings/github.com/Sanjeever/termquay/internal/files/models';
 import TerminalView from '../terminal/TerminalView';
 import CodeEditor from './CodeEditor';
+import MonitorPanel from '../monitor/MonitorPanel';
 
 type Draft = Document & { saved: string; error: string; saving: boolean };
 
@@ -14,6 +15,7 @@ export default function SSHWorkspace({ id, onDirtyChange }: { id: string; onDirt
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [active, setActive] = useState('terminal');
   const [filesOpen, setFilesOpen] = useState(true);
+  const [monitorOpen,setMonitorOpen]=useState(false);
   const [width, setWidth] = useState(Number(localStorage.getItem('termquay.files-width')) || 220);
   const [action, setAction] = useState<{ kind: string; path: string }>();
   const [closing, setClosing] = useState('');
@@ -75,9 +77,10 @@ export default function SSHWorkspace({ id, onDirtyChange }: { id: string; onDirt
         onPointerDown={(e) => { const start = e.clientX; const initial = width; const element = e.currentTarget; element.setPointerCapture(e.pointerId); element.onpointermove = (event) => setWidth(Math.max(160, Math.min(500, initial + event.clientX - start))); element.onpointerup = () => { element.onpointermove = null; element.onpointerup = null; }; }} />
     </>}
     <div className="ssh-center">
-      <div className="inner-tabs"><button onClick={() => { localStorage.setItem('termquay.files-width', String(width)); setFilesOpen(!filesOpen); }} aria-label={filesOpen ? '收起文件面板' : '展开文件面板'}>文件</button><button className={active === 'terminal' ? 'selected' : ''} onClick={() => setActive('terminal')}>终端</button>{drafts.map((d) => <div key={d.path} className={active === d.path ? 'selected' : ''}><button onClick={() => setActive(d.path)}>{d.path.split('/').pop()}{d.content !== d.saved ? ' ●' : ''}</button><button aria-label={`关闭文件 ${d.path}`} onClick={() => close(d.path)}>×</button></div>)}</div>
+      <div className="inner-tabs"><button onClick={() => { localStorage.setItem('termquay.files-width', String(width)); setFilesOpen(!filesOpen); }} aria-label={filesOpen ? '收起文件面板' : '展开文件面板'}>文件</button><button className={active === 'terminal' ? 'selected' : ''} onClick={() => setActive('terminal')}>终端</button>{drafts.map((d) => <div key={d.path} className={active === d.path ? 'selected' : ''}><button onClick={() => setActive(d.path)}>{d.path.split('/').pop()}{d.content !== d.saved ? ' ●' : ''}</button><button aria-label={`关闭文件 ${d.path}`} onClick={() => close(d.path)}>×</button></div>)}<button className="monitor-toggle" onClick={()=>setMonitorOpen(!monitorOpen)} aria-label={monitorOpen?'收起监控面板':'展开监控面板'}>监控</button></div>
       <div className="terminal-tab" hidden={active !== 'terminal'}><TerminalView id={id} /></div>
       {drafts.map((d) => <div key={d.path} className="editor-tab" hidden={active !== d.path}><div className="editor-toolbar"><span>{d.path}</span><Button size="sm" isDisabled={d.saving || d.content === d.saved} onPress={() => void save(d)}>保存</Button></div>{d.error && <p role="alert" className="error">{d.error}</p>}{closing === d.path && <div className="draft-confirm">文件有未保存修改<Button size="sm" onPress={() => { void save(d); setClosing(''); }}>保存</Button><Button size="sm" color="danger" onPress={() => close(d.path, true)}>放弃修改</Button><Button size="sm" variant="light" onPress={() => setClosing('')}>取消</Button></div>}<CodeEditor path={d.path} content={d.content} onChange={(value) => setDrafts((prev) => prev.map((item) => item.path === d.path ? { ...item, content: value } : item))} onSave={() => void save(d)} /></div>)}
     </div>
+    {monitorOpen&&<MonitorPanel id={id}/>}
   </div>;
 }

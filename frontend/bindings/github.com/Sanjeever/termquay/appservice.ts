@@ -139,6 +139,10 @@ export function SaveRemoteFile(id: string, document: files$0.Document): $Cancell
     });
 }
 
+export function SubscribeMonitor(id: string): $CancellablePromise<void> {
+    return $Call.ByID(3400708712, id);
+}
+
 export function TestWebDAV(options: backup$0.WebDAVOptions): $CancellablePromise<void> {
     return $Call.ByID(3767880439, options);
 }
@@ -149,6 +153,10 @@ export function TrustHost(host: string, port: number, fingerprint: string): $Can
 
 export function TrustRDPCertificate(host: string, port: number, fingerprint: string): $CancellablePromise<void> {
     return $Call.ByID(3202247973, host, port, fingerprint);
+}
+
+export function UnsubscribeMonitor(id: string): $CancellablePromise<void> {
+    return $Call.ByID(4106085263, id);
 }
 
 export function UseSessionStorage(): $CancellablePromise<void> {

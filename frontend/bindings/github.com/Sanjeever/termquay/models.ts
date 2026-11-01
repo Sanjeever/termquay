@@ -7,6 +7,9 @@ import { Create as $Create } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as monitor$0 from "./internal/monitor/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as rdp$0 from "./internal/rdp/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -46,6 +49,39 @@ export class Catalog {
             $$parsedSource["connections"] = $$createField1_0($$parsedSource["connections"]);
         }
         return new Catalog($$parsedSource as Partial<Catalog>);
+    }
+}
+
+export class MonitorEvent {
+    "id": string;
+    "sample": monitor$0.Sample | null;
+    "error": string;
+
+    /** Creates a new MonitorEvent instance. */
+    constructor($$source: Partial<MonitorEvent> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("sample" in $$source)) {
+            this["sample"] = null;
+        }
+        if (!("error" in $$source)) {
+            this["error"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MonitorEvent instance from a string or object.
+     */
+    static createFrom($$source: any = {}): MonitorEvent {
+        const $$createField1_0 = $$createType5;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("sample" in $$parsedSource) {
+            $$parsedSource["sample"] = $$createField1_0($$parsedSource["sample"]);
+        }
+        return new MonitorEvent($$parsedSource as Partial<MonitorEvent>);
     }
 }
 
@@ -102,7 +138,7 @@ export class RDPLaunch {
      * Creates a new RDPLaunch instance from a string or object.
      */
     static createFrom($$source: any = {}): RDPLaunch {
-        const $$createField0_0 = $$createType4;
+        const $$createField0_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("grant" in $$parsedSource) {
             $$parsedSource["grant"] = $$createField0_0($$parsedSource["grant"]);
@@ -180,9 +216,9 @@ export class RestorePreview {
      * Creates a new RestorePreview instance from a string or object.
      */
     static createFrom($$source: any = {}): RestorePreview {
-        const $$createField3_0 = $$createType5;
-        const $$createField4_0 = $$createType5;
-        const $$createField5_0 = $$createType5;
+        const $$createField3_0 = $$createType7;
+        const $$createField4_0 = $$createType7;
+        const $$createField5_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("added" in $$parsedSource) {
             $$parsedSource["added"] = $$createField3_0($$parsedSource["added"]);
@@ -202,5 +238,7 @@ const $$createType0 = store$0.Group.createFrom;
 const $$createType1 = $Create.Array($$createType0);
 const $$createType2 = store$0.Connection.createFrom;
 const $$createType3 = $Create.Array($$createType2);
-const $$createType4 = rdp$0.Grant.createFrom;
-const $$createType5 = $Create.Array($Create.Any);
+const $$createType4 = monitor$0.Sample.createFrom;
+const $$createType5 = $Create.Nullable($$createType4);
+const $$createType6 = rdp$0.Grant.createFrom;
+const $$createType7 = $Create.Array($Create.Any);
