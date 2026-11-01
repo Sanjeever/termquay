@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/json"
 	"strings"
@@ -49,7 +50,7 @@ func TestCatalogCredentialsAndGroups(t *testing.T) {
 	if err = a.SaveConnection(c, terminal.Request{}); err != nil {
 		t.Fatal(err)
 	}
-	r, err := a.savedRequest(c.ID)
+	r, _, err := a.savedRequest(c.ID)
 	if err != nil || r.Password != "test-credential-not-real" {
 		t.Fatal("编辑连接丢失已保存凭据")
 	}
@@ -89,5 +90,24 @@ func TestRestorePreservesLocalSettingsAndRejectsStalePreview(t *testing.T) {
 	a.preview = &pendingRestore{id: "preview2", data: before, base: before, expires: time.Now().Add(time.Minute)}
 	if err = a.ConfirmRestore("preview2"); err == nil {
 		t.Fatal("覆盖预览后变化的本机数据")
+	}
+}
+
+func TestRDPDomainPersistsIntoLaunch(t *testing.T) {
+	a := testAppStore(t)
+	c := store.Connection{ID: "rdp", Name: "测试桌面", Protocol: "rdp", Host: "example.invalid", Port: 3389, Username: "test", Domain: "EXAMPLE"}
+	if err := a.SaveConnection(c, terminal.Request{Password: "test-only"}); err != nil {
+		t.Fatal(err)
+	}
+	launch, err := a.OpenSavedRDP(c.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer a.rdp.Close()
+	if launch.Domain != "EXAMPLE" || launch.Username != "test" || launch.Password != "test-only" {
+		t.Fatal("RDP 启动参数丢失域或凭据")
+	}
+	if _, err = a.OpenSavedTerminal(context.Background(), c.ID); err == nil {
+		t.Fatal("允许以 SSH 打开 RDP 连接")
 	}
 }

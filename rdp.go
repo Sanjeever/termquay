@@ -18,18 +18,25 @@ type RDPLaunch struct {
 	Grant    rdp.Grant `json:"grant"`
 	Username string    `json:"username"`
 	Password string    `json:"password"`
+	Domain   string    `json:"domain"`
 }
 
 func (a *AppService) OpenSavedRDP(id string) (RDPLaunch, error) {
-	r, err := a.savedRequest(id)
+	r, c, err := a.savedRequest(id)
 	if err != nil {
 		return RDPLaunch{}, err
+	}
+	if c.Protocol != "rdp" {
+		return RDPLaunch{}, errors.New("所选连接不是 RDP")
+	}
+	if r.PrivateKey != "" {
+		return RDPLaunch{}, errors.New("RDP 无法使用 SSH 私钥，请保存密码凭据")
 	}
 	grant, err := a.OpenRDP(r.Host, r.Port)
 	if err != nil {
 		return RDPLaunch{}, err
 	}
-	return RDPLaunch{Grant: grant, Username: r.Username, Password: r.Password}, nil
+	return RDPLaunch{Grant: grant, Username: r.Username, Password: r.Password, Domain: c.Domain}, nil
 }
 
 func (a *AppService) ProbeRDP(ctx context.Context, host string, port int) (RDPProbe, error) {

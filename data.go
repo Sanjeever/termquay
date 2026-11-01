@@ -234,15 +234,15 @@ func (a *AppService) DeleteConnection(id string) error {
 	return a.store.Replace(d)
 }
 
-func (a *AppService) savedRequest(id string) (terminal.Request, error) {
+func (a *AppService) savedRequest(id string) (terminal.Request, store.Connection, error) {
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
 	if err := a.openStorage(); err != nil {
-		return terminal.Request{}, err
+		return terminal.Request{}, store.Connection{}, err
 	}
 	d, err := a.store.Read()
 	if err != nil {
-		return terminal.Request{}, err
+		return terminal.Request{}, store.Connection{}, err
 	}
 	for _, c := range d.Connections {
 		if c.ID != id {
@@ -261,21 +261,24 @@ func (a *AppService) savedRequest(id string) (terminal.Request, error) {
 					Passphrase string `json:"passphrase"`
 				}
 				if err = json.Unmarshal([]byte(credential.Secret), &key); err != nil {
-					return r, err
+					return r, c, err
 				}
 				r.PrivateKey = key.Key
 				r.Passphrase = key.Passphrase
 			}
 		}
-		return r, nil
+		return r, c, nil
 	}
-	return terminal.Request{}, errors.New("连接不存在")
+	return terminal.Request{}, store.Connection{}, errors.New("连接不存在")
 }
 
 func (a *AppService) OpenSavedTerminal(ctx context.Context, id string) (OpenResult, error) {
-	r, err := a.savedRequest(id)
+	r, c, err := a.savedRequest(id)
 	if err != nil {
 		return OpenResult{}, err
+	}
+	if c.Protocol != "ssh" {
+		return OpenResult{}, errors.New("所选连接不是 SSH")
 	}
 	return a.OpenTerminal(ctx, r)
 }

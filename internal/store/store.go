@@ -29,6 +29,7 @@ type Connection struct {
 	Host         string `json:"host"`
 	Port         int    `json:"port"`
 	Username     string `json:"username"`
+	Domain       string `json:"domain,omitempty"`
 	CredentialID string `json:"credential_id"`
 }
 

@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"fmt"
+	remotefiles "github.com/Sanjeever/termquay/internal/files"
 	"io"
 	"os"
 	"path"
@@ -153,30 +155,43 @@ func (a *AppService) StartUpload(id, directory string) (Transfer, error) {
 			return err
 		}
 		defer source.Close()
-		temporary := path.Join(path.Dir(remote), ".termquay-upload-"+base64.RawURLEncoding.EncodeToString(randomBytes(16)))
-		target, err := c.OpenFile(temporary, os.O_CREATE|os.O_EXCL|os.O_WRONLY)
+		staging, err := remotefiles.CreateStaging(c, path.Dir(remote))
 		if err != nil {
 			return err
 		}
-		published := false
+		temporary := path.Join(staging, "data")
+		target, err := c.OpenFile(temporary, os.O_CREATE|os.O_EXCL|os.O_WRONLY)
+		if err != nil {
+			return errors.Join(err, remotefiles.RemoveStaging(c, staging))
+		}
 		defer func() {
 			target.Close()
-			if !published {
-				cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				defer cancel()
-				cleanup, err := owner.FileClient(cleanupCtx)
-				if err != nil {
-					result = errors.Join(result, errors.New("远端临时文件可能残留: "+temporary))
-					return
+			if ctx.Err() == nil {
+				cleanupErr := remotefiles.RemoveStaging(c, staging)
+				if result == nil && cleanupErr != nil {
+					result = fmt.Errorf("文件已上传，但临时目录清理失败: %w", cleanupErr)
+				} else {
+					result = errors.Join(result, cleanupErr)
 				}
-				defer cleanup.Close()
-				if err = cleanup.Remove(temporary); err != nil {
-					result = errors.Join(result, err)
-				}
+				return
+			}
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			cleanup, err := owner.FileClient(cleanupCtx)
+			if err != nil {
+				result = errors.Join(result, errors.New("远端临时目录可能残留: "+staging))
+				return
+			}
+			defer cleanup.Close()
+			if err = remotefiles.RemoveStaging(cleanup, staging); err != nil {
+				result = errors.Join(result, err)
 			}
 		}()
 		writer := &transferWriter{ctx: ctx, writer: target, report: report, total: info.Size()}
 		if _, err = io.CopyBuffer(writer, source, make([]byte, 64<<10)); err != nil {
+			return err
+		}
+		if err = target.Chmod(info.Mode().Perm()); err != nil {
 			return err
 		}
 		if err = target.Close(); err != nil {
@@ -188,7 +203,6 @@ func (a *AppService) StartUpload(id, directory string) (Transfer, error) {
 		if err = c.Rename(temporary, remote); err != nil {
 			return errors.New("上传发布失败，同名目标不会被覆盖: " + err.Error())
 		}
-		published = true
 		return nil
 	})
 }

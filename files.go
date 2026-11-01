@@ -40,10 +40,10 @@ func (a *AppService) fileClient(ctx context.Context, id string) (*sftp.Client, f
 	return c, func() { stop(); c.Close(); <-a.fileSlots }, nil
 }
 
-func (a *AppService) ReadDirectory(ctx context.Context, id, remote string) ([]files.Entry, error) {
+func (a *AppService) ReadDirectory(ctx context.Context, id, remote string) (files.Directory, error) {
 	c, close, err := a.fileClient(ctx, id)
 	if err != nil {
-		return nil, err
+		return files.Directory{}, err
 	}
 	defer close()
 	return files.List(ctx, c, remote)

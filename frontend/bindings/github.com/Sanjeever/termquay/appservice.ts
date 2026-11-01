@@ -113,7 +113,7 @@ export function ProbeRDP(host: string, port: number): $CancellablePromise<$model
     return $Call.ByID(3045768502, host, port);
 }
 
-export function ReadDirectory(id: string, remote: string): $CancellablePromise<files$0.Entry[] | null> {
+export function ReadDirectory(id: string, remote: string): $CancellablePromise<files$0.Directory> {
     return $Call.ByID(2779778161, id, remote);
 }
 

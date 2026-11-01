@@ -11,6 +11,7 @@ import (
 	"time"
 
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
+	"github.com/pkg/sftp"
 )
 
 func TestSG1Files(t *testing.T) {
@@ -52,6 +53,21 @@ func TestSG1Files(t *testing.T) {
 			t.Error(err)
 		}
 	}()
+	empty, err := List(ctx, client, dir)
+	if err != nil || empty.Path != dir || len(empty.Entries) != 0 {
+		t.Fatal("空目录路径或内容不一致")
+	}
+	stage, err := CreateStaging(client, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stageInfo, err := client.Stat(stage)
+	if err != nil || stageInfo.Mode().Perm() != 0700 {
+		t.Fatal("临时目录权限不是 0700")
+	}
+	if err = RemoveStaging(client, stage); err != nil {
+		t.Fatal(err)
+	}
 	remote := path.Join(dir, "config.txt")
 	f, err := client.OpenFile(remote, os.O_CREATE|os.O_EXCL|os.O_WRONLY)
 	if err != nil {
@@ -66,6 +82,11 @@ func TestSG1Files(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	before, err := client.Lstat(remote)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ownership := before.Sys().(*sftp.FileStat)
 	doc.Content = "after\n"
 	saved, err := Save(client, doc)
 	if err != nil || saved.Content != "after\n" {
@@ -74,6 +95,10 @@ func TestSG1Files(t *testing.T) {
 	info, err := client.Stat(remote)
 	if err != nil || info.Mode().Perm() != 0600 {
 		t.Fatal("保存没有保留权限")
+	}
+	afterOwnership := info.Sys().(*sftp.FileStat)
+	if ownership.UID != afterOwnership.UID || ownership.GID != afterOwnership.GID {
+		t.Fatal("保存没有保留属主与用户组")
 	}
 	f, err = client.OpenFile(remote, os.O_WRONLY|os.O_TRUNC)
 	if err != nil {
@@ -92,7 +117,7 @@ func TestSG1Files(t *testing.T) {
 		t.Fatal("允许隐式编辑符号链接")
 	}
 	entries, err := List(ctx, client, dir)
-	if err != nil || len(entries) != 2 {
+	if err != nil || len(entries.Entries) != 2 || entries.Path != dir {
 		t.Fatal("目录读取不一致")
 	}
 	t.Log("真实 SFTP 浏览、保存、权限、冲突与符号链接检查通过")

@@ -27,6 +27,7 @@ func TestCrossDeviceRestore(t *testing.T) {
 	}
 	defer b.Close()
 	d := store.Data{Groups: []store.Group{{ID: "g", Name: "测试"}}, Connections: []store.Connection{{ID: "c", GroupID: "g", Name: "隔离连接", Protocol: "ssh", Host: "example.invalid", Port: 22, CredentialID: "p"}}, Credentials: []store.Credential{{ID: "p", Kind: "password", Secret: "test-secret-not-a-real-credential"}}}
+	d.Connections = append(d.Connections, store.Connection{ID: "rdp", GroupID: "g", Name: "隔离桌面", Protocol: "rdp", Host: "desktop.invalid", Port: 3389, Username: "test", Domain: "EXAMPLE", CredentialID: "p"})
 	if err = a.Replace(d); err != nil {
 		t.Fatal(err)
 	}

@@ -77,6 +77,8 @@ func localServer(t *testing.T) (Request, <-chan string) {
 										}
 									}
 								}()
+							case "subsystem":
+								req.Reply(true, nil)
 							default:
 								req.Reply(false, nil)
 							}
@@ -89,6 +91,30 @@ func localServer(t *testing.T) (Request, <-chan string) {
 	host, port, _ := net.SplitHostPort(listener.Addr().String())
 	n, _ := strconv.Atoi(port)
 	return Request{Host: host, Port: n, Username: "test", Password: "local-test", Fingerprint: gossh.FingerprintSHA256(signer.PublicKey()), Cols: 80, Rows: 24}, inputs
+}
+
+func TestSFTPInitializationCancellationPreservesPTY(t *testing.T) {
+	r, _ := localServer(t)
+	terminal, err := Dial(context.Background(), r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer terminal.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { _, err := terminal.FileClient(ctx); done <- err }()
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("SFTP 初始化没有按上下文取消: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("取消没有中断 SFTP 初始化")
+	}
+	if err = terminal.Resize(90, 30); err != nil {
+		t.Fatal("取消 SFTP 中断了交互 PTY")
+	}
 }
 
 type testStream struct {

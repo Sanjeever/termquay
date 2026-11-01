@@ -9,6 +9,7 @@ export interface Connection {
     "host": string;
     "port": number;
     "username": string;
+    "domain"?: string;
     "credential_id": string;
 }
 

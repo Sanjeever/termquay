@@ -8,7 +8,7 @@ import '@xterm/xterm/css/xterm.css';
 export default function TerminalView({ id }: { id: string }) {
   const container = useRef<HTMLDivElement>(null);
   const [error, setError] = useState('');
-  const [connected, setConnected] = useState(false);
+  const [connected, setConnected] = useState<boolean|null>(null);
   useEffect(() => {
     const term = new Terminal({
       fontFamily: '"SFMono-Regular", Consolas, "Liberation Mono", monospace',
@@ -50,6 +50,6 @@ export default function TerminalView({ id }: { id: string }) {
   }, [id]);
   return <div className="terminal-view">
     <div className="terminal-canvas" ref={container} />
-    <div className="session-status"><span>{connected ? '已连接' : '已断开'}</span>{error && <span role="alert" className="error">{error}</span>}</div>
+    <div className="session-status"><span>{connected===null?'连接中':connected ? '已连接' : '已断开'}</span>{error && <span role="alert" className="error">{error}</span>}</div>
   </div>;
 }

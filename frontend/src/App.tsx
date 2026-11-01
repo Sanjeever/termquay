@@ -19,11 +19,12 @@ export default function App() {
   const [active, setActive] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [canCancel,setCanCancel]=useState(false);
   const [fingerprint, setFingerprint] = useState('');
   const [certificateReason, setCertificateReason] = useState('');
   const [protocol, setProtocol] = useState('ssh');
   const formRef = useRef<HTMLFormElement>(null);
-  const pending = useRef<ReturnType<typeof OpenTerminal> | null>(null);
+  const pending = useRef<{cancel():void} | null>(null);
   const [catalog, setCatalog] = useState<Catalog&{groups:Group[];connections:Connection[]}>();
   const [storageError, setStorageError] = useState('');
   const [editing, setEditing] = useState<Connection>();
@@ -47,20 +48,23 @@ export default function App() {
     try {
       if (c.protocol === 'ssh') {
         if (trust) await TrustHost(c.host, c.port, fingerprint);
-        pending.current = OpenSavedTerminal(c.id);
-        const result = await pending.current;
+        const operation=OpenSavedTerminal(c.id);pending.current=operation;setCanCancel(true);
+        const result = await operation;
         if (result.trust_required) { setProtocol('ssh'); savedTrust.current = c; setFingerprint(result.fingerprint); return; }
         setWorkspaces((prev) => [...prev, { id: result.id, name: c.name }]); setActive(result.id);
       } else {
         if (trust) await TrustRDPCertificate(c.host, c.port, fingerprint);
-        const probe = await ProbeRDP(c.host, c.port);
+        const probeOperation=ProbeRDP(c.host,c.port);pending.current=probeOperation;setCanCancel(true);
+        const probe = await probeOperation;
         if (probe.trust_required) { setProtocol('rdp'); savedTrust.current = c; setFingerprint(probe.fingerprint); setCertificateReason(probe.reason); return; }
-        const launch = await OpenSavedRDP(c.id); const view = createRef<RDPHandle>();
+        const launchOperation=OpenSavedRDP(c.id);pending.current=launchOperation;
+        const launch = await launchOperation; const view = createRef<RDPHandle>();
         flushSync(() => { setWorkspaces((prev) => [...prev, { id: launch.grant.id, name: c.name, rdp: launch.grant, view }]); setActive(launch.grant.id); });
-        try { await view.current!.connect(launch.username, launch.password, ''); } finally { launch.password = ''; }
+        pending.current={cancel:()=>{setWorkspaces(prev=>prev.filter(w=>w.id!==launch.grant.id));setActive(workspaces[0]?.id||'')}};
+        try { await view.current!.connect(launch.username, launch.password, launch.domain); } finally { launch.password = ''; }
       }
       setFingerprint(''); savedTrust.current = undefined; setSettings(false);
-    } catch (e) { setError(String(e)); } finally { pending.current = null; setBusy(false); }
+    } catch (e) { setError(String(e)); } finally { pending.current = null; setCanCancel(false);setBusy(false); }
   }
 
   async function save() {
@@ -68,7 +72,7 @@ export default function App() {
     const data = new FormData(form);
     const host = String(data.get('host')).trim();
     try {
-      await SaveConnection({ id: editing?.id || '', group_id: String(data.get('group') || ''), name: String(data.get('name') || host), protocol, host, port: Number(data.get('port')), username: String(data.get('username')), credential_id: '' }, {
+      await SaveConnection({ id: editing?.id || '', group_id: String(data.get('group') || ''), name: String(data.get('name') || host), protocol, host, port: Number(data.get('port')), username: String(data.get('username')),domain:String(data.get('domain')||''), credential_id: '' }, {
         host, port: Number(data.get('port')), username: String(data.get('username')), password: String(data.get('password')), private_key: String(data.get('private_key') || ''), passphrase: String(data.get('passphrase') || ''), fingerprint: '', cols: 100, rows: 30,
       });
       await reload(); setEditing(undefined); form.reset(); setError('');
@@ -88,11 +92,14 @@ export default function App() {
     try {
       if (protocol === 'rdp') {
         if (trust) await TrustRDPCertificate(request.host, request.port, fingerprint);
-        const probe = await ProbeRDP(request.host, request.port);
+        const probeOperation=ProbeRDP(request.host,request.port);pending.current=probeOperation;setCanCancel(true);
+        const probe = await probeOperation;
         if (probe.trust_required) { setFingerprint(probe.fingerprint); setCertificateReason(probe.reason); return; }
-        const grant = await OpenRDP(request.host, request.port);
+        const grantOperation=OpenRDP(request.host,request.port);pending.current=grantOperation;
+        const grant = await grantOperation;
         const view = createRef<RDPHandle>();
         flushSync(() => { setWorkspaces((prev) => [...prev, { id: grant.id, name: request.host, rdp: grant, view }]); setActive(grant.id); });
+        pending.current={cancel:()=>{setWorkspaces(prev=>prev.filter(w=>w.id!==grant.id));setActive(workspaces[0]?.id||'')}};
         setFingerprint('');
         const password = request.password; request.password = '';
         (form.elements.namedItem('password') as HTMLInputElement).value = '';
@@ -101,8 +108,8 @@ export default function App() {
         return;
       }
       if (trust) await TrustHost(request.host, request.port, fingerprint);
-      pending.current = OpenTerminal(request);
-      const result = await pending.current;
+      const operation=OpenTerminal(request);pending.current=operation;setCanCancel(true);
+      const result = await operation;
       if (result.trust_required) { setFingerprint(result.fingerprint); return; }
       setFingerprint('');
       setWorkspaces((prev) => [...prev, { id: result.id, name: `${request.username}@${request.host}` }]);
@@ -110,7 +117,7 @@ export default function App() {
       (form.elements.namedItem('password') as HTMLInputElement).value = '';
       const keyInput=form.elements.namedItem('private_key') as HTMLTextAreaElement|null;if(keyInput)keyInput.value='';setCredentialEpoch(value=>value+1);
     } catch (e) { setError(String(e)); }
-    finally { pending.current = null; setBusy(false); request.password = ''; request.private_key = ''; }
+    finally { pending.current = null;setCanCancel(false); setBusy(false); request.password = ''; request.private_key = ''; }
   }
 
   return <main className="app-shell">
@@ -138,14 +145,14 @@ export default function App() {
           <Input key={protocol} name="port" label="端口" type="number" defaultValue={String(editing?.port || (protocol === 'ssh' ? 22 : 3389))} min={1} max={65535} isRequired size="sm" />
           <Input name="username" label="用户名" defaultValue={editing?.username} isRequired size="sm" autoComplete="off" />
           <Input key={`password-${credentialEpoch}`} name="password" label="密码" type="password" size="sm" autoComplete="off" />
-          {protocol === 'rdp' && <Input name="domain" label="域（可选）" size="sm" />}
+          {protocol === 'rdp' && <Input name="domain" label="域（可选）" defaultValue={editing?.domain} size="sm" />}
           {protocol === 'ssh' && <details><summary>私钥认证</summary><label className="field-label" htmlFor="private-key">私钥内容</label><textarea id="private-key" name="private_key" rows={5} spellCheck={false} /><Input key={`passphrase-${credentialEpoch}`} name="passphrase" label="私钥口令" type="password" size="sm" autoComplete="off" /></details>}
           <select name="group" aria-label="连接分组" defaultValue={editing?.group_id || ''}><option value="">未分组</option>{catalog?.groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select>
           {error && <p role="alert" className="error">{error}</p>}
           {fingerprint && <div className="host-trust"><p>{protocol === 'ssh' ? '首次连接，请核对主机指纹' : '请核对 RDP 证书指纹'}</p><code>{fingerprint}</code>{protocol === 'rdp' && <p>{certificateReason}</p>}<Button size="sm" onPress={() => void connect(true)}>信任并连接</Button></div>}
           <Button type="submit" size="sm" color="primary" isLoading={busy}>连接</Button>
           <Button size="sm" variant="bordered" onPress={() => void save()} isDisabled={busy || !catalog}>保存连接</Button>
-          {busy && <Button size="sm" variant="light" onPress={() => pending.current?.cancel()}>取消连接</Button>}
+          {busy && canCancel && <Button size="sm" variant="light" onPress={() => pending.current?.cancel()}>取消连接</Button>}
         </form>
       </aside>
       <section className="workspace-area">
@@ -159,7 +166,7 @@ export default function App() {
         {closingWorkspace&&<div className="draft-confirm">工作区有未保存文件<Button size="sm" color="danger" onPress={()=>{setWorkspaces((prev)=>prev.filter(w=>w.id!==closingWorkspace));if(active===closingWorkspace)setActive(workspaces.find(w=>w.id!==closingWorkspace)?.id||'');setClosingWorkspace('');}}>放弃修改并关闭</Button><Button size="sm" variant="light" onPress={()=>setClosingWorkspace('')}>取消</Button></div>}
         {settings && <BackupSettings onRestore={() => void reload()} />}
         {workspaces.length === 0 && !settings && <div className="workspace-empty"><span>终端工作区</span></div>}
-        {workspaces.map((w) => <div className="workspace" hidden={settings || active !== w.id} key={w.id}>{w.rdp ? <RDPView grant={w.rdp} ref={w.view} /> : <SSHWorkspace id={w.id} onDirtyChange={(dirty)=>setWorkspaces(prev=>prev.map(item=>item.id===w.id?{...item,dirty}:item))} />}</div>)}
+        {workspaces.map((w) => <div className="workspace" hidden={settings || active !== w.id} key={w.id}>{w.rdp ? <RDPView grant={w.rdp} ref={w.view} /> : <SSHWorkspace id={w.id} onDirtyChange={(dirty)=>setWorkspaces(prev=>prev.map(item=>item.id===w.id?{...item,dirty}:item))} onTransferStarted={()=>setTransfersOpen(true)} />}</div>)}
       </section>
     </div>
     {transfersOpen&&<TransferPanel/>}

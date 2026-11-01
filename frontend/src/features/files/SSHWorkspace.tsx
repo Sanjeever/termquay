@@ -9,7 +9,7 @@ import MonitorPanel from '../monitor/MonitorPanel';
 
 type Draft = Document & { saved: string; error: string; saving: boolean };
 
-export default function SSHWorkspace({ id, onDirtyChange }: { id: string; onDirtyChange(dirty: boolean): void }) {
+export default function SSHWorkspace({ id, onDirtyChange,onTransferStarted }: { id: string; onDirtyChange(dirty: boolean): void;onTransferStarted():void }) {
   const [directory, setDirectory] = useState('');
   const [entries, setEntries] = useState<Entry[]>([]);
   const [error, setError] = useState('');
@@ -32,7 +32,7 @@ export default function SSHWorkspace({ id, onDirtyChange }: { id: string; onDirt
   async function load(remote: string) {
     pending.current?.cancel(); setError('');
     const request = ReadDirectory(id, remote); pending.current = request;
-    try { const list = await request ?? []; if (pending.current !== request) return; setEntries(list); setDirectory(remote || (list.length ? list[0].path.slice(0, list[0].path.lastIndexOf('/')) || '/' : '.')); } catch (e) { if (pending.current === request) setError(String(e)); }
+    try { const result = await request; if (pending.current !== request) return; setEntries(result.entries??[]); setDirectory(result.path); } catch (e) { if (pending.current === request) setError(String(e)); }
   }
   useEffect(() => { void load(''); return () => { pending.current?.cancel(); }; }, [id]);
 
@@ -69,11 +69,11 @@ export default function SSHWorkspace({ id, onDirtyChange }: { id: string; onDirt
   return <div className="ssh-workspace">
     {filesOpen && <>
       <aside className="file-panel" style={{ width }}>
-        <div className="file-toolbar"><button aria-label="上级目录" onClick={() => void load(directory.slice(0, directory.lastIndexOf('/')) || '/')}>↑</button><button aria-label="刷新目录" onClick={() => void load(directory)}>刷新</button><button onClick={() => setAction({ kind: 'mkdir', path: directory })}>新建目录</button><button onClick={()=>{StartUpload(id,directory).catch(e=>setError(String(e)))}}>上传</button></div>
+        <div className="file-toolbar"><button aria-label="上级目录" onClick={() => void load(directory.slice(0, directory.lastIndexOf('/')) || '/')}>↑</button><button aria-label="刷新目录" onClick={() => void load(directory)}>刷新</button><button onClick={() => setAction({ kind: 'mkdir', path: directory })}>新建目录</button><button onClick={()=>{StartUpload(id,directory).then(result=>{if(result.id)onTransferStarted()}).catch(e=>setError(String(e)))}}>上传</button></div>
         <form onSubmit={(e) => { e.preventDefault(); void load(String(new FormData(e.currentTarget).get('path'))); }}><input key={directory} name="path" aria-label="远端目录" defaultValue={directory} /></form>
         {error && <p role="alert" className="error">{error}</p>}
         {action && <form className="file-action" onSubmit={(e) => { e.preventDefault(); void perform(e.currentTarget); }}>{action.kind === 'delete' ? <span>删除 {action.path.split('/').pop()}？</span> : <input name="name" aria-label={action.kind === 'mkdir' ? '新目录名称' : '新名称'} defaultValue={action.kind === 'rename' ? action.path.split('/').pop() : ''} required pattern="[^/]+" />}<div className="button-row"><Button size="sm" type="submit" color={action.kind === 'delete' ? 'danger' : 'default'}>确认</Button><Button size="sm" variant="light" onPress={() => setAction(undefined)}>取消</Button></div></form>}
-        <ul className="file-list">{entries.map((entry) => <li key={entry.path}><button className="file-name" onClick={() => void open(entry)} title={`${entry.mode} · ${entry.size} 字节`}><span>{entry.directory ? '▸' : entry.symlink ? '↗' : '·'}</span>{entry.name}</button><details><summary aria-label={`${entry.name} 操作`}>⋯</summary><div className="file-menu">{!entry.directory&&<button onClick={()=>{StartDownload(id,entry.path).catch(e=>setError(String(e)))}}>下载</button>}<button onClick={() => setAction({ kind: 'rename', path: entry.path })}>重命名</button><button onClick={() => setAction({ kind: 'delete', path: entry.path })}>删除</button></div></details></li>)}</ul>
+        <ul className="file-list">{entries.map((entry) => <li key={entry.path}><button className="file-name" onClick={() => void open(entry)} title={`${entry.mode} · ${entry.size} 字节`}><span>{entry.directory ? '▸' : entry.symlink ? '↗' : '·'}</span>{entry.name}</button><details><summary aria-label={`${entry.name} 操作`}>⋯</summary><div className="file-menu">{!entry.directory&&<button onClick={()=>{StartDownload(id,entry.path).then(result=>{if(result.id)onTransferStarted()}).catch(e=>setError(String(e)))}}>下载</button>}<button onClick={() => setAction({ kind: 'rename', path: entry.path })}>重命名</button><button onClick={() => setAction({ kind: 'delete', path: entry.path })}>删除</button></div></details></li>)}</ul>
       </aside>
       <div className="panel-separator" role="separator" aria-label="文件面板宽度" aria-orientation="vertical" aria-valuenow={width} aria-valuemin={160} aria-valuemax={500} tabIndex={0}
         onKeyDown={(e) => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') setWidth((w) => Math.max(160, Math.min(500, w + (e.key === 'ArrowRight' ? 10 : -10)))); }}

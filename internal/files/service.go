@@ -3,7 +3,6 @@ package files
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -33,17 +32,27 @@ type Document struct {
 	Revision string `json:"revision"`
 }
 
-func List(ctx context.Context, client *sftp.Client, remote string) ([]Entry, error) {
+type Directory struct {
+	Path    string  `json:"path"`
+	Entries []Entry `json:"entries"`
+}
+
+func List(ctx context.Context, client *sftp.Client, remote string) (Directory, error) {
 	if remote == "" {
 		var err error
 		remote, err = client.Getwd()
 		if err != nil {
-			return nil, err
+			return Directory{}, err
 		}
 	}
+	canonical, err := client.RealPath(remote)
+	if err != nil {
+		return Directory{}, err
+	}
+	remote = canonical
 	infos, err := client.ReadDirContext(ctx, remote)
 	if err != nil {
-		return nil, err
+		return Directory{}, err
 	}
 	result := make([]Entry, 0, len(infos))
 	for _, info := range infos {
@@ -55,7 +64,7 @@ func List(ctx context.Context, client *sftp.Client, remote string) ([]Entry, err
 		}
 		return result[i].Name < result[j].Name
 	})
-	return result, nil
+	return Directory{Path: remote, Entries: result}, nil
 }
 
 func Read(client *sftp.Client, remote string) (Document, error) {
@@ -85,7 +94,11 @@ func Read(client *sftp.Client, remote string) (Document, error) {
 		return Document{}, errors.New("文件不是可编辑的 UTF-8 文本")
 	}
 	sum := sha256.Sum256(data)
-	return Document{Path: remote, Content: string(data), Revision: hex.EncodeToString(sum[:]) + ":" + fmt.Sprint(info.ModTime().Unix(), ":", info.Mode().Perm())}, nil
+	attributes, ok := info.Sys().(*sftp.FileStat)
+	if !ok {
+		return Document{}, errors.New("服务端未提供可识别的文件属性")
+	}
+	return Document{Path: remote, Content: string(data), Revision: hex.EncodeToString(sum[:]) + ":" + fmt.Sprint(info.ModTime().Unix(), ":", info.Mode(), ":", attributes.UID, ":", attributes.GID)}, nil
 }
 
 func Save(client *sftp.Client, document Document) (result Document, err error) {
@@ -106,24 +119,37 @@ func Save(client *sftp.Client, document Document) (result Document, err error) {
 	if err != nil {
 		return result, err
 	}
-	var token [16]byte
-	if _, err = rand.Read(token[:]); err != nil {
+	if info.Mode()&(os.ModeSetuid|os.ModeSetgid|os.ModeSticky) != 0 {
+		return result, errors.New("在线保存不支持含特殊权限位的文件")
+	}
+	attributes, ok := info.Sys().(*sftp.FileStat)
+	if !ok {
+		return result, errors.New("服务端未提供可识别的文件属性")
+	}
+	staging, err := CreateStaging(client, path.Dir(document.Path))
+	if err != nil {
 		return result, err
 	}
-	temporary := path.Join(path.Dir(document.Path), ".termquay-"+hex.EncodeToString(token[:]))
+	defer func() {
+		cleanupErr := RemoveStaging(client, staging)
+		if err == nil && cleanupErr != nil {
+			err = fmt.Errorf("文件已保存，但临时目录清理失败: %w", cleanupErr)
+		} else {
+			err = errors.Join(err, cleanupErr)
+		}
+	}()
+	temporary := path.Join(staging, "data")
 	f, err := client.OpenFile(temporary, os.O_WRONLY|os.O_CREATE|os.O_EXCL)
 	if err != nil {
 		return result, err
 	}
-	published := false
-	defer func() {
-		if !published {
-			err = errors.Join(err, client.Remove(temporary))
-		}
-	}()
 	if _, err = io.WriteString(f, document.Content); err != nil {
 		f.Close()
 		return result, err
+	}
+	if err = f.Chown(int(attributes.UID), int(attributes.GID)); err != nil {
+		f.Close()
+		return result, fmt.Errorf("无法保留文件属主与用户组: %w", err)
 	}
 	if err = f.Chmod(info.Mode().Perm()); err != nil {
 		f.Close()
@@ -142,6 +168,5 @@ func Save(client *sftp.Client, document Document) (result Document, err error) {
 	if err = client.PosixRename(temporary, document.Path); err != nil {
 		return result, err
 	}
-	published = true
 	return Read(client, document.Path)
 }

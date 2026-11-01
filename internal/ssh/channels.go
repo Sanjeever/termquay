@@ -5,23 +5,63 @@ import (
 	"context"
 	"errors"
 	"io"
+	"sync"
 
 	"github.com/pkg/sftp"
+	gossh "golang.org/x/crypto/ssh"
 )
 
 func (t *Terminal) FileClient(ctx context.Context) (*sftp.Client, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	client, err := sftp.NewClient(t.client)
+	session, err := t.client.NewSession()
 	if err != nil {
 		return nil, err
 	}
-	if err = ctx.Err(); err != nil {
-		client.Close()
+	stop := context.AfterFunc(ctx, func() { session.Close() })
+	input, err := session.StdinPipe()
+	if err != nil {
+		stop()
+		session.Close()
+		return nil, err
+	}
+	output, err := session.StdoutPipe()
+	if err != nil {
+		stop()
+		session.Close()
+		return nil, err
+	}
+	writer := &sftpWriter{WriteCloser: input, session: session, stop: stop}
+	if err = session.RequestSubsystem("sftp"); err != nil {
+		writer.Close()
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		return nil, err
+	}
+	client, err := sftp.NewClientPipe(output, writer)
+	if err != nil {
+		writer.Close()
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		return nil, err
 	}
 	return client, nil
+}
+
+type sftpWriter struct {
+	io.WriteCloser
+	session *gossh.Session
+	stop    func() bool
+	once    sync.Once
+	err     error
+}
+
+func (w *sftpWriter) Close() error {
+	w.once.Do(func() { w.stop(); w.err = errors.Join(w.session.Close(), w.WriteCloser.Close()) })
+	return w.err
 }
 
 func (t *Terminal) Exec(ctx context.Context, script string, maxBytes int) ([]byte, error) {

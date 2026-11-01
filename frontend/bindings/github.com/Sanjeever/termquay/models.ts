@@ -33,6 +33,7 @@ export interface RDPLaunch {
     "grant": rdp$0.Grant;
     "username": string;
     "password": string;
+    "domain": string;
 }
 
 export interface RDPProbe {
