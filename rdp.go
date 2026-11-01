@@ -56,6 +56,15 @@ func (a *AppService) ProbeRDP(ctx context.Context, host string, port int) (RDPPr
 		}
 		return RDPProbe{}, err
 	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if known := a.trusted[address]; known != "" && known != value {
+		return RDPProbe{}, errors.New("RDP 证书已变化，连接已阻止")
+	}
+	if err := a.saveTrust(address, value); err != nil {
+		return RDPProbe{}, err
+	}
+	a.trusted[address] = value
 	return RDPProbe{Fingerprint: value}, nil
 }
 

@@ -3,7 +3,9 @@ package rdp
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/asn1"
 	"errors"
 	"io"
@@ -20,10 +22,24 @@ import (
 	"github.com/coder/websocket"
 )
 
-func localRDPTLS(t *testing.T) (Target, []byte) {
+func localRDPTLS(t *testing.T, expired ...bool) (Target, []byte) {
 	t.Helper()
 	certificateServer := httptest.NewTLSServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 	certificate := certificateServer.TLS.Certificates[0]
+	if len(expired) > 0 && expired[0] {
+		template, err := x509.ParseCertificate(certificate.Certificate[0])
+		if err != nil {
+			t.Fatal(err)
+		}
+		template.NotBefore = time.Now().Add(-2 * time.Hour)
+		template.NotAfter = time.Now().Add(-time.Hour)
+		der, err := x509.CreateCertificate(rand.Reader, template, template, template.PublicKey, certificate.PrivateKey)
+		if err != nil {
+			t.Fatal(err)
+		}
+		certificate.Certificate[0] = der
+		certificate.Leaf = nil
+	}
 	certificateServer.Close()
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -60,6 +76,19 @@ func localRDPTLS(t *testing.T) (Target, []byte) {
 	request := (&x224.ConnectionRequest{RequestedProtos: x224.ProtocolHybrid | x224.ProtocolHybridEx}).Encode()
 	packet := append([]byte{3, 0, 0, byte(4 + len(request))}, request...)
 	return Target{Host: host, Port: n, Fingerprint: fingerprint(certificate.Certificate[0])}, packet
+}
+
+func TestExpiredCertificateCannotBeTrusted(t *testing.T) {
+	target, _ := localRDPTLS(t, true)
+	if _, err := Probe(context.Background(), target); err == nil {
+		t.Fatal("指纹匹配时接受过期证书")
+	}
+	target.Fingerprint = ""
+	_, err := Probe(context.Background(), target)
+	var cert *CertificateError
+	if err == nil || errors.As(err, &cert) {
+		t.Fatal("过期证书不应允许通过信任确认继续连接")
+	}
 }
 
 func TestCertificateVerification(t *testing.T) {

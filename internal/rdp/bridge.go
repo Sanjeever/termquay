@@ -326,6 +326,11 @@ func negotiate(ctx context.Context, target Target, request []byte) (*tls.Conn, [
 			if len(state.PeerCertificates) == 0 || fingerprint(state.PeerCertificates[0].Raw) != target.Fingerprint {
 				return errors.New("RDP 证书已变化，连接已阻止")
 			}
+			cert := state.PeerCertificates[0]
+			now := time.Now()
+			if now.Before(cert.NotBefore) || now.After(cert.NotAfter) {
+				return errors.New("RDP 证书已过期或尚未生效")
+			}
 			return nil
 		}
 	}
@@ -333,6 +338,11 @@ func negotiate(ctx context.Context, target Target, request []byte) (*tls.Conn, [
 	if err = secured.HandshakeContext(ctx); err != nil {
 		var verification *tls.CertificateVerificationError
 		if errors.As(err, &verification) && len(verification.UnverifiedCertificates) > 0 {
+			cert := verification.UnverifiedCertificates[0]
+			now := time.Now()
+			if now.Before(cert.NotBefore) || now.After(cert.NotAfter) {
+				return nil, nil, errors.New("RDP 证书已过期或尚未生效")
+			}
 			return nil, nil, &CertificateError{Fingerprint: fingerprint(verification.UnverifiedCertificates[0].Raw), Reason: verification.Err.Error()}
 		}
 		return nil, nil, err
