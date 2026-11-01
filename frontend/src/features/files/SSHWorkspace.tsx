@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@heroui/react';
 import { Stream } from '@wailsio/runtime';
-import { ReadDirectory, ReadRemoteFile, SaveRemoteFile, CreateRemoteDirectory, RenameRemotePath, DeleteRemotePath, CreateTerminal, CloseWorkspace } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
+import { ReadDirectory, ReadRemoteFile, SaveRemoteFile, CreateRemoteDirectory, RenameRemotePath, DeleteRemotePath, CreateTerminal, CloseWorkspace, StartUpload, StartDownload,SetWorkspaceDirty } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
 import type { Document, Entry } from '../../../bindings/github.com/Sanjeever/termquay/internal/files/models';
 import TerminalView from '../terminal/TerminalView';
 import CodeEditor from './CodeEditor';
@@ -26,13 +26,13 @@ export default function SSHWorkspace({ id, onDirtyChange }: { id: string; onDirt
 
   const dirty = drafts.some((d) => d.content !== d.saved);
   useEffect(()=>{let disposed=false;const owner=Stream('workspace');owner.onopen=()=>owner.send(new TextEncoder().encode(id));owner.onclose=()=>{if(!disposed)setError('SSH 工作区已断开')};return()=>{disposed=true;owner.close();CloseWorkspace(id).catch(()=>{})}},[id]);
-  useEffect(() => { dirtyCallback.current(dirty); }, [dirty]);
+  useEffect(() => { dirtyCallback.current(dirty);SetWorkspaceDirty(id,dirty).catch(e=>setError(String(e))); }, [dirty,id]);
   useEffect(() => { const handler = (event: BeforeUnloadEvent) => { if (dirty) { event.preventDefault(); event.returnValue = ''; } }; window.addEventListener('beforeunload', handler); return () => window.removeEventListener('beforeunload', handler); }, [dirty]);
 
   async function load(remote: string) {
     pending.current?.cancel(); setError('');
     const request = ReadDirectory(id, remote); pending.current = request;
-    try { const list = await request; if (pending.current !== request) return; setEntries(list); setDirectory(remote || (list.length ? list[0].path.slice(0, list[0].path.lastIndexOf('/')) || '/' : '.')); } catch (e) { if (pending.current === request) setError(String(e)); }
+    try { const list = await request ?? []; if (pending.current !== request) return; setEntries(list); setDirectory(remote || (list.length ? list[0].path.slice(0, list[0].path.lastIndexOf('/')) || '/' : '.')); } catch (e) { if (pending.current === request) setError(String(e)); }
   }
   useEffect(() => { void load(''); return () => { pending.current?.cancel(); }; }, [id]);
 
@@ -69,11 +69,11 @@ export default function SSHWorkspace({ id, onDirtyChange }: { id: string; onDirt
   return <div className="ssh-workspace">
     {filesOpen && <>
       <aside className="file-panel" style={{ width }}>
-        <div className="file-toolbar"><button aria-label="上级目录" onClick={() => void load(directory.slice(0, directory.lastIndexOf('/')) || '/')}>↑</button><button aria-label="刷新目录" onClick={() => void load(directory)}>刷新</button><button onClick={() => setAction({ kind: 'mkdir', path: directory })}>新建目录</button></div>
+        <div className="file-toolbar"><button aria-label="上级目录" onClick={() => void load(directory.slice(0, directory.lastIndexOf('/')) || '/')}>↑</button><button aria-label="刷新目录" onClick={() => void load(directory)}>刷新</button><button onClick={() => setAction({ kind: 'mkdir', path: directory })}>新建目录</button><button onClick={()=>{StartUpload(id,directory).catch(e=>setError(String(e)))}}>上传</button></div>
         <form onSubmit={(e) => { e.preventDefault(); void load(String(new FormData(e.currentTarget).get('path'))); }}><input key={directory} name="path" aria-label="远端目录" defaultValue={directory} /></form>
         {error && <p role="alert" className="error">{error}</p>}
         {action && <form className="file-action" onSubmit={(e) => { e.preventDefault(); void perform(e.currentTarget); }}>{action.kind === 'delete' ? <span>删除 {action.path.split('/').pop()}？</span> : <input name="name" aria-label={action.kind === 'mkdir' ? '新目录名称' : '新名称'} defaultValue={action.kind === 'rename' ? action.path.split('/').pop() : ''} required pattern="[^/]+" />}<div className="button-row"><Button size="sm" type="submit" color={action.kind === 'delete' ? 'danger' : 'default'}>确认</Button><Button size="sm" variant="light" onPress={() => setAction(undefined)}>取消</Button></div></form>}
-        <ul className="file-list">{entries.map((entry) => <li key={entry.path}><button className="file-name" onClick={() => void open(entry)} title={`${entry.mode} · ${entry.size} 字节`}><span>{entry.directory ? '▸' : entry.symlink ? '↗' : '·'}</span>{entry.name}</button><details><summary aria-label={`${entry.name} 操作`}>⋯</summary><div className="file-menu"><button onClick={() => setAction({ kind: 'rename', path: entry.path })}>重命名</button><button onClick={() => setAction({ kind: 'delete', path: entry.path })}>删除</button></div></details></li>)}</ul>
+        <ul className="file-list">{entries.map((entry) => <li key={entry.path}><button className="file-name" onClick={() => void open(entry)} title={`${entry.mode} · ${entry.size} 字节`}><span>{entry.directory ? '▸' : entry.symlink ? '↗' : '·'}</span>{entry.name}</button><details><summary aria-label={`${entry.name} 操作`}>⋯</summary><div className="file-menu">{!entry.directory&&<button onClick={()=>{StartDownload(id,entry.path).catch(e=>setError(String(e)))}}>下载</button>}<button onClick={() => setAction({ kind: 'rename', path: entry.path })}>重命名</button><button onClick={() => setAction({ kind: 'delete', path: entry.path })}>删除</button></div></details></li>)}</ul>
       </aside>
       <div className="panel-separator" role="separator" aria-label="文件面板宽度" aria-orientation="vertical" aria-valuenow={width} aria-valuemin={160} aria-valuemax={500} tabIndex={0}
         onKeyDown={(e) => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') setWidth((w) => Math.max(160, Math.min(500, w + (e.key === 'ArrowRight' ? 10 : -10)))); }}

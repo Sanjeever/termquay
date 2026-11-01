@@ -310,3 +310,44 @@ func TestPTYLifecycle100Cycles(t *testing.T) {
 		t.Fatal("PTY 关闭后 goroutine 未回收")
 	}
 }
+
+func TestRelayPreservesFourMiB(t *testing.T) {
+	r, _ := localServer(t)
+	terminal, err := Dial(context.Background(), r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer terminal.Close()
+	stream := newStream()
+	defer stream.Close()
+	done := make(chan error, 1)
+	go func() { done <- Relay(terminal, stream) }()
+	stream.in <- append([]byte{0}, []byte("burst\n")...)
+	total := 0
+	for total < 4<<20 {
+		select {
+		case frame := <-stream.out:
+			for _, b := range frame {
+				if b != 'x' {
+					t.Fatal("协议字节被修改")
+				}
+			}
+			total += len(frame)
+			ack := make([]byte, 5)
+			ack[0] = 1
+			binary.BigEndian.PutUint32(ack[1:], uint32(len(frame)))
+			stream.in <- ack
+		case <-time.After(5 * time.Second):
+			t.Fatal("终端字节丢失或背压停滞")
+		}
+	}
+	if total != 4<<20 {
+		t.Fatal("终端字节数不一致")
+	}
+	stream.Close()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("转发任务未关闭")
+	}
+}

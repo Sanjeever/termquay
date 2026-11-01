@@ -1,14 +1,16 @@
 import { createRef, useEffect, useRef, useState, type RefObject } from 'react';
 import { flushSync } from 'react-dom';
+import { Events } from '@wailsio/runtime';
 import { Button, Input, Select, SelectItem } from '@heroui/react';
-import { OpenTerminal, TrustHost, OpenRDP, ProbeRDP, TrustRDPCertificate, GetCatalog, SaveConnection, DeleteConnection, SaveGroup, DeleteGroup, OpenSavedTerminal, OpenSavedRDP, UseSessionStorage } from '../bindings/github.com/Sanjeever/termquay/appservice';
+import { OpenTerminal, TrustHost, OpenRDP, ProbeRDP, TrustRDPCertificate, GetCatalog, SaveConnection, DeleteConnection, SaveGroup, DeleteGroup, OpenSavedTerminal, OpenSavedRDP, UseSessionStorage,DiscardAndQuit } from '../bindings/github.com/Sanjeever/termquay/appservice';
 import type { Request } from '../bindings/github.com/Sanjeever/termquay/internal/ssh/models';
 import SSHWorkspace from './features/files/SSHWorkspace';
 import RDPView, { type RDPHandle } from './features/rdp/RDPView';
 import type { Grant } from '../bindings/github.com/Sanjeever/termquay/internal/rdp/models';
-import type { Connection } from '../bindings/github.com/Sanjeever/termquay/internal/store/models';
+import type { Connection,Group } from '../bindings/github.com/Sanjeever/termquay/internal/store/models';
 import type { Catalog } from '../bindings/github.com/Sanjeever/termquay/models';
 import BackupSettings from './features/settings/BackupSettings';
+import TransferPanel from './features/files/TransferPanel';
 
 type Workspace = { id: string; name: string; rdp?: Grant; view?: RefObject<RDPHandle>; dirty?: boolean };
 
@@ -22,7 +24,7 @@ export default function App() {
   const [protocol, setProtocol] = useState('ssh');
   const formRef = useRef<HTMLFormElement>(null);
   const pending = useRef<ReturnType<typeof OpenTerminal> | null>(null);
-  const [catalog, setCatalog] = useState<Catalog>();
+  const [catalog, setCatalog] = useState<Catalog&{groups:Group[];connections:Connection[]}>();
   const [storageError, setStorageError] = useState('');
   const [editing, setEditing] = useState<Connection>();
   const [search, setSearch] = useState('');
@@ -31,10 +33,14 @@ export default function App() {
   const [settings, setSettings] = useState(false);
   const [deleting, setDeleting] = useState('');
   const [closingWorkspace,setClosingWorkspace]=useState('');
+  const [transfersOpen,setTransfersOpen]=useState(false);
+  const [credentialEpoch,setCredentialEpoch]=useState(0);
+  const [quitConfirm,setQuitConfirm]=useState(false);
   const savedTrust = useRef<Connection>();
 
-  async function reload() { try { setCatalog(await GetCatalog()); setStorageError(''); } catch (e) { setStorageError(String(e)); } }
+  async function reload() { try { const data=await GetCatalog();setCatalog({...data,groups:data.groups??[],connections:data.connections??[]}); setStorageError(''); } catch (e) { setStorageError(String(e)); } }
   useEffect(() => { void reload(); }, []);
+  useEffect(()=>Events.On('app:close-requested',()=>setQuitConfirm(true)),[]);
 
   async function connectSaved(c: Connection, trust = false) {
     setError(''); setBusy(true);
@@ -90,6 +96,7 @@ export default function App() {
         setFingerprint('');
         const password = request.password; request.password = '';
         (form.elements.namedItem('password') as HTMLInputElement).value = '';
+        setCredentialEpoch(value=>value+1);
         await view.current!.connect(request.username, password, String(data.get('domain') || ''));
         return;
       }
@@ -101,12 +108,13 @@ export default function App() {
       setWorkspaces((prev) => [...prev, { id: result.id, name: `${request.username}@${request.host}` }]);
       setActive(result.id);
       (form.elements.namedItem('password') as HTMLInputElement).value = '';
+      const keyInput=form.elements.namedItem('private_key') as HTMLTextAreaElement|null;if(keyInput)keyInput.value='';setCredentialEpoch(value=>value+1);
     } catch (e) { setError(String(e)); }
     finally { pending.current = null; setBusy(false); request.password = ''; request.private_key = ''; }
   }
 
   return <main className="app-shell">
-    <header className="app-header"><div className="wordmark">栈桥 <span>TermQuay</span></div><div className="button-row">{catalog?.session_only && <span className="version">会话存储</span>}<Button size="sm" variant="light" onPress={() => setSettings(!settings)}>{settings ? '返回工作区' : '备份恢复'}</Button><span className="version">开发版</span></div></header>
+    <header className="app-header"><div className="wordmark">栈桥 <span>TermQuay</span></div><div className="button-row">{catalog?.session_only && <span className="version">会话存储</span>}<Button size="sm" variant="light" onPress={()=>setTransfersOpen(!transfersOpen)}>传输</Button><Button size="sm" variant="light" onPress={() => setSettings(!settings)}>{settings ? '返回工作区' : '备份恢复'}</Button><span className="version">开发版</span></div></header>
     <div className="app-body">
       <aside className="connection-sidebar">
         <div className="panel-heading">连接中心</div>
@@ -129,9 +137,9 @@ export default function App() {
           <Input name="host" label="主机" defaultValue={editing?.host} isRequired size="sm" autoComplete="off" onValueChange={() => setFingerprint('')} />
           <Input key={protocol} name="port" label="端口" type="number" defaultValue={String(editing?.port || (protocol === 'ssh' ? 22 : 3389))} min={1} max={65535} isRequired size="sm" />
           <Input name="username" label="用户名" defaultValue={editing?.username} isRequired size="sm" autoComplete="off" />
-          <Input name="password" label="密码" type="password" size="sm" autoComplete="off" />
+          <Input key={`password-${credentialEpoch}`} name="password" label="密码" type="password" size="sm" autoComplete="off" />
           {protocol === 'rdp' && <Input name="domain" label="域（可选）" size="sm" />}
-          {protocol === 'ssh' && <details><summary>私钥认证</summary><label className="field-label" htmlFor="private-key">私钥内容</label><textarea id="private-key" name="private_key" rows={5} spellCheck={false} /><Input name="passphrase" label="私钥口令" type="password" size="sm" autoComplete="off" /></details>}
+          {protocol === 'ssh' && <details><summary>私钥认证</summary><label className="field-label" htmlFor="private-key">私钥内容</label><textarea id="private-key" name="private_key" rows={5} spellCheck={false} /><Input key={`passphrase-${credentialEpoch}`} name="passphrase" label="私钥口令" type="password" size="sm" autoComplete="off" /></details>}
           <select name="group" aria-label="连接分组" defaultValue={editing?.group_id || ''}><option value="">未分组</option>{catalog?.groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select>
           {error && <p role="alert" className="error">{error}</p>}
           {fingerprint && <div className="host-trust"><p>{protocol === 'ssh' ? '首次连接，请核对主机指纹' : '请核对 RDP 证书指纹'}</p><code>{fingerprint}</code>{protocol === 'rdp' && <p>{certificateReason}</p>}<Button size="sm" onPress={() => void connect(true)}>信任并连接</Button></div>}
@@ -141,6 +149,7 @@ export default function App() {
         </form>
       </aside>
       <section className="workspace-area">
+        {quitConfirm&&<div className="draft-confirm">有未保存文件，是否放弃修改并退出？<Button size="sm" color="danger" onPress={()=>{DiscardAndQuit().catch(e=>setError(String(e)))}}>放弃修改并退出</Button><Button size="sm" variant="light" onPress={()=>setQuitConfirm(false)}>返回编辑</Button></div>}
         <div className="workspace-tabs" role="tablist" aria-label="连接工作区">
           {workspaces.map((w) => <div className={`workspace-tab ${active === w.id ? 'active' : ''}`} key={w.id}>
             <button role="tab" aria-selected={active === w.id} onClick={() => setActive(w.id)}>{w.name}</button>
@@ -153,5 +162,6 @@ export default function App() {
         {workspaces.map((w) => <div className="workspace" hidden={settings || active !== w.id} key={w.id}>{w.rdp ? <RDPView grant={w.rdp} ref={w.view} /> : <SSHWorkspace id={w.id} onDirtyChange={(dirty)=>setWorkspaces(prev=>prev.map(item=>item.id===w.id?{...item,dirty}:item))} />}</div>)}
       </section>
     </div>
+    {transfersOpen&&<TransferPanel/>}
   </main>;
 }

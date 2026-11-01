@@ -13,3 +13,8 @@ import "../github.com/wailsapp/wails/v3/internal/eventcreate.js";
  */
 export const MonitorSample = "monitor:sample";
 
+/**
+ * Name of the custom event "transfer:changed".
+ */
+export const TransferChanged = "transfer:changed";
+

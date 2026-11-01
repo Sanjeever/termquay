@@ -61,7 +61,7 @@ RDP 原型优先验证三平台 WebView、WASM 依赖配套、RDCleanPath 协商
 
 ```sh
 pnpm --dir frontend install --frozen-lockfile
-go run github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0 generate bindings -ts
+go run github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0 generate bindings -ts -i
 pnpm --dir frontend build
 go build -o bin/termquay .
 ./bin/termquay

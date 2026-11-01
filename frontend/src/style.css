@@ -98,3 +98,8 @@ textarea { background: #242831; border: 1px solid #3a414c; border-radius: 6px; w
 .metric meter { width: 100%; height: 6px; accent-color: #8fc6b4; }
 .system-info,.sample-time { color: #687586; font-size: 11px; overflow-wrap: anywhere; }
 .inner-tabs .monitor-toggle { margin-left: auto; }
+.transfer-panel { height: 200px; min-height: 100px; flex-shrink: 0; overflow: auto; padding: 8px 20px; border-top: 1px solid #343b45; background: #181b20; }
+.transfer-panel table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
+.transfer-panel th { color: #7e8a98; font-weight: 500; padding: 6px 12px; }
+.transfer-panel td { padding: 8px 12px; border-top: 1px solid #2a2e35; }
+.transfer-panel progress { display: block; width: 160px; height: 4px; margin-top: 6px; accent-color: #8fc6b4; }

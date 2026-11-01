@@ -26,8 +26,8 @@ export default function MonitorPanel({ id }: { id: string }) {
       <p className="system-info">{sample.system}</p>
       <div className="metric"><span>CPU</span><strong>{sample.cpu == null ? '—' : `${sample.cpu.toFixed(1)}%`}</strong>{sample.cpu != null && <meter value={sample.cpu} min={0} max={100} aria-label="CPU 使用率" />}</div>
       <div className="metric"><span>内存</span><strong>{bytes(sample.memory_total - sample.memory_available)} / {bytes(sample.memory_total)}</strong><meter value={sample.memory_total - sample.memory_available} min={0} max={sample.memory_total} aria-label="内存使用量" /></div>
-      <h3>网络</h3>{sample.network.map((n) => <div className="metric" key={n.name}><span>{n.name}</span><div>↓ {rate(n.read_rate)}</div><div>↑ {rate(n.write_rate)}</div></div>)}
-      <h3>磁盘 I/O</h3>{sample.disks.map((d) => <div className="metric" key={d.name}><span>{d.name}</span><div>读 {rate(d.read_rate)}</div><div>写 {rate(d.write_rate)}</div></div>)}
+      <h3>网络</h3>{sample.network?.map((n) => <div className="metric" key={n.name}><span>{n.name}</span><div>↓ {rate(n.read_rate)}</div><div>↑ {rate(n.write_rate)}</div></div>)}
+      <h3>磁盘 I/O</h3>{sample.disks?.map((d) => <div className="metric" key={d.name}><span>{d.name}</span><div>读 {rate(d.read_rate)}</div><div>写 {rate(d.write_rate)}</div></div>)}
       <div className="sample-time">{new Date(sample.time).toLocaleTimeString()}</div>
     </>}
   </aside>;

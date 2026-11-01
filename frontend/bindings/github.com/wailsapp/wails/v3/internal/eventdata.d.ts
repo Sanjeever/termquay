@@ -13,6 +13,7 @@ declare module "@wailsio/runtime" {
     namespace Events {
         interface CustomEvents {
             "monitor:sample": main$0.MonitorEvent;
+            "transfer:changed": main$0.Transfer;
         }
     }
 }

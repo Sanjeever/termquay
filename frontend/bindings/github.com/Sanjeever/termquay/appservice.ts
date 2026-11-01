@@ -3,7 +3,7 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Create } from "@wailsio/runtime";
+import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -29,6 +29,14 @@ export function BackupWebDAV(options: backup$0.WebDAVOptions, password: string, 
     return $Call.ByID(1363831413, options, password, includeCredentials);
 }
 
+export function CancelTransfer(id: string): $CancellablePromise<void> {
+    return $Call.ByID(3298982059, id);
+}
+
+export function ClearTransfer(id: string): $CancellablePromise<void> {
+    return $Call.ByID(237303640, id);
+}
+
 export function CloseRDP(id: string): $CancellablePromise<void> {
     return $Call.ByID(419661336, id);
 }
@@ -50,9 +58,7 @@ export function CreateRemoteDirectory(id: string, remote: string): $CancellableP
 }
 
 export function CreateTerminal(workspace: string): $CancellablePromise<$models.OpenResult> {
-    return $Call.ByID(4150589918, workspace).then(($result: any) => {
-        return $$createType0($result);
-    });
+    return $Call.ByID(4150589918, workspace);
 }
 
 export function DeleteConnection(id: string): $CancellablePromise<void> {
@@ -67,64 +73,52 @@ export function DeleteRemotePath(id: string, remote: string): $CancellablePromis
     return $Call.ByID(3430269924, id, remote);
 }
 
-export function GetCatalog(): $CancellablePromise<$models.Catalog> {
-    return $Call.ByID(12026733).then(($result: any) => {
-        return $$createType1($result);
-    });
+export function DiscardAndQuit(): $CancellablePromise<void> {
+    return $Call.ByID(2297958254);
 }
 
-export function ListSnapshots(options: backup$0.WebDAVOptions): $CancellablePromise<backup$0.RemoteSnapshot[]> {
-    return $Call.ByID(2845134187, options).then(($result: any) => {
-        return $$createType3($result);
-    });
+export function GetCatalog(): $CancellablePromise<$models.Catalog> {
+    return $Call.ByID(12026733);
+}
+
+export function ListSnapshots(options: backup$0.WebDAVOptions): $CancellablePromise<backup$0.RemoteSnapshot[] | null> {
+    return $Call.ByID(2845134187, options);
+}
+
+export function ListTransfers(): $CancellablePromise<$models.Transfer[] | null> {
+    return $Call.ByID(2832107770);
 }
 
 export function OpenRDP(host: string, port: number): $CancellablePromise<rdp$0.Grant> {
-    return $Call.ByID(1856620084, host, port).then(($result: any) => {
-        return $$createType4($result);
-    });
+    return $Call.ByID(1856620084, host, port);
 }
 
 export function OpenSavedRDP(id: string): $CancellablePromise<$models.RDPLaunch> {
-    return $Call.ByID(3012084069, id).then(($result: any) => {
-        return $$createType5($result);
-    });
+    return $Call.ByID(3012084069, id);
 }
 
 export function OpenSavedTerminal(id: string): $CancellablePromise<$models.OpenResult> {
-    return $Call.ByID(2797069557, id).then(($result: any) => {
-        return $$createType0($result);
-    });
+    return $Call.ByID(2797069557, id);
 }
 
 export function OpenTerminal(r: ssh$0.Request): $CancellablePromise<$models.OpenResult> {
-    return $Call.ByID(3614603658, r).then(($result: any) => {
-        return $$createType0($result);
-    });
+    return $Call.ByID(3614603658, r);
 }
 
 export function PreviewRestore(options: backup$0.WebDAVOptions, path: string, password: string): $CancellablePromise<$models.RestorePreview> {
-    return $Call.ByID(1296130900, options, path, password).then(($result: any) => {
-        return $$createType6($result);
-    });
+    return $Call.ByID(1296130900, options, path, password);
 }
 
 export function ProbeRDP(host: string, port: number): $CancellablePromise<$models.RDPProbe> {
-    return $Call.ByID(3045768502, host, port).then(($result: any) => {
-        return $$createType7($result);
-    });
+    return $Call.ByID(3045768502, host, port);
 }
 
-export function ReadDirectory(id: string, remote: string): $CancellablePromise<files$0.Entry[]> {
-    return $Call.ByID(2779778161, id, remote).then(($result: any) => {
-        return $$createType9($result);
-    });
+export function ReadDirectory(id: string, remote: string): $CancellablePromise<files$0.Entry[] | null> {
+    return $Call.ByID(2779778161, id, remote);
 }
 
 export function ReadRemoteFile(id: string, remote: string): $CancellablePromise<files$0.Document> {
-    return $Call.ByID(2337340862, id, remote).then(($result: any) => {
-        return $$createType10($result);
-    });
+    return $Call.ByID(2337340862, id, remote);
 }
 
 export function RenameRemotePath(id: string, oldPath: string, newPath: string): $CancellablePromise<void> {
@@ -144,9 +138,19 @@ export function SaveGroup(g: store$0.Group): $CancellablePromise<void> {
 }
 
 export function SaveRemoteFile(id: string, document: files$0.Document): $CancellablePromise<files$0.Document> {
-    return $Call.ByID(1773240835, id, document).then(($result: any) => {
-        return $$createType10($result);
-    });
+    return $Call.ByID(1773240835, id, document);
+}
+
+export function SetWorkspaceDirty(id: string, dirty: boolean): $CancellablePromise<void> {
+    return $Call.ByID(2313705545, id, dirty);
+}
+
+export function StartDownload(id: string, remote: string): $CancellablePromise<$models.Transfer> {
+    return $Call.ByID(1386823426, id, remote);
+}
+
+export function StartUpload(id: string, directory: string): $CancellablePromise<$models.Transfer> {
+    return $Call.ByID(4062547527, id, directory);
 }
 
 export function SubscribeMonitor(id: string): $CancellablePromise<void> {
@@ -172,16 +176,3 @@ export function UnsubscribeMonitor(id: string): $CancellablePromise<void> {
 export function UseSessionStorage(): $CancellablePromise<void> {
     return $Call.ByID(682425716);
 }
-
-// Private type creation functions
-const $$createType0 = $models.OpenResult.createFrom;
-const $$createType1 = $models.Catalog.createFrom;
-const $$createType2 = backup$0.RemoteSnapshot.createFrom;
-const $$createType3 = $Create.Array($$createType2);
-const $$createType4 = rdp$0.Grant.createFrom;
-const $$createType5 = $models.RDPLaunch.createFrom;
-const $$createType6 = $models.RestorePreview.createFrom;
-const $$createType7 = $models.RDPProbe.createFrom;
-const $$createType8 = files$0.Entry.createFrom;
-const $$createType9 = $Create.Array($$createType8);
-const $$createType10 = files$0.Document.createFrom;

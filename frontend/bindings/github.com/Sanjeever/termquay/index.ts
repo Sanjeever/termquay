@@ -6,11 +6,12 @@ export {
     AppService
 };
 
-export {
+export type {
     Catalog,
     MonitorEvent,
     OpenResult,
     RDPLaunch,
     RDPProbe,
-    RestorePreview
+    RestorePreview,
+    Transfer
 } from "./models.js";

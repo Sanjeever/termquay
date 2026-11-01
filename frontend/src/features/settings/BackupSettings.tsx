@@ -18,10 +18,10 @@ export default function BackupSettings({ onRestore }: { onRestore(): void }) {
     try {
       switch (action) {
         case 'test': await TestWebDAV(options); setResult('WebDAV 连接正常'); break;
-        case 'list': setSnapshots(await ListSnapshots(options)); break;
+        case 'list': setSnapshots(await ListSnapshots(options)??[]); break;
         case 'backup': {
           const remote = await BackupWebDAV(options, String(data.get('recovery')), data.get('credentials') === 'on');
-          setResult(`快照已保存：${remote}`); setSnapshots(await ListSnapshots(options)); break;
+          setResult(`快照已保存：${remote}`); setSnapshots(await ListSnapshots(options)??[]); break;
         }
         case 'preview': setPreview(await PreviewRestore(options, path, String(data.get('recovery')))); break;
         case 'restore': await ConfirmRestore(preview!.id); setPreview(undefined); setResult('恢复完成'); onRestore(); break;
@@ -46,7 +46,7 @@ export default function BackupSettings({ onRestore }: { onRestore(): void }) {
       {preview && <div className="restore-preview">
         <h3>恢复预览</h3><p>{preview.device_id} · {new Date(preview.created_at).toLocaleString()}</p>
         <p>凭据 {preview.credentials} 项</p>
-        {([['新增', preview.added], ['更新', preview.updated], ['移除', preview.removed]] as const).map(([title, names]) => <div key={title}><strong>{title} {names.length}</strong>{names.map((name, i) => <div key={i}>{name}</div>)}</div>)}
+        {([['新增', preview.added], ['更新', preview.updated], ['移除', preview.removed]] as const).map(([title, names]) => <div key={title}><strong>{title} {names?.length??0}</strong>{names?.map((name, i) => <div key={i}>{name}</div>)}</div>)}
         <p>确认后替换当前连接与分组，保留本机设置和信任记录。</p>
         <div className="button-row"><Button size="sm" color="danger" isDisabled={busy} onPress={(e) => void run((e.target as HTMLElement).closest('form')!, 'restore')}>确认恢复</Button><Button size="sm" variant="light" onPress={() => setPreview(undefined)}>取消</Button></div>
       </div>}

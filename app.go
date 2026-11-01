@@ -53,10 +53,13 @@ type AppService struct {
 	preview      *pendingRestore
 	fileSlots    chan struct{}
 	monitors     map[string]context.CancelFunc
+	transfers    map[string]*transferTask
+	dirty        map[string]bool
+	allowQuit    bool
 }
 
 func NewAppService() *AppService {
-	return &AppService{terminals: map[string]*pendingTerminal{}, workspaces: map[string]*workspaceOwner{}, trusted: map[string]string{}, pendingTrust: map[string]string{}, fileSlots: make(chan struct{}, 4), monitors: map[string]context.CancelFunc{}}
+	return &AppService{terminals: map[string]*pendingTerminal{}, workspaces: map[string]*workspaceOwner{}, trusted: map[string]string{}, pendingTrust: map[string]string{}, fileSlots: make(chan struct{}, 4), monitors: map[string]context.CancelFunc{}, transfers: map[string]*transferTask{}, dirty: map[string]bool{}}
 }
 
 func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (OpenResult, error) {
@@ -223,6 +226,14 @@ func (a *AppService) CloseWorkspace(id string) {
 	a.mu.Lock()
 	owner := a.workspaces[id]
 	delete(a.workspaces, id)
+	delete(a.dirty, id)
+	pendingTransfers := []<-chan struct{}{}
+	for _, task := range a.transfers {
+		if task.view.Workspace == id {
+			task.cancel()
+			pendingTransfers = append(pendingTransfers, task.done)
+		}
+	}
 	cancel := a.monitors[id]
 	delete(a.monitors, id)
 	terminals := []*pendingTerminal{}
@@ -239,6 +250,14 @@ func (a *AppService) CloseWorkspace(id string) {
 	for _, p := range terminals {
 		p.timer.Stop()
 		p.terminal.Close()
+	}
+	wait, cancelWait := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelWait()
+	for _, done := range pendingTransfers {
+		select {
+		case <-done:
+		case <-wait.Done():
+		}
 	}
 	if owner != nil {
 		owner.timer.Stop()

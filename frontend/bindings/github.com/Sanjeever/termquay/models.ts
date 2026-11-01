@@ -3,10 +3,6 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import { Create as $Create } from "@wailsio/runtime";
-
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore: Unused imports
 import * as monitor$0 from "./internal/monitor/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -15,230 +11,53 @@ import * as rdp$0 from "./internal/rdp/models.js";
 // @ts-ignore: Unused imports
 import * as store$0 from "./internal/store/models.js";
 
-export class Catalog {
-    "groups": store$0.Group[];
-    "connections": store$0.Connection[];
+export interface Catalog {
+    "groups": store$0.Group[] | null;
+    "connections": store$0.Connection[] | null;
     "session_only": boolean;
-
-    /** Creates a new Catalog instance. */
-    constructor($$source: Partial<Catalog> = {}) {
-        if (!("groups" in $$source)) {
-            this["groups"] = [];
-        }
-        if (!("connections" in $$source)) {
-            this["connections"] = [];
-        }
-        if (!("session_only" in $$source)) {
-            this["session_only"] = false;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new Catalog instance from a string or object.
-     */
-    static createFrom($$source: any = {}): Catalog {
-        const $$createField0_0 = $$createType1;
-        const $$createField1_0 = $$createType3;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("groups" in $$parsedSource) {
-            $$parsedSource["groups"] = $$createField0_0($$parsedSource["groups"]);
-        }
-        if ("connections" in $$parsedSource) {
-            $$parsedSource["connections"] = $$createField1_0($$parsedSource["connections"]);
-        }
-        return new Catalog($$parsedSource as Partial<Catalog>);
-    }
 }
 
-export class MonitorEvent {
+export interface MonitorEvent {
     "id": string;
     "sample": monitor$0.Sample | null;
     "error": string;
-
-    /** Creates a new MonitorEvent instance. */
-    constructor($$source: Partial<MonitorEvent> = {}) {
-        if (!("id" in $$source)) {
-            this["id"] = "";
-        }
-        if (!("sample" in $$source)) {
-            this["sample"] = null;
-        }
-        if (!("error" in $$source)) {
-            this["error"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new MonitorEvent instance from a string or object.
-     */
-    static createFrom($$source: any = {}): MonitorEvent {
-        const $$createField1_0 = $$createType5;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("sample" in $$parsedSource) {
-            $$parsedSource["sample"] = $$createField1_0($$parsedSource["sample"]);
-        }
-        return new MonitorEvent($$parsedSource as Partial<MonitorEvent>);
-    }
 }
 
-export class OpenResult {
+export interface OpenResult {
     "id": string;
     "fingerprint": string;
     "trust_required": boolean;
-
-    /** Creates a new OpenResult instance. */
-    constructor($$source: Partial<OpenResult> = {}) {
-        if (!("id" in $$source)) {
-            this["id"] = "";
-        }
-        if (!("fingerprint" in $$source)) {
-            this["fingerprint"] = "";
-        }
-        if (!("trust_required" in $$source)) {
-            this["trust_required"] = false;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new OpenResult instance from a string or object.
-     */
-    static createFrom($$source: any = {}): OpenResult {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new OpenResult($$parsedSource as Partial<OpenResult>);
-    }
 }
 
-export class RDPLaunch {
+export interface RDPLaunch {
     "grant": rdp$0.Grant;
     "username": string;
     "password": string;
-
-    /** Creates a new RDPLaunch instance. */
-    constructor($$source: Partial<RDPLaunch> = {}) {
-        if (!("grant" in $$source)) {
-            this["grant"] = (new rdp$0.Grant());
-        }
-        if (!("username" in $$source)) {
-            this["username"] = "";
-        }
-        if (!("password" in $$source)) {
-            this["password"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new RDPLaunch instance from a string or object.
-     */
-    static createFrom($$source: any = {}): RDPLaunch {
-        const $$createField0_0 = $$createType6;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("grant" in $$parsedSource) {
-            $$parsedSource["grant"] = $$createField0_0($$parsedSource["grant"]);
-        }
-        return new RDPLaunch($$parsedSource as Partial<RDPLaunch>);
-    }
 }
 
-export class RDPProbe {
+export interface RDPProbe {
     "fingerprint": string;
     "trust_required": boolean;
     "reason": string;
-
-    /** Creates a new RDPProbe instance. */
-    constructor($$source: Partial<RDPProbe> = {}) {
-        if (!("fingerprint" in $$source)) {
-            this["fingerprint"] = "";
-        }
-        if (!("trust_required" in $$source)) {
-            this["trust_required"] = false;
-        }
-        if (!("reason" in $$source)) {
-            this["reason"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new RDPProbe instance from a string or object.
-     */
-    static createFrom($$source: any = {}): RDPProbe {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new RDPProbe($$parsedSource as Partial<RDPProbe>);
-    }
 }
 
-export class RestorePreview {
+export interface RestorePreview {
     "id": string;
     "device_id": string;
     "created_at": string;
-    "added": string[];
-    "updated": string[];
-    "removed": string[];
+    "added": string[] | null;
+    "updated": string[] | null;
+    "removed": string[] | null;
     "credentials": number;
-
-    /** Creates a new RestorePreview instance. */
-    constructor($$source: Partial<RestorePreview> = {}) {
-        if (!("id" in $$source)) {
-            this["id"] = "";
-        }
-        if (!("device_id" in $$source)) {
-            this["device_id"] = "";
-        }
-        if (!("created_at" in $$source)) {
-            this["created_at"] = "0001-01-01T00:00:00.000Z";
-        }
-        if (!("added" in $$source)) {
-            this["added"] = [];
-        }
-        if (!("updated" in $$source)) {
-            this["updated"] = [];
-        }
-        if (!("removed" in $$source)) {
-            this["removed"] = [];
-        }
-        if (!("credentials" in $$source)) {
-            this["credentials"] = 0;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new RestorePreview instance from a string or object.
-     */
-    static createFrom($$source: any = {}): RestorePreview {
-        const $$createField3_0 = $$createType7;
-        const $$createField4_0 = $$createType7;
-        const $$createField5_0 = $$createType7;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("added" in $$parsedSource) {
-            $$parsedSource["added"] = $$createField3_0($$parsedSource["added"]);
-        }
-        if ("updated" in $$parsedSource) {
-            $$parsedSource["updated"] = $$createField4_0($$parsedSource["updated"]);
-        }
-        if ("removed" in $$parsedSource) {
-            $$parsedSource["removed"] = $$createField5_0($$parsedSource["removed"]);
-        }
-        return new RestorePreview($$parsedSource as Partial<RestorePreview>);
-    }
 }
 
-// Private type creation functions
-const $$createType0 = store$0.Group.createFrom;
-const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = store$0.Connection.createFrom;
-const $$createType3 = $Create.Array($$createType2);
-const $$createType4 = monitor$0.Sample.createFrom;
-const $$createType5 = $Create.Nullable($$createType4);
-const $$createType6 = rdp$0.Grant.createFrom;
-const $$createType7 = $Create.Array($Create.Any);
+export interface Transfer {
+    "id": string;
+    "workspace": string;
+    "name": string;
+    "direction": string;
+    "state": string;
+    "total": number;
+    "completed": number;
+    "error": string;
+}
