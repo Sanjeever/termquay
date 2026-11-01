@@ -19,7 +19,7 @@
 - 工具环境：macOS arm64，系统 Go 1.23.12；项目使用 Go 1.26.10，Wails 固定 v3.0.0。Node 26.11.0、pnpm 11.20.0、Rust 1.96.0。已安装 Command Line Tools，未配置完整 Xcode。
 - `internal/store`：SQLite 数据、AES-GCM 凭据、分组循环和引用验证；恢复在单个事务中替换业务数据，settings 保留。
 - `internal/backup`：带版本 JSON、age scrypt 加密、完整性验证和 16 MiB 明文上限。跨主密钥恢复、错误密码、损坏密文、无效引用拒绝测试通过。
-- WebDAV 已实现追加快照、列表、密文下载及同名保护，先上传随机临时密文，再以 `MOVE Overwrite: F` 发布。隔离 WebDAV 测试通过。真实服务已验证认证、读取、上传、列表与解密；根目录不可写，需使用默认可写集合中的相对目录。真实服务忽略 PUT 创建条件，MOVE 同名拒绝已观察到；随后 GET 和测试目录清理遇到 HTTP 503，完整复测与本次目录清理仍需继续，不计为真实 WebDAV 全链路通过。
+- WebDAV 已实现追加快照、列表、密文下载及同名保护，先上传随机临时密文，再以标准库 HTTP 单次 `MOVE Overwrite: F` 发布。真实服务完整复测通过认证、密文往返、列表、解密、同名拒绝与原快照保持一致，测试目录已清理。服务商根目录不可写，应配置现有可写集合下的相对目录；其同名 MOVE 返回 409，不能使用 gowebdav 的递归 MOVE 重试。PUT 创建条件在该服务商上不生效，安全发布依赖明确禁止覆盖的 MOVE。
 - SSH MCP 对 sg1 的只读探测通过，支持 SFTP 原子替换。应用自身真实 SSH 结果另行记录。
 - Wails v3.0.0 + React 18.3.1 + HeroUI 2.8.5 + Tailwind 4.3.3 + Vite 8.2.4 生产构建通过，macOS 26.6.2 arm64 原生窗口启动并查看界面。Wails CLI 位于项目忽略目录 `.tools`。其他平台未验证。
 - SSH 已完成密码与私钥、应用运行期间主机信任、工作区关闭、取消和 PTY 尺寸同步。Streams 每次至多一个 32 KiB 帧等待 xterm.js `write` 回调确认。本地竞态测试通过主机身份、认证失败、背压期间输入、调整尺寸与关闭释放。

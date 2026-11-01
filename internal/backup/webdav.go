@@ -89,13 +89,13 @@ func (o WebDAVOptions) Append(ctx context.Context, deviceID string, encrypted []
 	}
 	name := time.Now().UTC().Format("20060102T150405.000000000Z") + "_" + hex.EncodeToString(id[:]) + ".json.age"
 	remote := path.Join(dir, name)
-	if err = uploadSnapshot(c, remote, encrypted); err != nil {
+	if err = o.uploadSnapshot(ctx, c, remote, encrypted); err != nil {
 		return "", err
 	}
 	return remote, nil
 }
 
-func uploadSnapshot(c *gowebdav.Client, remote string, encrypted []byte) (result error) {
+func (o WebDAVOptions) uploadSnapshot(ctx context.Context, c *gowebdav.Client, remote string, encrypted []byte) (result error) {
 	var id [16]byte
 	if _, err := rand.Read(id[:]); err != nil {
 		return err
@@ -109,7 +109,31 @@ func uploadSnapshot(c *gowebdav.Client, remote string, encrypted []byte) (result
 			result = errors.Join(result, c.Remove(stage))
 		}
 	}()
-	return c.Rename(stage, remote, false)
+	source, err := url.JoinPath(o.URL, stage)
+	if err != nil {
+		return err
+	}
+	destination, err := url.JoinPath(o.URL, remote)
+	if err != nil {
+		return err
+	}
+	request, err := http.NewRequestWithContext(ctx, "MOVE", source, nil)
+	if err != nil {
+		return err
+	}
+	request.SetBasicAuth(o.Username, o.Password)
+	request.Header.Set("Destination", destination)
+	request.Header.Set("Overwrite", "F")
+	client := &http.Client{Timeout: 30 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	response, err := client.Do(request)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusCreated && response.StatusCode != http.StatusNoContent {
+		return gowebdav.NewPathError("MOVE", remote, response.StatusCode)
+	}
+	return nil
 }
 
 func (o WebDAVOptions) List(ctx context.Context) ([]RemoteSnapshot, error) {

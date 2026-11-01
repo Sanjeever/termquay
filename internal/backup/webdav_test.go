@@ -3,17 +3,19 @@ package backup
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/Sanjeever/termquay/internal/store"
+	"github.com/studio-b12/gowebdav"
 	"golang.org/x/net/webdav"
 )
 
@@ -67,11 +69,17 @@ func exerciseWebDAV(t *testing.T, opts WebDAVOptions) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = uploadSnapshot(c, remote, []byte("must-not-overwrite")); err == nil {
+	if err = opts.uploadSnapshot(ctx, c, remote, []byte("must-not-overwrite")); err == nil {
 		t.Fatal("服务端没有拒绝同名覆盖")
 	}
+	var status gowebdav.StatusError
+	if !errors.As(err, &status) || (status.Status != http.StatusPreconditionFailed && status.Status != http.StatusConflict) {
+		t.Fatalf("同名发布未被明确拒绝: %v", err)
+	}
 	after, err := opts.Read(ctx, remote)
-	if err != nil {t.Fatalf("覆盖拒绝后的密文读取失败: %v",err)}
+	if err != nil {
+		t.Fatalf("覆盖拒绝后的密文读取失败: %v", err)
+	}
 	if !bytes.Equal(after, encrypted) {
 		t.Fatal("条件上传覆盖已有快照")
 	}
@@ -81,7 +89,10 @@ func TestRealWebDAV(t *testing.T) {
 	if os.Getenv("TERMQUAY_WEBDAV_PASSWORD") == "" {
 		t.Skip("未注入真实 WebDAV 测试凭据")
 	}
-	opts := WebDAVOptions{URL: os.Getenv("TERMQUAY_WEBDAV_URL"), Username: os.Getenv("TERMQUAY_WEBDAV_USERNAME"), Password: os.Getenv("TERMQUAY_WEBDAV_PASSWORD"), Directory: fmt.Sprintf("termquay-test-%d", time.Now().UnixNano())}
+	opts := WebDAVOptions{URL: os.Getenv("TERMQUAY_WEBDAV_URL"), Username: os.Getenv("TERMQUAY_WEBDAV_USERNAME"), Password: os.Getenv("TERMQUAY_WEBDAV_PASSWORD"), Directory: path.Join(os.Getenv("TERMQUAY_WEBDAV_DIRECTORY"), fmt.Sprintf("termquay-test-%d", time.Now().UnixNano()))}
+	transport := http.DefaultTransport
+	http.DefaultTransport = &pacedTransport{base: transport}
+	defer func() { http.DefaultTransport = transport }()
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 	c, err := opts.client(ctx)
@@ -91,27 +102,7 @@ func TestRealWebDAV(t *testing.T) {
 	if _, err = c.Stat(opts.Directory); err == nil {
 		t.Fatal("测试目录已存在")
 	}
-	entries, err := c.ReadDir("")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, entry := range entries {
-		if entry.IsDir() && entry.Name() == "我的坚果云" {
-			opts.Directory = "我的坚果云/" + opts.Directory
-			break
-		}
-	}
 	if err = c.Mkdir(opts.Directory, 0700); err != nil {
-		req, _ := http.NewRequestWithContext(ctx, "PROPFIND", opts.URL, nil)
-		req.SetBasicAuth(opts.Username, opts.Password)
-		req.Header.Set("Depth", "0")
-		response, diagnosticErr := http.DefaultClient.Do(req)
-		if diagnosticErr == nil {
-			defer response.Body.Close()
-			body, _ := io.ReadAll(io.LimitReader(response.Body, 1024))
-			message := strings.ReplaceAll(strings.ReplaceAll(string(body), opts.Password, "[已隐藏]"), opts.Username, "[已隐藏]")
-			t.Logf("只读 WebDAV 诊断 HTTP %d: %s", response.StatusCode, message)
-		}
 		t.Fatal(err)
 	}
 	defer func() {
@@ -124,4 +115,17 @@ func TestRealWebDAV(t *testing.T) {
 	}()
 	exerciseWebDAV(t, opts)
 	t.Log("真实 WebDAV 条件追加、密文往返、列表与解密通过，测试目录已安排清理")
+}
+
+type pacedTransport struct{ base http.RoundTripper }
+
+func (p *pacedTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	timer := time.NewTimer(time.Second)
+	defer timer.Stop()
+	select {
+	case <-r.Context().Done():
+		return nil, r.Context().Err()
+	case <-timer.C:
+	}
+	return p.base.RoundTrip(r)
 }
