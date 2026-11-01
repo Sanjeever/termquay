@@ -88,24 +88,24 @@ type Bridge struct {
 	ctx      context.Context
 	cancel   context.CancelFunc
 	origins  map[string]bool
-	onError  func(string, string)
+	onClose  func(string, error)
 }
 
-func NewBridge(origins []string, onError func(string, string)) (*Bridge, error) {
+func NewBridge(origins []string, onClose func(string, error)) (*Bridge, error) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return nil, err
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	b := &Bridge{grants: map[string]*authorization{}, listener: listener, ctx: ctx, cancel: cancel, origins: map[string]bool{}, onError: onError}
+	b := &Bridge{grants: map[string]*authorization{}, listener: listener, ctx: ctx, cancel: cancel, origins: map[string]bool{}, onClose: onClose}
 	for _, origin := range origins {
 		b.origins[origin] = true
 	}
 	b.server = &http.Server{Handler: http.HandlerFunc(b.serve), ReadHeaderTimeout: 5 * time.Second, MaxHeaderBytes: 8192}
 	go func() {
 		err := b.server.Serve(listener)
-		if err != nil && !errors.Is(err, http.ErrServerClosed) && onError != nil {
-			onError("", err.Error())
+		if err != nil && !errors.Is(err, http.ErrServerClosed) && onClose != nil {
+			onClose("", err)
 		}
 	}()
 	return b, nil
@@ -188,10 +188,14 @@ func (b *Bridge) serve(w http.ResponseWriter, r *http.Request) {
 	}
 	defer ws.CloseNow()
 	ws.SetReadLimit(1 << 20)
-	if err = b.run(ctx, ws, a); err != nil {
-		if b.onError != nil && ctx.Err() == nil {
-			b.onError(id, err.Error())
-		}
+	err = b.run(ctx, ws, a)
+	if ctx.Err() != nil || websocket.CloseStatus(err) == websocket.StatusNormalClosure || websocket.CloseStatus(err) == websocket.StatusNoStatusRcvd {
+		err = nil
+	}
+	if b.onClose != nil {
+		b.onClose(id, err)
+	}
+	if err != nil {
 		ws.Close(websocket.StatusInternalError, "RDP 桥接失败")
 	}
 }

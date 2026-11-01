@@ -11,6 +11,7 @@ let initialization: Promise<typeof import('@devolutions/iron-remote-desktop-rdp'
 const RDPView = forwardRef<RDPHandle, { grant: Grant }>(function RDPView({ grant }, ref) {
   const container = useRef<HTMLDivElement>(null);
   const ui = useRef<UserInteraction>();
+  const closed=useRef(false);
   const [error, setError] = useState('');
   const [status, setStatus] = useState('正在装载 WASM');
   const [clipboard, setClipboard] = useState(false);
@@ -35,7 +36,7 @@ const RDPView = forwardRef<RDPHandle, { grant: Grant }>(function RDPView({ grant
         await api.connect(config);
         api.setKeyboardUnicodeMode(true);
         api.setEnableClipboard(false);
-        setStatus('已连接');
+        setStatus(closed.current?'已断开':'已连接');
       } catch (e) { setError(String(e)); setStatus('连接失败'); throw e; }
       finally { password = ''; }
     },
@@ -64,9 +65,10 @@ const RDPView = forwardRef<RDPHandle, { grant: Grant }>(function RDPView({ grant
     })();
     const unsubscribe = Events.On('rdp:error', (event) => {
       const data = event.data as { id: string; error: string };
-      if (data.id === grant.id) { setError(data.error); setStatus('已断开'); }
+      if (data.id === grant.id) { closed.current=true;setError(data.error); setStatus('已断开'); }
     });
-    return () => { disposed = true; unsubscribe(); ui.current?.shutdown(); desktop?.remove(); CloseRDP(grant.id).catch(() => {}); ready.reject(new Error('RDP 工作区已关闭')); };
+    const unsubscribeClosed=Events.On('rdp:closed',event=>{const data=event.data as {id:string};if(data.id===grant.id){closed.current=true;setStatus('已断开')}});
+    return () => { disposed = true; unsubscribe();unsubscribeClosed(); ui.current?.shutdown(); desktop?.remove(); CloseRDP(grant.id).catch(() => {}); ready.reject(new Error('RDP 工作区已关闭')); };
   }, [grant, ready]);
 
   useEffect(() => {

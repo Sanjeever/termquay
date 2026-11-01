@@ -113,7 +113,8 @@ func TestCertificateVerification(t *testing.T) {
 
 func TestCleanPathBridge(t *testing.T) {
 	target, request := localRDPTLS(t)
-	bridge, err := NewBridge([]string{"wails://localhost"}, nil)
+	closed := make(chan error, 1)
+	bridge, err := NewBridge([]string{"wails://localhost"}, func(_ string, err error) { closed <- err })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,6 +169,14 @@ func TestCleanPathBridge(t *testing.T) {
 	bridge.CloseSession(grant.ID)
 	if _, _, err = ws.Read(ctx); err == nil {
 		t.Fatal("关闭会话未关闭传输")
+	}
+	select {
+	case err := <-closed:
+		if err != nil {
+			t.Fatalf("正常关闭被报告为错误: %v", err)
+		}
+	case <-ctx.Done():
+		t.Fatal("没有报告连接关闭")
 	}
 }
 

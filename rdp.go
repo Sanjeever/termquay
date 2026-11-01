@@ -90,8 +90,12 @@ func (a *AppService) OpenRDP(host string, port int) (rdp.Grant, error) {
 		return rdp.Grant{}, errors.New("应用正在关闭")
 	}
 	if a.rdp == nil {
-		b, err := rdp.NewBridge([]string{"wails://localhost", "http://wails.localhost", "http://127.0.0.1:9245", "http://localhost:9245"}, func(id, message string) {
-			application.Get().Event.Emit("rdp:error", map[string]string{"id": id, "error": message})
+		b, err := rdp.NewBridge([]string{"wails://localhost", "http://wails.localhost", "http://127.0.0.1:9245", "http://localhost:9245"}, func(id string, closedErr error) {
+			if closedErr == nil {
+				application.Get().Event.Emit("rdp:closed", map[string]string{"id": id})
+			} else {
+				application.Get().Event.Emit("rdp:error", map[string]string{"id": id, "error": closedErr.Error()})
+			}
 		})
 		if err != nil {
 			return rdp.Grant{}, err
