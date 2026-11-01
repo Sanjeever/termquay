@@ -5,11 +5,11 @@
 	"info": {
 		"0409": {
 			"ProductVersion": "0.1.0",
-			"CompanyName": "My Company",
+			"CompanyName": "TermQuay",
 			"FileDescription": "栈桥远程连接工作台",
-			"LegalCopyright": "© 2026, My Company",
+			"LegalCopyright": "Copyright 2026 TermQuay contributors",
 			"ProductName": "TermQuay",
-			"Comments": "This is a comment"
+			"Comments": "开发版"
 		}
 	}
 }

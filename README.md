@@ -12,9 +12,13 @@ TermQuay 是使用 Go、Wails 和 React 构建的开源跨平台远程连接工�
 
 下列产品规划尚未全部实现，未提供稳定安装包。平台、真实远端和功能验收状态见 [handoff.md](handoff.md)。
 
-RDP 连接表单、IronRDP WASM 工作区和 Go RDCleanPath 桥接已接入，包含 TLS/NLA、证书指纹确认及变化阻止。浏览器 WASM 装载与隔离 TLS 桥接测试通过；真实 Windows 画面、输入、剪贴板和尺寸行为待验证。
+RDP 连接表单、IronRDP WASM 工作区和 Go RDCleanPath 桥接已接入，包含 TLS/NLA、证书指纹确认、变化与过期阻止。macOS 原生 WebView 的 WASM 装载及隔离 TLS 桥接测试通过；真实 Windows 画面、输入、剪贴板和尺寸行为待验证。
 
-SSH 工作区已有 SFTP 浏览与基本目录操作、CodeMirror 文件标签、草稿与保存冲突检测。在线编辑支持 2 MiB 内 UTF-8 普通文件；保存要求服务端支持 POSIX rename。真实 SSH/SFTP 小文件验证通过。监控、上传下载任务、多终端与首版迁移转发能力继续实施。
+SSH 工作区已有独立多 PTY、SFTP 浏览与基本目录操作、CodeMirror 文件标签、草稿与保存冲突检测，以及按需 Linux 监控。在线编辑支持 2 MiB 内 UTF-8 普通文件；保存要求服务端支持 POSIX rename。macOS 原生 WebView 已完成真实 SSH、SFTP 编辑、监控和 512 KiB 终端输出验证。本地测试逐字节核对 4 MiB 输出，并覆盖背压期间输入与 100 次 PTY 创建关闭。
+
+保存会保留服务端报告的 POSIX 权限、属主与用户组，含特殊权限位的文件拒绝在线保存。暂存内容先写入同文件系统的 `0700` 私有目录；可被其他用户任意改写且没有 sticky bit 的目标目录会被拒绝。当前不保留 ACL 和扩展属性，网络中断后可能需要清理私有临时目录。
+
+上传下载任务已接入原生文件选择、进度与取消，最多两个并行任务；收起面板不取消任务，关闭工作区会取消并尝试清理。原生文件选择到完整传输的流程和大文件负载仍待验证。
 
 ## 产品规划
 
@@ -76,6 +80,10 @@ PATH="$PWD/.tools:$PATH" .tools/wails3 dev
 PATH="$PWD/.tools:$PATH" .tools/wails3 task package
 ```
 
+macOS 本地应用包生成到 `bin/termquay.app`，使用本机 ad-hoc 签名。Windows amd64 已交叉编译，尚未完成 Windows 原生运行；Linux 与其他架构仍待原生验证。当前不是正式发行包。
+
+RDP 验证可在连接中心选择 RDP，填写目标、端口、用户名和可选域。自签名证书需核对指纹；过期证书和已知身份变化会被阻止。工作区提供组合键、文本剪贴板开关、分辨率与全屏。真实目标尚未验证，多会话与中文输入也待实测。
+
 首次连接需要核对 SSH 主机或 RDP 证书指纹。已打开持久存储时，信任保存在本机；会话模式下退出即释放。关闭工作区释放连接，切换标签保留会话。连接表单通过“保存连接”明确保存加密凭据，普通连接操作不自动保存。
 
 文档、界面和提交描述使用简体中文。提交遵循 Conventional Commits，按完整且可审阅的小改动提交。
@@ -84,7 +92,7 @@ SSH 集成测试使用开发者安全配置的测试连接。密码、私钥、�
 
 ## 开源许可
 
-计划采用 [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0)。当前尚未添加 `LICENSE` 文件，正式分发前需补齐许可证和实际依赖要求的第三方声明。
+项目采用 [Apache License 2.0](LICENSE)。依赖许可原文位于 `build/licenses`，来源与待核对事项见 [第三方依赖声明](THIRD_PARTY_NOTICES.md)。预构建 WASM 的 Rust 依赖声明及一个未附许可原文的前端依赖仍需完成发行审计。
 
 ## 参考资料
 

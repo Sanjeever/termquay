@@ -1,0 +1,2398 @@
+[
+  {
+    "name": "@adobe/react-spectrum",
+    "versions": [
+      "3.47.7"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@adobe/react-spectrum-ui",
+    "versions": [
+      "1.2.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": null,
+    "author": null
+  },
+  {
+    "name": "@adobe/react-spectrum-workflow",
+    "versions": [
+      "2.3.5"
+    ],
+    "license": "Apache-2.0",
+    "homepage": null,
+    "author": null
+  },
+  {
+    "name": "@internationalized/date",
+    "versions": [
+      "3.10.0",
+      "3.12.4"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum/tree/main#readme",
+    "author": null
+  },
+  {
+    "name": "@internationalized/message",
+    "versions": [
+      "3.1.10"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@internationalized/number",
+    "versions": [
+      "3.6.9"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@internationalized/string",
+    "versions": [
+      "3.2.10"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/breadcrumbs",
+    "versions": [
+      "3.5.29"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/button",
+    "versions": [
+      "3.14.2",
+      "3.15.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/calendar",
+    "versions": [
+      "3.9.2",
+      "3.10.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/checkbox",
+    "versions": [
+      "3.16.2",
+      "3.17.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/combobox",
+    "versions": [
+      "3.14.0"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/datepicker",
+    "versions": [
+      "3.15.2"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/dialog",
+    "versions": [
+      "3.5.31",
+      "3.6.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/focus",
+    "versions": [
+      "3.21.2",
+      "3.22.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/form",
+    "versions": [
+      "3.1.2",
+      "3.2.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/grid",
+    "versions": [
+      "3.15.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/i18n",
+    "versions": [
+      "3.12.13",
+      "3.13.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/interactions",
+    "versions": [
+      "3.25.6",
+      "3.28.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/label",
+    "versions": [
+      "3.7.22",
+      "3.8.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/landmark",
+    "versions": [
+      "3.1.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/link",
+    "versions": [
+      "3.9.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/listbox",
+    "versions": [
+      "3.15.0",
+      "3.16.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/live-announcer",
+    "versions": [
+      "3.5.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/menu",
+    "versions": [
+      "3.19.3",
+      "3.22.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/numberfield",
+    "versions": [
+      "3.12.2"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/overlays",
+    "versions": [
+      "3.30.0",
+      "3.32.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/progress",
+    "versions": [
+      "3.4.27"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/radio",
+    "versions": [
+      "3.12.2"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/selection",
+    "versions": [
+      "3.26.0",
+      "3.28.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/slider",
+    "versions": [
+      "3.8.2",
+      "3.9.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/spinbutton",
+    "versions": [
+      "3.8.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/ssr",
+    "versions": [
+      "3.9.10",
+      "3.10.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/switch",
+    "versions": [
+      "3.7.8",
+      "3.8.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/table",
+    "versions": [
+      "3.17.8"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/tabs",
+    "versions": [
+      "3.10.8",
+      "3.12.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/textfield",
+    "versions": [
+      "3.18.2",
+      "3.19.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/toast",
+    "versions": [
+      "3.0.8"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/toggle",
+    "versions": [
+      "3.13.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/toolbar",
+    "versions": [
+      "3.0.0-beta.21"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/tooltip",
+    "versions": [
+      "3.8.8"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/utils",
+    "versions": [
+      "3.31.0",
+      "3.34.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-aria/visually-hidden",
+    "versions": [
+      "3.8.28"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-spectrum/button",
+    "versions": [
+      "3.18.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-spectrum/calendar",
+    "versions": [
+      "3.8.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-spectrum/checkbox",
+    "versions": [
+      "3.11.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-spectrum/dialog",
+    "versions": [
+      "3.10.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-spectrum/link",
+    "versions": [
+      "3.7.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-spectrum/listbox",
+    "versions": [
+      "3.16.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-spectrum/overlays",
+    "versions": [
+      "5.10.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-spectrum/provider",
+    "versions": [
+      "3.11.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-spectrum/slider",
+    "versions": [
+      "3.9.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-spectrum/switch",
+    "versions": [
+      "3.7.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-spectrum/tabs",
+    "versions": [
+      "3.9.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-stately/calendar",
+    "versions": [
+      "3.9.0",
+      "3.10.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-stately/checkbox",
+    "versions": [
+      "3.7.2",
+      "3.8.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-stately/collections",
+    "versions": [
+      "3.12.8",
+      "3.13.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-stately/combobox",
+    "versions": [
+      "3.12.0"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-stately/datepicker",
+    "versions": [
+      "3.15.2"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-stately/flags",
+    "versions": [
+      "3.2.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-stately/form",
+    "versions": [
+      "3.2.2",
+      "3.3.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-stately/grid",
+    "versions": [
+      "3.12.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-stately/list",
+    "versions": [
+      "3.13.1",
+      "3.14.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-stately/menu",
+    "versions": [
+      "3.9.8"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-stately/numberfield",
+    "versions": [
+      "3.10.2"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-stately/overlays",
+    "versions": [
+      "3.6.20",
+      "3.7.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-stately/radio",
+    "versions": [
+      "3.11.2"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-stately/selection",
+    "versions": [
+      "3.21.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-stately/slider",
+    "versions": [
+      "3.7.2",
+      "3.8.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-stately/table",
+    "versions": [
+      "3.15.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-stately/tabs",
+    "versions": [
+      "3.8.6",
+      "3.9.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-stately/toast",
+    "versions": [
+      "3.1.2"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-stately/toggle",
+    "versions": [
+      "3.9.2",
+      "3.10.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-stately/tooltip",
+    "versions": [
+      "3.5.8"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-stately/tree",
+    "versions": [
+      "3.9.3",
+      "3.10.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-stately/utils",
+    "versions": [
+      "3.10.8",
+      "3.12.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-stately/virtualizer",
+    "versions": [
+      "4.4.4"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-types/accordion",
+    "versions": [
+      "3.0.0-alpha.26"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-types/breadcrumbs",
+    "versions": [
+      "3.7.17"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-types/button",
+    "versions": [
+      "3.14.1",
+      "3.16.0"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-types/calendar",
+    "versions": [
+      "3.8.0",
+      "3.9.0"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-types/checkbox",
+    "versions": [
+      "3.10.2",
+      "3.11.0"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-types/combobox",
+    "versions": [
+      "3.13.9"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-types/datepicker",
+    "versions": [
+      "3.13.2"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-types/dialog",
+    "versions": [
+      "3.6.0"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-types/form",
+    "versions": [
+      "3.7.16"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-types/grid",
+    "versions": [
+      "3.3.6"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-types/link",
+    "versions": [
+      "3.6.5",
+      "3.7.0"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-types/listbox",
+    "versions": [
+      "3.8.0"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-types/menu",
+    "versions": [
+      "3.10.5"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-types/numberfield",
+    "versions": [
+      "3.8.15"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-types/overlays",
+    "versions": [
+      "3.9.2",
+      "3.10.0"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-types/progress",
+    "versions": [
+      "3.5.16"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-types/radio",
+    "versions": [
+      "3.9.2"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-types/shared",
+    "versions": [
+      "3.32.1",
+      "3.37.0"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-types/slider",
+    "versions": [
+      "3.9.0"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-types/switch",
+    "versions": [
+      "3.6.0"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-types/table",
+    "versions": [
+      "3.13.4"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-types/tabs",
+    "versions": [
+      "3.4.0"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-types/textfield",
+    "versions": [
+      "3.12.6"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@react-types/tooltip",
+    "versions": [
+      "3.4.21"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@spectrum-icons/ui",
+    "versions": [
+      "3.7.2"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@spectrum-icons/workflow",
+    "versions": [
+      "4.3.2"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@swc/helpers",
+    "versions": [
+      "0.5.23"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://swc.rs",
+    "author": "강동윤"
+  },
+  {
+    "name": "react-aria",
+    "versions": [
+      "3.53.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "react-aria-components",
+    "versions": [
+      "1.22.1"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "react-stately",
+    "versions": [
+      "3.51.0"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/adobe/react-spectrum#readme",
+    "author": null
+  },
+  {
+    "name": "@babel/runtime",
+    "versions": [
+      "7.29.10"
+    ],
+    "license": "MIT",
+    "homepage": "https://babel.dev/docs/en/next/babel-runtime",
+    "author": "The Babel Team"
+  },
+  {
+    "name": "@codemirror/autocomplete",
+    "versions": [
+      "6.20.4"
+    ],
+    "license": "MIT",
+    "homepage": null,
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@codemirror/commands",
+    "versions": [
+      "6.11.1"
+    ],
+    "license": "MIT",
+    "homepage": null,
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@codemirror/lang-javascript",
+    "versions": [
+      "6.2.5"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/codemirror/lang-javascript#readme",
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@codemirror/lang-json",
+    "versions": [
+      "6.0.2"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/codemirror/lang-json#readme",
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@codemirror/lang-yaml",
+    "versions": [
+      "6.1.3"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/codemirror/lang-yaml#readme",
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@codemirror/language",
+    "versions": [
+      "6.13.1"
+    ],
+    "license": "MIT",
+    "homepage": null,
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@codemirror/lint",
+    "versions": [
+      "6.9.7"
+    ],
+    "license": "MIT",
+    "homepage": null,
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@codemirror/search",
+    "versions": [
+      "6.7.2"
+    ],
+    "license": "MIT",
+    "homepage": null,
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@codemirror/state",
+    "versions": [
+      "6.7.6"
+    ],
+    "license": "MIT",
+    "homepage": null,
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@codemirror/streamparser",
+    "versions": [
+      "6.0.0"
+    ],
+    "license": "MIT",
+    "homepage": null,
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@codemirror/view",
+    "versions": [
+      "6.43.15"
+    ],
+    "license": "MIT",
+    "homepage": null,
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@formatjs/ecma402-abstract",
+    "versions": [
+      "2.3.6"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/formatjs/formatjs",
+    "author": "Long Ho"
+  },
+  {
+    "name": "@formatjs/fast-memoize",
+    "versions": [
+      "2.2.7"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/formatjs/formatjs#readme",
+    "author": "Long Ho"
+  },
+  {
+    "name": "@formatjs/icu-messageformat-parser",
+    "versions": [
+      "2.11.4"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/formatjs/formatjs#readme",
+    "author": null
+  },
+  {
+    "name": "@formatjs/icu-skeleton-parser",
+    "versions": [
+      "1.8.16"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/formatjs/formatjs#readme",
+    "author": null
+  },
+  {
+    "name": "@formatjs/intl-localematcher",
+    "versions": [
+      "0.6.2"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/formatjs/formatjs#readme",
+    "author": "Long Ho"
+  },
+  {
+    "name": "@heroui/accordion",
+    "versions": [
+      "2.2.24"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/alert",
+    "versions": [
+      "2.2.27"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/aria-utils",
+    "versions": [
+      "2.2.24"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/autocomplete",
+    "versions": [
+      "2.3.29"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/avatar",
+    "versions": [
+      "2.2.22"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/badge",
+    "versions": [
+      "2.2.17"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/breadcrumbs",
+    "versions": [
+      "2.2.22"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/button",
+    "versions": [
+      "2.2.27"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/calendar",
+    "versions": [
+      "2.2.27"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/card",
+    "versions": [
+      "2.2.25"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/checkbox",
+    "versions": [
+      "2.3.27"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/chip",
+    "versions": [
+      "2.2.22"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/code",
+    "versions": [
+      "2.2.21"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/date-input",
+    "versions": [
+      "2.3.27"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/date-picker",
+    "versions": [
+      "2.3.28"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/divider",
+    "versions": [
+      "2.2.20"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/dom-animation",
+    "versions": [
+      "2.1.10"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/drawer",
+    "versions": [
+      "2.2.24"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/dropdown",
+    "versions": [
+      "2.3.27"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/form",
+    "versions": [
+      "2.1.27"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/framer-utils",
+    "versions": [
+      "2.1.23"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/image",
+    "versions": [
+      "2.2.17"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/input",
+    "versions": [
+      "2.4.28"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/input-otp",
+    "versions": [
+      "2.1.27"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/kbd",
+    "versions": [
+      "2.2.22"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/link",
+    "versions": [
+      "2.2.23"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/listbox",
+    "versions": [
+      "2.3.26"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/menu",
+    "versions": [
+      "2.2.26"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/modal",
+    "versions": [
+      "2.2.24"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/navbar",
+    "versions": [
+      "2.2.25"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/number-input",
+    "versions": [
+      "2.0.18"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/pagination",
+    "versions": [
+      "2.2.24"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/popover",
+    "versions": [
+      "2.3.27"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/progress",
+    "versions": [
+      "2.2.22"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/radio",
+    "versions": [
+      "2.3.27"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/react",
+    "versions": [
+      "2.8.5"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/react-rsc-utils",
+    "versions": [
+      "2.1.9"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/react-utils",
+    "versions": [
+      "2.1.14"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/ripple",
+    "versions": [
+      "2.2.20"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/scroll-shadow",
+    "versions": [
+      "2.3.18"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/select",
+    "versions": [
+      "2.4.28"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/shared-icons",
+    "versions": [
+      "2.1.10"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/shared-utils",
+    "versions": [
+      "2.1.12"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/skeleton",
+    "versions": [
+      "2.2.17"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/slider",
+    "versions": [
+      "2.4.24"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/snippet",
+    "versions": [
+      "2.2.28"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/spacer",
+    "versions": [
+      "2.2.21"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/spinner",
+    "versions": [
+      "2.2.24"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/switch",
+    "versions": [
+      "2.2.24"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/system",
+    "versions": [
+      "2.4.23"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/system-rsc",
+    "versions": [
+      "2.3.20"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/table",
+    "versions": [
+      "2.2.27"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/tabs",
+    "versions": [
+      "2.2.24"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/theme",
+    "versions": [
+      "2.4.23"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/toast",
+    "versions": [
+      "2.0.17"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/tooltip",
+    "versions": [
+      "2.2.24"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/use-aria-accordion",
+    "versions": [
+      "2.2.18"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/use-aria-button",
+    "versions": [
+      "2.2.20"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/use-aria-link",
+    "versions": [
+      "2.2.21"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/use-aria-modal-overlay",
+    "versions": [
+      "2.2.19"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/use-aria-multiselect",
+    "versions": [
+      "2.4.19"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/use-aria-overlay",
+    "versions": [
+      "2.0.4"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/use-callback-ref",
+    "versions": [
+      "2.1.8"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/use-clipboard",
+    "versions": [
+      "2.1.9"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/use-data-scroll-overflow",
+    "versions": [
+      "2.2.13"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/use-disclosure",
+    "versions": [
+      "2.2.17"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/use-draggable",
+    "versions": [
+      "2.1.18"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/use-form-reset",
+    "versions": [
+      "2.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/use-image",
+    "versions": [
+      "2.1.13"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/use-intersection-observer",
+    "versions": [
+      "2.2.14"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/use-is-mobile",
+    "versions": [
+      "2.2.12"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/use-is-mounted",
+    "versions": [
+      "2.1.8"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/use-measure",
+    "versions": [
+      "2.1.8"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/use-pagination",
+    "versions": [
+      "2.2.18"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/use-resize",
+    "versions": [
+      "2.1.8"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/use-safe-layout-effect",
+    "versions": [
+      "2.1.8"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/use-scroll-position",
+    "versions": [
+      "2.1.8"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/use-viewport-size",
+    "versions": [
+      "2.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@heroui/user",
+    "versions": [
+      "2.2.22"
+    ],
+    "license": "MIT",
+    "homepage": "https://heroui.com",
+    "author": "HeroUI"
+  },
+  {
+    "name": "@lezer/common",
+    "versions": [
+      "1.5.5"
+    ],
+    "license": "MIT",
+    "homepage": null,
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@lezer/highlight",
+    "versions": [
+      "1.2.5"
+    ],
+    "license": "MIT",
+    "homepage": null,
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@lezer/javascript",
+    "versions": [
+      "1.5.6"
+    ],
+    "license": "MIT",
+    "homepage": null,
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@lezer/json",
+    "versions": [
+      "1.0.3"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/lezer-parser/json#readme",
+    "author": "Arun Srinivasan"
+  },
+  {
+    "name": "@lezer/lr",
+    "versions": [
+      "1.4.12"
+    ],
+    "license": "MIT",
+    "homepage": null,
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@lezer/yaml",
+    "versions": [
+      "1.0.4"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/lezer-parser/yaml#readme",
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@marijn/find-cluster-break",
+    "versions": [
+      "1.0.4"
+    ],
+    "license": "MIT",
+    "homepage": "https://code.haverbeke.berlin/marijn/find-cluster-break",
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@tanstack/react-virtual",
+    "versions": [
+      "3.11.3"
+    ],
+    "license": "MIT",
+    "homepage": "https://tanstack.com/virtual",
+    "author": "Tanner Linsley"
+  },
+  {
+    "name": "@tanstack/virtual-core",
+    "versions": [
+      "3.11.3"
+    ],
+    "license": "MIT",
+    "homepage": "https://tanstack.com/virtual",
+    "author": "Tanner Linsley"
+  },
+  {
+    "name": "@types/prop-types",
+    "versions": [
+      "15.7.15"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/prop-types",
+    "author": null
+  },
+  {
+    "name": "@types/react",
+    "versions": [
+      "18.3.26"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react",
+    "author": null
+  },
+  {
+    "name": "@wailsio/runtime",
+    "versions": [
+      "3.0.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://v3.wails.io",
+    "author": "The Wails Team"
+  },
+  {
+    "name": "@xterm/addon-fit",
+    "versions": [
+      "0.10.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/xtermjs/xterm.js/tree/master#readme",
+    "author": "The xterm.js authors"
+  },
+  {
+    "name": "@xterm/xterm",
+    "versions": [
+      "5.5.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/xtermjs/xterm.js#readme",
+    "author": null
+  },
+  {
+    "name": "aria-hidden",
+    "versions": [
+      "1.2.6"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/theKashey/aria-hidden#readme",
+    "author": "Anton Korzunov"
+  },
+  {
+    "name": "client-only",
+    "versions": [
+      "0.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://reactjs.org/",
+    "author": null
+  },
+  {
+    "name": "clsx",
+    "versions": [
+      "1.2.1",
+      "2.1.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/lukeed/clsx#readme",
+    "author": "Luke Edwards"
+  },
+  {
+    "name": "color",
+    "versions": [
+      "4.2.3"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/Qix-/color#readme",
+    "author": null
+  },
+  {
+    "name": "color-convert",
+    "versions": [
+      "2.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/Qix-/color-convert#readme",
+    "author": "Heather Arthur"
+  },
+  {
+    "name": "color-name",
+    "versions": [
+      "1.1.4"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/colorjs/color-name",
+    "author": "DY"
+  },
+  {
+    "name": "color-string",
+    "versions": [
+      "1.9.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/Qix-/color-string#readme",
+    "author": "Heather Arthur"
+  },
+  {
+    "name": "color2k",
+    "versions": [
+      "2.0.4"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/ricokahler/color2k#readme",
+    "author": "Rico Kahler"
+  },
+  {
+    "name": "compute-scroll-into-view",
+    "versions": [
+      "3.1.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://scroll-into-view.dev",
+    "author": "Cody Olsen"
+  },
+  {
+    "name": "crelt",
+    "versions": [
+      "1.0.7"
+    ],
+    "license": "MIT",
+    "homepage": "https://code.haverbeke.berlin/marijn/crelt",
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "csstype",
+    "versions": [
+      "3.2.3"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/frenic/csstype#readme",
+    "author": "Fredrik Nicol"
+  },
+  {
+    "name": "decimal.js",
+    "versions": [
+      "10.6.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/MikeMcl/decimal.js#readme",
+    "author": "Michael Mclaughlin"
+  },
+  {
+    "name": "deepmerge",
+    "versions": [
+      "4.3.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/TehShrike/deepmerge",
+    "author": null
+  },
+  {
+    "name": "dom-helpers",
+    "versions": [
+      "5.2.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/react-bootstrap/dom-helpers#readme",
+    "author": "Jason Quense"
+  },
+  {
+    "name": "framer-motion",
+    "versions": [
+      "12.23.24"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/motiondivision/motion#readme",
+    "author": "Matt Perry"
+  },
+  {
+    "name": "input-otp",
+    "versions": [
+      "1.4.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://input-otp.rodz.dev/",
+    "author": "Guilherme Rodz"
+  },
+  {
+    "name": "is-arrayish",
+    "versions": [
+      "0.3.4"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/qix-/node-is-arrayish#readme",
+    "author": "Qix"
+  },
+  {
+    "name": "js-tokens",
+    "versions": [
+      "4.0.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/lydell/js-tokens#readme",
+    "author": "Simon Lydell"
+  },
+  {
+    "name": "loose-envify",
+    "versions": [
+      "1.4.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/zertosh/loose-envify",
+    "author": "Andres Suarez"
+  },
+  {
+    "name": "motion-dom",
+    "versions": [
+      "12.23.23"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/motiondivision/motion#readme",
+    "author": "Matt Perry"
+  },
+  {
+    "name": "motion-utils",
+    "versions": [
+      "12.23.6"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/motiondivision/motion#readme",
+    "author": "Matt Perry"
+  },
+  {
+    "name": "object-assign",
+    "versions": [
+      "4.1.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/sindresorhus/object-assign#readme",
+    "author": "Sindre Sorhus"
+  },
+  {
+    "name": "prop-types",
+    "versions": [
+      "15.8.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://facebook.github.io/react/",
+    "author": null
+  },
+  {
+    "name": "react",
+    "versions": [
+      "18.3.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://reactjs.org/",
+    "author": null
+  },
+  {
+    "name": "react-dom",
+    "versions": [
+      "18.3.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://reactjs.org/",
+    "author": null
+  },
+  {
+    "name": "react-is",
+    "versions": [
+      "16.13.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://reactjs.org/",
+    "author": null
+  },
+  {
+    "name": "react-textarea-autosize",
+    "versions": [
+      "8.5.9"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/Andarist/react-textarea-autosize#readme",
+    "author": "Andrey Popp"
+  },
+  {
+    "name": "scheduler",
+    "versions": [
+      "0.23.2"
+    ],
+    "license": "MIT",
+    "homepage": "https://reactjs.org/",
+    "author": null
+  },
+  {
+    "name": "scroll-into-view-if-needed",
+    "versions": [
+      "3.0.10"
+    ],
+    "license": "MIT",
+    "homepage": "https://scroll-into-view.dev",
+    "author": "Cody Olsen"
+  },
+  {
+    "name": "simple-swizzle",
+    "versions": [
+      "0.2.4"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/qix-/node-simple-swizzle#readme",
+    "author": "Qix"
+  },
+  {
+    "name": "style-mod",
+    "versions": [
+      "4.1.4"
+    ],
+    "license": "MIT",
+    "homepage": "https://code.haverbeke.berlin/marijn/style-mod",
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "tailwind-merge",
+    "versions": [
+      "3.3.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/dcastil/tailwind-merge",
+    "author": "Dany Castillo"
+  },
+  {
+    "name": "tailwind-variants",
+    "versions": [
+      "3.1.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/heroui-inc/tailwind-variants#readme",
+    "author": "Junior Garcia"
+  },
+  {
+    "name": "tailwindcss",
+    "versions": [
+      "4.3.3"
+    ],
+    "license": "MIT",
+    "homepage": "https://tailwindcss.com",
+    "author": null
+  },
+  {
+    "name": "use-composed-ref",
+    "versions": [
+      "1.4.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/Andarist/use-composed-ref#readme",
+    "author": null
+  },
+  {
+    "name": "use-isomorphic-layout-effect",
+    "versions": [
+      "1.2.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/Andarist/use-isomorphic-layout-effect#readme",
+    "author": null
+  },
+  {
+    "name": "use-latest",
+    "versions": [
+      "1.3.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/Andarist/use-latest#readme",
+    "author": null
+  },
+  {
+    "name": "use-sync-external-store",
+    "versions": [
+      "1.7.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/react/react#readme",
+    "author": null
+  },
+  {
+    "name": "w3c-keyname",
+    "versions": [
+      "2.2.8"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/marijnh/w3c-keyname#readme",
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@devolutions/iron-remote-desktop",
+    "versions": [
+      "0.11.0"
+    ],
+    "license": "MIT OR Apache-2.0",
+    "homepage": "https://github.com/Devolutions/IronRDP",
+    "author": "Nicolas Girot"
+  },
+  {
+    "name": "@devolutions/iron-remote-desktop-rdp",
+    "versions": [
+      "0.7.0"
+    ],
+    "license": "MIT OR Apache-2.0",
+    "homepage": "https://github.com/Devolutions/IronRDP",
+    "author": "Alexandr Yusuk"
+  },
+  {
+    "name": "flat",
+    "versions": [
+      "5.0.2"
+    ],
+    "license": "BSD-3-Clause",
+    "homepage": "https://github.com/hughsk/flat",
+    "author": "Hugh Kennedy"
+  },
+  {
+    "name": "intl-messageformat",
+    "versions": [
+      "10.7.18"
+    ],
+    "license": "BSD-3-Clause",
+    "homepage": "https://github.com/formatjs/formatjs",
+    "author": "Eric Ferraiuolo"
+  },
+  {
+    "name": "react-transition-group",
+    "versions": [
+      "4.4.5"
+    ],
+    "license": "BSD-3-Clause",
+    "homepage": "https://github.com/reactjs/react-transition-group#readme",
+    "author": ""
+  },
+  {
+    "name": "tslib",
+    "versions": [
+      "2.9.1"
+    ],
+    "license": "0BSD",
+    "homepage": "https://www.typescriptlang.org/",
+    "author": "Microsoft Corp."
+  }
+]
