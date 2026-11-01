@@ -14,10 +14,35 @@ type RDPProbe struct {
 	Reason        string `json:"reason"`
 }
 
+type RDPLaunch struct {
+	Grant    rdp.Grant `json:"grant"`
+	Username string    `json:"username"`
+	Password string    `json:"password"`
+}
+
+func (a *AppService) OpenSavedRDP(id string) (RDPLaunch, error) {
+	r, err := a.savedRequest(id)
+	if err != nil {
+		return RDPLaunch{}, err
+	}
+	grant, err := a.OpenRDP(r.Host, r.Port)
+	if err != nil {
+		return RDPLaunch{}, err
+	}
+	return RDPLaunch{Grant: grant, Username: r.Username, Password: r.Password}, nil
+}
+
 func (a *AppService) ProbeRDP(ctx context.Context, host string, port int) (RDPProbe, error) {
 	target := rdp.Target{Host: host, Port: port}
 	address := "rdp:" + target.Address()
+	stored, err := a.readTrust(address)
+	if err != nil {
+		return RDPProbe{}, err
+	}
 	a.mu.Lock()
+	if stored != "" {
+		a.trusted[address] = stored
+	}
 	target.Fingerprint = a.trusted[address]
 	a.mu.Unlock()
 	value, err := rdp.Probe(ctx, target)
@@ -40,6 +65,9 @@ func (a *AppService) TrustRDPCertificate(host string, port int, fingerprint stri
 	defer a.mu.Unlock()
 	if fingerprint == "" || a.pendingTrust[address] != fingerprint || a.trusted[address] != "" {
 		return errors.New("RDP 证书信任请求无效")
+	}
+	if err := a.saveTrust(address, fingerprint); err != nil {
+		return err
 	}
 	a.trusted[address] = fingerprint
 	delete(a.pendingTrust, address)

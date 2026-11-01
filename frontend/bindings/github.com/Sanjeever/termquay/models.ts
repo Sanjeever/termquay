@@ -5,6 +5,50 @@
 // @ts-ignore: Unused imports
 import { Create as $Create } from "@wailsio/runtime";
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as rdp$0 from "./internal/rdp/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as store$0 from "./internal/store/models.js";
+
+export class Catalog {
+    "groups": store$0.Group[];
+    "connections": store$0.Connection[];
+    "session_only": boolean;
+
+    /** Creates a new Catalog instance. */
+    constructor($$source: Partial<Catalog> = {}) {
+        if (!("groups" in $$source)) {
+            this["groups"] = [];
+        }
+        if (!("connections" in $$source)) {
+            this["connections"] = [];
+        }
+        if (!("session_only" in $$source)) {
+            this["session_only"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Catalog instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Catalog {
+        const $$createField0_0 = $$createType1;
+        const $$createField1_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("groups" in $$parsedSource) {
+            $$parsedSource["groups"] = $$createField0_0($$parsedSource["groups"]);
+        }
+        if ("connections" in $$parsedSource) {
+            $$parsedSource["connections"] = $$createField1_0($$parsedSource["connections"]);
+        }
+        return new Catalog($$parsedSource as Partial<Catalog>);
+    }
+}
+
 export class OpenResult {
     "id": string;
     "fingerprint": string;
@@ -31,6 +75,39 @@ export class OpenResult {
     static createFrom($$source: any = {}): OpenResult {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new OpenResult($$parsedSource as Partial<OpenResult>);
+    }
+}
+
+export class RDPLaunch {
+    "grant": rdp$0.Grant;
+    "username": string;
+    "password": string;
+
+    /** Creates a new RDPLaunch instance. */
+    constructor($$source: Partial<RDPLaunch> = {}) {
+        if (!("grant" in $$source)) {
+            this["grant"] = (new rdp$0.Grant());
+        }
+        if (!("username" in $$source)) {
+            this["username"] = "";
+        }
+        if (!("password" in $$source)) {
+            this["password"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RDPLaunch instance from a string or object.
+     */
+    static createFrom($$source: any = {}): RDPLaunch {
+        const $$createField0_0 = $$createType4;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("grant" in $$parsedSource) {
+            $$parsedSource["grant"] = $$createField0_0($$parsedSource["grant"]);
+        }
+        return new RDPLaunch($$parsedSource as Partial<RDPLaunch>);
     }
 }
 
@@ -62,3 +139,68 @@ export class RDPProbe {
         return new RDPProbe($$parsedSource as Partial<RDPProbe>);
     }
 }
+
+export class RestorePreview {
+    "id": string;
+    "device_id": string;
+    "created_at": string;
+    "added": string[];
+    "updated": string[];
+    "removed": string[];
+    "credentials": number;
+
+    /** Creates a new RestorePreview instance. */
+    constructor($$source: Partial<RestorePreview> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("device_id" in $$source)) {
+            this["device_id"] = "";
+        }
+        if (!("created_at" in $$source)) {
+            this["created_at"] = "0001-01-01T00:00:00.000Z";
+        }
+        if (!("added" in $$source)) {
+            this["added"] = [];
+        }
+        if (!("updated" in $$source)) {
+            this["updated"] = [];
+        }
+        if (!("removed" in $$source)) {
+            this["removed"] = [];
+        }
+        if (!("credentials" in $$source)) {
+            this["credentials"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RestorePreview instance from a string or object.
+     */
+    static createFrom($$source: any = {}): RestorePreview {
+        const $$createField3_0 = $$createType5;
+        const $$createField4_0 = $$createType5;
+        const $$createField5_0 = $$createType5;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("added" in $$parsedSource) {
+            $$parsedSource["added"] = $$createField3_0($$parsedSource["added"]);
+        }
+        if ("updated" in $$parsedSource) {
+            $$parsedSource["updated"] = $$createField4_0($$parsedSource["updated"]);
+        }
+        if ("removed" in $$parsedSource) {
+            $$parsedSource["removed"] = $$createField5_0($$parsedSource["removed"]);
+        }
+        return new RestorePreview($$parsedSource as Partial<RestorePreview>);
+    }
+}
+
+// Private type creation functions
+const $$createType0 = store$0.Group.createFrom;
+const $$createType1 = $Create.Array($$createType0);
+const $$createType2 = store$0.Connection.createFrom;
+const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = rdp$0.Grant.createFrom;
+const $$createType5 = $Create.Array($Create.Any);

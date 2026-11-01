@@ -7,14 +7,24 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as backup$0 from "./internal/backup/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as rdp$0 from "./internal/rdp/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as ssh$0 from "./internal/ssh/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as store$0 from "./internal/store/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as $models from "./models.js";
+
+export function BackupWebDAV(options: backup$0.WebDAVOptions, password: string, includeCredentials: boolean): $CancellablePromise<string> {
+    return $Call.ByID(1363831413, options, password, includeCredentials);
+}
 
 export function CloseRDP(id: string): $CancellablePromise<void> {
     return $Call.ByID(419661336, id);
@@ -24,26 +34,80 @@ export function CloseTerminal(id: string): $CancellablePromise<void> {
     return $Call.ByID(3812665046, id);
 }
 
+export function ConfirmRestore(id: string): $CancellablePromise<void> {
+    return $Call.ByID(4268329992, id);
+}
+
+export function DeleteConnection(id: string): $CancellablePromise<void> {
+    return $Call.ByID(3025577673, id);
+}
+
+export function DeleteGroup(id: string): $CancellablePromise<void> {
+    return $Call.ByID(4099577436, id);
+}
+
+export function GetCatalog(): $CancellablePromise<$models.Catalog> {
+    return $Call.ByID(12026733).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
+export function ListSnapshots(options: backup$0.WebDAVOptions): $CancellablePromise<backup$0.RemoteSnapshot[]> {
+    return $Call.ByID(2845134187, options).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
 export function OpenRDP(host: string, port: number): $CancellablePromise<rdp$0.Grant> {
     return $Call.ByID(1856620084, host, port).then(($result: any) => {
-        return $$createType0($result);
+        return $$createType3($result);
+    });
+}
+
+export function OpenSavedRDP(id: string): $CancellablePromise<$models.RDPLaunch> {
+    return $Call.ByID(3012084069, id).then(($result: any) => {
+        return $$createType4($result);
+    });
+}
+
+export function OpenSavedTerminal(id: string): $CancellablePromise<$models.OpenResult> {
+    return $Call.ByID(2797069557, id).then(($result: any) => {
+        return $$createType5($result);
     });
 }
 
 export function OpenTerminal(r: ssh$0.Request): $CancellablePromise<$models.OpenResult> {
     return $Call.ByID(3614603658, r).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType5($result);
+    });
+}
+
+export function PreviewRestore(options: backup$0.WebDAVOptions, path: string, password: string): $CancellablePromise<$models.RestorePreview> {
+    return $Call.ByID(1296130900, options, path, password).then(($result: any) => {
+        return $$createType6($result);
     });
 }
 
 export function ProbeRDP(host: string, port: number): $CancellablePromise<$models.RDPProbe> {
     return $Call.ByID(3045768502, host, port).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType7($result);
     });
 }
 
 export function ResizeTerminal(id: string, cols: number, rows: number): $CancellablePromise<void> {
     return $Call.ByID(253488878, id, cols, rows);
+}
+
+export function SaveConnection(c: store$0.Connection, auth: ssh$0.Request): $CancellablePromise<void> {
+    return $Call.ByID(1507388431, c, auth);
+}
+
+export function SaveGroup(g: store$0.Group): $CancellablePromise<void> {
+    return $Call.ByID(2264337214, g);
+}
+
+export function TestWebDAV(options: backup$0.WebDAVOptions): $CancellablePromise<void> {
+    return $Call.ByID(3767880439, options);
 }
 
 export function TrustHost(host: string, port: number, fingerprint: string): $CancellablePromise<void> {
@@ -54,7 +118,16 @@ export function TrustRDPCertificate(host: string, port: number, fingerprint: str
     return $Call.ByID(3202247973, host, port, fingerprint);
 }
 
+export function UseSessionStorage(): $CancellablePromise<void> {
+    return $Call.ByID(682425716);
+}
+
 // Private type creation functions
-const $$createType0 = rdp$0.Grant.createFrom;
-const $$createType1 = $models.OpenResult.createFrom;
-const $$createType2 = $models.RDPProbe.createFrom;
+const $$createType0 = $models.Catalog.createFrom;
+const $$createType1 = backup$0.RemoteSnapshot.createFrom;
+const $$createType2 = $Create.Array($$createType1);
+const $$createType3 = rdp$0.Grant.createFrom;
+const $$createType4 = $models.RDPLaunch.createFrom;
+const $$createType5 = $models.OpenResult.createFrom;
+const $$createType6 = $models.RestorePreview.createFrom;
+const $$createType7 = $models.RDPProbe.createFrom;

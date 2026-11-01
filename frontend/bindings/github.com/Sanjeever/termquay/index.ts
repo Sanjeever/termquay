@@ -7,6 +7,9 @@ export {
 };
 
 export {
+    Catalog,
     OpenResult,
-    RDPProbe
+    RDPLaunch,
+    RDPProbe,
+    RestorePreview
 } from "./models.js";

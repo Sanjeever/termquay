@@ -41,3 +41,27 @@ textarea { background: #242831; border: 1px solid #3a414c; border-radius: 6px; w
 .rdp-toolbar select { border: 1px solid #3a414c; border-radius: 5px; background: #242831; padding: 6px; font-size: 12px; }
 .rdp-toolbar label { display: flex; gap: 6px; align-items: center; font-size: 12px; color: #9ba5b2; }
 .rdp-canvas { flex: 1; min-height: 0; min-width: 0; overflow: auto; }
+.connection-filters { display: flex; gap: 6px; margin: 10px 0; }
+.connection-sidebar select { background: #242831; padding: 6px; border: 1px solid #343b45; border-radius: 5px; min-width: 0; font-size: 12px; }
+.connection-list { margin-bottom: 16px; }
+.connection-row { display: flex; align-items: center; flex-wrap: wrap; border-bottom: 1px solid #252b32; gap: 5px; }
+.connection-row > button { background: transparent; border: 0; padding: 8px 0; color: #8e98a5; font-size: 11px; }
+.connection-row .connection-name { flex: 1; text-align: left; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.connection-name span { color: #d7dce2; font-size: 12px; }
+.connection-name small { color: #6f7c8a; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+.delete-confirm { flex-basis: 100%; font-size: 12px; }
+.group-editor { margin: 12px 0 20px; }
+.group-editor form { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.group-row { display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; color: #9ba5b2; }
+.form-heading { display: flex; justify-content: space-between; border-top: 1px solid #2a2e35; padding-top: 16px; margin-top: 12px; }
+.form-heading button { font-size: 12px; color: #8e98a5; font-weight: normal; }
+.settings-panel { flex: 1; min-height: 0; overflow: auto; padding: 28px; }
+.settings-panel h2 { font-size: 16px; margin-bottom: 24px; font-weight: 600; }
+.settings-panel form { max-width: 660px; display: flex; flex-direction: column; gap: 14px; }
+.button-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.checkbox-label { display: flex; gap: 8px; font-size: 12px; align-items: center; color: #a5afbc; }
+.operation-result { color: #9bc8b9; font-size: 12px; overflow-wrap: anywhere; }
+.snapshot-list li { display: flex; justify-content: space-between; gap: 12px; align-items: center; border-bottom: 1px solid #2a2e35; padding: 10px 0; font-size: 11px; }
+.snapshot-list li > div { display: flex; flex-direction: column; gap: 5px; overflow-wrap: anywhere; min-width: 0; }
+.snapshot-list span { color: #7e8a98; }
+.restore-preview { border: 1px solid #525647; border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 10px; font-size: 12px; }

@@ -12,7 +12,9 @@ import (
 
 	"github.com/Sanjeever/termquay/internal/rdp"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
+	"github.com/Sanjeever/termquay/internal/store"
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"os"
 )
 
 type OpenResult struct {
@@ -35,6 +37,11 @@ type AppService struct {
 	opening      int
 	closed       bool
 	rdp          *rdp.Bridge
+	storeMu      sync.Mutex
+	store        *store.Store
+	sessionDir   string
+	backupMu     sync.Mutex
+	preview      *pendingRestore
 }
 
 func NewAppService() *AppService {
@@ -42,12 +49,19 @@ func NewAppService() *AppService {
 }
 
 func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (OpenResult, error) {
+	address := net.JoinHostPort(r.Host, strconv.Itoa(r.Port))
+	stored, err := a.readTrust("ssh:" + address)
+	if err != nil {
+		return OpenResult{}, err
+	}
 	a.mu.Lock()
 	if a.closed || len(a.terminals)+a.opening >= 16 {
 		a.mu.Unlock()
 		return OpenResult{}, errors.New("当前最多运行 16 个终端")
 	}
-	address := net.JoinHostPort(r.Host, strconv.Itoa(r.Port))
+	if stored != "" {
+		a.trusted[address] = stored
+	}
 	r.Fingerprint = a.trusted[address]
 	a.opening++
 	a.mu.Unlock()
@@ -94,9 +108,29 @@ func (a *AppService) TrustHost(host string, port int, fingerprint string) error 
 	if a.pendingTrust[address] != fingerprint || fingerprint == "" || a.trusted[address] != "" {
 		return errors.New("主机信任请求无效")
 	}
+	if err := a.saveTrust("ssh:"+address, fingerprint); err != nil {
+		return err
+	}
 	a.trusted[address] = fingerprint
 	delete(a.pendingTrust, address)
 	return nil
+}
+
+func (a *AppService) readTrust(id string) (string, error) {
+	a.storeMu.Lock()
+	defer a.storeMu.Unlock()
+	if a.store == nil {
+		return "", nil
+	}
+	return a.store.Setting("trust:" + id)
+}
+func (a *AppService) saveTrust(id, value string) error {
+	a.storeMu.Lock()
+	defer a.storeMu.Unlock()
+	if a.store == nil {
+		return nil
+	}
+	return a.store.SetSetting("trust:"+id, value)
 }
 
 func (a *AppService) ResizeTerminal(id string, cols, rows int) error {
@@ -155,7 +189,17 @@ func (a *AppService) ServiceShutdown() error {
 		a.CloseTerminal(id)
 	}
 	if a.rdp != nil {
-		return a.rdp.Close()
+		a.rdp.Close()
+	}
+	a.storeMu.Lock()
+	defer a.storeMu.Unlock()
+	if a.store != nil {
+		if err := a.store.Close(); err != nil {
+			return err
+		}
+	}
+	if a.sessionDir != "" {
+		return os.RemoveAll(a.sessionDir)
 	}
 	return nil
 }
