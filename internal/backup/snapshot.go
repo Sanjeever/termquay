@@ -1,0 +1,93 @@
+package backup
+
+import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"time"
+
+	"filippo.io/age"
+	"github.com/Sanjeever/termquay/internal/store"
+)
+
+const MaxSnapshot = 16 << 20
+
+type Snapshot struct {
+	Version   int        `json:"version"`
+	DeviceID  string     `json:"device_id"`
+	CreatedAt time.Time  `json:"created_at"`
+	Data      store.Data `json:"data"`
+}
+
+func Encrypt(d store.Data, deviceID, password string) ([]byte, error) {
+	if err := d.Validate(); err != nil {
+		return nil, err
+	}
+	if deviceID == "" || password == "" {
+		return nil, errors.New("设备标识和备份密码不能为空")
+	}
+	plain, err := json.Marshal(Snapshot{Version: 1, DeviceID: deviceID, CreatedAt: time.Now().UTC(), Data: d})
+	if err != nil {
+		return nil, err
+	}
+	if len(plain) > MaxSnapshot {
+		return nil, errors.New("快照超过 16 MiB 限制")
+	}
+	r, err := age.NewScryptRecipient(password)
+	if err != nil {
+		return nil, err
+	}
+	var encrypted bytes.Buffer
+	w, err := age.Encrypt(&encrypted, r)
+	if err != nil {
+		return nil, err
+	}
+	if _, err = w.Write(plain); err != nil {
+		return nil, err
+	}
+	if err = w.Close(); err != nil {
+		return nil, err
+	}
+	return encrypted.Bytes(), nil
+}
+
+func Decrypt(encrypted []byte, password string) (Snapshot, error) {
+	var snap Snapshot
+	if len(encrypted) > MaxSnapshot+(1<<20) {
+		return snap, errors.New("加密快照超过限制")
+	}
+	id, err := age.NewScryptIdentity(password)
+	if err != nil {
+		return snap, err
+	}
+	id.SetMaxWorkFactor(20)
+	r, err := age.Decrypt(bytes.NewReader(encrypted), id)
+	if err != nil {
+		return snap, fmt.Errorf("快照解密失败: %w", err)
+	}
+	plain, err := io.ReadAll(io.LimitReader(r, MaxSnapshot+1))
+	if err != nil {
+		return snap, fmt.Errorf("快照完整性验证失败: %w", err)
+	}
+	if len(plain) > MaxSnapshot {
+		return snap, errors.New("快照超过 16 MiB 限制")
+	}
+	decoder := json.NewDecoder(bytes.NewReader(plain))
+	decoder.DisallowUnknownFields()
+	if err = decoder.Decode(&snap); err != nil {
+		return snap, err
+	}
+	var extra any
+	if err = decoder.Decode(&extra); err != io.EOF {
+		return snap, errors.New("快照尾部包含额外数据")
+	}
+	if snap.Version != 1 {
+		return snap, errors.New("不支持的快照版本")
+	}
+	if snap.DeviceID == "" || snap.CreatedAt.IsZero() {
+		return snap, errors.New("快照元数据不完整")
+	}
+	return snap, snap.Data.Validate()
+}

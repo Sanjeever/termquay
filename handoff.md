@@ -12,7 +12,16 @@
 
 仓库地址为 <https://github.com/Sanjeever/termquay>，本机路径为 `/Users/sanjeev/code/go/termquay`。交接基准日期为 2026-11-01；当前分支为 `main`，远端 `origin` 通过本机 SSH 别名指向该 GitHub 仓库。
 
-当前没有应用代码、数据库、依赖锁文件、构建工作流或安装包。现有文档代表已确认的实施需求，不代表已实现或已实测能力。
+当前正在实施阶段 0，尚未达到首个稳定版。已有 SQLite 加密凭据与 age 快照核心，两个隔离数据目录使用不同主密钥的恢复测试通过。桌面、SSH 与 RDP 正在接入；后续阶段和未勾选验收项仍未完成。
+
+### 本次实施进度
+
+- 工具环境：macOS arm64，系统 Go 1.23.12；项目使用 Go 1.26.10，Wails 固定 v3.0.0。Node 26.11.0、pnpm 11.20.0、Rust 1.96.0。已安装 Command Line Tools，未配置完整 Xcode。
+- `internal/store`：SQLite 数据、AES-GCM 凭据、分组循环和引用验证；恢复在单个事务中替换业务数据，settings 保留。
+- `internal/backup`：带版本 JSON、age scrypt 加密、完整性验证和 16 MiB 明文上限。跨主密钥恢复、错误密码、损坏密文、无效引用拒绝测试通过。
+- SSH MCP 对 sg1 的只读探测通过，支持 SFTP 原子替换。应用自身真实 SSH 结果另行记录。
+- 用户已提供 SSH 与 WebDAV 测试资源，凭据不得写入本文件或仓库。RDP 功能由 Agent 实现，真实目标由用户稍后验证；实施期间不再向用户提问。
+- 下一步先完成阶段 0 的 Wails 桌面、Streams 终端、RDCleanPath 和 WebDAV 本地及真实验证，再依据验收结果推进。
 
 ## 3. 目标与范围
 
