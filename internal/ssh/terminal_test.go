@@ -1,0 +1,249 @@
+package ssh
+
+import (
+	"bufio"
+	"bytes"
+	"context"
+	"crypto/ed25519"
+	"crypto/rand"
+	"encoding/binary"
+	"errors"
+	"io"
+	"net"
+	"os"
+	"strconv"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
+	gossh "golang.org/x/crypto/ssh"
+)
+
+func localServer(t *testing.T) (Request, <-chan string) {
+	t.Helper()
+	_, key, _ := ed25519.GenerateKey(rand.Reader)
+	signer, _ := gossh.NewSignerFromKey(key)
+	config := &gossh.ServerConfig{PasswordCallback: func(_ gossh.ConnMetadata, password []byte) (*gossh.Permissions, error) {
+		if string(password) != "local-test" {
+			return nil, errors.New("认证失败")
+		}
+		return nil, nil
+	}}
+	config.AddHostKey(signer)
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { listener.Close() })
+	inputs := make(chan string, 8)
+	go func() {
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				return
+			}
+			go func() {
+				server, channels, requests, err := gossh.NewServerConn(conn, config)
+				if err != nil {
+					conn.Close()
+					return
+				}
+				defer server.Close()
+				go gossh.DiscardRequests(requests)
+				for channel := range channels {
+					c, reqs, err := channel.Accept()
+					if err != nil {
+						return
+					}
+					go func() {
+						defer c.Close()
+						for req := range reqs {
+							switch req.Type {
+							case "pty-req", "window-change":
+								req.Reply(true, nil)
+							case "shell":
+								req.Reply(true, nil)
+								go func() {
+									scanner := bufio.NewScanner(c)
+									for scanner.Scan() {
+										line := scanner.Text()
+										inputs <- line
+										if line == "burst" {
+											go func() { io.Copy(c, bytes.NewReader(bytes.Repeat([]byte("x"), 4<<20))) }()
+										} else {
+											io.WriteString(c, line+"\n")
+										}
+									}
+								}()
+							default:
+								req.Reply(false, nil)
+							}
+						}
+					}()
+				}
+			}()
+		}
+	}()
+	host, port, _ := net.SplitHostPort(listener.Addr().String())
+	n, _ := strconv.Atoi(port)
+	return Request{Host: host, Port: n, Username: "test", Password: "local-test", Fingerprint: gossh.FingerprintSHA256(signer.PublicKey()), Cols: 80, Rows: 24}, inputs
+}
+
+type testStream struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+	in     chan []byte
+	out    chan []byte
+	once   sync.Once
+}
+
+func newStream() *testStream {
+	ctx, cancel := context.WithCancel(context.Background())
+	return &testStream{ctx: ctx, cancel: cancel, in: make(chan []byte, 8), out: make(chan []byte, 8)}
+}
+func (s *testStream) Context() context.Context { return s.ctx }
+func (s *testStream) Close() error             { s.once.Do(s.cancel); return nil }
+func (s *testStream) Send(b []byte) error {
+	select {
+	case s.out <- b:
+		return nil
+	case <-s.ctx.Done():
+		return s.ctx.Err()
+	}
+}
+func (s *testStream) Receive() ([]byte, error) {
+	select {
+	case b := <-s.in:
+		return b, nil
+	case <-s.ctx.Done():
+		return nil, s.ctx.Err()
+	}
+}
+
+func TestHostIdentityAndAuthentication(t *testing.T) {
+	r, _ := localServer(t)
+	r.Fingerprint = ""
+	_, err := Dial(context.Background(), r)
+	var identity *HostKeyError
+	if !errors.As(err, &identity) {
+		t.Fatalf("未拒绝未确认身份: %v", err)
+	}
+	r.Fingerprint = identity.Fingerprint
+	r.Password = "wrong"
+	if terminal, err := Dial(context.Background(), r); err == nil {
+		terminal.Close()
+		t.Fatal("接受错误密码")
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if terminal, err := Dial(ctx, r); err == nil {
+		terminal.Close()
+		t.Fatal("忽略连接取消")
+	}
+}
+
+func TestRelayBackpressureInputAndClose(t *testing.T) {
+	r, inputs := localServer(t)
+	terminal, err := Dial(context.Background(), r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer terminal.Close()
+	s := newStream()
+	defer s.Close()
+	done := make(chan error, 1)
+	go func() { done <- Relay(terminal, s) }()
+	s.in <- append([]byte{0}, []byte("burst\n")...)
+	select {
+	case <-inputs:
+	case <-time.After(time.Second):
+		t.Fatal("未收到输入")
+	}
+	var first []byte
+	select {
+	case first = <-s.out:
+	case <-time.After(time.Second):
+		t.Fatal("没有输出")
+	}
+	if len(first) > ChunkSize {
+		t.Fatal("输出超过帧限制")
+	}
+	select {
+	case <-s.out:
+		t.Fatal("未确认消费即继续输出")
+	case <-time.After(100 * time.Millisecond):
+	}
+	s.in <- append([]byte{0}, []byte("responsive\n")...)
+	select {
+	case line := <-inputs:
+		if line != "responsive" {
+			t.Fatal("输入内容错误")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("背压阻止了输入")
+	}
+	if err = terminal.Resize(120, 40); err != nil {
+		t.Fatal(err)
+	}
+	ack := make([]byte, 5)
+	ack[0] = 1
+	binary.BigEndian.PutUint32(ack[1:], uint32(len(first)))
+	s.in <- ack
+	select {
+	case <-s.out:
+	case <-time.After(time.Second):
+		t.Fatal("消费确认未恢复输出")
+	}
+	s.Close()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("关闭未释放 Relay")
+	}
+	select {
+	case <-terminal.Done:
+	case <-time.After(time.Second):
+		t.Fatal("关闭未释放 SSH session")
+	}
+}
+
+func TestSG1PTY(t *testing.T) {
+	if os.Getenv("SSH_MCP_SERVER_SG1_PASSWORD") == "" {
+		t.Skip("未注入真实 SSH 测试凭据")
+	}
+	port, err := strconv.Atoi(os.Getenv("SSH_MCP_SERVER_SG1_PORT"))
+	if err != nil {
+		t.Fatal("测试端口无效")
+	}
+	r := Request{Host: os.Getenv("SSH_MCP_SERVER_SG1_HOST"), Port: port, Username: os.Getenv("SSH_MCP_SERVER_SG1_USERNAME"), Password: os.Getenv("SSH_MCP_SERVER_SG1_PASSWORD"), Fingerprint: os.Getenv("TERMQUAY_TEST_HOST_FINGERPRINT"), Cols: 80, Rows: 24}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	terminal, err := Dial(ctx, r)
+	if err != nil {
+		t.Fatalf("真实 SSH PTY 建立失败: %v", err)
+	}
+	defer terminal.Close()
+	stop := context.AfterFunc(ctx, terminal.Close)
+	defer stop()
+	if err = terminal.Resize(120, 40); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = io.WriteString(terminal.Input, "printf '__TERMQUAY_%s__\\n' PTY_OK; stty size\n"); err != nil {
+		t.Fatal(err)
+	}
+	var output strings.Builder
+	buf := make([]byte, 4096)
+	for {
+		n, err := terminal.Output.Read(buf)
+		output.Write(buf[:n])
+		text := output.String()
+		if strings.Contains(text, "__TERMQUAY_PTY_OK__") && strings.Contains(text, "40 120") {
+			break
+		}
+		if err != nil {
+			t.Fatal("真实 SSH 输出或尺寸验证失败")
+		}
+	}
+	t.Log("真实 SSH PTY 输入、输出、尺寸变化通过")
+}

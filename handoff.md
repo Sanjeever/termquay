@@ -20,6 +20,9 @@
 - `internal/store`：SQLite 数据、AES-GCM 凭据、分组循环和引用验证；恢复在单个事务中替换业务数据，settings 保留。
 - `internal/backup`：带版本 JSON、age scrypt 加密、完整性验证和 16 MiB 明文上限。跨主密钥恢复、错误密码、损坏密文、无效引用拒绝测试通过。
 - SSH MCP 对 sg1 的只读探测通过，支持 SFTP 原子替换。应用自身真实 SSH 结果另行记录。
+- Wails v3.0.0 + React 18.3.1 + HeroUI 2.8.5 + Tailwind 4.3.3 + Vite 8.2.4 生产构建通过，macOS 26.6.2 arm64 原生窗口启动并查看界面。Wails CLI 位于项目忽略目录 `.tools`。其他平台未验证。
+- SSH 已完成密码与私钥、应用运行期间主机信任、工作区关闭、取消和 PTY 尺寸同步。Streams 每次至多一个 32 KiB 帧等待 xterm.js `write` 回调确认。本地竞态测试通过主机身份、认证失败、背压期间输入、调整尺寸与关闭释放。
+- 应用自身真实 sg1 PTY 测试通过输入、输出及 `stty size` 尺寸核对。测试使用进程输入注入凭据；未写入配置或仓库。高速真实桌面输出、长时间负载和三平台资源回收仍待验证。
 - 用户已提供 SSH 与 WebDAV 测试资源，凭据不得写入本文件或仓库。RDP 功能由 Agent 实现，真实目标由用户稍后验证；实施期间不再向用户提问。
 - 下一步先完成阶段 0 的 Wails 桌面、Streams 终端、RDCleanPath 和 WebDAV 本地及真实验证，再依据验收结果推进。
 

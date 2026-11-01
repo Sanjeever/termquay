@@ -1,12 +1,14 @@
 # TermQuay · 栈桥
 
-TermQuay 是计划使用 Go、Wails 和 React 构建的开源跨平台远程连接工作台，将 SSH 终端、远程文件编辑、服务器监控和 RDP 桌面放在统一工作区，支持连接分组与加密 WebDAV 备份。
+TermQuay 是使用 Go、Wails 和 React 构建的开源跨平台远程连接工作台，目标是将 SSH 终端、远程文件编辑、服务器监控和 RDP 桌面放在统一工作区，支持连接分组与加密 WebDAV 备份。
 
 项目仓库：[Sanjeever/termquay](https://github.com/Sanjeever/termquay)。
 
 ## 当前状态
 
-项目处于开发准备阶段。当前仓库包含开发约定、产品说明和实施交接文档，尚无应用代码、安装包或可运行开发命令。以下能力均为规划，实际进度以代码和发布版本为准。
+项目处于阶段 0 技术验证。已有 Wails v3 桌面、SSH 连接表单、多工作区终端、密码和私钥认证、主机指纹确认、尺寸同步与有界输出消费确认。macOS arm64 原生窗口已启动并检查界面。SQLite 加密凭据与 age 快照核心已通过隔离跨主密钥恢复测试，尚未接入设置界面。
+
+下列产品规划尚未全部实现，未提供稳定安装包。平台、真实远端和功能验收状态见 [handoff.md](handoff.md)。
 
 ## 产品规划
 
@@ -49,7 +51,26 @@ RDP 原型优先验证三平台 WebView、WASM 依赖配套、RDCleanPath 协商
 
 ## 开发入口
 
-开始实现前阅读 [AGENTS.md](AGENTS.md) 和 [handoff.md](handoff.md)。技术验证完成后，再将实际可执行的安装、开发、测试和构建命令补充到本节。
+需要 Node、pnpm 11.20.0 与 Go。`go.mod` 将项目工具链固定为 Go 1.26.10；系统 Go 支持自动工具链时会按需下载。macOS 需要 Command Line Tools。
+
+```sh
+pnpm --dir frontend install --frozen-lockfile
+go run github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0 generate bindings -ts
+pnpm --dir frontend build
+go build -o bin/termquay .
+./bin/termquay
+go test -race ./internal/...
+```
+
+Wails CLI 可安装到项目忽略目录，使用模板开发与打包入口：
+
+```sh
+GOTOOLCHAIN=go1.26.10 GOBIN="$PWD/.tools" go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0
+PATH="$PWD/.tools:$PATH" .tools/wails3 dev
+PATH="$PWD/.tools:$PATH" .tools/wails3 task package
+```
+
+SSH 表单中的主机信任目前保留到应用退出，首次连接需要核对指纹。关闭工作区释放 SSH 与终端，切换标签保留会话。凭据不随表单自动持久化。私钥口令、Agent、持久信任和完整连接管理继续按实施阶段补齐。
 
 文档、界面和提交描述使用简体中文。提交遵循 Conventional Commits，按完整且可审阅的小改动提交。
 
