@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@heroui/react';
-import { ReadDirectory, ReadRemoteFile, SaveRemoteFile, CreateRemoteDirectory, RenameRemotePath, DeleteRemotePath } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
+import { Stream } from '@wailsio/runtime';
+import { ReadDirectory, ReadRemoteFile, SaveRemoteFile, CreateRemoteDirectory, RenameRemotePath, DeleteRemotePath, CreateTerminal, CloseWorkspace } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
 import type { Document, Entry } from '../../../bindings/github.com/Sanjeever/termquay/internal/files/models';
 import TerminalView from '../terminal/TerminalView';
 import CodeEditor from './CodeEditor';
@@ -13,7 +14,8 @@ export default function SSHWorkspace({ id, onDirtyChange }: { id: string; onDirt
   const [entries, setEntries] = useState<Entry[]>([]);
   const [error, setError] = useState('');
   const [drafts, setDrafts] = useState<Draft[]>([]);
-  const [active, setActive] = useState('terminal');
+  const [active, setActive] = useState(id);
+  const [terminals,setTerminals]=useState([id]);
   const [filesOpen, setFilesOpen] = useState(true);
   const [monitorOpen,setMonitorOpen]=useState(false);
   const [width, setWidth] = useState(Number(localStorage.getItem('termquay.files-width')) || 220);
@@ -23,6 +25,7 @@ export default function SSHWorkspace({ id, onDirtyChange }: { id: string; onDirt
   const dirtyCallback=useRef(onDirtyChange);dirtyCallback.current=onDirtyChange;
 
   const dirty = drafts.some((d) => d.content !== d.saved);
+  useEffect(()=>{let disposed=false;const owner=Stream('workspace');owner.onopen=()=>owner.send(new TextEncoder().encode(id));owner.onclose=()=>{if(!disposed)setError('SSH 工作区已断开')};return()=>{disposed=true;owner.close();CloseWorkspace(id).catch(()=>{})}},[id]);
   useEffect(() => { dirtyCallback.current(dirty); }, [dirty]);
   useEffect(() => { const handler = (event: BeforeUnloadEvent) => { if (dirty) { event.preventDefault(); event.returnValue = ''; } }; window.addEventListener('beforeunload', handler); return () => window.removeEventListener('beforeunload', handler); }, [dirty]);
 
@@ -50,7 +53,7 @@ export default function SSHWorkspace({ id, onDirtyChange }: { id: string; onDirt
 
   function close(path: string, discard = false) {
     if (!discard && drafts.find((d) => d.path === path && d.content !== d.saved)) { setClosing(path); return; }
-    setDrafts((prev) => prev.filter((d) => d.path !== path)); if (active === path) setActive('terminal'); setClosing('');
+    setDrafts((prev) => prev.filter((d) => d.path !== path)); if (active === path) setActive(terminals[0]||''); setClosing('');
   }
 
   async function perform(form: HTMLFormElement) {
@@ -77,8 +80,8 @@ export default function SSHWorkspace({ id, onDirtyChange }: { id: string; onDirt
         onPointerDown={(e) => { const start = e.clientX; const initial = width; const element = e.currentTarget; element.setPointerCapture(e.pointerId); element.onpointermove = (event) => setWidth(Math.max(160, Math.min(500, initial + event.clientX - start))); element.onpointerup = () => { element.onpointermove = null; element.onpointerup = null; }; }} />
     </>}
     <div className="ssh-center">
-      <div className="inner-tabs"><button onClick={() => { localStorage.setItem('termquay.files-width', String(width)); setFilesOpen(!filesOpen); }} aria-label={filesOpen ? '收起文件面板' : '展开文件面板'}>文件</button><button className={active === 'terminal' ? 'selected' : ''} onClick={() => setActive('terminal')}>终端</button>{drafts.map((d) => <div key={d.path} className={active === d.path ? 'selected' : ''}><button onClick={() => setActive(d.path)}>{d.path.split('/').pop()}{d.content !== d.saved ? ' ●' : ''}</button><button aria-label={`关闭文件 ${d.path}`} onClick={() => close(d.path)}>×</button></div>)}<button className="monitor-toggle" onClick={()=>setMonitorOpen(!monitorOpen)} aria-label={monitorOpen?'收起监控面板':'展开监控面板'}>监控</button></div>
-      <div className="terminal-tab" hidden={active !== 'terminal'}><TerminalView id={id} /></div>
+      <div className="inner-tabs"><button onClick={() => { localStorage.setItem('termquay.files-width', String(width)); setFilesOpen(!filesOpen); }} aria-label={filesOpen ? '收起文件面板' : '展开文件面板'}>文件</button>{terminals.map((terminal,index)=><div key={terminal} className={active===terminal?'selected':''}><button onClick={()=>setActive(terminal)}>终端 {index+1}</button><button aria-label={`关闭终端 ${index+1}`} onClick={()=>{setTerminals(prev=>prev.filter(t=>t!==terminal));if(active===terminal)setActive(terminals.find(t=>t!==terminal)||drafts[0]?.path||'')}}>×</button></div>)}<button aria-label="新建终端" onClick={()=>{CreateTerminal(id).then(result=>{setTerminals(prev=>[...prev,result.id]);setActive(result.id)}).catch(e=>setError(String(e)))}}>＋</button>{drafts.map((d) => <div key={d.path} className={active === d.path ? 'selected' : ''}><button onClick={() => setActive(d.path)}>{d.path.split('/').pop()}{d.content !== d.saved ? ' ●' : ''}</button><button aria-label={`关闭文件 ${d.path}`} onClick={() => close(d.path)}>×</button></div>)}<button className="monitor-toggle" onClick={()=>setMonitorOpen(!monitorOpen)} aria-label={monitorOpen?'收起监控面板':'展开监控面板'}>监控</button></div>
+      {terminals.map(terminal=><div className="terminal-tab" hidden={active!==terminal} key={terminal}><TerminalView id={terminal}/></div>)}
       {drafts.map((d) => <div key={d.path} className="editor-tab" hidden={active !== d.path}><div className="editor-toolbar"><span>{d.path}</span><Button size="sm" isDisabled={d.saving || d.content === d.saved} onPress={() => void save(d)}>保存</Button></div>{d.error && <p role="alert" className="error">{d.error}</p>}{closing === d.path && <div className="draft-confirm">文件有未保存修改<Button size="sm" onPress={() => { void save(d); setClosing(''); }}>保存</Button><Button size="sm" color="danger" onPress={() => close(d.path, true)}>放弃修改</Button><Button size="sm" variant="light" onPress={() => setClosing('')}>取消</Button></div>}<CodeEditor path={d.path} content={d.content} onChange={(value) => setDrafts((prev) => prev.map((item) => item.path === d.path ? { ...item, content: value } : item))} onSave={() => void save(d)} /></div>)}
     </div>
     {monitorOpen&&<MonitorPanel id={id}/>}

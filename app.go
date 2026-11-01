@@ -24,14 +24,23 @@ type OpenResult struct {
 }
 
 type pendingTerminal struct {
+	terminal  *terminal.Terminal
+	timer     *time.Timer
+	attached  bool
+	workspace string
+}
+
+type workspaceOwner struct {
 	terminal *terminal.Terminal
 	timer    *time.Timer
-	attached bool
+	stream   *application.StreamConn
+	opening  int
 }
 
 type AppService struct {
 	mu           sync.Mutex
 	terminals    map[string]*pendingTerminal
+	workspaces   map[string]*workspaceOwner
 	trusted      map[string]string
 	pendingTrust map[string]string
 	opening      int
@@ -47,7 +56,7 @@ type AppService struct {
 }
 
 func NewAppService() *AppService {
-	return &AppService{terminals: map[string]*pendingTerminal{}, trusted: map[string]string{}, pendingTrust: map[string]string{}, fileSlots: make(chan struct{}, 4), monitors: map[string]context.CancelFunc{}}
+	return &AppService{terminals: map[string]*pendingTerminal{}, workspaces: map[string]*workspaceOwner{}, trusted: map[string]string{}, pendingTrust: map[string]string{}, fileSlots: make(chan struct{}, 4), monitors: map[string]context.CancelFunc{}}
 }
 
 func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (OpenResult, error) {
@@ -57,7 +66,7 @@ func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (Open
 		return OpenResult{}, err
 	}
 	a.mu.Lock()
-	if a.closed || len(a.terminals)+a.opening >= 16 {
+	if a.closed || len(a.workspaces)+a.opening >= 16 || len(a.terminals)+a.opening >= 64 {
 		a.mu.Unlock()
 		return OpenResult{}, errors.New("当前最多运行 16 个终端")
 	}
@@ -89,7 +98,19 @@ func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (Open
 		t.Close()
 		return OpenResult{}, errors.New("应用正在关闭")
 	}
-	pending := &pendingTerminal{terminal: t}
+	t.KeepConnection()
+	owner := &workspaceOwner{terminal: t}
+	a.workspaces[id] = owner
+	owner.timer = time.AfterFunc(15*time.Second, func() {
+		a.mu.Lock()
+		p := a.workspaces[id]
+		unattached := p != nil && p.stream == nil
+		a.mu.Unlock()
+		if unattached {
+			a.CloseWorkspace(id)
+		}
+	})
+	pending := &pendingTerminal{terminal: t, workspace: id}
 	a.terminals[id] = pending
 	pending.timer = time.AfterFunc(15*time.Second, func() {
 		a.mu.Lock()
@@ -149,16 +170,104 @@ func (a *AppService) CloseTerminal(id string) {
 	a.mu.Lock()
 	p := a.terminals[id]
 	delete(a.terminals, id)
-	cancel := a.monitors[id]
-	delete(a.monitors, id)
 	a.mu.Unlock()
-	if cancel != nil {
-		cancel()
-	}
 	if p != nil {
 		p.timer.Stop()
 		p.terminal.Close()
 	}
+}
+
+func (a *AppService) CreateTerminal(workspace string) (OpenResult, error) {
+	a.mu.Lock()
+	owner := a.workspaces[workspace]
+	count := 0
+	for _, p := range a.terminals {
+		if p.workspace == workspace {
+			count++
+		}
+	}
+	if owner == nil || a.closed || count+owner.opening >= 8 || len(a.terminals)+a.opening >= 64 {
+		a.mu.Unlock()
+		return OpenResult{}, errors.New("工作区已关闭或终端达到上限（每工作区 8 个，全局 64 个）")
+	}
+	a.opening++
+	owner.opening++
+	a.mu.Unlock()
+	defer func() { a.mu.Lock(); a.opening--; owner.opening--; a.mu.Unlock() }()
+	t, err := owner.terminal.OpenPTY(100, 30)
+	if err != nil {
+		return OpenResult{}, err
+	}
+	id := base64.RawURLEncoding.EncodeToString(randomBytes(24))
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.workspaces[workspace] != owner {
+		t.Close()
+		return OpenResult{}, errors.New("工作区已关闭")
+	}
+	p := &pendingTerminal{terminal: t, workspace: workspace}
+	a.terminals[id] = p
+	p.timer = time.AfterFunc(15*time.Second, func() {
+		a.mu.Lock()
+		pending := a.terminals[id]
+		unattached := pending != nil && !pending.attached
+		a.mu.Unlock()
+		if unattached {
+			a.CloseTerminal(id)
+		}
+	})
+	return OpenResult{ID: id}, nil
+}
+
+func (a *AppService) CloseWorkspace(id string) {
+	a.mu.Lock()
+	owner := a.workspaces[id]
+	delete(a.workspaces, id)
+	cancel := a.monitors[id]
+	delete(a.monitors, id)
+	terminals := []*pendingTerminal{}
+	for key, p := range a.terminals {
+		if p.workspace == id {
+			terminals = append(terminals, p)
+			delete(a.terminals, key)
+		}
+	}
+	a.mu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+	for _, p := range terminals {
+		p.timer.Stop()
+		p.terminal.Close()
+	}
+	if owner != nil {
+		owner.timer.Stop()
+		if owner.stream != nil {
+			owner.stream.Close()
+		}
+		owner.terminal.Disconnect()
+	}
+}
+
+func (a *AppService) handleWorkspace(c *application.StreamConn) {
+	deadline := time.AfterFunc(5*time.Second, func() { c.Close() })
+	raw, err := c.Receive()
+	deadline.Stop()
+	if err != nil {
+		return
+	}
+	id := string(raw)
+	a.mu.Lock()
+	owner := a.workspaces[id]
+	if owner == nil || owner.stream != nil {
+		a.mu.Unlock()
+		return
+	}
+	owner.stream = c
+	owner.timer.Stop()
+	a.mu.Unlock()
+	defer a.CloseWorkspace(id)
+	<-c.Context().Done()
 }
 
 func (a *AppService) handleTerminal(c *application.StreamConn) {
@@ -187,13 +296,13 @@ func (a *AppService) handleTerminal(c *application.StreamConn) {
 func (a *AppService) ServiceShutdown() error {
 	a.mu.Lock()
 	a.closed = true
-	ids := make([]string, 0, len(a.terminals))
-	for id := range a.terminals {
+	ids := make([]string, 0, len(a.workspaces))
+	for id := range a.workspaces {
 		ids = append(ids, id)
 	}
 	a.mu.Unlock()
 	for _, id := range ids {
-		a.CloseTerminal(id)
+		a.CloseWorkspace(id)
 	}
 	if a.rdp != nil {
 		a.rdp.Close()

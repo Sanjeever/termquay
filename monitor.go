@@ -19,7 +19,7 @@ func init() { application.RegisterEvent[MonitorEvent]("monitor:sample") }
 
 func (a *AppService) SubscribeMonitor(id string) error {
 	a.mu.Lock()
-	p := a.terminals[id]
+	p := a.workspaces[id]
 	if p == nil {
 		a.mu.Unlock()
 		return errors.New("SSH 工作区已关闭")

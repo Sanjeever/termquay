@@ -34,15 +34,16 @@ type HostKeyError struct{ Fingerprint string }
 func (e *HostKeyError) Error() string { return "SSH 主机身份尚未确认或已变化" }
 
 type Terminal struct {
-	client  *gossh.Client
-	session *gossh.Session
-	Input   io.WriteCloser
-	Output  *io.PipeReader
-	writer  *io.PipeWriter
-	once    sync.Once
-	Done    chan struct{}
-	mu      sync.Mutex
-	waitErr error
+	client          *gossh.Client
+	session         *gossh.Session
+	Input           io.WriteCloser
+	Output          *io.PipeReader
+	writer          *io.PipeWriter
+	once            sync.Once
+	Done            chan struct{}
+	mu              sync.Mutex
+	waitErr         error
+	connectionOwner bool
 }
 
 func Dial(ctx context.Context, r Request) (*Terminal, error) {
@@ -88,13 +89,30 @@ func Dial(ctx context.Context, r Request) (*Terminal, error) {
 		return nil, err
 	}
 	client := gossh.NewClient(c, chans, reqs)
-	s, err := client.NewSession()
+	t, err := newTerminal(client, r.Cols, r.Rows)
 	if err != nil {
 		stop()
 		client.Close()
 		return nil, err
 	}
-	fail := func(err error) (*Terminal, error) { stop(); s.Close(); client.Close(); return nil, err }
+	t.connectionOwner = true
+	if !stop() && ctx.Err() != nil {
+		t.Close()
+		return nil, ctx.Err()
+	}
+	if err = conn.SetDeadline(time.Time{}); err != nil {
+		t.Close()
+		return nil, err
+	}
+	return t, nil
+}
+
+func newTerminal(client *gossh.Client, cols, rows int) (*Terminal, error) {
+	s, err := client.NewSession()
+	if err != nil {
+		return nil, err
+	}
+	fail := func(err error) (*Terminal, error) { s.Close(); return nil, err }
 	input, err := s.StdinPipe()
 	if err != nil {
 		return fail(err)
@@ -102,22 +120,12 @@ func Dial(ctx context.Context, r Request) (*Terminal, error) {
 	reader, writer := io.Pipe()
 	s.Stdout = writer
 	s.Stderr = writer
-	if err = s.RequestPty("xterm-256color", r.Rows, r.Cols, gossh.TerminalModes{gossh.ECHO: 1, gossh.TTY_OP_ISPEED: 38400, gossh.TTY_OP_OSPEED: 38400}); err != nil {
+	if err = s.RequestPty("xterm-256color", rows, cols, gossh.TerminalModes{gossh.ECHO: 1, gossh.TTY_OP_ISPEED: 38400, gossh.TTY_OP_OSPEED: 38400}); err != nil {
 		reader.Close()
 		writer.Close()
 		return fail(err)
 	}
 	if err = s.Shell(); err != nil {
-		reader.Close()
-		writer.Close()
-		return fail(err)
-	}
-	if !stop() && ctx.Err() != nil {
-		reader.Close()
-		writer.Close()
-		return fail(ctx.Err())
-	}
-	if err = conn.SetDeadline(time.Time{}); err != nil {
 		reader.Close()
 		writer.Close()
 		return fail(err)
@@ -142,7 +150,24 @@ func (t *Terminal) Resize(cols, rows int) error {
 }
 
 func (t *Terminal) Close() {
-	t.once.Do(func() { t.Input.Close(); t.Output.Close(); t.writer.Close(); t.client.Close() })
+	t.once.Do(func() {
+		t.Input.Close()
+		t.Output.Close()
+		t.writer.Close()
+		t.session.Close()
+		if t.connectionOwner {
+			t.client.Close()
+		}
+	})
+}
+
+func (t *Terminal) KeepConnection() { t.connectionOwner = false }
+func (t *Terminal) Disconnect()     { t.Close(); t.client.Close() }
+func (t *Terminal) OpenPTY(cols, rows int) (*Terminal, error) {
+	if cols < 1 || cols > 1000 || rows < 1 || rows > 1000 {
+		return nil, errors.New("终端尺寸无效")
+	}
+	return newTerminal(t.client, cols, rows)
 }
 
 func (t *Terminal) WaitError() error { t.mu.Lock(); defer t.mu.Unlock(); return t.waitErr }
@@ -221,7 +246,12 @@ func Relay(t *Terminal, s Stream) error {
 		}
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				return nil
+				select {
+				case <-t.Done:
+					return t.WaitError()
+				case <-ctx.Done():
+					return ctx.Err()
+				}
 			}
 			return err
 		}

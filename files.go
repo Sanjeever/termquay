@@ -13,7 +13,7 @@ import (
 func (a *AppService) terminal(id string) (*terminal.Terminal, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	p := a.terminals[id]
+	p := a.workspaces[id]
 	if p == nil {
 		return nil, errors.New("SSH 工作区已关闭")
 	}

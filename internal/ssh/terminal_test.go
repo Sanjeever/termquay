@@ -11,6 +11,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -246,4 +247,66 @@ func TestSG1PTY(t *testing.T) {
 		}
 	}
 	t.Log("真实 SSH PTY 输入、输出、尺寸变化通过")
+}
+
+func TestIndependentPTYAndWorkspaceClose(t *testing.T) {
+	r, _ := localServer(t)
+	owner, err := Dial(context.Background(), r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner.KeepConnection()
+	defer owner.Disconnect()
+	sibling, err := owner.OpenPTY(80, 24)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sibling.Close()
+	owner.Close()
+	if _, err = io.WriteString(sibling.Input, "independent\n"); err != nil {
+		t.Fatal("关闭其他 PTY 导致当前输入失败")
+	}
+	buf := make([]byte, 100)
+	n, err := sibling.Output.Read(buf)
+	if err != nil || !strings.Contains(string(buf[:n]), "independent") {
+		t.Fatal("PTY 没有独立运行")
+	}
+	owner.Disconnect()
+	select {
+	case <-sibling.Done:
+	case <-time.After(time.Second):
+		t.Fatal("工作区关闭没有释放子 PTY")
+	}
+}
+
+func TestPTYLifecycle100Cycles(t *testing.T) {
+	r, _ := localServer(t)
+	owner, err := Dial(context.Background(), r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner.KeepConnection()
+	defer owner.Disconnect()
+	before := runtime.NumGoroutine()
+	for range 100 {
+		child, err := owner.OpenPTY(80, 24)
+		if err != nil {
+			t.Fatal(err)
+		}
+		child.Close()
+		select {
+		case <-child.Done:
+		case <-time.After(time.Second):
+			t.Fatal("PTY 关闭没有结束等待任务")
+		}
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for runtime.NumGoroutine() > before+4 && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	after := runtime.NumGoroutine()
+	t.Logf("100 次本地 PTY 创建关闭，goroutine %d → %d", before, after)
+	if after > before+4 {
+		t.Fatal("PTY 关闭后 goroutine 未回收")
+	}
 }

@@ -19,6 +19,7 @@ func main() {
 		Mac:      application.MacOptions{ApplicationShouldTerminateAfterLastWindowClosed: true},
 	})
 	app.HandleStream("terminal", service.handleTerminal)
+	app.HandleStream("workspace", service.handleWorkspace)
 	app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title: "TermQuay · 栈桥", Width: 1280, Height: 820, MinWidth: 900, MinHeight: 600,
 		BackgroundColour: application.NewRGB(18, 20, 24), URL: "/",
