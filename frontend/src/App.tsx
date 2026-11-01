@@ -3,14 +3,14 @@ import { flushSync } from 'react-dom';
 import { Button, Input, Select, SelectItem } from '@heroui/react';
 import { OpenTerminal, TrustHost, OpenRDP, ProbeRDP, TrustRDPCertificate, GetCatalog, SaveConnection, DeleteConnection, SaveGroup, DeleteGroup, OpenSavedTerminal, OpenSavedRDP, UseSessionStorage } from '../bindings/github.com/Sanjeever/termquay/appservice';
 import type { Request } from '../bindings/github.com/Sanjeever/termquay/internal/ssh/models';
-import TerminalView from './features/terminal/TerminalView';
+import SSHWorkspace from './features/files/SSHWorkspace';
 import RDPView, { type RDPHandle } from './features/rdp/RDPView';
 import type { Grant } from '../bindings/github.com/Sanjeever/termquay/internal/rdp/models';
 import type { Connection } from '../bindings/github.com/Sanjeever/termquay/internal/store/models';
 import type { Catalog } from '../bindings/github.com/Sanjeever/termquay/models';
 import BackupSettings from './features/settings/BackupSettings';
 
-type Workspace = { id: string; name: string; rdp?: Grant; view?: RefObject<RDPHandle> };
+type Workspace = { id: string; name: string; rdp?: Grant; view?: RefObject<RDPHandle>; dirty?: boolean };
 
 export default function App() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -30,6 +30,7 @@ export default function App() {
   const [group, setGroup] = useState('');
   const [settings, setSettings] = useState(false);
   const [deleting, setDeleting] = useState('');
+  const [closingWorkspace,setClosingWorkspace]=useState('');
   const savedTrust = useRef<Connection>();
 
   async function reload() { try { setCatalog(await GetCatalog()); setStorageError(''); } catch (e) { setStorageError(String(e)); } }
@@ -143,12 +144,13 @@ export default function App() {
         <div className="workspace-tabs" role="tablist" aria-label="连接工作区">
           {workspaces.map((w) => <div className={`workspace-tab ${active === w.id ? 'active' : ''}`} key={w.id}>
             <button role="tab" aria-selected={active === w.id} onClick={() => setActive(w.id)}>{w.name}</button>
-            <button aria-label={`关闭 ${w.name}`} onClick={() => { setWorkspaces((prev) => prev.filter((item) => item.id !== w.id)); if (active === w.id) setActive(workspaces.find((item) => item.id !== w.id)?.id || ''); }}>×</button>
+            <button aria-label={`关闭 ${w.name}`} onClick={() => { if(w.dirty){setClosingWorkspace(w.id);return;} setWorkspaces((prev) => prev.filter((item) => item.id !== w.id)); if (active === w.id) setActive(workspaces.find((item) => item.id !== w.id)?.id || ''); }}>×</button>
           </div>)}
         </div>
+        {closingWorkspace&&<div className="draft-confirm">工作区有未保存文件<Button size="sm" color="danger" onPress={()=>{setWorkspaces((prev)=>prev.filter(w=>w.id!==closingWorkspace));if(active===closingWorkspace)setActive(workspaces.find(w=>w.id!==closingWorkspace)?.id||'');setClosingWorkspace('');}}>放弃修改并关闭</Button><Button size="sm" variant="light" onPress={()=>setClosingWorkspace('')}>取消</Button></div>}
         {settings && <BackupSettings onRestore={() => void reload()} />}
         {workspaces.length === 0 && !settings && <div className="workspace-empty"><span>终端工作区</span></div>}
-        {workspaces.map((w) => <div className="workspace" hidden={settings || active !== w.id} key={w.id}>{w.rdp ? <RDPView grant={w.rdp} ref={w.view} /> : <TerminalView id={w.id} />}</div>)}
+        {workspaces.map((w) => <div className="workspace" hidden={settings || active !== w.id} key={w.id}>{w.rdp ? <RDPView grant={w.rdp} ref={w.view} /> : <SSHWorkspace id={w.id} onDirtyChange={(dirty)=>setWorkspaces(prev=>prev.map(item=>item.id===w.id?{...item,dirty}:item))} />}</div>)}
       </section>
     </div>
   </main>;

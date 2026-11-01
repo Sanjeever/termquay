@@ -42,10 +42,11 @@ type AppService struct {
 	sessionDir   string
 	backupMu     sync.Mutex
 	preview      *pendingRestore
+	fileSlots    chan struct{}
 }
 
 func NewAppService() *AppService {
-	return &AppService{terminals: map[string]*pendingTerminal{}, trusted: map[string]string{}, pendingTrust: map[string]string{}}
+	return &AppService{terminals: map[string]*pendingTerminal{}, trusted: map[string]string{}, pendingTrust: map[string]string{}, fileSlots: make(chan struct{}, 4)}
 }
 
 func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (OpenResult, error) {

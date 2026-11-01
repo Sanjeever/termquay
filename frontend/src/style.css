@@ -65,3 +65,28 @@ textarea { background: #242831; border: 1px solid #3a414c; border-radius: 6px; w
 .snapshot-list li > div { display: flex; flex-direction: column; gap: 5px; overflow-wrap: anywhere; min-width: 0; }
 .snapshot-list span { color: #7e8a98; }
 .restore-preview { border: 1px solid #525647; border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 10px; font-size: 12px; }
+.ssh-workspace { display: flex; height: 100%; min-width: 0; }
+.file-panel { flex-shrink: 0; min-width: 160px; padding-right: 8px; overflow: auto; }
+.file-toolbar { display: flex; gap: 12px; padding-bottom: 10px; font-size: 11px; color: #9ba5b2; }
+.file-panel input { width: 100%; background: #1d222a; border: 1px solid #343b45; padding: 5px 6px; font-size: 11px; border-radius: 4px; }
+.file-list { margin-top: 8px; }
+.file-list li { display: flex; justify-content: space-between; align-items: center; gap: 4px; padding: 4px 2px; font-size: 12px; }
+.file-list li:hover { background: #222833; }
+.file-name { display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.file-name span { color: #7c9eaa; width: 10px; }
+.file-list details { position: relative; }
+.file-list summary { list-style: none; padding: 0 4px; }
+.file-menu { position: absolute; right: 0; top: 100%; background: #242a34; padding: 8px; display: flex; flex-direction: column; gap: 10px; width: 90px; z-index: 5; border: 1px solid #3c4551; border-radius: 4px; }
+.file-action { display: flex; flex-direction: column; gap: 8px; border: 1px solid #3c4551; border-radius: 4px; padding: 8px; margin: 8px 0; font-size: 12px; }
+.panel-separator { width: 5px; flex-shrink: 0; cursor: col-resize; border-right: 1px solid #2a2e35; margin-right: 8px; }
+.panel-separator:hover,.panel-separator:focus-visible { background: #527d72; }
+.ssh-center { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.inner-tabs { display: flex; flex-shrink: 0; min-height: 34px; overflow-x: auto; border-bottom: 1px solid #2a2e35; gap: 4px; }
+.inner-tabs > div { display: flex; white-space: nowrap; }
+.inner-tabs button { font-size: 11px; color: #8e98a5; padding: 5px 10px; }
+.inner-tabs .selected { border-bottom: 1px solid #8fc6b4; color: #d7dce2; }
+.terminal-tab,.editor-tab { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.terminal-tab[hidden],.editor-tab[hidden] { display: none; }
+.editor-toolbar { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; gap: 10px; border-bottom: 1px solid #2a2e35; font-size: 11px; color: #8e98a5; }
+.code-editor { flex: 1; min-height: 0; overflow: hidden; }
+.draft-confirm { display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: #393327; color: #e1cc9f; font-size: 12px; flex-wrap: wrap; }

@@ -14,6 +14,8 @@ TermQuay 是使用 Go、Wails 和 React 构建的开源跨平台远程连接工�
 
 RDP 连接表单、IronRDP WASM 工作区和 Go RDCleanPath 桥接已接入，包含 TLS/NLA、证书指纹确认及变化阻止。浏览器 WASM 装载与隔离 TLS 桥接测试通过；真实 Windows 画面、输入、剪贴板和尺寸行为待验证。
 
+SSH 工作区已有 SFTP 浏览与基本目录操作、CodeMirror 文件标签、草稿与保存冲突检测。在线编辑支持 2 MiB 内 UTF-8 普通文件；保存要求服务端支持 POSIX rename。真实 SSH/SFTP 小文件验证通过。监控、上传下载任务、多终端与首版迁移转发能力继续实施。
+
 ## 产品规划
 
 - **连接管理**：SSH 与 RDP 共用嵌套分组，支持搜索、排序、移动和导入导出，连接数量不设置商业限制。

@@ -10,6 +10,9 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as backup$0 from "./internal/backup/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as files$0 from "./internal/files/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as rdp$0 from "./internal/rdp/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -38,12 +41,20 @@ export function ConfirmRestore(id: string): $CancellablePromise<void> {
     return $Call.ByID(4268329992, id);
 }
 
+export function CreateRemoteDirectory(id: string, remote: string): $CancellablePromise<void> {
+    return $Call.ByID(205894039, id, remote);
+}
+
 export function DeleteConnection(id: string): $CancellablePromise<void> {
     return $Call.ByID(3025577673, id);
 }
 
 export function DeleteGroup(id: string): $CancellablePromise<void> {
     return $Call.ByID(4099577436, id);
+}
+
+export function DeleteRemotePath(id: string, remote: string): $CancellablePromise<void> {
+    return $Call.ByID(3430269924, id, remote);
 }
 
 export function GetCatalog(): $CancellablePromise<$models.Catalog> {
@@ -94,6 +105,22 @@ export function ProbeRDP(host: string, port: number): $CancellablePromise<$model
     });
 }
 
+export function ReadDirectory(id: string, remote: string): $CancellablePromise<files$0.Entry[]> {
+    return $Call.ByID(2779778161, id, remote).then(($result: any) => {
+        return $$createType9($result);
+    });
+}
+
+export function ReadRemoteFile(id: string, remote: string): $CancellablePromise<files$0.Document> {
+    return $Call.ByID(2337340862, id, remote).then(($result: any) => {
+        return $$createType10($result);
+    });
+}
+
+export function RenameRemotePath(id: string, oldPath: string, newPath: string): $CancellablePromise<void> {
+    return $Call.ByID(3004310961, id, oldPath, newPath);
+}
+
 export function ResizeTerminal(id: string, cols: number, rows: number): $CancellablePromise<void> {
     return $Call.ByID(253488878, id, cols, rows);
 }
@@ -104,6 +131,12 @@ export function SaveConnection(c: store$0.Connection, auth: ssh$0.Request): $Can
 
 export function SaveGroup(g: store$0.Group): $CancellablePromise<void> {
     return $Call.ByID(2264337214, g);
+}
+
+export function SaveRemoteFile(id: string, document: files$0.Document): $CancellablePromise<files$0.Document> {
+    return $Call.ByID(1773240835, id, document).then(($result: any) => {
+        return $$createType10($result);
+    });
 }
 
 export function TestWebDAV(options: backup$0.WebDAVOptions): $CancellablePromise<void> {
@@ -131,3 +164,6 @@ const $$createType4 = $models.RDPLaunch.createFrom;
 const $$createType5 = $models.OpenResult.createFrom;
 const $$createType6 = $models.RestorePreview.createFrom;
 const $$createType7 = $models.RDPProbe.createFrom;
+const $$createType8 = files$0.Entry.createFrom;
+const $$createType9 = $Create.Array($$createType8);
+const $$createType10 = files$0.Document.createFrom;
