@@ -111,6 +111,18 @@ func TestCertificateVerification(t *testing.T) {
 	}
 }
 
+func TestRDPUsesTLS12(t *testing.T) {
+	target, request := localRDPTLS(t)
+	conn, _, err := negotiate(context.Background(), target, request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	if conn.ConnectionState().Version != tls.VersionTLS12 {
+		t.Fatal("RDP 桥接未使用已验证的 TLS 1.2")
+	}
+}
+
 func TestCleanPathBridge(t *testing.T) {
 	target, request := localRDPTLS(t)
 	closed := make(chan error, 1)
