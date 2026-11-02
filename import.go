@@ -44,6 +44,10 @@ func (a *AppService) SelectSSHImport() (SSHImportPreview, error) {
 	if err != nil {
 		return SSHImportPreview{}, err
 	}
+	return a.previewSSHImportFiles(names)
+}
+
+func (a *AppService) previewSSHImportFiles(names []string) (SSHImportPreview, error) {
 	if len(names) == 0 || len(names) > 16 {
 		return SSHImportPreview{}, errors.New("请选择 1 至 16 个配置文件")
 	}
@@ -57,10 +61,16 @@ func (a *AppService) SelectSSHImport() (SSHImportPreview, error) {
 		data, e := io.ReadAll(io.LimitReader(f, (1<<20)+1))
 		f.Close()
 		total += len(data)
-		if e != nil || total > 1<<20 {
+		if e != nil {
+			return SSHImportPreview{}, e
+		}
+		if total > 1<<20 {
 			return SSHImportPreview{}, errors.New("配置超过 1 MiB")
 		}
-		absolute, _ := filepath.Abs(name)
+		absolute, e := filepath.Abs(name)
+		if e != nil {
+			return SSHImportPreview{}, e
+		}
 		approved[filepath.Clean(absolute)] = string(data)
 	}
 	visited := map[string]bool{}
@@ -76,12 +86,15 @@ func (a *AppService) SelectSSHImport() (SSHImportPreview, error) {
 		visited[name] = true
 		var result strings.Builder
 		for _, line := range strings.Split(approved[name], "\n") {
-			words, _ := shlex.Split(line)
-			if len(words) > 0 && strings.EqualFold(strings.SplitN(words[0], "=", 2)[0], "Include") {
-				for _, pattern := range words[1:] {
-					if pattern == "=" {
-						continue
-					}
+			key, values, err := sshImportDirective(line)
+			if err != nil {
+				return "", err
+			}
+			if key == "include" {
+				if len(values) == 0 {
+					return "", errors.New("Include 缺少文件路径")
+				}
+				for _, pattern := range values {
 					if !filepath.IsAbs(pattern) {
 						pattern = filepath.Join(filepath.Dir(name), pattern)
 					}
@@ -92,7 +105,10 @@ func (a *AppService) SelectSSHImport() (SSHImportPreview, error) {
 					}
 					sort.Strings(selectedNames)
 					for _, selected := range selectedNames {
-						ok, _ := filepath.Match(pattern, selected)
+						ok, err := filepath.Match(pattern, selected)
+						if err != nil {
+							return "", errors.New("Include 路径模式无效")
+						}
 						if ok {
 							matched = true
 							part, e := expand(selected, depth+1, stack)
@@ -118,7 +134,10 @@ func (a *AppService) SelectSSHImport() (SSHImportPreview, error) {
 	}
 	var text strings.Builder
 	for _, name := range names {
-		absolute, _ := filepath.Abs(name)
+		absolute, err := filepath.Abs(name)
+		if err != nil {
+			return SSHImportPreview{}, err
+		}
 		absolute = filepath.Clean(absolute)
 		if !visited[absolute] {
 			part, e := expand(absolute, 0, map[string]bool{})
@@ -132,6 +151,29 @@ func (a *AppService) SelectSSHImport() (SSHImportPreview, error) {
 	p.Warnings = append(p.Warnings, warnings...)
 	return p, err
 }
+
+func sshImportDirective(line string) (string, []string, error) {
+	words, err := shlex.Split(line)
+	if err != nil {
+		return "", nil, errors.New("OpenSSH 配置引号或转义无效")
+	}
+	if len(words) == 0 {
+		return "", nil, nil
+	}
+	key, value, equals := strings.Cut(words[0], "=")
+	values := words[1:]
+	if equals && value != "" {
+		values = append([]string{value}, values...)
+	} else if !equals && len(values) > 0 && strings.HasPrefix(values[0], "=") {
+		value = strings.TrimPrefix(values[0], "=")
+		values = values[1:]
+		if value != "" {
+			values = append([]string{value}, values...)
+		}
+	}
+	return strings.ToLower(key), values, nil
+}
+
 func (a *AppService) PreviewSSHImport(text string) (SSHImportPreview, error) {
 	if len(text) > 1<<20 {
 		return SSHImportPreview{}, errors.New("配置超过 1 MiB")
@@ -140,12 +182,14 @@ func (a *AppService) PreviewSSHImport(text string) (SSHImportPreview, error) {
 	lines := []string{}
 	match := false
 	for _, line := range strings.Split(text, "\n") {
-		words, _ := shlex.Split(line)
-		if len(words) == 0 {
+		key, _, err := sshImportDirective(line)
+		if err != nil {
+			return SSHImportPreview{}, err
+		}
+		if key == "" {
 			lines = append(lines, line)
 			continue
 		}
-		key := strings.ToLower(strings.SplitN(words[0], "=", 2)[0])
 		if key == "include" {
 			warnings = append(warnings, "Include 未读取，请明确选择引用文件")
 			continue
@@ -277,8 +321,15 @@ func (a *AppService) ConfirmSSHImport(id string, choices []SSHImportChoice) erro
 		return errors.New("连接已变化，请重新预览")
 	}
 	selected := map[string]string{}
+	known := map[string]bool{}
+	for _, row := range p.Rows {
+		known[row.ID] = true
+	}
+	if len(choices) > len(p.Rows) {
+		return errors.New("导入选择超过预览数量")
+	}
 	for _, choice := range choices {
-		if choice.Action != "new" && choice.Action != "replace" && choice.Action != "skip" {
+		if !known[choice.ID] || selected[choice.ID] != "" || (choice.Action != "new" && choice.Action != "replace" && choice.Action != "skip") {
 			return errors.New("导入选择无效")
 		}
 		selected[choice.ID] = choice.Action
