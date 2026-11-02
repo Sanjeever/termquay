@@ -1,233 +1,303 @@
-# Handoff: 对齐 xterminal 工作台体验、文件自动换行与 RDP 修复
+# Handoff: TermQuay 完整 UI UX 与工作效率改进
 
 ## 1. 任务摘要
 
-实现已确认的三项工作：远端文件默认软换行；定位并修复真实 RDP 连接失败，完善失败与重试流程；将界面调整为“连接中心 + 连接工作区”，对齐 xterminal 核心操作方式。完成验证、文档同步，并及时形成可审阅的中文小提交。
+实现本文列出的全部体验改进，包括终端操作、连接与标签管理、SSH 原地重连、双窗格、文件与传输、RDP 交互、冲突对比、工作布局与草稿恢复、命令片段，以及 SSH Agent、跳板机、端口转发、配置导入、信任管理、监控趋势和主题设置。
 
-本轮已按方案实施并形成分阶段本地提交。当前设计、操作与分层验证结果见 [架构约束](docs/architecture.md) 和 [本轮验收记录](docs/development.md#工作台与-rdp-验收记录2026-11-02)。下文背景、实现分析与方案保留交接时基线；验收清单按本轮实际证据更新，未验证项保持未勾选。
+用户已授权实施全部范围及必要关联改动。按依赖分阶段完成，每个可运行、可审阅的完整改动及时形成中文 Conventional Commits 小提交。完成一个阶段后继续下一阶段，不将前几项完成视为整个任务完成。本文件是执行交接；生成本文件的会话不实施功能。
 
 ## 2. 背景
 
-用户在开发环境实际操作后反馈界面混乱、操作不顺手。源码检查确认：
+项目已具备连接中心、分组与搜索、两级标签、SSH 独立 PTY、SFTP 基础操作、远端编辑、传输任务、按需 Linux 监控、内嵌 RDP、命令搜索和加密 WebDAV 快照。目标是在现有单机工作台上改善高频操作和连续工作流程。
 
-- 连接目录与远端文件共用左侧内容栏，切换用途时替换整个侧栏。
-- 选中连接后插入整行“连接”按钮，后续连接条目随之移动。
-- 顶部混合全局操作和当前会话操作，区域职责需要整理。
-- CodeMirror 未启用 `EditorView.lineWrapping`，长行依赖横向滚动。
-- RDP 连接失败后移除工作区，缺少原位重试和编辑连接入口。
-- RDP 初始化 Promise 为模块级缓存，首次失败会保留被拒绝的 Promise，后续尝试无法重新初始化。
+交接基线为 main 的 3510ee2，交接开始时工作树干净。以下事实来自源码核对，执行会话仍须先检查当前状态：
 
-已有检查确认用户提供的 SSH/RDP 目标端口曾 TCP 可达，未验证这些目标的 SSH 登录、RDP 认证、桌面画面与输入。RDP 根因尚未确认，不得直接归因于初始化缓存、账户格式、证书或来源白名单。
-
-设计依据为 [xterminal 界面导览](https://docs.xterminal.cn/getting-started/interface-overview/)、[文件浏览器](https://docs.xterminal.cn/sftp/browser/) 和 [远程编辑](https://docs.xterminal.cn/sftp/remote-edit/)。以文档与官方截图中的核心布局、操作路径为参考，不将完整功能列表转化为本轮需求。
+- TerminalView 接入 xterm 和 FitAddon，尚无应用层终端查找、链接打开和常用操作菜单。
+- 应用命令搜索快捷键明确避开终端、编辑器和 RDP 输入区域。这是现有输入归属约定，调整必须处理快捷键冲突。
+- 外层标签尚无排序、临时重命名和工作区列表；连接目录尚无收藏、最近连接和复制配置入口。
+- SSH 断线后显示错误，缺少保留上下文的原地重连。当前初始工作区 ID 与初始终端 ID 相同，重连需要调整身份与所有权关系。
+- 终端和编辑器共用内层标签，同一时间显示一个。切换入口和设置保留已挂载会话。
+- 文件浏览已有路径输入和面包屑，缺少目录书签、前进后退、过滤、排序和隐藏文件开关。
+- 上传使用单文件选择；传输并行上限为 2、任务记录上限为 100，达到上限直接报错，尚无等待队列。上传同名目标默认不覆盖。
+- 文件保存已有版本冲突检测、草稿保留和重新读取，缺少本地与远端差异视图。
+- RDP 已有重试、编辑连接、自适应/固定分辨率、全屏、组合键和手动文本剪贴板。已连接时切换剪贴板会立即断开。
+- 工作区列表在 React 内存中，部分布局和字号存于 localStorage。没有重启后的工作布局与草稿恢复。
+- SQLite 有 groups、connections、credentials、settings 表，数据库 user_version 为 1。settings 已有普通与 AEAD 加密读写方法。
+- 备份 Snapshot 当前版本为 1，包含 store.Data，解码拒绝未知字段。新连接字段必须核对快照兼容性。
+- 监控展示当前 CPU、内存、网络和磁盘 I/O，没有趋势与文件系统容量。
+- 设置只有固定深色主题、终端字号、备份恢复和关于。
 
 ## 3. 目标与范围
 
 ### 目标
 
-- 默认软换行，长行随编辑区域折行；显示折行不修改文件内容。
-- 用真实错误定位 RDP 失败环节，修复到能连接测试目标并完成桌面交互验收。
-- RDP 失败或断开后保留可操作页面，提供重试、编辑连接和可展开技术详情，释放旧连接资源。
-- 连接中心作为固定、可返回的外层标签入口，集中管理分组、搜索、SSH/RDP 筛选和连接操作。
-- SSH 工作区采用左侧远端文件、中央终端/文件编辑、右侧可收起监控。面板可调整，中央优先保留操作空间。
-- 保留外层连接工作区与 SSH 内层终端/文件两级标签，各连接保留自己的目录、滚动、终端和草稿状态。
-- 连接列表行高稳定；单击选择、双击或 Enter 连接；固定工具栏与右键菜单提供管理操作，保留键盘入口。
-- 全局搜索与设置保持固定入口，会话操作靠近当前会话；底部保留状态和按需展开的传输详情。
-- 统一紧凑工具界面的间距、对齐、选中态、焦点和控件样式，实际复核原生窗口。
+R01–R15 全部属于本任务，阶段表示顺序，不表示可选项。
+
+| 编号 | 交付能力 | 首版范围 |
+| --- | --- | --- |
+| R01 | 终端常用操作 | 搜索滚动缓冲、上下匹配、大小写选项；复制/粘贴/全选/查找/清空显示菜单；修饰键打开 URL；字号调整/复位；按风险预览多行粘贴 |
+| R02 | 快捷键与命令搜索 | 可配置应用快捷键、冲突提示和复位；终端/编辑器/RDP 输入归属明确，菜单与键盘入口一致 |
+| R03 | 连接目录效率 | 收藏、最近成功连接、复制配置、地址或常见 SSH 命令形式快速连接；生产环境文字标识与辅助色；准确展示本应用会话状态 |
+| R04 | 标签管理 | 外层工作区拖动排序、临时重命名、可搜索的已打开工作区列表；保留固定连接中心和两级标签 |
+| R05 | SSH 原地重连 | 保留旧输出、草稿、打开文件和目录；显式新建会话；标签、工作区、连接中心状态同步 |
+| R06 | 双窗格 | 同连接终端+终端、终端+编辑器；移动已有标签、调整比例、最大化和恢复；首版最多两个窗格 |
+| R07 | 文件定位 | 按连接保存目录书签，前进后退、当前目录文件名过滤、名称/修改时间/大小排序、隐藏文件开关、复制完整路径 |
+| R08 | 传输与目录同步 | 多文件选择、拖放上传、有界等待队列、取消等待、失败显式重试、同名处理；手动单向目录同步及执行前差异预览 |
+| R09 | RDP 连续操作 | 连接前选择文本剪贴板；连接后修改先明确重连；按连接保存分辨率偏好；区分远端分辨率与本地缩放；全屏收起工具栏和可靠组合键入口 |
+| R10 | 保存冲突处理 | 本地草稿与最新远端内容差异对比、复制和手动合并；合并后保存继续核对远端版本 |
+| R11 | 工作布局与草稿恢复 | 连接、标签顺序、临时名称、窗格、目录与文件入口恢复；启动后由用户选择连接；可选加密本地草稿恢复 |
+| R12 | 命令片段 | 本地保存、编辑、分组、搜索和简单具名参数替换，经命令搜索插入当前终端，默认不发送回车 |
+| R13 | 认证与内网访问 | SSH Agent、原生私钥文件选择；已保存 SSH 连接作为跳板机；本地/远端/动态端口转发、状态和关闭 |
+| R14 | 导入与信任管理 | OpenSSH 配置导入、预览、冲突选择、不支持项报告；查看/撤销 SSH 与 RDP 信任，合法身份变化经重新探测和审核更新 |
+| R15 | 监控与视觉设置 | CPU/内存/网络/磁盘 I/O 有界趋势、文件系统容量；深色/浅色/跟随系统、字体和终端配色；统一选择、焦点、菜单与工具栏 |
 
 ### 不包含
 
-- 完整复制 xterminal 功能，包括 AI、VNC、Telnet、隧道、Shell Integration、账号与云服务。
-- 应用图标重做、营销区域、引导页、装饰性说明、成功通知弹窗和新主题体系。
-- 替换 CodeMirror 为 Monaco、扩展为 IDE，或为软换行新增配置系统。
-- 重写协议栈、引入外部 CLI 代办业务、无依据更换 IronRDP 或升级依赖。
-- 修改备份恢复、WebDAV、数据库或快照格式，清空用户数据。
-- 修改远端系统、服务、认证策略或安装远端依赖；推送、Release、签名与发布。
+- 云账号、团队协作、云端控制面、通用插件框架、AI 命令生成、多端实时同步。
+- VNC、Telnet、串口、X11、会话录屏、自动采集终端输入历史和批量广播执行。
+- 自动登录脚本、恢复后重放命令、假装恢复原 Shell/远端进程、自动无限重连。
+- 跨连接任意嵌套分屏；双窗格属于单个 SSH 工作区，RDP 保持独立外层工作区。
+- 自动双向同步、后台文件监视、镜像删除、断点续传；手动单向同步必须完整可用。
+- IDE 功能、自动强制覆盖冲突、承诺普通 SFTP 无法提供的原子比较替换或完整元数据保留。
+- Agent 转发、任意 ProxyCommand 执行、多跳链编辑器；首版跳板机为单跳 SSH，RDP 经 SSH 网关不包含在本次范围。
+- PuTTY/MobaXterm 私有格式导入、全部 OpenSSH 指令兼容。首版实现常用 OpenSSH 子集。
+- WebDAV 自动备份、备份合并恢复、改变快照发布方式或自动清理远端历史。
+- 无关重构、全局工具配置、远端系统/服务/安全策略更改、推送、Release 和签名分发。
 
 ## 4. 技术上下文
 
-- 单机 Go/Wails v3 桌面应用；Go 管理网络、认证、会话、传输、采集、存储和备份，React/TypeScript 管理视图与编辑草稿。
-- 沿用 Vite、Tailwind CSS、HeroUI、pnpm、Go Modules、xterm.js、CodeMirror、IronRDP。版本以 `go.mod`、`frontend/package.json`、锁文件和 Taskfile 为准。
-- SQLite 有 `groups`、`connections`、`credentials`、`settings` 表。`Connection` 包含稳定 ID、协议、主机、端口、用户名、可选域和凭据引用。本轮默认无数据库变更。
-- Wails 绑定承接控制操作，事件传递低频状态，Streams 传递终端数据。Go 签名或模型变化后生成绑定，禁止手工修补派生产物。
-- SSHWorkspace 持有 owner Stream，卸载会关闭整个工作区。切换连接中心、设置、面板或标签不能因此卸载活动会话。
-- RDP 使用 IronRDP WASM + Go RDCleanPath/TLS 桥接。保留回环监听、精确来源、短期一次性授权、具体目标绑定、TLS/NLA 和证书指纹校验。
-- RDP 密码仅用于创建认证链路，不进入 React 全局状态、localStorage、日志或快照；已保存 SSH 秘密继续留在 Go。
-- 原架构文档将“连接目录与远端文件共用侧栏”写为设计。本轮已授权调整为连接中心入口与工作区文件面板，实施时同步修改该设计和理由；其他安全、数据和生命周期契约继续有效。
+- 单机 Go/Wails v3、React/TypeScript、Vite、Tailwind CSS、HeroUI、pnpm。Go 管理网络、认证、存储、传输和采集，React 管理视图和编辑草稿。
+- 版本以 go.mod、frontend/package.json、锁文件、Taskfile 和 build/ 为准，不在文档另建版本常量。
+- Go 绑定承接控制操作，事件传递低频状态，Streams 传递有界终端字节。Go 接口、模型或事件变化后生成绑定，禁止手改 frontend/bindings/。
+- 保留 xterm 解析完成后 ACK 的端到端背压，输入不能被输出积压阻塞。每个终端独立 PTY，SFTP、监控、转发使用独立通道。
+- 分离稳定 UI 工作区 ID、SSH 连接实例/代次、PTY ID 和 RDP grant ID。排序、窗格移动和重命名不改变资源所有者。
+- 保留 SSH 首次指纹确认与身份变化阻断。RDP 保留精确 Origin、回环监听、目标绑定、一次性授权、证书有效期、TLS/NLA。
+- RDP 桥接当前限定 TLS 1.2，组件有 clipboard-ready 补丁。交互改进不能删除就绪契约或顺带调整 TLS。
+- 本地主密钥由系统密钥库保护；不可用时保留显式会话存储。已保存 SSH 秘密留在 Go，RDP 认证材料按现有短期路径传递。
+- 架构见 [docs/architecture.md](docs/architecture.md)，工具、绑定和分层验收见 [docs/development.md](docs/development.md)。
 
-## 5. 交接时实现分析（历史基线）
+## 5. 当前实现分析
 
-| 文件 | 当前实现与关注点 |
+| 文件 | 职责与本次影响 |
 | --- | --- |
-| `frontend/src/App.tsx` | 工作区、连接尝试、共享侧栏、全局监控开关和传输入口；RDP 工作区当前使用 grant ID；接入连接中心与失败页面 |
-| `frontend/src/components/layout/Workbench.tsx` | `SidebarMode` 区分 connections/files，共用侧栏与导航；调整布局职责 |
-| `frontend/src/components/layout/WorkspaceTabs.tsx` | 外层标签、切换和关闭；增加固定连接中心入口，保留键盘导航 |
-| `frontend/src/features/connections/ConnectionSidebar.tsx` | 分组、搜索、协议下拉、列表；选中时插入 selected-connect 按钮；更多菜单尚无右键入口 |
-| `frontend/src/features/connections/ConnectionDialog.tsx` | 新建、编辑、快速连接及凭据保留语义；复用为编辑和重新输入认证材料入口 |
-| `frontend/src/features/connections/useConnectionAttempt.ts` | SSH/RDP、身份确认、取消和资源所有权；RDP 异常时移除工作区并清理 grant |
-| `frontend/src/features/connections/HostTrustDialog.tsx` | 首次身份确认，保留指纹确认与取消行为 |
-| `frontend/src/features/files/SSHWorkspace.tsx` | 终端、目录、草稿、关闭协调；文件浏览经 portal 接入共享侧栏；调整文件面板归属 |
-| `frontend/src/features/files/FileBrowser.tsx` | 目录、选择、路径与操作；保留每个连接的目录与滚动状态 |
-| `frontend/src/features/files/CodeEditor.tsx` | 按路径创建 CodeMirror，支持内容同步、Mod-s 和可见时测量；缺少软换行 |
-| `frontend/src/features/terminal/TerminalView.tsx` | xterm、焦点、尺寸、输入与消费确认；布局不能破坏背压或重建 PTY |
-| `frontend/src/features/monitor/MonitorPanel.tsx` | 宽度、订阅、可见性与采样状态；隐藏工作区不继续采集 |
-| `frontend/src/features/rdp/RDPView.tsx` | 初始化、连接、状态、工具栏与事件；检查失败缓存、重试和异步关闭 |
-| `rdp.go` | 探测、信任、保存凭据启动、grant 和关闭；来源白名单含固定开发端口 |
-| `internal/rdp/bridge.go`、`bridge_test.go` | RDCleanPath、TLS/NLA、身份和转发；现有测试用模拟 TLS 目标，不能证明 Windows 登录通过 |
-| `frontend/src/features/files/TransferPanel.tsx`、`useTransfers.ts` | 状态与详情分离，收起后任务继续，保留所有权 |
-| `frontend/src/components/CommandPalette.tsx` | 搜索连接、工作区和操作；同步新入口与焦点 |
-| `frontend/src/style.css`、`styles/tokens.css` | 布局、列表、标签和语义颜色；按结构变化局部调整 |
-| `frontend/vite.config.ts`、`Taskfile.yml` | 开发端口和任务，核对实际来源 |
-| `docs/architecture.md`、`docs/development.md`、`README.md` | 按最终语义更新设计、操作与验收事实 |
+| app.go | AppService、SSH 工作区/PTY 所有权、信任、Stream、关闭；重连与通道生命周期 |
+| data.go | 连接/分组 CRUD、后端凭据解析、备份预览与恢复；复制、扩展模型及恢复兼容 |
+| lifecycle.go、main.go | 脏文件、启动/退出；恢复数据和资源释放 |
+| internal/store/store.go、internal/store/vault.go | JSON 数据行、加密凭据、普通/加密设置 |
+| internal/ssh/terminal.go、internal/ssh/channels.go | 直连、密码/私钥、PTY、SFTP、exec；Agent、跳板机与转发 |
+| files.go、internal/files/service.go、internal/files/staging.go | 文件、版本核对、编辑限制和暂存发布 |
+| transfer.go、transfer_test.go | 单文件传输、取消、任务限制；队列、批量、重试和同步 |
+| monitor.go、internal/monitor/sample.go、internal/monitor/linux.sh | 采集、解析和订阅；趋势、容量和频率调度 |
+| rdp.go、internal/rdp/bridge.go | 探测、信任、授权与关闭；信任管理回归边界 |
+| internal/backup/snapshot.go、internal/backup/webdav.go | 严格版本化快照、加密和追加发布；新配置兼容 |
+| frontend/src/App.tsx | 工作区、尝试、命令搜索、设置、关闭和恢复接入 |
+| frontend/src/components/layout/WorkspaceTabs.tsx、Workbench.tsx、ResizeHandle.tsx | 布局、标签、排序、重命名、尺寸 |
+| frontend/src/components/CommandPalette.tsx | 连接、工作区和动作搜索；片段入口 |
+| frontend/src/features/connections/ConnectionCenter.tsx、ConnectionDialog.tsx | 目录、快速连接、认证表单；收藏、复制、导入和高级配置 |
+| frontend/src/features/connections/useConnectionAttempt.ts、HostTrustDialog.tsx | SSH/RDP 尝试、共享 busy/error、身份确认和取消 |
+| frontend/src/features/terminal/TerminalView.tsx | xterm、Stream、ACK、尺寸和焦点 |
+| frontend/src/features/files/SSHWorkspace.tsx | owner Stream、终端列表、草稿、面板和关闭 |
+| frontend/src/features/files/FileBrowser.tsx、CodeEditor.tsx | 浏览、导航、CodeMirror、差异与主题 |
+| frontend/src/features/files/TransferPanel.tsx、useTransfers.ts | 任务事件和详情；排队、重试与同步 |
+| frontend/src/features/rdp/RDPView.tsx | 装载、就绪、认证、剪贴板、尺寸、全屏与输入 |
+| frontend/src/features/monitor/MonitorPanel.tsx | 当前样本、过期状态和可见性订阅 |
+| frontend/src/features/settings/SettingsView.tsx、BackupSettings.tsx | 设置扩展、偏好、快捷键、信任和恢复 |
+| frontend/src/style.css、frontend/src/styles/tokens.css、frontend/src/main.tsx | 布局、语义颜色、HeroUI 根配置和主题 |
+| frontend/package.json、frontend/pnpm-lock.yaml、go.mod、go.sum | 必要依赖和兼容组合 |
+| THIRD_PARTY_NOTICES.md、build/licenses/ | 新依赖许可与原文 |
+| data_test.go、internal/ssh/terminal_test.go、internal/rdp/bridge_test.go、internal/files/service_test.go、internal/monitor/sample_test.go、internal/backup/*_test.go | 现有验证入口 |
 
-表内缩写路径以该行第一个完整路径所在目录为准。
+同一行缩写文件名相对于该行首个完整路径。
 
 ## 6. 实现方案
 
-### 阶段一：软换行与 RDP 修复
+### 阶段一：终端、快捷键与标签（R01、R02、R04）
 
-1. 修改 `CodeEditor.tsx` 扩展列表，启用 `EditorView.lineWrapping`。核对父级收缩约束与测量，实际需要时修改 `style.css` 或 `SSHWorkspace.tsx`。禁止插入换行符或裁切溢出内容。
-2. 在原生 Wails 环境复现 RDP，按组件装载、就绪、证书探测、桥接授权、TLS/NLA、认证、桌面建立分段定位。依据 `RDPView.tsx`、`useConnectionAttempt.ts`、`rdp.go` 和桥接实际错误修复。
-3. 核对 JS/组件/WASM 兼容组合、资源装载、WebView 实际 Origin 与精确白名单。开发端口与白名单分别定义，不能用通配符替代核对。
-4. 修改 `RDPView.tsx`，成功初始化复用缓存；失败后允许下次显式重试重新初始化。处理就绪等待、取消、旧事件和晚到结果，避免永久等待或关闭后更新状态。
-5. 修改 `App.tsx`、`useConnectionAttempt.ts` 和 `RDPView.tsx`，分离失败页面保留与资源回收。失败/断开页面显示状态、重试、编辑入口及可展开详情；失败不删除已保存连接配置。
-6. 每次重试重新获取 grant，不复用一次性令牌。必要时分离稳定 UI 工作区 ID 与每次 grant ID，后端事件按当前 grant 匹配；旧尝试不得影响新会话。
-7. 保存连接重试通过后端重新取得启动材料，临时连接需要时重新输入密码。不得为重试长期保留密码或自动无限重试。
-8. 依据确认根因增加有维护价值的回归验证，保持证书、来源、授权、取消和关闭检查，补齐真实 Windows 验收。
+- 修改 TerminalView.tsx，接入与现有 xterm 兼容的官方搜索和链接扩展，新增 frontend/src/features/terminal/TerminalSearch.tsx 及常用操作菜单。不自行解析终端屏幕字节或重做 URL 识别，新增依赖前查官方兼容资料。
+- 通过局部 handle 暴露终端动作，供工作区、命令搜索和菜单共用。清空显示不发送远端清屏命令，查找不触发远端历史搜索。
+- 多行粘贴统一处理实际换行及会提交命令的尾部换行，提供内容预览和明确确认；菜单与键盘一致，普通单行不增加提示。保留 bracketed paste 和队列边界。
+- 新增 frontend/src/features/settings/KeyboardSettings.tsx 和 frontend/src/lib/shortcuts.ts，修改 App.tsx、CommandPalette.tsx 与输入组件。统一动作、默认键位、平台修饰键、覆盖、冲突和复位，处理 IME composition。
+- 应用命令搜索在输入区通过明确分配的应用快捷键可达；未分配按键交给对应组件。RDP 系统级按键限制单独验证，不能把 preventDefault 可调用视为系统会放行。
+- 修改 WorkspaceTabs.tsx 实现排序、临时名称、工作区列表及键盘替代操作。固定连接中心不可拖走/关闭，临时名称不修改保存配置，稳定 key 保留实例。
 
-### 阶段二：连接中心与工作区布局
+### 阶段二：连接目录与 RDP 连接选项（R03、R09 部分）
 
-```text
-外层标签    连接中心 │ SSH 连接 A │ SSH 连接 B │ RDP 连接 C
-连接中心    分组树   │ 连接列表
-SSH 工作区  远端文件 │ 终端 / 文件编辑标签 │ 监控
-RDP 工作区          │ 远程桌面
-底部        状态与传输入口，传输详情按需展开
-```
+- 修改 ConnectionCenter.tsx、ConnectionDialog.tsx、App.tsx、data.go；新增 preferences.go、internal/store/preferences.go，按稳定连接 ID 保存收藏、最近成功时间、书签和偏好。
+- 最近记录以 SSH 实际认证/RDP 桌面建立成功为准，数量有界、可清除；配置保存和尝试失败不算成功。状态来自本应用会话，不轮询、猜测服务器在线状态。
+- 后端增加 DuplicateConnection：新连接 ID，凭据复制为独立加密记录，弹窗允许不携带凭据。复制秘密不返回前端，修改原凭据不连带改变副本。
+- 快速连接支持 `user@host`、带端口、IPv6 方括号，以及常见 `ssh -p <port> [-l <user>] <host>` 子集。成熟词法库解析后展示字段，不执行输入命令，不支持项明确报错。
+- 环境标识由用户选择，使用简短文字和辅助色，避免大量徽章，不按地址自动猜生产环境。
+- RDP 连接前选择按工作区生效的文本剪贴板，默认关闭且自动同步继续关闭；连接后更改先明确提供重新连接动作，不立即结束当前会话。保存非秘密显示偏好，不将剪贴板开启变成全局自动默认。
 
-- 修改 `App.tsx`、`Workbench.tsx`、`WorkspaceTabs.tsx`，接入固定连接中心。关闭最后一个连接后返回连接中心；切换入口和设置保留会话、草稿和传输所有权。
-- 推荐新增 `frontend/src/features/connections/ConnectionCenter.tsx` 作为完整页面，复用或迁移 `ConnectionSidebar.tsx` 的分组与操作；完成后移除失去用途的旧组件，避免两套状态与业务逻辑。
-- 连接中心采用分组树与紧凑列表，提供搜索及“全部 / SSH / RDP”筛选。移除选中后新增按钮行，使用固定工具栏、行菜单、鼠标右键与可访问的菜单按钮。
-- 保留稳定连接 ID、双击/Enter 定位已有工作区、显式另开工作区语义。保存、保存并连接和临时连接沿用现有数据接口。
-- 修改 `SSHWorkspace.tsx`、`FileBrowser.tsx` 和布局容器，使文件面板属于当前连接，消除与连接目录互相替换的模式。保留目录、选择、滚动、宽度与展开偏好。
-- 监控操作靠近当前 SSH，按实际可见性订阅；保留调整、收起与尺寸偏好。窄窗口优先收起辅助面板，提供恢复入口。
-- 同步命令搜索及调用处，支持进入连接中心、切换工作区和操作当前会话。
-- 两级标签通过高度和样式区分层级。切换入口不重建 SSH/RDP，不重放输入或远端命令。
+### 阶段三：SSH 原地重连（R05）
 
-### 阶段三：视觉整理与完整流程复核
+- 修改 app.go、useConnectionAttempt.ts、App.tsx、SSHWorkspace.tsx、TerminalView.tsx；可新增 workspace.go 就近协调重连。分离 UI 工作区身份与连接实例。
+- 尝试与事件带代次/实例标识，取消、旧关闭和晚到结果只影响对应实例。保留资源上限，避免共享 busy/error 串到其他工作区，不预建通用重试框架。
+- 断线保留组件和草稿，旧 xterm 输出可查看；显式重连建立新连接/PTY，旧终端标为已结束。旧网络资源彻底释放，保留的结束终端与输出有界。
+- 保存连接从后端重新解析凭据；临时连接需要时重新输入，不在 React 长期缓存临时秘密。
+- 保留目录与文件标签，重新核对文件版本，旧 revision 不直接用于新实例保存。重新读取不能覆盖草稿。
+- 区分单个 PTY 正常退出、SFTP/监控通道失败和底层 SSH 失效；同步标签、工作区、目录状态并显示真实错误。
 
-- 结构稳定后调整 `style.css`，必要时局部调整 `styles/tokens.css`。统一行高、间距、对齐、选中与焦点，减少重复入口和多余边界，沿用当前深色工具风格与系统字体。
-- 会话工具按协议展示，错误保留在操作位置，技术细节按需展开；关键状态有文字，图标保留可访问名称。
-- 验证连接、终端、编辑、保存、切换服务器、传输、监控及 RDP 重试的完整路径。
-- 更新架构文档中的共用侧栏设计及调整理由，更新开发说明的操作与真实验证；README 在入口说明变化时同步。
+### 阶段四：双窗格与冲突处理（R06、R10）
 
-### API、数据库和配置
+- SSHWorkspace.tsx 管理两个窗格的标签归属和选中项，新增 frontend/src/features/files/WorkspacePanes.tsx，复用 ResizeHandle.tsx。每个终端/编辑文档只有一个实例，移动不重建会话、复制草稿或重复订阅。
+- 支持终端+终端、终端+编辑器，当前窗格焦点明确，动作作用于当前窗格。最大化保留另一窗格，窄窗口保留恢复入口，正确触发 xterm fit 和 CodeMirror measure。
+- 新增 frontend/src/features/files/FileConflictView.tsx，复用成熟 CodeMirror 差异组件展示草稿与最新远端内容；读取和对比不修改草稿或远端文件。
+- 用户明确采用最新远端作为合并基线后，用该 revision 保存手动合并内容。再次变化仍阻止覆盖；删除、权限、非 UTF-8 和大小限制显示真实错误。
+- 保留保存期间继续编辑、复制草稿和关闭确认，不新增自动强制覆盖入口。
 
-- 优先复用现有 Go 接口，不预建状态管理框架、通用错误框架或重试服务。
-- 确需传递 RDP 失败阶段时，在 `rdp.go`、桥接和直接调用方中最小扩展非秘密状态或事件；保留真实错误详情，不靠模糊字符串猜根因。Go 定义变化同步生成绑定和测试。
-- 默认无数据库、快照格式或业务配置变更。布局偏好沿用 localStorage 命名空间，处理失效布局键时不删除业务数据或凭据。
-- 仅在确认来源或装载问题需要时修改开发配置，不顺带升级依赖或放宽安全策略。
+### 阶段五：文件、批量传输与同步（R07、R08）
+
+- FileBrowser.tsx 增加书签、前进后退、当前目录本地过滤、稳定排序、隐藏文件与复制路径。快速导航仍取消旧请求，旧结果不能覆盖新路径，隐藏文件默认行为兼容当前展示。
+- 书签按连接 ID 保存在后端，临时连接为会话内书签。过滤不伪装递归搜索，符号链接保持现有安全语义。
+- 修改 transfer.go、useTransfers.ts、TransferPanel.tsx，新增 internal/transfer/queue.go。保留现有并发上限，新增有界 FIFO 等待，明确等待/运行/结束、上限及取消行为。
+- 原生多文件选择与拖放路径交给 Go 流式读取，不将大文件整体转为前端字节/Base64。批量单文件失败不隐藏其他结果。
+- 队列持有非秘密执行描述，显式重试创建新任务并重新核对源/目标，不复用已消费流或失效客户端。关闭工作区/应用取消运行及等待并清理暂存。
+- 同名提供跳过、另存为、明确覆盖；普通上传保留不覆盖默认。覆盖前核对状态，执行期间变化报告冲突，保留安全暂存发布与元数据边界。
+- 新增 internal/files/sync.go、根目录 sync.go、frontend/src/features/files/DirectorySyncDialog.tsx。实现本地→远端、远端→本地的手动单向同步；比较相对路径、大小和修改时间，预览新增/更新/冲突，再勾选执行。
+- 同步不删除目标多余文件、不跟随符号链接递归。扫描数量、深度、计划与内存有界，可取消，执行前重新核对；严格限制根目录防止越界。选中目录产生递归文件任务，复用传输调度与安全发布。
+
+### 阶段六：布局、草稿和命令片段（R11、R12）
+
+- 新增 workspace_state.go、snippets.go、frontend/src/features/workspaces/useWorkspaceRestore.ts、frontend/src/features/settings/SnippetSettings.tsx；修改 App.tsx、SSHWorkspace.tsx、SettingsView.tsx、CommandPalette.tsx。
+- 布局保存连接 ID、顺序、临时名称、窗格、尺寸、目录、打开文件路径和面板偏好；不保存密码、grant、活动 socket 或远端命令。临时配置仅保存非秘密元数据，重连重新认证。
+- 启动提供上次工作区入口，由用户选择后有界并发重新连接。失效连接/目录显示可处理状态，不静默换目标，不自动 cd 或重放输入。
+- 草稿持久恢复是默认关闭的本机选项，通过已有 SetSecretSetting 加密，不在 localStorage/明文临时文件存正文。合并写入且串行，限制文档数、单文档、总字节、保留期，允许查看和清除。
+- 恢复草稿读取远端最新版本并进入 R10 对比，不自动上传。会话存储明确不保证跨重启。草稿、终端输出和本机布局不自动加入 WebDAV 快照。
+- 片段正文通过加密本地设置保存，支持分组和搜索，不从终端自动采集，不记录正文日志。
+- 简单具名文本占位符替换后先预览，再插入当前终端，不隐式改变 Shell 语义、不自动回车、不批量广播、不执行本机程序。多行片段沿用 R01 处理。
+
+### 阶段七：认证、跳板机、转发、导入和信任（R13、R14）
+
+- 修改 internal/ssh/terminal.go、data.go、ConnectionDialog.tsx 与模型，新增 internal/ssh/agent.go。使用现有 x/crypto/ssh/agent 和成熟系统连接实现，分别支持 Unix socket、Windows OpenSSH Agent named pipe；不可用明确失败，不静默改为密码。
+- 私钥文件由 Go 原生选择读取，按既有凭据加密，不把已保存私钥回传前端；保留粘贴内容和加密私钥口令，读取有界，不写死用户路径。
+- 新增 internal/ssh/jump.go，已保存 SSH 配置可引用另一 SSH 连接为单跳跳板机。分别确认两端身份；取消/失败释放中间连接；拒绝循环、自引用和非 SSH 跳板，删除被引用连接明确处理。
+- 新增 internal/ssh/forward.go、tunnels.go、frontend/src/features/tunnels/TunnelPanel.tsx，实现本地/远端转发与动态 SOCKS5。使用 Go SSH 通道和成熟 SOCKS 实现，不启动 ssh CLI。
+- 默认回环绑定，非回环需明确选择并告知暴露范围。转发属于工作区，通道/连接并发、超时和取消有界，远端拒绝绑定显示真实错误。重连不自动重放转发，保留配置供显式启动。
+- 新增 internal/sshconfig/import.go、import.go、frontend/src/features/connections/ImportConnectionsDialog.tsx，使用成熟 OpenSSH 解析库。支持具体 Host 条目的 HostName、User、Port、IdentityFile、IdentityAgent、可映射单跳 ProxyJump，遵循已支持指令的优先级。
+- 导入预览展示重复项、不支持指令、无法展开模式和引用；文件与 Include 范围由用户明确选择，大小/深度/循环有界。不执行 Match exec/ProxyCommand，不自动读身份文件秘密；确认后事务导入，导入不自动信任。
+- 新增 trust.go、frontend/src/features/settings/TrustSettings.tsx，列出 trust: 记录、查看和撤销，明确对现有会话的处理，撤销后下次重新核对。
+- 合法身份变化重新探测，显示旧/新指纹与目标，经审核提交；提交核对旧记录和探测结果未失效。RDP 过期/尚未生效证书仍拒绝，同步持久与 trusted/pendingTrust 内存缓存。
+
+### 阶段八：RDP 输入、监控与主题（R09 剩余、R15）
+
+- RDPView.tsx 区分远端尺寸与本地缩放，按连接保存非秘密分辨率。全屏工具栏可收起且鼠标/键盘可恢复退出，切换后正确恢复焦点。
+- 组合键使用 IronRDP 实际能力，提供本机/远端快捷键归属设置。验证 Unicode、中文 IME、键盘布局、AltGr、粘贴、焦点、DPI 和多会话隔离，不能用伪造 DOM 按键冒充远端成功。
+- internal/monitor/linux.sh、sample.go、monitor.go、MonitorPanel.tsx 增加只读文件系统容量。路径结构化解析，不拼接用户路径进 Shell，不安装远端依赖。
+- 趋势使用有界环形历史；隐藏停止采集，恢复后按时间缺口断线显示。未知/过期/重置/错误不画成零，不同频率合理调度，共用底层连接的订阅避免重复采集。
+- 新增 frontend/src/features/settings/AppearanceSettings.tsx；修改 tokens.css、style.css、main.tsx、TerminalView.tsx、CodeEditor.tsx，实现深/浅/系统主题、本机字体、字号和终端配色。监听可释放，主题更新现有实例，不重建 PTY/文档，不下载远程字体。
+- 统一工具栏、菜单、选中/焦点/禁用及环境标识；检查 HeroUI portal、CodeMirror 查找、xterm、原生窗口和全屏工具栏的可读性、对比度。
+
+### API、数据库、配置与兼容性
+
+- 按功能落地扩展对应 Go 服务：偏好、复制连接、重连/状态、批量上传/重试、同步预览/执行、布局/草稿、片段、转发、导入预览/确认、信任管理。名称沿用项目风格，不提前建立空 API。
+- 后端验证连接 ID、工作区归属、目标、代次和输入上限；前端状态不构成认证/写入授权。公开模型不返回已保存秘密。
+- 优先复用 settings/加密设置与 JSON 行，不另建偏好数据库。连接模型按需加入认证方式、跳板引用及便携网络配置，字段 snake_case，旧数据缺省保持密码/私钥直连语义。
+- 收藏、最近、书签、主题、快捷键、布局、草稿、片段和信任先作为本机设置，不扩大快照范围。连接本身的认证方式、跳板等便携字段必须正确备份恢复。
+- 快照严格拒绝未知字段。新增便携字段前实现明确版本兼容：旧 v1 能读，新语义无法由旧版表达时写新版本；未知未来版本拒绝，不能删除严格校验绕过。恢复预览与事务验证新增引用。
+- 如确需新表或数据库不兼容语义，事务迁移并递增 user_version，保留旧数据，拒绝未来版本，不在每次打开重置版本。普通设置变化不机械升级数据库。
+- 删除、导入和快照替换后处理本机设置失效引用，不能误删其他草稿或静默改变跳板目标。
+- 新依赖限实际所需的成熟 xterm/CodeMirror 扩展、系统 Agent 连接、OpenSSH 解析、SOCKS 等；核对官方兼容、锁文件与许可证，更新第三方声明。不整体升级工具链或替换已验证协议组件。
 
 ## 7. 文件影响范围
 
 ### 修改
 
-- `frontend/src/features/files/CodeEditor.tsx`。
-- `frontend/src/App.tsx`、`frontend/src/components/layout/Workbench.tsx`、`WorkspaceTabs.tsx`。
-- `frontend/src/features/connections/ConnectionSidebar.tsx`、`useConnectionAttempt.ts`；按重试和编辑入口需要调整 `ConnectionDialog.tsx`。
-- `frontend/src/features/files/SSHWorkspace.tsx`、`FileBrowser.tsx`，以及 `frontend/src/features/rdp/RDPView.tsx`。
-- `frontend/src/style.css`；按实际需要调整 tokens、监控组件及命令搜索相关调用。
-- `rdp.go`、`internal/rdp/bridge.go` 和对应测试，仅在诊断或状态表达需要时修改。
-- Go 定义变化时生成 `frontend/bindings/`。
-- `docs/architecture.md`、`docs/development.md`，按影响更新 `README.md`。
+- 第 5 节及各阶段列出的前端直接调用方、后端协调入口、相关 internal 实现与有效测试。
+- store.go、vault.go、snapshot.go 和测试，限新模型、设置和兼容所需。main.go 限资源初始化/退出；bridge.go 限确有必要的信任或输入关联修正。
+- Go 定义变化后生成 frontend/bindings/；必要依赖清单、锁文件、许可。
+- README.md、docs/architecture.md、docs/development.md 按最终语义同步；本文按阶段更新验收和提交证据。
 
 ### 新增
 
-- 推荐 `frontend/src/features/connections/ConnectionCenter.tsx`，基于现有职责迁移。
-- 与确认的 RDP 根因和生命周期修复直接相关的回归测试，沿用现有组织。
-- 默认不新增其他抽象层、测试框架、持久调试脚本或独立设计文档。
+按第 6 节随实际功能就近创建，不提前搭空壳，命名可按职责局部调整并同步交接：
+
+- 后端 preferences.go、workspace.go、workspace_state.go、snippets.go、sync.go、tunnels.go、import.go、trust.go。
+- internal/store/preferences.go、internal/transfer/queue.go、internal/files/sync.go、internal/ssh/agent.go、internal/ssh/jump.go、internal/ssh/forward.go、internal/sshconfig/import.go。
+- 前端 features/terminal/TerminalSearch.tsx；features/settings/KeyboardSettings.tsx、AppearanceSettings.tsx、SnippetSettings.tsx、TrustSettings.tsx；lib/shortcuts.ts。
+- 前端 features/files/WorkspacePanes.tsx、FileConflictView.tsx、DirectorySyncDialog.tsx；features/connections/ImportConnectionsDialog.tsx；features/tunnels/TunnelPanel.tsx；features/workspaces/useWorkspaceRestore.ts。
+- 对应有维护价值的回归测试，重点覆盖异步生命周期、队列、恢复、输入归属和危险写入，不为静态样式机械建测试。
 
 ### 避免修改
 
-无关 SSH/SFTP 协议、备份恢复、数据库 Schema、凭据加密、图标、许可证、全局工具链、远端设置和参考仓库。终端、传输和监控仅按布局、可见性、焦点及直接阻塞问题做必要修改。
+无关模块、其他仓库、全局环境、分发策略与图标；凭据算法、密钥库契约、WebDAV 追加发布与恢复事务；RDP TLS 边界及兼容组合。新增字段兼容与有真实阻塞证据的必要修正除外。不得修改远端系统、服务、业务文件和密钥。
 
 ## 8. 约束条件
 
-- 开始时读取 `AGENTS.md`，检查当前分支、状态与实现。交接检查时在 `main`，业务代码无未提交改动；下一会话重新确认，保留用户修改。
-- 界面、文档与提交描述使用简体中文，标识符和协议字段沿用项目命名，文本遵守 `.gitattributes` 的 LF 约定。
-- 本轮前端结构调整已获授权，常规可逆选择自行推进；范围外的重要产品或协议变更再说明取舍。
-- 保留端到端背压、独立 PTY、SFTP/监控隔离、有界并发与缓冲、草稿及冲突处理契约。
-- 保留首次身份确认、身份变化阻断、证书有效期、TLS/NLA、精确 Origin 与一次性授权。禁止关闭校验、静默降级或自动接受新身份。
-- 不声称达到未验证的平台或功能一致性，不复制外部素材。
-- 未授权多 Agent 工作，不主动分派子 Agent。
+- 遵守 AGENTS.md，界面、文档、提交描述用简体中文，UTF-8/LF，命令适配 Shell。
+- 保持单机架构，复用成熟组件，局部可审阅改动，不引入通用插件/任务/状态框架，不一次重写所有文件。
+- 队列、历史、扫描、草稿、转发和重试有界，上限在代码定义且反馈明确，不静默丢弃未处理数据。
+- 切换标签、窗格、设置、主题、面板保留会话。关闭工作区/退出释放 PTY、SSH、SFTP、监控、Agent socket、跳板机、转发、传输、计时器和订阅。
+- 凭据、剪贴板、终端输出、片段参数和草稿不进入日志、截图和测试快照；持久正文加密，测试使用专用占位内容。
+- 不用假数据、静默认证回退、关闭身份校验或固定 sleep 掩盖问题，未知/失败/断开/完成分别表达。
+- 紧凑专业工具风格，布局、菜单与渐进披露组织功能，保留键盘、ARIA 和焦点，不新增营销、指南卡、装饰标签和成功弹窗。
+- 竞品用于操作启发，不复制云服务、商业限制、素材或凭据设计。未授权多 Agent，不主动派生子 Agent。
 
-### 中文小提交
+### 小 commit 与持续执行
 
-- 每个可运行、可审阅、通过对应检查的完整改动及时提交，采用 `<type>(<scope>): <简短中文描述>`，遵循 Conventional Commits。
-- 推荐按软换行、RDP 根因修复、RDP 失败重试、连接中心、工作区面板、视觉与适配拆分。以完整行为为边界，关联调用方、必要测试与文档随同提交，不制造不可编译中间提交，不积攒为一次大提交。
-- 示例：`fix(editor): 默认启用文件软换行`、`fix(rdp): 允许桌面组件初始化失败后重试`、`feat(rdp): 保留失败工作区并提供重连入口`、`feat(connections): 将连接管理移入固定连接中心`。
-- 根因提交按实际问题命名，不将猜测写成事实；UI 行为变化不使用仅表示格式调整的 `style` 类型。
-- 提交前检查 diff、敏感内容、文档影响和暂存清单，显式暂存本任务文件，避免 `git add .` 混入用户文件。
-- 授权包含本地小提交，不推送、不发布、不改写用户提交；交付列出 commit ID、成果、检查和缺口。
+- 每个独立可用行为及时提交，格式 `<type>(<scope>): <简短中文描述>`，按实际 diff 选 type。不要机械一文件一提交，也不要积攒整个阶段或全任务为一次提交。
+- 参考粒度：feat(terminal): 支持终端缓冲区查找；feat(workspace): 支持标签排序与重命名；fix(ssh): 保留草稿并支持原地重连；feat(transfer): 增加有界传输等待队列。
+- 实现、直接调用方、生成绑定、必要验证与受影响文档随同提交，保证中间提交可构建；接口与调用方不能拆成断裂提交。
+- 提交前检查 diff、敏感内容、文档影响与暂存清单，显式选择任务文件，不用 git add .，不覆盖用户修改，不改写已有提交。
+- 本地提交已授权，无需逐次确认。推送、发布和远端设置未授权；每阶段报告 commit ID、完成项、验证与缺口。
+- 持续完成全部 R01–R15，常规实现不重复问授权。外部资源受限时推进独立项，保留真实缺口，不因一项缺凭据停掉全部任务或勾选通过。
 
-### 真实连接与凭据
+### 真实远端与权限
 
-| 用途 | 目标 | 用户名 | 验证边界 |
-| --- | --- | --- | --- |
-| SSH | `192.168.10.165:22` | `root` | 先只读识别；文件验证限本次 `/tmp/termquay-*` 目录并清理 |
-| RDP | `192.168.10.166:3389` | `sqyl` | 验证应用链路、认证、画面、输入、断开和重连，不修改远端策略 |
-
-密码不写入本文。独立会话不能假定继承此前凭据；优先使用安全配置的 MCP/会话凭据，仅检查必要项是否存在。缺少时要求安全提供认证材料，同时继续独立工作；不读取 Shell 历史、其他项目配置或整份环境寻找秘密。
-
-SSH 可按 `AGENTS.md` 使用 `sg1`，先核对身份，不假定其等同上表目标。MCP 成功不能替代应用链路验证。已有真实 SSH 测试与指纹配置见开发说明。本轮不要求 WebDAV 测试，不使用此前 WebDAV 凭据执行额外操作。
+- 按 AGENTS.md 使用安全配置 SSH MCP sg1，先只读识别，再用应用 Go 协议栈验证。缺凭据请求安全注入，不猜测、不输出、不搜索历史或其他项目。
+- 文件测试限本次 /tmp/termquay-* 并清理；删除、覆盖和同步限隔离目录。跳板/转发优先本地受控目标，不安装远端依赖或改业务服务。
+- RDP 目标以当前安全配置为准，不沿用旧交接地址或假定旧凭据存在。
+- WebDAV 限独立测试集合；字段兼容优先本地快照和事务测试，不为形式操作真实备份。
 
 ## 9. 验收标准
 
-### 文件编辑
+所有清单初始未完成。按真实证据勾选；自动测试、浏览器、真实 SSH/RDP 和原生 WebView 分开报告。
 
-- [x] 长中文行、URL、无空格字符串随区域软换行，无内容裁切或阅读所需的横向滚动。
-- [x] 软换行不插入换行符、不制造未保存状态、不改变文档内容。
-- [x] 调整侧栏、打开监控、切换文件后布局正确，光标、选择、查找、撤销和 Mod-s 正常。本轮面板尺寸通过键盘调整复核。
-- [x] 保存、保存期间继续编辑、冲突保留草稿及关闭确认无回归。继续编辑使用延迟真实保存响应验证。
+- [ ] R01：查找上下匹配/大小写、常用菜单、URL、字号复位、多行预览可用；不误发查找/清屏命令，持续输出与输入背压无回归。
+- [ ] R02：快捷键配置、冲突、复位和命令搜索可达；远端/编辑器按键、IME 与焦点正确。
+- [ ] R03：收藏/最近成功持久化，复制独立 ID/凭据；快速连接支持约定形式和 IPv6，不支持项可见；环境与会话状态准确。
+- [ ] R04：标签排序/临时名称/搜索定位及键盘操作可用，不重建 SSH/RDP，固定连接中心保留。
+- [ ] R05：SSH 重连保留旧输出、目录和草稿；新旧事件与 PTY 隔离；认证失败、取消、身份变化、快速关闭正确，无泄漏和命令重放。
+- [ ] R06：终端+终端/终端+编辑器可调整、移动、最大化、恢复；实例唯一、焦点/尺寸正确，窄窗口操作可达。
+- [ ] R07：书签、前进后退、过滤、排序、隐藏文件、复制路径正常，旧请求不能覆盖新目录。
+- [ ] R08：多文件/原生拖放、FIFO 等待、取消、失败重试、同名处理正常；流式运行、关闭清理。手动单向同步两种方向先预览后执行，扫描取消、越界与冲突正确，默认不删除目标多余文件。
+- [ ] R09：连接前可选剪贴板，连接后修改不立即断开，新 grant 重连；分辨率、本地缩放、全屏工具栏、组合键、焦点、中文、DPI 和多会话隔离按具备环境验证。
+- [ ] R10：差异不覆盖草稿，手动合并以明确远端版本保存，再次变化仍阻止覆盖；保存期间编辑和关闭确认无回归。
+- [ ] R11：启动可选择恢复布局和新建连接，失效路径/配置可处理；加密草稿可关闭/清理，限额和合并写入有效，无明文正文、自动上传或命令执行。
+- [ ] R12：片段增删改、分组、搜索、参数预览和插入正常，默认不回车；加密、当前终端选择和多行保护正确，不自动采集历史。
+- [ ] R13：Agent/私钥文件及口令正常，无 Agent 明确失败；单跳分别核对身份；本地/远端/SOCKS 真实收发、取消、冲突、限额与关闭正常，默认回环，重连不自动启动。
+- [ ] R14：OpenSSH 子集正确解析/预览/去重/事务导入，不执行本机命令；信任查看/撤销/审核更新防止过期探测和缓存放行，RDP 有效期保留。
+- [ ] R15：趋势有界、缺口与未知不补零、容量准确、隐藏停止；深/浅/系统、字体和配色完整，切换不重建会话，焦点与文字可辨。
+- [ ] 旧数据库和 v1 快照可读；新字段/跳板引用可备份恢复，新格式版本明确；未来版本、损坏数据拒绝，失败回滚，无部分覆盖或设置误删。
+- [ ] 原生走查连接→终端→编辑→保存→命令→切换→传输→断线→重连→退出/重启恢复；检查 900×600、常用笔记本、高 DPI，区分原生实际尺寸与浏览器模拟。
+- [ ] 持续输出、多 PTY、传输/同步、采集、RDP 图形负载下有资源回收证据；性能记录环境、负载及整个桌面/WebView 相关进程，不宣称未测数字。
+- [ ] 最小有效 Go 测试、前端类型/构建、必要 race/集成检查完成；无环境项明确待验证，关键异步和写入行为有回归覆盖。
+- [ ] 绑定、依赖许可、README、架构/操作文档一致；本地小提交齐全，交付全部 commit ID、检查与限制。
 
-### RDP
+### 验证入口
 
-- [x] 给出可复现错误与失败阶段，修复依据来自真实证据。
-- [x] 真实 Windows 目标完成认证并显示桌面，验证键盘、焦点、尺寸、断开和重连。
-- [x] 初始化失败可显式重试，失败页面保留非秘密上下文，可重试和编辑。
-- [x] 重试创建新 grant；取消、快速关闭和旧事件不留下资源或状态串扰。Wails 取消后的运行时诊断单独记录。
-- [x] 错误凭据能明确失败且释放资源，不删除保存配置，不为重试长期缓存临时密码。
-- [x] 证书、Origin、一次性授权、TLS/NLA 及安全测试继续有效。
-- [ ] 默认关闭与启用后系统文本剪贴板往返通过；真实并行多会话及剪贴板隔离未验证。
-
-### 工作台
-
-- [x] 固定连接中心可返回，分组、搜索、筛选、新建、编辑、删除和快速连接可用。
-- [x] 选择连接不改变行高；双击/Enter、定位已有工作区、另开工作区、右键和键盘操作正常。
-- [x] 文件、终端/编辑、监控职责明确，各连接分别持有目录、滚动容器和草稿，切换保留实例。
-- [x] 切换入口、设置和标签不重建会话或重放输入；关闭工作区处理草稿、资源与所属传输。
-- [x] 面板调整、收起、专注模式和恢复入口正常；监控跟随实际可见性，传输详情收起后任务继续。
-- [x] 检查 900×600、1280×820、1366×768、1440×900 等窗口；区分原生实际尺寸与浏览器模拟，无整体横向溢出或重要操作遮挡。原生最小尺寸约束及各视口结果见验收记录。
-- [ ] 两级标签、工具栏、焦点与选中态清晰；在具备环境中复核原生中文输入与缩放，无多余说明或成功弹窗。
-
-### 检查、文档与提交
-
-- [x] 前端修改运行 `pnpm --dir frontend check`、`pnpm --dir frontend build`。
-- [x] 后端运行 `go test ./internal/rdp` 与全量 `go test ./...`；真实 SSH 测试另行注入配置运行。
-- [ ] `-race` 按 C 编译器与 race 工具链可用性运行；不能执行时说明原因，普通测试不代替竞态检查。
-- [x] 本轮无 Go 接口或模型变化；完整 Wails 构建自动生成绑定，没有派生文件 diff。
-- [x] 保留有维护价值的回归验证，不为静态样式引入测试框架；类型检查和构建不冒充交互验收。
-- [x] 按最终 diff 同步设计、操作、验证记录，区分单元测试、替身、真实 SSH/RDP 与原生 WebView。
-- [x] 及时形成中文小提交，报告提交与检查；未验证项目不标记通过。
+- 前端：pnpm --dir frontend check；pnpm --dir frontend build。
+- 绑定：wails3 generate bindings -ts -i，CLI 使用项目工具，参照开发说明。
+- 后端：按影响测试对应包；里程碑 go test ./...。全新检出先构建前端，根包嵌入 frontend/dist。
+- race：工具链支持时相关包/全量 go test -race；普通测试不替代，缺 C 编译器记录原因。
+- 原生：wails3 dev，核对 Origin、资源、WebView 与实际输入；当前没有前端行为测试脚本，不虚构命令。
+- SSH：安全注入开发说明所列变量后运行 TestSG1。RDP 真实桌面单独验收，隔离 TLS 不证明认证、画面和输入。
+- 实施时核对依赖官方资料。只读参考：[Tabby](https://tabby.sh/about/features)、[Termius](https://termius.com/)、[MobaXterm](https://mobaxterm.mobatek.net/features.html)、[WinSCP 同步预览](https://winscp.net/eng/docs/ui_synchronize)。
 
 ## 10. Agent 注意事项
 
-- 先完成阶段一，再推进连接中心与布局，最后统一视觉与复核完整路径；常规步骤不重复索取授权。
-- 本文替换上一轮已实施交接。代码已有连接弹窗、命令搜索与正式图标，不重做旧任务或采用旧基线。
-- 保留失败页面不能保留废弃 grant，切换连接中心不能卸载 SSH owner；界面状态与资源所有权分别核对。
-- RDP 的 closed、ready、组件生命周期与模块级初始化一起检查；重连不沿用旧关闭标志或已结束的就绪 Promise。
-- `useConnectionAttempt` 当前共享 busy/error；保留失败页后，使状态归属正确尝试和工作区，避免串扰，采用最小调整。
-- “端口可达”“WASM 装载”“模拟 TLS 回环”“交叉编译”均不能报告成真实 RDP 或原生桌面通过。
-- 工具、原生依赖、绑定和安全测试入口见开发说明，以当前代码与实际输出为准，不复制旧环境结论。
-- 真实验证受凭据或环境阻塞时完成独立实现与检查，明确剩余验证和原因，不能宣称 RDP 已修复到可用。
-- 达到范围内验收标准后停止，交付成果、中文 commit、验证和必要限制。
+- 开始读 AGENTS.md、本文、当前 diff 和直接相关实现，给出简短阶段计划后执行。旧 handoff 已替换，不重复已完成的连接中心、默认软换行和 RDP 初始修复。
+- 全部范围已授权，包括直接关联的 Go API、存储兼容、必要依赖和测试；常规选择不重复问授权。R13–R15 不能继续标成可选或未来工作。
+- 按依赖调整顺序可以，但保留 R 编号和覆盖。主题可后置，身份与数据安全每阶段即时生效，不能集中最后补。
+- SaveConnection 不接受前端任意凭据引用来复制秘密；必须实现后端独立复制，不能将共享引用当作副本。
+- 初始终端承载 SSH owner。重连/窗格要核对关闭单 PTY、断开底层与卸载视图的不同后果，保留输出不能保留废弃网络资源。
+- settings 已有 SetSecretSetting/SecretSetting，可复用草稿与片段，不另造密码算法，不将本机密文当可迁移备份。
+- 严格快照模型变化必须测试旧库、旧快照、预览失效、新引用和回滚，不能只改 TypeScript。
+- RDP ready 早于剪贴板初始化，继续等 clipboard-ready；重试使用新授权/新状态，旧事件不能结束新会话。
+- 类型、构建、mock、浏览器替身、MCP 连通和交叉编译不等于原生或真实远端通过。缺凭据保留验收缺口并继续独立工作。
+- 每阶段将下方记录更新为事实，保留 commit、检查和未解决验证；跨会话从记录继续，不重新做完成功能。
+- 本文不含真实凭据或旧目标，不从历史交接恢复密码，不假定认证材料跨会话存在。
+
+### 执行记录
+
+尚未开始功能实现。R01–R15 均待执行；交接文档创建不构成功能完成证据。
