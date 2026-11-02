@@ -105,7 +105,11 @@ input[type=checkbox] { accent-color: var(--color-primary); }
 .app-dialog { max-width: 520px; }
 .app-dialog footer button { height: 32px; min-width: 64px; font-size: 13px; }
 .connection-form { display: flex; flex-direction: column; gap: 14px; padding: 4px 0 8px; }
-.connection-target { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.connection-target { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 12px; }
+.connection-target > * { grid-column: 1 / -1; }
+.connection-target > .connection-username, .connection-target > .connection-auth { grid-column: auto; }
+.connection-address { display: grid; grid-template-columns: 80px minmax(0, 1fr); gap: 12px; align-items: end; }
+.connection-address .host-port { grid-template-columns: minmax(0, 1fr) 80px; }
 .quick-address { display: flex; align-items: flex-end; gap: 8px; }
 .quick-address > [data-slot=base] { flex: 1; min-width: 0; }
 .manual-connection { align-self: flex-start; }
