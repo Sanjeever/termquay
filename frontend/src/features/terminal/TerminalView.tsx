@@ -12,7 +12,7 @@ import '@xterm/xterm/css/xterm.css';
 
 export type TerminalAction = 'find' | 'copy' | 'paste' | 'selectAll' | 'clear' | 'zoomIn' | 'zoomOut' | 'zoomReset';
 export type TerminalHandle = { action(action: TerminalAction): void; insert(text: string): void };
-const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; fontSize: number }>(function TerminalView({ id, visible, fontSize }, ref) {
+const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; fontSize: number; focusOnShow?:boolean }>(function TerminalView({ id, visible, fontSize, focusOnShow=true }, ref) {
   const container = useRef<HTMLDivElement>(null);
   const [error, setError] = useState('');
   const [connected, setConnected] = useState<boolean|null>(null);
@@ -23,6 +23,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; 
   const [paste, setPaste] = useState<string>();
   const [zoom, setZoom] = useState(0);
   const shown = useRef(visible); shown.current = visible;
+  const focusRequested=useRef(focusOnShow);focusRequested.current=focusOnShow;
   function insert(text: string) {
     if (new TextEncoder().encode(text).length > 256 * 1024 - 16) { setError('粘贴内容超过输入队列上限（256 KiB）'); return; }
     if (/[\r\n]/.test(text)) setPaste(text); else terminal.current?.paste(text);
@@ -57,7 +58,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; 
     const stream = Stream('terminal');
     let disposed = false;
     const fail = (e: unknown) => { if (!disposed) setError(String(e)); };
-    stream.onopen = () => { stream.send(new TextEncoder().encode(id)); setConnected(true); fitVisible(); if (shown.current) term.focus(); };
+    stream.onopen = () => { stream.send(new TextEncoder().encode(id)); setConnected(true); fitVisible(); if (shown.current&&focusRequested.current) term.focus(); };
     stream.onmessage = (event) => {
       const bytes = new Uint8Array(event.data);
       term.write(bytes, () => {
@@ -86,7 +87,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; 
     });
     return () => { disposed = true; observer.disconnect(); unsubscribe(); input.dispose(); resize.dispose(); stream.close(); term.dispose(); terminal.current = undefined; fitAddon.current = undefined; search.current = undefined; CloseTerminal(id).catch(() => {}); };
   }, [id]);
-  useEffect(() => { if (!terminal.current) return; terminal.current.options.fontSize = Math.max(9, Math.min(36, fontSize + zoom)); if (visible && container.current?.clientWidth && container.current.clientHeight) { fitAddon.current?.fit(); if (!document.activeElement?.closest('[role=tablist]')) terminal.current.focus(); } }, [visible, fontSize, zoom]);
+  useEffect(() => { if (!terminal.current) return; terminal.current.options.fontSize = Math.max(9, Math.min(36, fontSize + zoom)); if (visible && container.current?.clientWidth && container.current.clientHeight) { fitAddon.current?.fit(); if (focusRequested.current&&!document.activeElement?.closest('[role=tablist]')) terminal.current.focus(); } }, [visible, fontSize, zoom]);
   function closeSearch() { setSearchOpen(false); search.current?.clearDecorations(); terminal.current?.focus(); }
   return <div className="terminal-view" onPasteCapture={e => { if (!(e.target as HTMLElement).closest('.xterm')) return; e.preventDefault(); e.stopPropagation(); insert(e.clipboardData.getData('text/plain')); }}>
     <div className="terminal-tools"><button className="icon-button" aria-label="终端查找" onClick={() => action('find')}><Icon name="search" width="14" /></button>

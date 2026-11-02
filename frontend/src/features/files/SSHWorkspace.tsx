@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
+import { Button, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
 import { Stream } from '@wailsio/runtime';
 import { ReadRemoteFile, SaveRemoteFile, CreateTerminal, CloseWorkspace, RegisterWorkspaceView, ReleaseWorkspaceView, SetWorkspaceDirty } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
 import type { Document, Entry } from '../../../bindings/github.com/Sanjeever/termquay/internal/files/models';
@@ -10,16 +10,22 @@ import MonitorPanel from '../monitor/MonitorPanel';
 import Icon from '../../components/Icon';
 import ResizeHandle from '../../components/layout/ResizeHandle';
 import FileConflictView from './FileConflictView';
+import WorkspacePanes from './WorkspacePanes';
 
 type Draft = Document & { saved: string; error: string; saving: boolean; needsReview?: boolean };
-export type SSHWorkspaceHandle = { saveAll(): Promise<boolean>; prepareReconnect(): Promise<boolean>; showFiles(): void; toggleMonitor(): void; toggleFocus(): void; terminalAction(action: TerminalAction): void };
+export type SSHWorkspaceHandle = { focus(): void; saveAll(): Promise<boolean>; prepareReconnect(): Promise<boolean>; showFiles(): void; toggleMonitor(): void; toggleFocus(): void; terminalAction(action: TerminalAction): void };
 
 const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   id: string; sessionID: string; visible: boolean; fontSize?: number; onDirtyChange(dirty: boolean): void; onState(state: string): void; onReconnect(): void; busy: boolean;
 }>(function SSHWorkspace({ id, sessionID, visible, fontSize = 14, onDirtyChange, onState, onReconnect, busy }, ref) {
   const [error, setError] = useState('');
   const [drafts, setDrafts] = useState<Draft[]>([]);
-  const [active, setActive] = useState(sessionID);
+  const [selection,setSelection]=useState<[string,string]>([sessionID,'']);
+  const [activePane,setActivePane]=useState(0);
+  const [secondary,setSecondary]=useState<string[]>([]);
+  const [split,setSplit]=useState(false);
+  const [maximized,setMaximized]=useState(false);
+  const [ratio,setRatio]=useState(50);
   const [terminals, setTerminals] = useState([sessionID]);
   const [preparing, setPreparing] = useState(false);
   const [closing, setClosing] = useState('');
@@ -50,6 +56,16 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   currentDirty.current = dirty;
   const filesShown = !focus && (narrow ? narrowPanel === 'files' : filesOpen);
   const monitorShown = !focus && (narrow ? narrowPanel === 'monitor' : monitorOpen);
+  const tabIDs=[...terminals,...drafts.map(d=>d.path)];
+  const paneFor=(path:string)=>split&&secondary.includes(path)?1:0;
+  const paneSelected=selection.map((path,pane)=>tabIDs.includes(path)&&paneFor(path)===pane?path:tabIDs.find(t=>paneFor(t)===pane)||'');
+  const active=paneSelected[activePane];
+  useEffect(()=>{if(!paneSelected[activePane]&&paneSelected[1-activePane])setActivePane(1-activePane);},[paneSelected[0],paneSelected[1],activePane]);
+  function setActive(path:string){const pane=paneFor(path);setActivePane(pane);setSelection(prev=>pane===0?[path,prev[1]]:[prev[0],path]);}
+  function shown(path:string){return path===paneSelected[paneFor(path)]&&(!maximized||paneFor(path)===activePane);}
+  function focusTab(path=active){center.current?.querySelector<HTMLElement>(`[data-tab-id="${CSS.escape(path)}"] .terminal-search > input, [data-tab-id="${CSS.escape(path)}"] .xterm-helper-textarea, [data-tab-id="${CSS.escape(path)}"] .cm-content`)?.focus();}
+  function moveActive(){if(!active)return;const target=1-paneFor(active);setSplit(true);setMaximized(false);setSecondary(prev=>target===1?[...prev,active]:prev.filter(p=>p!==active));setSelection(prev=>target===0?[active,prev[1]]:[prev[0],active]);setActivePane(target);requestAnimationFrame(()=>focusTab(active));}
+  async function newTerminal(pane=activePane){if(creating||terminals.length>=16)return;setCreating(true);try{const result=await CreateTerminal(sessionID);if(disposed.current||instance.current!==sessionID)return;setTerminals(prev=>[...prev,result.id]);if(pane===1){setSplit(true);setSecondary(prev=>[...prev,result.id]);}setSelection(prev=>pane===0?[result.id,prev[1]]:[prev[0],result.id]);setActivePane(pane);setMaximized(false);}catch(e){setError(String(e));}finally{setCreating(false);}}
 
   function showFiles() { setFocus(false); if (narrow) setNarrowPanel('files'); else setFilesOpen(true); }
   function toggleFiles() { setFocus(false); if (narrow) setNarrowPanel(prev => prev === 'files' ? null : 'files'); else setFilesOpen(prev => !prev); }
@@ -84,7 +100,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
     if (reads.current.has(entry.path)) return;
     if(draftsRef.current.length+reads.current.size>=32)throw new Error('打开文件达到上限（32 个）');
     const request = ReadRemoteFile(sessionID, entry.path); reads.current.set(entry.path, request);
-    try { const doc = await request; if (disposed.current || instance.current!==sessionID) return; updateDrafts(prev => [...prev, { ...doc, saved: doc.content, error: '', saving: false }]); setActive(entry.path); }
+    try { const doc = await request; if (disposed.current || instance.current!==sessionID) return; updateDrafts(prev => [...prev, { ...doc, saved: doc.content, error: '', saving: false }]); if(split&&activePane===1){setSecondary(prev=>[...prev,entry.path]);setSelection(prev=>[prev[0],entry.path]);}else setActive(entry.path); }
     finally { if(reads.current.get(entry.path)===request)reads.current.delete(entry.path); }
   }
   async function save(path: string): Promise<boolean> {
@@ -104,13 +120,13 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
     })();
     saves.current.set(path, operation); return operation;
   }
-  useImperativeHandle(ref, () => ({ showFiles, toggleMonitor, terminalAction: action => terminalHandles.current.get(active)?.action(action), toggleFocus: () => setFocus(prev => !prev), async prepareReconnect(){if(terminals.length>=16){setError('保留终端达到上限（16 个），请先关闭结束标签');return false;}if(saves.current.size||creating||preparing){setError('请等待当前保存或终端创建完成');return false;}setPreparing(true);try{await CloseWorkspace(sessionID);return !disposed.current;}finally{setPreparing(false);}}, async saveAll() { for (const draft of draftsRef.current) { if (!await save(draft.path)) { setActive(draft.path); return false; } } return !draftsRef.current.some(d => d.content !== d.saved); } }));
+  useImperativeHandle(ref, () => ({ focus:()=>focusTab(), showFiles, toggleMonitor, terminalAction: action => terminalHandles.current.get(active)?.action(action), toggleFocus: () => setFocus(prev => !prev), async prepareReconnect(){if(terminals.length>=16){setError('保留终端达到上限（16 个），请先关闭结束标签');return false;}if(saves.current.size||creating||preparing){setError('请等待当前保存或终端创建完成');return false;}setPreparing(true);try{await CloseWorkspace(sessionID);return !disposed.current;}finally{setPreparing(false);}}, async saveAll() { for (const draft of draftsRef.current) { if (!await save(draft.path)) { setActive(draft.path); return false; } } return !draftsRef.current.some(d => d.content !== d.saved); } }));
 
   function close(path: string, discard = false) {
     const draft = draftsRef.current.find(d => d.path === path);
     if (draft?.saving) return;
     if (!discard && draft && draft.content !== draft.saved) { setClosing(path); return; }
-    updateDrafts(prev => prev.filter(d => d.path !== path)); if (active === path) setActive(terminals[0] || draftsRef.current[0]?.path || ''); setClosing('');
+    updateDrafts(prev => prev.filter(d => d.path !== path)); setSecondary(prev=>prev.filter(p=>p!==path)); setClosing('');
   }
   async function reread(path: string) {
     setError(''); const request = ReadRemoteFile(sessionID, path); reads.current.set(path, request);
@@ -118,33 +134,34 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
     catch (e) { if (!disposed.current && instance.current===sessionID) setError(String(e)); } finally { if(reads.current.get(path)===request)reads.current.delete(path); }
   }
   const closingDraft = drafts.find(d => d.path === closing);
-  const tabIDs = [...terminals, ...drafts.map(d => d.path)];
-  function activate(path: string) { setActive(path); requestAnimationFrame(() => center.current?.querySelector<HTMLElement>('.terminal-tab:not([hidden]) .xterm-helper-textarea, .editor-tab:not([hidden]) .cm-content')?.focus()); }
+  function activate(path: string) { setActive(path); requestAnimationFrame(() => focusTab(path)); }
   return <div className="ssh-workspace">
-    <div className="workspace-toolbar" aria-label="SSH 工作区工具"><button ref={filesToggle} className="session-tool" aria-pressed={filesShown} onClick={toggleFiles}><Icon name="files" width="15" />文件</button><button ref={monitorToggle} className="session-tool" aria-pressed={monitorShown} onClick={toggleMonitor}><Icon name="monitor" width="15" />监控</button><Button size="sm" variant="light" isDisabled={busy||preparing} onPress={onReconnect}>重新连接</Button><button className="icon-button focus-toggle" aria-label="专注模式" title="专注模式" aria-pressed={focus} onClick={() => setFocus(!focus)}><Icon name="focus" width="16" /></button></div>
+    <div className="workspace-toolbar" aria-label="SSH 工作区工具"><button ref={filesToggle} className="session-tool" aria-pressed={filesShown} onClick={toggleFiles}><Icon name="files" width="15" />文件</button><button ref={monitorToggle} className="session-tool" aria-pressed={monitorShown} onClick={toggleMonitor}><Icon name="monitor" width="15" />监控</button><Button size="sm" variant="light" isDisabled={busy||preparing} onPress={onReconnect}>重新连接</Button><Dropdown><DropdownTrigger><Button size="sm" variant="light">窗格</Button></DropdownTrigger><DropdownMenu aria-label="窗格操作" disabledKeys={[...(creating||terminals.length>=16?['new']:[]),...(!active?['move']:[]),...(!split?['maximize','merge']:[])]} onAction={key=>{if(key==='new')void newTerminal(1);if(key==='move')moveActive();if(key==='maximize')setMaximized(v=>!v);if(key==='merge'){setSplit(false);setSecondary([]);setSelection([active||paneSelected[0],'']);setActivePane(0);setMaximized(false);}}}><DropdownItem key="new">新建终端到右侧</DropdownItem><DropdownItem key="move">移动当前标签到另一窗格</DropdownItem><DropdownItem key="maximize">{maximized?'恢复双窗格':'最大化当前窗格'}</DropdownItem><DropdownItem key="merge">合并窗格</DropdownItem></DropdownMenu></Dropdown><button className="icon-button focus-toggle" aria-label="专注模式" title="专注模式" aria-pressed={focus} onClick={() => setFocus(!focus)}><Icon name="focus" width="16" /></button></div>
     <div className="ssh-panels">
     <div className="file-dock" hidden={!filesShown} style={{ width: filesWidth }}><FileBrowser id={sessionID} visible={visible && filesShown} onOpen={open} onClose={() => { toggleFiles(); filesToggle.current?.focus(); }} /></div>
     {filesShown && !narrow && <ResizeHandle label="文件面板宽度" value={filesWidth} min={200} max={420} onChange={setFilesWidth} />}
     <div className="ssh-center" ref={center}>
-      <div className="inner-tabs" role="tablist" aria-label="终端与文件" onKeyDown={e => {
+      <div className="inner-tabs" role="tablist" aria-label="终端与文件" aria-multiselectable={split} onKeyDown={e => {
         const target = e.target as HTMLElement;
         if (target.getAttribute('role') !== 'tab' || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
         e.preventDefault(); const buttons = e.currentTarget.querySelectorAll<HTMLElement>('[role=tab]'); const index = Array.from(buttons).indexOf(target);
         const next = e.key === 'Home' ? 0 : e.key === 'End' ? tabIDs.length - 1 : (index + (e.key === 'ArrowRight' ? 1 : -1) + tabIDs.length) % tabIDs.length;
         setActive(tabIDs[next]); setTimeout(() => buttons[next]?.focus(), 0);
       }}>
-        {terminals.map((terminal, index) => <div key={terminal} className={active === terminal ? 'selected' : ''}><button role="tab" tabIndex={active === terminal ? 0 : -1} aria-selected={active === terminal} onClick={() => activate(terminal)}><Icon name="terminal" width="14" />终端 {index + 1}</button><button aria-label={`关闭终端 ${index + 1}`} onClick={() => { setTerminals(prev => prev.filter(t => t !== terminal)); if (active === terminal) setActive(terminals.find(t => t !== terminal) || drafts[0]?.path || ''); }}><Icon name="close" width="12" /></button></div>)}
-        {drafts.map(d => <div key={d.path} className={active === d.path ? 'selected' : ''}><button role="tab" tabIndex={active === d.path ? 0 : -1} aria-selected={active === d.path} title={d.path} onClick={() => activate(d.path)}>{d.path.split('/').pop()}{d.content !== d.saved && <span className="dirty-dot" aria-label="未保存">●</span>}</button><button aria-label={`关闭文件 ${d.path}`} disabled={d.saving} onClick={() => close(d.path)}><Icon name="close" width="12" /></button></div>)}
-        <button aria-label="新建终端" disabled={creating||terminals.length>=16} onClick={async () => { setCreating(true); try { const result = await CreateTerminal(sessionID); if (disposed.current || instance.current!==sessionID) return; setTerminals(prev => [...prev, result.id]); setActive(result.id); } catch (e) { setError(String(e)); } finally { setCreating(false); } }}><Icon name="plus" width="15" /></button>
+        {terminals.map((terminal, index) => <div key={terminal} className={shown(terminal) ? 'selected' : ''}><button role="tab" tabIndex={active === terminal ? 0 : -1} aria-selected={shown(terminal)} onClick={() => activate(terminal)}><Icon name="terminal" width="14" />终端 {index + 1}{split&&<small>· {paneFor(terminal)+1}</small>}</button><button aria-label={`关闭终端 ${index + 1}`} onClick={() => { setTerminals(prev => prev.filter(t => t !== terminal)); setSecondary(prev=>prev.filter(p=>p!==terminal)); }}><Icon name="close" width="12" /></button></div>)}
+        {drafts.map(d => <div key={d.path} className={shown(d.path) ? 'selected' : ''}><button role="tab" tabIndex={active === d.path ? 0 : -1} aria-selected={shown(d.path)} title={d.path} onClick={() => activate(d.path)}>{d.path.split('/').pop()}{split&&<small>· {paneFor(d.path)+1}</small>}{d.content !== d.saved && <span className="dirty-dot" aria-label="未保存">●</span>}</button><button aria-label={`关闭文件 ${d.path}`} disabled={d.saving} onClick={() => close(d.path)}><Icon name="close" width="12" /></button></div>)}
+        <button aria-label="新建终端" disabled={creating||terminals.length>=16} onClick={()=>void newTerminal()}><Icon name="plus" width="15" /></button>
       </div>
       {error && <div className="connection-feedback error" role="alert">{error}</div>}
-      {!active && <div className="workspace-empty">从标签栏新建终端或打开文件</div>}
-      {terminals.map(terminal => <div className="terminal-tab" hidden={active !== terminal} key={terminal}><TerminalView ref={handle => { if (handle) terminalHandles.current.set(terminal, handle); else terminalHandles.current.delete(terminal); }} id={terminal} visible={visible && active === terminal} fontSize={fontSize} /></div>)}
-      {drafts.map(d => <div key={d.path} className="editor-tab" hidden={active !== d.path}>
+      {!tabIDs.length && <div className="workspace-empty">从标签栏新建终端或打开文件</div>}
+      <WorkspacePanes split={split} maximized={maximized} ratio={ratio} onRatio={setRatio}>
+      {terminals.map(terminal => <div className={`terminal-tab ${activePane===paneFor(terminal)?'focused-pane':''}`} data-tab-id={terminal} hidden={!shown(terminal)} style={{gridColumn:maximized?1:paneFor(terminal)===0?1:3,gridRow:1}} onFocusCapture={()=>setActivePane(paneFor(terminal))} key={terminal}><TerminalView ref={handle => { if (handle) terminalHandles.current.set(terminal, handle); else terminalHandles.current.delete(terminal); }} id={terminal} visible={visible && shown(terminal)} focusOnShow={activePane===paneFor(terminal)} fontSize={fontSize} /></div>)}
+      {drafts.map(d => <div key={d.path} className={`editor-tab ${activePane===paneFor(d.path)?'focused-pane':''}`} data-tab-id={d.path} hidden={!shown(d.path)} style={{gridColumn:maximized?1:paneFor(d.path)===0?1:3,gridRow:1}} onFocusCapture={()=>setActivePane(paneFor(d.path))}>
         <div className="editor-toolbar"><span title={d.path}>{d.path}</span><Button size="sm" isLoading={d.saving} isDisabled={d.content === d.saved} onPress={() => void save(d.path)}>保存</Button></div>
         {d.error && <div className="file-save-error"><p role="alert" className="error">{d.error}</p><div className="button-row"><Button size="sm" variant="light" isDisabled={d.saving} onPress={()=>setConflict(d.path)}>对比与合并</Button><Button size="sm" variant="light" onPress={() => setRereading(d.path)}>重新读取</Button><Button size="sm" variant="light" onPress={() => { navigator.clipboard.writeText(d.content).catch(e => setError(String(e))); }}>复制草稿</Button></div></div>}
-        <CodeEditor path={d.path} content={d.content} visible={visible && active === d.path} onChange={value => updateDrafts(prev => prev.map(item => item.path === d.path ? { ...item, content: value } : item))} onSave={() => void save(d.path)} />
+        <CodeEditor path={d.path} content={d.content} visible={visible && shown(d.path)} focusOnShow={activePane===paneFor(d.path)} onChange={value => updateDrafts(prev => prev.map(item => item.path === d.path ? { ...item, content: value } : item))} onSave={() => void save(d.path)} />
       </div>)}
+      </WorkspacePanes>
     </div>
     <MonitorPanel id={sessionID} visible={visible && monitorShown} onClose={() => { toggleMonitor(); monitorToggle.current?.focus(); }} />
     </div>

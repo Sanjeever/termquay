@@ -101,7 +101,7 @@ export default function App() {
   useEffect(() => {
     if (dialog || rdpStart || attempt.trust || closing || quitConfirm || palette || settings) return;
     if (tabNavigation.current) { tabNavigation.current = false; return; }
-    const frame = requestAnimationFrame(() => { if (current?.rdp) current.view?.current?.focus(); else { const search = document.querySelector<HTMLElement>('.workspace:not([hidden]) .terminal-tab:not([hidden]) .terminal-search > input'); (search || document.querySelector<HTMLElement>('.workspace:not([hidden]) .terminal-tab:not([hidden]) .xterm-helper-textarea, .workspace:not([hidden]) .editor-tab:not([hidden]) .cm-content'))?.focus(); } });
+    const frame = requestAnimationFrame(() => { if (current?.rdp) current.view?.current?.focus(); else current?.ssh?.current?.focus(); });
     return () => cancelAnimationFrame(frame);
   }, [active, dialog, rdpStart, attempt.trust, closing, quitConfirm, palette, settings]);
   useEffect(() => {

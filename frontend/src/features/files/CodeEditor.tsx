@@ -8,7 +8,7 @@ import { json } from '@codemirror/lang-json';
 import { yaml } from '@codemirror/lang-yaml';
 import { javascript } from '@codemirror/lang-javascript';
 
-export default function CodeEditor({ path, content, visible, onChange, onSave }: { path: string; content: string; visible: boolean; onChange(value: string): void; onSave(): void }) {
+export default function CodeEditor({ path, content, visible, onChange, onSave, focusOnShow=true }: { path: string; content: string; visible: boolean; onChange(value: string): void; onSave(): void; focusOnShow?:boolean }) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView>();
   const syncing = useRef(false);
@@ -30,6 +30,6 @@ export default function CodeEditor({ path, content, visible, onChange, onSave }:
     try { editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: content }, annotations: Transaction.addToHistory.of(false) }); }
     finally { syncing.current = false; }
   }, [content]);
-  useEffect(() => { if (visible) { view.current?.requestMeasure(); if (!document.activeElement?.closest('[role=tablist]')) view.current?.focus(); } }, [visible]);
+  useEffect(() => { if (visible) { view.current?.requestMeasure(); if (focusOnShow&&!document.activeElement?.closest('[role=tablist]')) view.current?.focus(); } }, [visible]);
   return <div className="code-editor" ref={host} />;
 }
