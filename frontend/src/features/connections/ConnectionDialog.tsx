@@ -29,6 +29,7 @@ export default function ConnectionDialog({ connection, temporary, groups, busy, 
         setSaving(true); const result = await SaveConnection(config, request); setSaved(result); setStored(true); onSaved(); setSaving(false);
         if (mode === 'save') { onClose(); return; }
         clearSecrets();
+        request.password = ''; request.private_key = ''; request.passphrase = '';
         if (await onConnect(result)) onClose();
       } else if (await onConnect(config, request)) onClose();
     } catch (e) { setError(String(e)); }

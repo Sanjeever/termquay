@@ -58,9 +58,10 @@ export default function useConnectionAttempt(onSSH: (id: string, connection: Con
       return true;
     } catch (e) { if (!attempt.cancelled) setError(String(e)); return false; }
     finally {
-      if (owned) { remove(owned); if (connection.protocol === 'ssh') await CloseWorkspace(owned); else await CloseRDP(owned); }
       if (auth) { auth.password = ''; auth.private_key = ''; auth.passphrase = ''; }
-      current.current = undefined; setBusy(false); setTrust(undefined);
+      try { if (owned) { remove(owned); if (connection.protocol === 'ssh') await CloseWorkspace(owned); else await CloseRDP(owned); } }
+      catch (e) { setError(previous => [previous, `关闭连接失败：${String(e)}`].filter(Boolean).join('\n')); }
+      finally { current.current = undefined; setBusy(false); setTrust(undefined); }
     }
   }
   return { start, busy, error, target, trust, confirm, cancel, clearError: () => setError('') };

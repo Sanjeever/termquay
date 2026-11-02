@@ -11,10 +11,14 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
+//go:embed build/appicon.png
+var appIcon []byte
+
 func main() {
 	service := NewAppService()
 	app := application.New(application.Options{
 		Name: "TermQuay", Description: "栈桥远程连接工作台",
+		Icon:       appIcon,
 		ShouldQuit: service.canQuit,
 		Services:   []application.Service{application.NewService(service)},
 		Assets:     application.AssetOptions{Handler: application.AssetFileServerFS(assets)},
