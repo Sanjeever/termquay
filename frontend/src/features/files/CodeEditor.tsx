@@ -16,7 +16,7 @@ export default function CodeEditor({ path, content, visible, onChange, onSave }:
   useEffect(() => {
     const language = /\.json$/i.test(path) ? json() : /\.ya?ml$/i.test(path) ? yaml() : /\.[cm]?[jt]sx?$/i.test(path) ? javascript({ typescript: /\.tsx?$/.test(path) }) : [];
     const editor = new EditorView({ parent: host.current!, state: EditorState.create({ doc: content, extensions: [
-      lineNumbers(), history(), drawSelection(), highlightActiveLine(), bracketMatching(), highlightSelectionMatches(), syntaxHighlighting(defaultHighlightStyle), language,
+      EditorView.lineWrapping, lineNumbers(), history(), drawSelection(), highlightActiveLine(), bracketMatching(), highlightSelectionMatches(), syntaxHighlighting(defaultHighlightStyle), language,
       keymap.of([{ key: 'Mod-s', run: () => { callbacks.current.onSave(); return true; } }, ...defaultKeymap, ...historyKeymap, ...searchKeymap, indentWithTab]),
       EditorView.updateListener.of((update) => { if (update.docChanged && !syncing.current) callbacks.current.onChange(update.state.doc.toString()); }),
       EditorView.theme({ '&': { height: '100%', background: 'var(--color-background)', color: 'var(--color-text)', fontSize: '14px' }, '.cm-scroller': { fontFamily: 'var(--font-mono)', overflow: 'auto', lineHeight: '1.5' }, '.cm-gutters': { background: 'var(--color-surface)', color: 'var(--color-muted)', borderRight: '1px solid var(--color-border)' }, '.cm-activeLine': { background: 'var(--color-surface)' }, '.cm-activeLineGutter': { background: 'var(--color-hover)' }, '.cm-cursor': { borderLeftColor: 'var(--color-primary)' }, '.cm-selectionBackground': { background: 'var(--color-selected) !important' } }, { dark: true }),
