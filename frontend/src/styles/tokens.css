@@ -14,8 +14,6 @@
   --font-mono: "Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", "Microsoft YaHei", monospace;
   --radius: 6px;
   --control-height: 32px;
-  --control-height-small: 28px;
-  --space-control: 6px;
   --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei UI", "PingFang SC", sans-serif;
   font-family: var(--font-ui);
   font-size: 16px;

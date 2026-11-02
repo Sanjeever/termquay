@@ -13,7 +13,7 @@ export default function PaneTabs({ pane, items, selected, focused, hidden, colum
     onSelect(items[next].id); requestAnimationFrame(() => tabs[next]?.focus());
   }}>
     {items.map(item => <div key={item.id} className={selected === item.id ? 'selected' : ''}>
-      <button role="tab" aria-selected={selected === item.id} tabIndex={selected === item.id ? 0 : -1} title={item.id} onClick={() => onSelect(item.id)}>{item.terminal && <Icon name="terminal" width="14" />}{item.label}{item.dirty && <span className="dirty-dot" aria-label="未保存">●</span>}</button>
+      <button role="tab" aria-selected={selected === item.id} tabIndex={selected === item.id ? 0 : -1} title={item.terminal ? item.label : item.id} onClick={() => onSelect(item.id)}>{item.terminal && <Icon name="terminal" width="14" />}{item.label}{item.dirty && <span className="dirty-dot" aria-label="未保存">●</span>}</button>
       <button aria-label={`关闭${item.terminal ? '' : '文件 '}${item.label}`} title={`关闭 · ${closeShortcut}`} disabled={item.closingDisabled} onClick={() => onClose(item.id)}><Icon name="close" width="12" /></button>
     </div>)}
     <button aria-label={`在${pane === 0 ? '主' : '右侧'}窗格新建终端`} title={`新建终端 · ${newShortcut}`} disabled={creating} onClick={onNew}><Icon name="plus" width="15" /></button>

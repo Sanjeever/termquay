@@ -14,8 +14,7 @@ button:focus-visible, summary:focus-visible, select:focus-visible, input:focus-v
 svg { flex-shrink: 0; }
 select, textarea { background: var(--color-elevated); border: 1px solid var(--color-border); border-radius: var(--radius); color: var(--color-text); padding: 6px 8px; min-width: 0; }
 select { min-height: var(--control-height); }
-button[data-slot=base] { height: var(--control-height); min-height: var(--control-height); font-size: 12px; }
-button[data-size=sm] { height: var(--control-height-small); min-height: var(--control-height-small); }
+button[data-react-aria-pressable=true] { height: var(--control-height); min-height: var(--control-height); font-size: 12px; }
 textarea { width: 100%; resize: vertical; font-family: var(--font-mono); }
 input[type=checkbox] { accent-color: var(--color-primary); }
 .app-shell { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
@@ -53,10 +52,9 @@ input[type=checkbox] { accent-color: var(--color-primary); }
 .catalog-filters { display: flex; align-items: center; gap: 8px; padding: 10px 0; min-height: 52px; flex-shrink: 0; }
 .catalog-filters > select { font-size: 12px; width: 130px; }
 .catalog-selection { display: flex; margin-left: auto; gap: 4px; }
-.catalog-batch { display: flex; align-items: center; gap: 8px; min-height: 36px; flex-shrink: 0; }
+.catalog-batch { display: flex; align-items: center; gap: 8px; min-height: var(--control-height); flex-shrink: 0; margin-left: auto; }
 .catalog-filters:has(.catalog-batch:not([hidden])) .catalog-selection { display: none; }
 .catalog-filters:has(.catalog-batch:not([hidden])) > button { display: none; }
-.catalog-batch { margin-left: auto; }
 .catalog-batch label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--color-muted); }
 .drop-target { outline: 1px solid var(--color-primary); outline-offset: -1px; background: var(--color-selected); }
 .catalog-filters > [data-slot=base] { max-width: 280px; }
@@ -122,7 +120,7 @@ input[type=checkbox] { accent-color: var(--color-primary); }
 .temporary-label { margin-right: auto; align-self: center; color: var(--color-muted); font-size: 12px; }
 .connection-form summary { cursor: pointer; font-size: 12px; color: var(--color-muted); padding: 4px 0; }
 .connection-options-fields { display: grid; gap: 14px; padding: 10px 0 2px; }
-[data-slot=input-wrapper] { border: 1px solid var(--color-border); background: var(--color-background); }
+[data-slot=input-wrapper] { border: 1px solid var(--color-border); background: var(--color-background); height: var(--control-height); min-height: var(--control-height); }
 [data-slot=input-wrapper][data-hover=true] { background: var(--color-surface); }
 [data-slot=input-wrapper][data-invalid=true] { border-color: var(--color-danger); }
 [data-slot=label] { font-size: 12px; }
