@@ -9,7 +9,10 @@ import (
 )
 
 //go:embed linux.sh
-var Script string
+var linuxScript string
+
+// 工作树可能保留 Windows 换行，远端 POSIX Shell 必须接收 LF。
+var Script = strings.ReplaceAll(linuxScript, "\r\n", "\n")
 
 type Counter struct {
 	Name      string   `json:"name"`

@@ -16,6 +16,12 @@ func sampleText(cpu, idle, rx, tx uint64) []byte {
 	return []byte(fmt.Sprintf("[system]\nLinux test\n[cpu]\ncpu %d 0 0 %d 0 0 0 0 0 0\n[memory]\nMemTotal: 1000 kB\nMemAvailable: 500 kB\n[network]\neth0: %d 0 0 0 0 0 0 0 %d 0 0 0 0 0 0 0\n[disk]\n8 0 sda 1 0 2 0 1 0 3 0 0 0 0\n", cpu, idle, rx, tx))
 }
 
+func TestScriptUsesPOSIXLineEndings(t *testing.T) {
+	if strings.Contains(Script, "\r") || !strings.HasPrefix(Script, "set -eu\n") {
+		t.Fatal("嵌入脚本未转换为 POSIX 换行")
+	}
+}
+
 func TestInitialRatesResetAndFailure(t *testing.T) {
 	now := time.Now()
 	first, err := Parse(sampleText(100, 100, 1000, 1000), now, nil)

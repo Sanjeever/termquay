@@ -83,6 +83,8 @@ go test -race ./...
 
 SSH 指纹须来自已核对的测试目标，不能为跑通测试关闭身份校验。文件测试创建并清理本次 `/tmp/termquay-*` 目录；监控运行只读 Linux 采集。WebDAV 目录指定已有可写测试集合，测试在其中创建唯一子目录并清理。遵守 [远端操作边界](../AGENTS.md#凭据与远端操作)，MCP 连通不能替代应用自身链路验证。
 
+监控脚本在 Go 嵌入边界统一为 LF。Windows 工作树曾保留 CRLF，原始字节经 `sh -s` 在真实 Linux 目标复现退出码 2，错误为 `set: Illegal option`；LF 版本成功。脚本执行成功与应用采集链路通过仍需分别验证。
+
 ```sh
 go test -race -v ./internal/ssh ./internal/files ./internal/monitor -run TestSG1
 go test -race -v ./internal/backup -run TestRealWebDAV
