@@ -18,9 +18,14 @@ export type {
     RecoveryDraftInput,
     RecoveryDraftSummary,
     RestorePreview,
+    SSHLayout,
     Snippet,
     Transfer,
     TransferBatch,
     UploadDropResult,
-    WorkspaceDraftUpdate
+    WorkspaceDraftUpdate,
+    WorkspaceLayout,
+    WorkspaceLayoutEntry,
+    WorkspaceTabLayout,
+    WorkspaceTarget
 } from "./models.js";

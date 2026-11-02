@@ -11,8 +11,8 @@ import { CloseTerminal, ResizeTerminal } from '../../../bindings/github.com/Sanj
 import '@xterm/xterm/css/xterm.css';
 
 export type TerminalAction = 'find' | 'copy' | 'paste' | 'selectAll' | 'clear' | 'zoomIn' | 'zoomOut' | 'zoomReset';
-export type TerminalHandle = { action(action: TerminalAction): void; insert(text: string): boolean };
-const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; fontSize: number; focusOnShow?:boolean }>(function TerminalView({ id, visible, fontSize, focusOnShow=true }, ref) {
+export type TerminalHandle = { ended():boolean; action(action: TerminalAction): void; insert(text: string): boolean };
+const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; fontSize: number; focusOnShow?:boolean; onConnectionChange?():void }>(function TerminalView({ id, visible, fontSize, focusOnShow=true, onConnectionChange }, ref) {
   const container = useRef<HTMLDivElement>(null);
   const [error, setError] = useState('');
   const [connected, setConnected] = useState<boolean|null>(null);
@@ -25,6 +25,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; 
   const shown = useRef(visible); shown.current = visible;
   const focusRequested=useRef(focusOnShow);focusRequested.current=focusOnShow;
   const inputStream=useRef<ReturnType<typeof Stream>>();
+  const stateCallback=useRef(onConnectionChange);stateCallback.current=onConnectionChange;
   function insert(text: string):boolean {
     const size=new TextEncoder().encode(text).length;
     if (size > 256 * 1024 - 16) { setError('粘贴内容超过输入队列上限（256 KiB）'); return false; }
@@ -45,7 +46,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; 
     if (name === 'zoomReset') setZoom(0);
     if (name !== 'find' && name !== 'paste') term.focus();
   }
-  useImperativeHandle(ref, () => ({ action, insert }));
+  useImperativeHandle(ref, () => ({ action, insert,ended:()=>!!inputStream.current&&inputStream.current.readyState===inputStream.current.CLOSED }));
   useEffect(() => {
     const term = new Terminal({
       fontFamily: getComputedStyle(document.documentElement).getPropertyValue('--font-mono'),
@@ -64,7 +65,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; 
     inputStream.current=stream;
     let disposed = false;
     const fail = (e: unknown) => { if (!disposed) setError(String(e)); };
-    stream.onopen = () => { stream.send(new TextEncoder().encode(id)); setConnected(true); fitVisible(); if (shown.current&&focusRequested.current) term.focus(); };
+    stream.onopen = () => { stream.send(new TextEncoder().encode(id)); setConnected(true); stateCallback.current?.();fitVisible(); if (shown.current&&focusRequested.current&&!document.querySelector('[role=dialog][data-open=true]')) term.focus(); };
     stream.onmessage = (event) => {
       const bytes = new Uint8Array(event.data);
       term.write(bytes, () => {
@@ -74,7 +75,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; 
         stream.send(ack);
       });
     };
-    stream.onclose = () => { if (!disposed) { setConnected(false); term.options.disableStdin = true; } };
+    stream.onclose = () => { if (!disposed) { setConnected(false); term.options.disableStdin = true;stateCallback.current?.(); } };
     stream.onerror = () => fail('终端数据流中断');
     const input = term.onData((data) => {
       const bytes = new TextEncoder().encode(data);

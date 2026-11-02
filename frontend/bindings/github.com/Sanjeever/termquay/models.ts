@@ -90,6 +90,20 @@ export interface RestorePreview {
     "credentials": number;
 }
 
+export interface SSHLayout {
+    "tabs": WorkspaceTabLayout[] | null;
+    "selected": number[];
+    "active_pane": number;
+    "split": boolean;
+    "maximized": boolean;
+    "ratio": number;
+    "directory": string;
+    "files_open": boolean;
+    "files_width": number;
+    "monitor_open": boolean;
+    "focus": boolean;
+}
+
 export interface Snippet {
     "id": string;
     "name": string;
@@ -125,4 +139,33 @@ export interface WorkspaceDraftUpdate {
     "workspace": string;
     "name": string;
     "documents": RecoveryDraftInput[] | null;
+}
+
+export interface WorkspaceLayout {
+    "version": number;
+    "active": string;
+    "entries": WorkspaceLayoutEntry[] | null;
+}
+
+export interface WorkspaceLayoutEntry {
+    "id": string;
+    "connection_id": string;
+    "name": string;
+    "target": WorkspaceTarget;
+    "ssh"?: SSHLayout | null;
+}
+
+export interface WorkspaceTabLayout {
+    "kind": string;
+    "path": string;
+    "pane": number;
+}
+
+export interface WorkspaceTarget {
+    "name": string;
+    "protocol": string;
+    "host": string;
+    "port": number;
+    "username": string;
+    "domain": string;
 }

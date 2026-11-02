@@ -117,6 +117,10 @@ export function GetDraftRecoveryState(): $CancellablePromise<$models.DraftRecove
     return $Call.ByID(187173851);
 }
 
+export function GetWorkspaceLayout(): $CancellablePromise<$models.WorkspaceLayout> {
+    return $Call.ByID(961509693);
+}
+
 export function ListSnapshots(options: backup$0.WebDAVOptions): $CancellablePromise<backup$0.RemoteSnapshot[] | null> {
     return $Call.ByID(2845134187, options);
 }
@@ -219,6 +223,10 @@ export function SaveSnippet(value: $models.Snippet): $CancellablePromise<$models
 
 export function SaveWorkspaceDrafts(workspace: string, documents: $models.RecoveryDraftInput[] | null): $CancellablePromise<void> {
     return $Call.ByID(3246241316, workspace, documents);
+}
+
+export function SaveWorkspaceLayout(layout: $models.WorkspaceLayout): $CancellablePromise<void> {
+    return $Call.ByID(27998338, layout);
 }
 
 export function SetConnectionPreference(id: string, favorite: boolean, environment: string): $CancellablePromise<void> {

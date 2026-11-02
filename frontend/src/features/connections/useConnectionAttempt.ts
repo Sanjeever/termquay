@@ -12,6 +12,7 @@ export default function useConnectionAttempt(onSSH: (id: string, connection: Con
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [target, setTarget] = useState('');
+  const [workspaceID,setWorkspaceID]=useState('');
   const [trust, setTrust] = useState<HostTrust>();
   const current = useRef<Attempt>();
   function cancel() { const attempt = current.current; if (!attempt) return; attempt.cancelled = true; attempt.operation?.cancel(); attempt.resolve?.(false); setTrust(undefined); }
@@ -21,7 +22,7 @@ export default function useConnectionAttempt(onSSH: (id: string, connection: Con
   async function start(connection: Connection, auth?: Request, reuse?: string, options?: RDPOptions) {
     if (current.current) return false;
     const attempt: Attempt = { cancelled: false, workspaceID: reuse };
-    current.current = attempt; setBusy(true); setError(''); setTarget(connection.name || connection.host);
+    current.current = attempt; setBusy(true); setWorkspaceID(reuse||'');setError(''); setTarget(connection.name || connection.host);
     let owned = '';
     let rdpWorkspace = '';
     const check = () => { if (attempt.cancelled) throw new Error('连接已取消'); };
@@ -40,6 +41,7 @@ export default function useConnectionAttempt(onSSH: (id: string, connection: Con
         onSSH(result.id, connection, reuse); owned = '';
       } else {
         rdpWorkspace = beginRDP(connection, reuse, options);
+        setWorkspaceID(rdpWorkspace);
         attempt.workspaceID = rdpWorkspace;
         const probeOperation = ProbeRDP(connection.host, connection.port); attempt.operation = probeOperation;
         const probe = await probeOperation; check();
@@ -68,5 +70,5 @@ export default function useConnectionAttempt(onSSH: (id: string, connection: Con
       finally { current.current = undefined; setBusy(false); setTrust(undefined); }
     }
   }
-  return { start, busy, error, target, trust, confirm, cancel, cancelWorkspace: (id: string) => { if (current.current?.workspaceID === id) cancel(); }, clearError: () => setError('') };
+  return { start, busy, workspaceID,error, target, trust, confirm, cancel, cancelWorkspace: (id: string) => { if (current.current?.workspaceID === id) cancel(); }, clearError: () => setError('') };
 }

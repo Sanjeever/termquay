@@ -7,8 +7,8 @@ import type { Entry } from '../../../bindings/github.com/Sanjeever/termquay/inte
 import Icon from '../../components/Icon';
 import DirectorySyncDialog from './DirectorySyncDialog';
 
-export default function FileBrowser({ id, connectionID, visible, onOpen, onClose }: { id: string; connectionID: string; visible: boolean; onOpen(entry: Entry): Promise<void>; onClose(): void }) {
-  const [directory, setDirectory] = useState('');
+export default function FileBrowser({ id, connectionID, visible, onOpen, onClose, initialDirectory='', onDirectory }: { id: string; connectionID: string; visible: boolean; onOpen(entry: Entry): Promise<void>; onClose(): void; initialDirectory?:string; onDirectory?(path:string):void }) {
+  const [directory, setDirectory] = useState(initialDirectory);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [selected, setSelected] = useState('');
   const [error, setError] = useState('');
@@ -33,7 +33,7 @@ export default function FileBrowser({ id, connectionID, visible, onOpen, onClose
   async function load(path: string, historyIndex?:number) {
     pending.current?.cancel(); setError(''); setLoading(true);
     const request = ReadDirectory(id, path); pending.current = request;
-    try { const result = await request; if (pending.current !== request) return; setDirectory(result.path); setEntries(result.entries ?? []); setSelected(''); loaded.current = true; setHistory(prev=>{if(historyIndex!==undefined)return {...prev,index:historyIndex};if(prev.paths[prev.index]===result.path)return prev;const paths=[...prev.paths.slice(0,prev.index+1),result.path].slice(-100);return{paths,index:paths.length-1};}); }
+    try { const result = await request; if (pending.current !== request) return; setDirectory(result.path);onDirectory?.(result.path); setEntries(result.entries ?? []); setSelected(''); loaded.current = true; setHistory(prev=>{if(historyIndex!==undefined)return {...prev,index:historyIndex};if(prev.paths[prev.index]===result.path)return prev;const paths=[...prev.paths.slice(0,prev.index+1),result.path].slice(-100);return{paths,index:paths.length-1};}); }
     catch (e) { if (pending.current === request) setError(String(e)); }
     finally { if (pending.current === request) { pending.current = undefined; setLoading(false); } }
   }

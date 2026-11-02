@@ -19,7 +19,7 @@ function detail(error: unknown) {
   return typeof iron?.backtrace === 'function' ? iron.backtrace() : String(error);
 }
 
-const RDPView = forwardRef<RDPHandle, { grant?: Grant; target: string; visible: boolean; failure?: string; busy: boolean; onRetry(): void; onEdit(): void; onState(state: string): void; options: RDPOptions; onResolution(value: string): Promise<void> }>(function RDPView({ grant, target, visible, failure, busy, onRetry, onEdit, onState, options, onResolution }, ref) {
+const RDPView = forwardRef<RDPHandle, { grant?: Grant; target: string; visible: boolean; failure?: string; busy: boolean; pending?:boolean;onRetry(): void; onEdit(): void; onState(state: string): void; options: RDPOptions; onResolution(value: string): Promise<void> }>(function RDPView({ grant, target, visible, failure, busy, pending=false,onRetry, onEdit, onState, options, onResolution }, ref) {
   const view = useRef<HTMLDivElement>(null);
   const container = useRef<HTMLDivElement>(null);
   const ui = useRef<UserInteraction>();
@@ -34,7 +34,7 @@ const RDPView = forwardRef<RDPHandle, { grant?: Grant; target: string; visible: 
   useEffect(() => { setClipboard(options.clipboard); setResolution(options.resolution); }, [options]);
   useEffect(() => { const changed = () => { const full = document.fullscreenElement === view.current; setFullscreen(full); setToolbarCollapsed(full); focusDesktop(); }; document.addEventListener('fullscreenchange', changed); return () => document.removeEventListener('fullscreenchange', changed); }, []);
   const stateCallback = useRef(onState); stateCallback.current = onState;
-  useEffect(() => { stateCallback.current(status === '已连接' ? '已连接' : ready.ended || failure ? '已断开' : '连接中'); }, [status, failure]);
+  useEffect(() => { stateCallback.current(!grant?(pending?'连接中':failure?'已断开':'未连接'):status === '已连接'&&ready.running ? '已连接' : ready.ended || failure ? '已断开' : '连接中'); }, [status, failure,pending,grant?.id]);
   function focusDesktop() { container.current?.querySelector('iron-remote-desktop')?.shadowRoot?.querySelector<HTMLCanvasElement>('canvas')?.focus(); }
   const ready = useMemo(() => {
     let resolve!: (value: UserInteraction) => void;
@@ -155,7 +155,7 @@ const RDPView = forwardRef<RDPHandle, { grant?: Grant; target: string; visible: 
     </div>
     <div className="rdp-canvas" ref={container} hidden={status !== '已连接' || !grant} />
     {error && status === '已连接' && <div className="session-status error" role="alert">{error}</div>}
-    {(failure || !grant || ready.ended) ? <div className="rdp-failure" role="status"><h2>{failure ? '连接未完成' : ready.ended ? status : '正在连接'}</h2><p className="muted">{target}</p><div className="button-row"><Button size="sm" color="primary" isDisabled={busy} onPress={onRetry}>重试</Button><Button size="sm" variant="bordered" isDisabled={busy} onPress={onEdit}>编辑连接</Button></div><label className="checkbox-label"><input type="checkbox" disabled={busy} checked={clipboard} onChange={e => setClipboard(e.target.checked)} />文本剪贴板</label>{(failure || error) && <details><summary>技术详情</summary><p className="error" role="alert">{failure || error}</p></details>}</div> : <div className="session-status"><span>{status}</span>{error && <details><summary>技术详情</summary><span role="alert" className="error">{error}</span></details>}</div>}
+    {(failure || !grant || ready.ended) ? <div className="rdp-failure" role="status"><h2>{failure ? '连接未完成' : ready.ended ? status : pending?'正在连接':'尚未连接'}</h2><p className="muted">{target}</p><div className="button-row"><Button size="sm" color="primary" isDisabled={busy} onPress={onRetry}>{!grant&&!failure?'连接':'重试'}</Button><Button size="sm" variant="bordered" isDisabled={busy} onPress={onEdit}>编辑连接</Button></div><label className="checkbox-label"><input type="checkbox" disabled={busy} checked={clipboard} onChange={e => setClipboard(e.target.checked)} />文本剪贴板</label>{(failure || error) && <details><summary>技术详情</summary><p className="error" role="alert">{failure || error}</p></details>}</div> : <div className="session-status"><span>{status}</span>{error && <details><summary>技术详情</summary><span role="alert" className="error">{error}</span></details>}</div>}
   </div>;
 });
 
