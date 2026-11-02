@@ -18,16 +18,19 @@ import (
 )
 
 type Transfer struct {
-	ID        string `json:"id"`
-	Workspace string `json:"workspace"`
-	Name      string `json:"name"`
-	Direction string `json:"direction"`
-	State     string `json:"state"`
-	Total     int64  `json:"total"`
-	Completed int64  `json:"completed"`
-	Error     string `json:"error"`
-	Sequence  uint64 `json:"sequence"`
-	Retryable bool   `json:"retryable"`
+	ID              string `json:"id"`
+	Workspace       string `json:"workspace"`
+	Name            string `json:"name"`
+	Direction       string `json:"direction"`
+	State           string `json:"state"`
+	Total           int64  `json:"total"`
+	Completed       int64  `json:"completed"`
+	Error           string `json:"error"`
+	Sequence        uint64 `json:"sequence"`
+	Retryable       bool   `json:"retryable"`
+	Target          string `json:"target"`
+	SourcePath      string `json:"source_path"`
+	DestinationPath string `json:"destination_path"`
 }
 type transferTask struct {
 	view   Transfer
@@ -128,6 +131,20 @@ func (a *AppService) ClearTransfer(id string) {
 	}
 }
 
+func (a *AppService) ClearFinishedTransfers() []string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	removed := []string{}
+	for id, task := range a.transfers {
+		switch task.view.State {
+		case "done", "cancelled", "failed", "skipped":
+			delete(a.transfers, id)
+			removed = append(removed, id)
+		}
+	}
+	return removed
+}
+
 func (a *AppService) startTransfer(workspace, name, direction string, total int64, run func(context.Context, func(int64, int64)) error, specification ...transferSpec) (Transfer, error) {
 	a.mu.Lock()
 	if a.workspaces[workspace] == nil || a.closed || len(a.transferQueue) >= 32 || len(a.transfers) >= 100 {
@@ -137,12 +154,19 @@ func (a *AppService) startTransfer(workspace, name, direction string, total int6
 	ctx, cancel := context.WithCancel(context.Background())
 	id := base64.RawURLEncoding.EncodeToString(randomBytes(16))
 	a.transferSequence++
-	view := Transfer{ID: id, Workspace: workspace, Name: name, Direction: direction, State: "queued", Total: total, Sequence: a.transferSequence}
+	view := Transfer{ID: id, Workspace: workspace, Name: name, Direction: direction, State: "queued", Total: total, Sequence: a.transferSequence, Target: a.workspaces[workspace].target}
 	task := &transferTask{view: view, cancel: cancel, done: make(chan struct{}), ctx: ctx, run: run}
 	if len(specification) > 0 {
 		spec := specification[0]
 		task.spec = &spec
 		task.view.Retryable = spec.direction == "upload" || spec.direction == "download"
+		if spec.direction == "upload" {
+			task.view.SourcePath = spec.local
+			task.view.DestinationPath = spec.remote
+		} else {
+			task.view.SourcePath = spec.remote
+			task.view.DestinationPath = spec.local
+		}
 	}
 	a.transfers[id] = task
 	a.transferQueue = append(a.transferQueue, id)

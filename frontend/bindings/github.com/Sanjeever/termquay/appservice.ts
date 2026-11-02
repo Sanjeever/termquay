@@ -37,6 +37,10 @@ export function CancelTransfer(id: string): $CancellablePromise<void> {
     return $Call.ByID(3298982059, id);
 }
 
+export function ClearFinishedTransfers(): $CancellablePromise<string[] | null> {
+    return $Call.ByID(1200200375);
+}
+
 export function ClearRecentConnections(): $CancellablePromise<void> {
     return $Call.ByID(4132811105);
 }

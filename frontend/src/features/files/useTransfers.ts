@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Events } from '@wailsio/runtime';
-import { CancelTransfer, ClearTransfer, ListTransfers, RetryTransfer } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
+import { CancelTransfer, ClearTransfer, ClearFinishedTransfers, ListTransfers, RetryTransfer } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
 import type { Transfer } from '../../../bindings/github.com/Sanjeever/termquay/models';
 
 export default function useTransfers() {
@@ -16,5 +16,6 @@ export default function useTransfers() {
   async function cancel(id: string) { try { await CancelTransfer(id); setError(''); } catch (e) { setError(String(e)); } }
   async function clear(id: string) { try { await ClearTransfer(id); setTransfers(prev => { const next = { ...prev }; delete next[id]; return next; }); setError(''); } catch (e) { setError(String(e)); } }
   async function retry(id:string,name:string,overwrite:boolean){try{await RetryTransfer(id,name,overwrite);setError('');return true;}catch(e){setError(String(e));return false;}}
-  return { items, error, cancel, clear, retry, running: items.filter(t => t.state === 'running').length, waiting:items.filter(t=>t.state==='queued').length, failed: items.filter(t => t.state === 'failed').length };
+  async function clearFinished(){try{const removed=new Set(await ClearFinishedTransfers()||[]);setTransfers(prev=>Object.fromEntries(Object.entries(prev).filter(([id])=>!removed.has(id))));setError('');}catch(e){setError(String(e));}}
+  return { items, error, cancel, clear, clearFinished, retry, running: items.filter(t => t.state === 'running').length, waiting:items.filter(t=>t.state==='queued').length, failed: items.filter(t => t.state === 'failed').length };
 }

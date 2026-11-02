@@ -35,6 +35,7 @@ type pendingTerminal struct {
 }
 
 type workspaceOwner struct {
+	target   string
 	terminal *terminal.Terminal
 	ctx      context.Context
 	cancel   context.CancelFunc
@@ -189,7 +190,7 @@ func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (Open
 	}
 	t.KeepConnection()
 	ownerCtx, ownerCancel := context.WithCancel(context.Background())
-	owner := &workspaceOwner{terminal: t, ctx: ownerCtx, cancel: ownerCancel}
+	owner := &workspaceOwner{terminal: t, ctx: ownerCtx, cancel: ownerCancel, target: r.Username + "@" + net.JoinHostPort(r.Host, strconv.Itoa(r.Port))}
 	a.workspaces[id] = owner
 	go func() { t.WaitConnection(); a.CloseWorkspace(id) }()
 	owner.timer = time.AfterFunc(15*time.Second, func() {

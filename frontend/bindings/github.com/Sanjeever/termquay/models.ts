@@ -161,6 +161,9 @@ export interface Transfer {
     "error": string;
     "sequence": number;
     "retryable": boolean;
+    "target": string;
+    "source_path": string;
+    "destination_path": string;
 }
 
 export interface TransferBatch {

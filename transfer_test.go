@@ -66,8 +66,9 @@ func TestDownloadBatchUsesBoundedQueue(t *testing.T) {
 	if err != nil || len(batch.Items) != 32 || len(batch.Errors) != 32 {
 		t.Fatalf("批量下载绕过限额: items=%d errors=%d err=%v", len(batch.Items), len(batch.Errors), err)
 	}
-	for _, view := range a.ListTransfers() {
-		a.CancelTransfer(view.ID)
+	views := a.ListTransfers()
+	for i := len(views) - 1; i >= 0; i-- {
+		a.CancelTransfer(views[i].ID)
 	}
 	for _, task := range a.transfers {
 		select {
@@ -80,6 +81,42 @@ func TestDownloadBatchUsesBoundedQueue(t *testing.T) {
 		if err := validateRemotePaths(paths); err == nil {
 			t.Fatal("接受无效路径批次")
 		}
+	}
+}
+
+func TestClearFinishedTransfersPreservesActiveAndTarget(t *testing.T) {
+	a := NewAppService()
+	a.transferEvent = func(Transfer) {}
+	a.workspaces["test"] = &workspaceOwner{target: "test@example.invalid:22"}
+	views := []Transfer{}
+	for i := 0; i < 3; i++ {
+		v, err := a.startTransfer("test", "file", "upload", 0, func(ctx context.Context, _ func(int64, int64)) error { <-ctx.Done(); return ctx.Err() }, transferSpec{direction: "upload", local: "/tmp/source", remote: "/remote/target"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		views = append(views, v)
+	}
+	a.transfers["finished"] = &transferTask{view: Transfer{ID: "finished", State: "done"}}
+	removed := a.ClearFinishedTransfers()
+	if len(removed) != 1 || removed[0] != "finished" || len(a.ListTransfers()) != 3 {
+		t.Fatal("清理移除了活动任务")
+	}
+	for _, v := range views {
+		if v.Target != "test@example.invalid:22" || v.SourcePath != "/tmp/source" || v.DestinationPath != "/remote/target" {
+			t.Fatal("传输未保存所属目标和路径")
+		}
+		a.CancelTransfer(v.ID)
+	}
+	for _, task := range a.transfers {
+		select {
+		case <-task.done:
+		case <-time.After(3 * time.Second):
+			t.Fatal("取消未完成")
+		}
+	}
+	delete(a.workspaces, "test")
+	if a.ListTransfers()[0].Target != "test@example.invalid:22" {
+		t.Fatal("工作区关闭丢失传输目标")
 	}
 }
 
