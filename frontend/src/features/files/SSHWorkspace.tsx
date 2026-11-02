@@ -1,84 +1,102 @@
-import { useEffect, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Button } from '@heroui/react';
+import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
 import { Stream } from '@wailsio/runtime';
-import { ReadDirectory, ReadRemoteFile, SaveRemoteFile, CreateRemoteDirectory, RenameRemotePath, DeleteRemotePath, CreateTerminal, CloseWorkspace, StartUpload, StartDownload,SetWorkspaceDirty } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
+import { ReadRemoteFile, SaveRemoteFile, CreateTerminal, CloseWorkspace, SetWorkspaceDirty } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
 import type { Document, Entry } from '../../../bindings/github.com/Sanjeever/termquay/internal/files/models';
 import TerminalView from '../terminal/TerminalView';
 import CodeEditor from './CodeEditor';
+import FileBrowser from './FileBrowser';
 import MonitorPanel from '../monitor/MonitorPanel';
+import Icon from '../../components/Icon';
 
 type Draft = Document & { saved: string; error: string; saving: boolean };
+export type SSHWorkspaceHandle = { saveAll(): Promise<boolean> };
 
-export default function SSHWorkspace({ id, visible, sidebarHost, filesVisible, monitorVisible, onDirtyChange,onTransferStarted }: { id: string; visible: boolean; sidebarHost: HTMLDivElement | null; filesVisible: boolean; monitorVisible: boolean; onDirtyChange(dirty: boolean): void;onTransferStarted():void }) {
-  const [directory, setDirectory] = useState('');
-  const [entries, setEntries] = useState<Entry[]>([]);
+const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
+  id: string; visible: boolean; sidebarHost: HTMLDivElement | null; filesVisible: boolean; monitorVisible: boolean; fontSize?: number; onDirtyChange(dirty: boolean): void;
+}>(function SSHWorkspace({ id, visible, sidebarHost, filesVisible, monitorVisible, fontSize = 14, onDirtyChange }, ref) {
   const [error, setError] = useState('');
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [active, setActive] = useState(id);
-  const [terminals,setTerminals]=useState([id]);
-  const [action, setAction] = useState<{ kind: string; path: string }>();
+  const [terminals, setTerminals] = useState([id]);
   const [closing, setClosing] = useState('');
-  const pending = useRef<ReturnType<typeof ReadDirectory>>();
-  const dirtyCallback=useRef(onDirtyChange);dirtyCallback.current=onDirtyChange;
+  const [rereading, setRereading] = useState('');
+  const [creating, setCreating] = useState(false);
+  const draftsRef = useRef(drafts);
+  const disposed = useRef(false);
+  const reads = useRef(new Map<string, ReturnType<typeof ReadRemoteFile>>());
+  const saves = useRef(new Map<string, Promise<boolean>>());
+  const dirtyCallback = useRef(onDirtyChange); dirtyCallback.current = onDirtyChange;
+  const dirty = drafts.some(d => d.content !== d.saved);
 
-  const dirty = drafts.some((d) => d.content !== d.saved);
-  useEffect(()=>{let disposed=false;const owner=Stream('workspace');owner.onopen=()=>owner.send(new TextEncoder().encode(id));owner.onclose=()=>{if(!disposed)setError('SSH 工作区已断开')};return()=>{disposed=true;owner.close();CloseWorkspace(id).catch(()=>{})}},[id]);
-  useEffect(() => { dirtyCallback.current(dirty);SetWorkspaceDirty(id,dirty).catch(e=>setError(String(e))); }, [dirty,id]);
-  useEffect(() => { const handler = (event: BeforeUnloadEvent) => { if (dirty) { event.preventDefault(); event.returnValue = ''; } }; window.addEventListener('beforeunload', handler); return () => window.removeEventListener('beforeunload', handler); }, [dirty]);
-
-  async function load(remote: string) {
-    pending.current?.cancel(); setError('');
-    const request = ReadDirectory(id, remote); pending.current = request;
-    try { const result = await request; if (pending.current !== request) return; setEntries(result.entries??[]); setDirectory(result.path); } catch (e) { if (pending.current === request) setError(String(e)); }
-  }
-  useEffect(() => { void load(''); return () => { pending.current?.cancel(); }; }, [id]);
+  function updateDrafts(update: (prev: Draft[]) => Draft[]) { const next = update(draftsRef.current); draftsRef.current = next; setDrafts(next); }
+  useEffect(() => {
+    disposed.current = false;
+    const owner = Stream('workspace'); owner.onopen = () => owner.send(new TextEncoder().encode(id)); owner.onclose = () => { if (!disposed.current) setError('SSH 工作区已断开'); };
+    return () => { disposed.current = true; for (const read of reads.current.values()) read.cancel(); reads.current.clear(); owner.close(); CloseWorkspace(id).catch(() => {}); };
+  }, [id]);
+  useEffect(() => { dirtyCallback.current(dirty); SetWorkspaceDirty(id, dirty).catch(e => setError(String(e))); }, [dirty, id]);
+  useEffect(() => { const handler = (event: BeforeUnloadEvent) => { if (draftsRef.current.some(d => d.content !== d.saved)) { event.preventDefault(); event.returnValue = ''; } }; window.addEventListener('beforeunload', handler); return () => window.removeEventListener('beforeunload', handler); }, []);
 
   async function open(entry: Entry) {
-    if (entry.directory) { await load(entry.path); return; }
-    if (drafts.some((d) => d.path === entry.path)) { setActive(entry.path); return; }
-    try { const document = await ReadRemoteFile(id, entry.path); setDrafts((prev) => [...prev, { ...document, saved: document.content, error: '', saving: false }]); setActive(entry.path); } catch (e) { setError(String(e)); }
+    if (draftsRef.current.some(d => d.path === entry.path)) { setActive(entry.path); return; }
+    if (reads.current.has(entry.path)) return;
+    const request = ReadRemoteFile(id, entry.path); reads.current.set(entry.path, request);
+    try { const doc = await request; if (disposed.current) return; updateDrafts(prev => [...prev, { ...doc, saved: doc.content, error: '', saving: false }]); setActive(entry.path); }
+    finally { reads.current.delete(entry.path); }
   }
-
-  async function save(draft: Draft) {
-    if (draft.saving) return;
-    setDrafts((prev) => prev.map((d) => d.path === draft.path ? { ...d, saving: true, error: '' } : d));
-    try {
-      const result = await SaveRemoteFile(id, { path: draft.path, content: draft.content, revision: draft.revision });
-      setDrafts((prev) => prev.map((d) => d.path === draft.path ? { ...d, saved: result.content, revision: result.revision, saving: false } : d));
-    } catch (e) { setDrafts((prev) => prev.map((d) => d.path === draft.path ? { ...d, saving: false, error: String(e) } : d)); }
+  async function save(path: string): Promise<boolean> {
+    const pending = saves.current.get(path); if (pending) return pending;
+    const draft = draftsRef.current.find(d => d.path === path); if (!draft) return true;
+    if (draft.content === draft.saved) return true;
+    updateDrafts(prev => prev.map(d => d.path === path ? { ...d, saving: true, error: '' } : d));
+    const operation = (async () => {
+      try {
+        const result = await SaveRemoteFile(id, { path, content: draft.content, revision: draft.revision });
+        if (disposed.current) return false;
+        updateDrafts(prev => prev.map(d => d.path === path ? { ...d, saved: result.content, revision: result.revision, saving: false } : d));
+        return draftsRef.current.find(d => d.path === path)?.content === result.content;
+      } catch (e) { if (!disposed.current) updateDrafts(prev => prev.map(d => d.path === path ? { ...d, saving: false, error: String(e) } : d)); return false; }
+      finally { saves.current.delete(path); }
+    })();
+    saves.current.set(path, operation); return operation;
   }
+  useImperativeHandle(ref, () => ({ async saveAll() { for (const draft of draftsRef.current) { if (!await save(draft.path)) { setActive(draft.path); return false; } } return !draftsRef.current.some(d => d.content !== d.saved); } }));
 
   function close(path: string, discard = false) {
-    if (!discard && drafts.find((d) => d.path === path && d.content !== d.saved)) { setClosing(path); return; }
-    setDrafts((prev) => prev.filter((d) => d.path !== path)); if (active === path) setActive(terminals[0]||''); setClosing('');
+    const draft = draftsRef.current.find(d => d.path === path);
+    if (draft?.saving) return;
+    if (!discard && draft && draft.content !== draft.saved) { setClosing(path); return; }
+    updateDrafts(prev => prev.filter(d => d.path !== path)); if (active === path) setActive(terminals[0] || draftsRef.current[0]?.path || ''); setClosing('');
   }
-
-  async function perform(form: HTMLFormElement) {
-    if (!action) return; const data = new FormData(form); const name = String(data.get('name'));
-    try {
-      if (action.kind === 'mkdir') await CreateRemoteDirectory(id, `${directory.replace(/\/$/, '')}/${name}`);
-      if (action.kind === 'rename') await RenameRemotePath(id, action.path, `${action.path.slice(0, action.path.lastIndexOf('/') + 1)}${name}`);
-      if (action.kind === 'delete') await DeleteRemotePath(id, action.path);
-      setAction(undefined); await load(directory);
-    } catch (e) { setError(String(e)); }
+  async function reread(path: string) {
+    setError(''); const request = ReadRemoteFile(id, path); reads.current.set(path, request);
+    try { const doc = await request; if (!disposed.current) { updateDrafts(prev => prev.map(d => d.path === path ? { ...doc, saved: doc.content, saving: false, error: '' } : d)); setRereading(''); } }
+    catch (e) { if (!disposed.current) setError(String(e)); } finally { reads.current.delete(path); }
   }
-
+  const closingDraft = drafts.find(d => d.path === closing);
   return <div className="ssh-workspace">
-    {sidebarHost && createPortal(<div hidden={!filesVisible}>
-      <aside className="file-panel">
-        <div className="file-toolbar"><button aria-label="上级目录" onClick={() => void load(directory.slice(0, directory.lastIndexOf('/')) || '/')}>↑</button><button aria-label="刷新目录" onClick={() => void load(directory)}>刷新</button><button onClick={() => setAction({ kind: 'mkdir', path: directory })}>新建目录</button><button onClick={()=>{StartUpload(id,directory).then(result=>{if(result.id)onTransferStarted()}).catch(e=>setError(String(e)))}}>上传</button></div>
-        <form onSubmit={(e) => { e.preventDefault(); void load(String(new FormData(e.currentTarget).get('path'))); }}><input key={directory} name="path" aria-label="远端目录" defaultValue={directory} /></form>
-        {error && <p role="alert" className="error">{error}</p>}
-        {action && <form className="file-action" onSubmit={(e) => { e.preventDefault(); void perform(e.currentTarget); }}>{action.kind === 'delete' ? <span>删除 {action.path.split('/').pop()}？</span> : <input name="name" aria-label={action.kind === 'mkdir' ? '新目录名称' : '新名称'} defaultValue={action.kind === 'rename' ? action.path.split('/').pop() : ''} required pattern="[^/]+" />}<div className="button-row"><Button size="sm" type="submit" color={action.kind === 'delete' ? 'danger' : 'default'}>确认</Button><Button size="sm" variant="light" onPress={() => setAction(undefined)}>取消</Button></div></form>}
-        <ul className="file-list">{entries.map((entry) => <li key={entry.path}><button className="file-name" onClick={() => void open(entry)} title={`${entry.mode} · ${entry.size} 字节`}><span>{entry.directory ? '▸' : entry.symlink ? '↗' : '·'}</span>{entry.name}</button><details><summary aria-label={`${entry.name} 操作`}>⋯</summary><div className="file-menu">{!entry.directory&&<button onClick={()=>{StartDownload(id,entry.path).then(result=>{if(result.id)onTransferStarted()}).catch(e=>setError(String(e)))}}>下载</button>}<button onClick={() => setAction({ kind: 'rename', path: entry.path })}>重命名</button><button onClick={() => setAction({ kind: 'delete', path: entry.path })}>删除</button></div></details></li>)}</ul>
-      </aside>
-    </div>, sidebarHost)}
+    {sidebarHost && createPortal(<div hidden={!filesVisible}><FileBrowser id={id} visible={filesVisible} onOpen={open} /></div>, sidebarHost)}
     <div className="ssh-center">
-      <div className="inner-tabs">{terminals.map((terminal,index)=><div key={terminal} className={active===terminal?'selected':''}><button onClick={()=>setActive(terminal)}>终端 {index+1}</button><button aria-label={`关闭终端 ${index+1}`} onClick={()=>{setTerminals(prev=>prev.filter(t=>t!==terminal));if(active===terminal)setActive(terminals.find(t=>t!==terminal)||drafts[0]?.path||'')}}>×</button></div>)}<button aria-label="新建终端" onClick={()=>{CreateTerminal(id).then(result=>{setTerminals(prev=>[...prev,result.id]);setActive(result.id)}).catch(e=>setError(String(e)))}}>＋</button>{drafts.map((d) => <div key={d.path} className={active === d.path ? 'selected' : ''}><button title={d.path} onClick={() => setActive(d.path)}>{d.path.split('/').pop()}{d.content !== d.saved ? ' ●' : ''}</button><button aria-label={`关闭文件 ${d.path}`} onClick={() => close(d.path)}>×</button></div>)}</div>
-      {terminals.map(terminal=><div className="terminal-tab" hidden={active!==terminal} key={terminal}><TerminalView id={terminal}/></div>)}
-      {drafts.map((d) => <div key={d.path} className="editor-tab" hidden={active !== d.path}><div className="editor-toolbar"><span>{d.path}</span><Button size="sm" isDisabled={d.saving || d.content === d.saved} onPress={() => void save(d)}>保存</Button></div>{d.error && <p role="alert" className="error">{d.error}</p>}{closing === d.path && <div className="draft-confirm">文件有未保存修改<Button size="sm" onPress={() => { void save(d); setClosing(''); }}>保存</Button><Button size="sm" color="danger" onPress={() => close(d.path, true)}>放弃修改</Button><Button size="sm" variant="light" onPress={() => setClosing('')}>取消</Button></div>}<CodeEditor path={d.path} content={d.content} onChange={(value) => setDrafts((prev) => prev.map((item) => item.path === d.path ? { ...item, content: value } : item))} onSave={() => void save(d)} /></div>)}
+      <div className="inner-tabs" role="tablist" aria-label="终端与文件">
+        {terminals.map((terminal, index) => <div key={terminal} className={active === terminal ? 'selected' : ''}><button role="tab" aria-selected={active === terminal} onClick={() => setActive(terminal)}><Icon name="terminal" width="14" />终端 {index + 1}</button><button aria-label={`关闭终端 ${index + 1}`} onClick={() => { setTerminals(prev => prev.filter(t => t !== terminal)); if (active === terminal) setActive(terminals.find(t => t !== terminal) || drafts[0]?.path || ''); }}><Icon name="close" width="12" /></button></div>)}
+        {drafts.map(d => <div key={d.path} className={active === d.path ? 'selected' : ''}><button role="tab" aria-selected={active === d.path} title={d.path} onClick={() => setActive(d.path)}>{d.path.split('/').pop()}{d.content !== d.saved && <span className="dirty-dot" aria-label="未保存">●</span>}</button><button aria-label={`关闭文件 ${d.path}`} disabled={d.saving} onClick={() => close(d.path)}><Icon name="close" width="12" /></button></div>)}
+        <button aria-label="新建终端" disabled={creating} onClick={async () => { setCreating(true); try { const result = await CreateTerminal(id); if (disposed.current) return; setTerminals(prev => [...prev, result.id]); setActive(result.id); } catch (e) { setError(String(e)); } finally { setCreating(false); } }}><Icon name="plus" width="15" /></button>
+      </div>
+      {error && <div className="connection-feedback error" role="alert">{error}</div>}
+      {!active && <div className="workspace-empty">从标签栏新建终端或打开文件</div>}
+      {terminals.map(terminal => <div className="terminal-tab" hidden={active !== terminal} key={terminal}><TerminalView id={terminal} visible={visible && active === terminal} fontSize={fontSize} /></div>)}
+      {drafts.map(d => <div key={d.path} className="editor-tab" hidden={active !== d.path}>
+        <div className="editor-toolbar"><span title={d.path}>{d.path}</span><Button size="sm" isLoading={d.saving} isDisabled={d.content === d.saved} onPress={() => void save(d.path)}>保存</Button></div>
+        {d.error && <div className="file-save-error"><p role="alert" className="error">{d.error}</p><div className="button-row"><Button size="sm" variant="light" onPress={() => setRereading(d.path)}>重新读取</Button><Button size="sm" variant="light" onPress={() => { navigator.clipboard.writeText(d.content).catch(e => setError(String(e))); }}>复制草稿</Button></div></div>}
+        <CodeEditor path={d.path} content={d.content} visible={visible && active === d.path} onChange={value => updateDrafts(prev => prev.map(item => item.path === d.path ? { ...item, content: value } : item))} onSave={() => void save(d.path)} />
+      </div>)}
     </div>
-    {visible && monitorVisible && <MonitorPanel id={id}/>}
+    {visible && monitorVisible && <MonitorPanel id={id} />}
+    <Modal isOpen={!!closingDraft} onClose={() => !closingDraft?.saving && setClosing('')} className="app-dialog"><ModalContent><ModalHeader>保存文件修改？</ModalHeader><ModalBody><p className="file-path">{closing}</p>{closingDraft?.error && <p className="error" role="alert">{closingDraft.error}</p>}</ModalBody><ModalFooter><Button variant="light" isDisabled={closingDraft?.saving} onPress={() => setClosing('')}>取消</Button><Button color="danger" variant="light" isDisabled={closingDraft?.saving} onPress={() => close(closing, true)}>放弃修改</Button><Button color="primary" isLoading={closingDraft?.saving} onPress={async () => { if (await save(closing)) close(closing, true); }}>保存并关闭</Button></ModalFooter></ModalContent></Modal>
+    <Modal isOpen={!!rereading} onClose={() => setRereading('')} className="app-dialog"><ModalContent><ModalHeader>重新读取远端文件</ModalHeader><ModalBody><p className="file-path">{rereading}</p><p>将覆盖此文件的本地草稿。请先复制需要保留的内容。</p>{error && <p className="error" role="alert">{error}</p>}</ModalBody><ModalFooter><Button variant="light" onPress={() => setRereading('')}>取消</Button><Button color="danger" onPress={() => void reread(rereading)}>放弃草稿并重新读取</Button></ModalFooter></ModalContent></Modal>
   </div>;
-}
+});
+
+export default SSHWorkspace;

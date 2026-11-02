@@ -5,21 +5,26 @@ import { FitAddon } from '@xterm/addon-fit';
 import { CloseTerminal, ResizeTerminal } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
 import '@xterm/xterm/css/xterm.css';
 
-export default function TerminalView({ id }: { id: string }) {
+export default function TerminalView({ id, visible, fontSize }: { id: string; visible: boolean; fontSize: number }) {
   const container = useRef<HTMLDivElement>(null);
   const [error, setError] = useState('');
   const [connected, setConnected] = useState<boolean|null>(null);
+  const terminal = useRef<Terminal>();
+  const fitAddon = useRef<FitAddon>();
+  const shown = useRef(visible); shown.current = visible;
   useEffect(() => {
     const term = new Terminal({
-      fontFamily: '"SFMono-Regular", Consolas, "Liberation Mono", monospace',
-      fontSize: 13, lineHeight: 1.2, scrollback: 5000, cursorBlink: true,
-      allowProposedApi: false, theme: { background: '#121418', foreground: '#d7dce2', cursor: '#8fc6b4', selectionBackground: '#344c50' },
+      fontFamily: getComputedStyle(document.documentElement).getPropertyValue('--font-mono'),
+      fontSize, lineHeight: 1.3, scrollback: 5000, cursorBlink: true,
+      allowProposedApi: false, theme: { background: '#101216', foreground: '#e6e9ef', cursor: '#8ba7ff', selectionBackground: '#252f48' },
     });
     const fit = new FitAddon(); term.loadAddon(fit); term.open(container.current!);
+    terminal.current = term; fitAddon.current = fit;
+    const fitVisible = () => { if (container.current && container.current.clientWidth > 0 && container.current.clientHeight > 0) fit.fit(); };
     const stream = Stream('terminal');
     let disposed = false;
     const fail = (e: unknown) => { if (!disposed) setError(String(e)); };
-    stream.onopen = () => { stream.send(new TextEncoder().encode(id)); setConnected(true); fit.fit(); term.focus(); };
+    stream.onopen = () => { stream.send(new TextEncoder().encode(id)); setConnected(true); fitVisible(); if (shown.current) term.focus(); };
     stream.onmessage = (event) => {
       const bytes = new Uint8Array(event.data);
       term.write(bytes, () => {
@@ -41,13 +46,14 @@ export default function TerminalView({ id }: { id: string }) {
       }
     });
     const resize = term.onResize(({ cols, rows }) => { if (stream.readyState === stream.OPEN) ResizeTerminal(id, cols, rows).catch(fail); });
-    const observer = new ResizeObserver(() => fit.fit()); observer.observe(container.current!);
+    const observer = new ResizeObserver(fitVisible); observer.observe(container.current!);
     const unsubscribe = Events.On('terminal:error', (event) => {
       const data = event.data as { id: string; error: string };
       if (data.id === id) fail(data.error);
     });
-    return () => { disposed = true; observer.disconnect(); unsubscribe(); input.dispose(); resize.dispose(); stream.close(); term.dispose(); CloseTerminal(id).catch(() => {}); };
+    return () => { disposed = true; observer.disconnect(); unsubscribe(); input.dispose(); resize.dispose(); stream.close(); term.dispose(); terminal.current = undefined; fitAddon.current = undefined; CloseTerminal(id).catch(() => {}); };
   }, [id]);
+  useEffect(() => { if (!terminal.current) return; terminal.current.options.fontSize = fontSize; if (visible && container.current?.clientWidth && container.current.clientHeight) { fitAddon.current?.fit(); terminal.current.focus(); } }, [visible, fontSize]);
   return <div className="terminal-view">
     <div className="terminal-canvas" ref={container} />
     <div className="session-status"><span>{connected===null?'连接中':connected ? '已连接' : '已断开'}</span>{error && <span role="alert" className="error">{error}</span>}</div>

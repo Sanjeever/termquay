@@ -5,7 +5,7 @@ import { Button, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Toolt
 import { GetCatalog, UseSessionStorage, DiscardAndQuit } from '../bindings/github.com/Sanjeever/termquay/appservice';
 import type { Connection, Group } from '../bindings/github.com/Sanjeever/termquay/internal/store/models';
 import type { Grant } from '../bindings/github.com/Sanjeever/termquay/internal/rdp/models';
-import SSHWorkspace from './features/files/SSHWorkspace';
+import SSHWorkspace, { type SSHWorkspaceHandle } from './features/files/SSHWorkspace';
 import RDPView, { type RDPHandle } from './features/rdp/RDPView';
 import BackupSettings from './features/settings/BackupSettings';
 import TransferPanel from './features/files/TransferPanel';
@@ -17,7 +17,7 @@ import HostTrustDialog from './features/connections/HostTrustDialog';
 import useConnectionAttempt from './features/connections/useConnectionAttempt';
 import Icon from './components/Icon';
 
-type Workspace = { id: string; connectionID: string; name: string; rdp?: Grant; view?: RefObject<RDPHandle>; dirty?: boolean };
+type Workspace = { id: string; connectionID: string; name: string; rdp?: Grant; view?: RefObject<RDPHandle>; ssh?: RefObject<SSHWorkspaceHandle>; dirty?: boolean };
 
 export default function App() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -32,6 +32,8 @@ export default function App() {
   const [focus, setFocus] = useState(false);
   const [closing, setClosing] = useState('');
   const [quitConfirm, setQuitConfirm] = useState(false);
+  const [savingClose, setSavingClose] = useState(false);
+  const [closeError, setCloseError] = useState('');
   const [transfersOpen, setTransfersOpen] = useState(false);
   const [monitorOpen, setMonitorOpen] = useState(localStorage.getItem('termquay.layout.monitor') === 'true');
   const current = workspaces.find(w => w.id === active);
@@ -43,7 +45,7 @@ export default function App() {
   }
   function select(id: string) { setActive(id); setSettings(false); }
   const attempt = useConnectionAttempt((id, connection) => {
-    setWorkspaces(prev => [...prev, { id, connectionID: connection.id, name: connection.name }]); select(id);
+    setWorkspaces(prev => [...prev, { id, connectionID: connection.id, name: connection.name, ssh: createRef<SSHWorkspaceHandle>() }]); select(id);
   }, async (grant, connection, username, password, domain) => {
     const view = createRef<RDPHandle>();
     flushSync(() => { setWorkspaces(prev => [...prev, { id: grant.id, connectionID: connection.id, name: connection.name, rdp: grant, view }]); select(grant.id); });
@@ -74,11 +76,18 @@ export default function App() {
       {!dialog && (attempt.busy || attempt.error) && <div className="connection-feedback" role={attempt.error ? 'alert' : 'status'}><span className={attempt.error ? 'error' : ''}>{attempt.target} · {attempt.error || '正在连接…'}</span>{attempt.busy && <Button size="sm" variant="light" onPress={attempt.cancel}>取消连接</Button>}{!attempt.busy && <button className="icon-button" aria-label="关闭连接错误" onClick={attempt.clearError}><Icon name="close" /></button>}</div>}
       {settings && <BackupSettings onRestore={() => void reload()} />}
       {!current && !settings && <div className="workspace-empty"><div className="button-row"><Button variant="bordered" onPress={() => openDialog(false)}>新建连接</Button><Button variant="light" onPress={() => openDialog(true)}>快速连接</Button></div></div>}
-      {workspaces.map(w => <div className="workspace" hidden={settings || active !== w.id} key={w.id}>{w.rdp ? <RDPView grant={w.rdp} ref={w.view} /> : <SSHWorkspace id={w.id} visible={!settings && active === w.id} sidebarHost={sidebarHost} filesVisible={sidebar === 'files' && !focus && !settings && active === w.id} monitorVisible={monitorOpen && !focus && !settings && active === w.id} onDirtyChange={dirty => setWorkspaces(prev => prev.map(item => item.id === w.id ? { ...item, dirty } : item))} onTransferStarted={() => {}} />}</div>)}
+      {workspaces.map(w => <div className="workspace" hidden={settings || active !== w.id} key={w.id}>{w.rdp ? <RDPView grant={w.rdp} ref={w.view} /> : <SSHWorkspace id={w.id} ref={w.ssh} visible={!settings && active === w.id} sidebarHost={sidebarHost} filesVisible={sidebar === 'files' && !focus && !settings && active === w.id} monitorVisible={monitorOpen && !focus && !settings && active === w.id} onDirtyChange={dirty => setWorkspaces(prev => prev.map(item => item.id === w.id ? { ...item, dirty } : item))} />}</div>)}
       {transfersOpen && <TransferPanel />}
     </Workbench>
     {dialog && <ConnectionDialog {...dialog} groups={catalog?.groups || []} busy={attempt.busy} connectionError={attempt.error} onConnect={attempt.start} onSaved={() => void reload()} onClose={() => setDialog(undefined)} onCancel={attempt.cancel} />}
     <HostTrustDialog target={attempt.trust} onConfirm={attempt.confirm} />
-    <Modal isOpen={!!closing || quitConfirm} onClose={() => { setClosing(''); setQuitConfirm(false); }} className="app-dialog"><ModalContent><ModalHeader>未保存文件</ModalHeader><ModalBody><p>{quitConfirm ? '应用中有未保存修改。' : '此工作区有未保存修改。'}</p></ModalBody><ModalFooter><Button variant="light" onPress={() => { setClosing(''); setQuitConfirm(false); }}>返回编辑</Button><Button color="danger" onPress={() => { if (quitConfirm) void DiscardAndQuit(); else remove(closing); setClosing(''); }}>放弃修改并{quitConfirm ? '退出' : '关闭'}</Button></ModalFooter></ModalContent></Modal>
+    <Modal isOpen={!!closing || quitConfirm} onClose={() => { if (!savingClose) { setClosing(''); setQuitConfirm(false); setCloseError(''); } }} isDismissable={!savingClose} isKeyboardDismissDisabled={savingClose} className="app-dialog"><ModalContent><ModalHeader>未保存文件</ModalHeader><ModalBody><p>{quitConfirm ? '应用中有未保存修改。' : '此工作区有未保存修改。'}</p>{closeError && <p className="error" role="alert">{closeError}</p>}</ModalBody><ModalFooter><Button variant="light" isDisabled={savingClose} onPress={() => { setClosing(''); setQuitConfirm(false); setCloseError(''); }}>返回编辑</Button><Button color="danger" variant="light" isDisabled={savingClose} onPress={() => { if (quitConfirm) void DiscardAndQuit(); else remove(closing); setClosing(''); }}>放弃修改并{quitConfirm ? '退出' : '关闭'}</Button><Button color="primary" isLoading={savingClose} onPress={async () => {
+      setSavingClose(true); setCloseError('');
+      try {
+        const targets = quitConfirm ? workspaces.filter(w => w.dirty) : workspaces.filter(w => w.id === closing);
+        for (const w of targets) { if (!await w.ssh?.current?.saveAll()) { select(w.id); setCloseError('保存未完成，请返回编辑处理文件错误。'); return; } }
+        if (quitConfirm) await DiscardAndQuit(); else { remove(closing); setClosing(''); }
+      } catch (e) { setCloseError(String(e)); } finally { setSavingClose(false); }
+    }}>保存并{quitConfirm ? '退出' : '关闭'}</Button></ModalFooter></ModalContent></Modal>
   </>;
 }

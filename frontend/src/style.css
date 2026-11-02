@@ -103,6 +103,21 @@ input[type=checkbox] { accent-color: var(--color-primary); }
 .terminal-canvas { flex: 1; min-height: 0; }
 .session-status { display: flex; align-items: center; gap: 14px; flex-shrink: 0; min-height: 25px; color: var(--color-muted); font-size: 11px; padding: 4px 8px; }
 .file-panel { padding: 12px; }
+.file-panel .sidebar-heading { margin-top: -12px; }
+.path-bar { display: flex; align-items: center; border: 1px solid var(--color-border); border-radius: 4px; min-height: 32px; padding-left: 6px; }
+.breadcrumbs { display: flex; gap: 2px; flex: 1; overflow: auto; white-space: nowrap; font: 11px var(--font-mono); }
+.breadcrumbs button:hover { color: var(--color-primary); }
+.breadcrumbs span { padding: 0 3px; color: var(--color-muted); }
+.path-edit { padding: 4px 6px; color: var(--color-muted); }
+.path-form { height: 32px; }
+.path-form input { height: 32px; }
+.file-entry-name { overflow: hidden; text-overflow: ellipsis; color: var(--color-text) !important; }
+.inline-rename { display: flex; align-items: center; gap: 4px; width: 100%; }
+.inline-rename input { min-width: 0; }
+.file-path, .file-save-error { overflow-wrap: anywhere; }
+.file-save-error { padding: 8px 12px; background: var(--color-surface); }
+.native-input { background: var(--color-background); border: 1px solid var(--color-border); border-radius: 6px; min-height: 36px; padding: 8px; }
+.inner-tabs [role=tab] { display: flex; gap: 6px; align-items: center; }
 .file-toolbar { display: flex; gap: 8px; padding-bottom: 10px; font-size: 11px; color: var(--color-muted); flex-wrap: wrap; }
 .file-panel input { width: 100%; background: var(--color-background); border: 1px solid var(--color-border); padding: 5px 6px; font-size: 12px; border-radius: 4px; }
 .file-list { margin-top: 8px; }
