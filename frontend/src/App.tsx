@@ -53,12 +53,15 @@ export default function App() {
     if (keyboard) { tabNavigation.current = true; requestAnimationFrame(() => document.querySelector<HTMLElement>('.workspace-tabs [role=tab][aria-selected=true]')?.focus()); }
   }
   function select(id: string, keyboard = false) { tabNavigation.current = keyboard; setActive(id); setSettings(false); }
+  function moveWorkspace(id: string, target: string) {
+    setWorkspaces(prev => { const from = prev.findIndex(w => w.id === id); const to = prev.findIndex(w => w.id === target); if (from < 0 || to < 0 || from === to) return prev; const next = [...prev]; next.splice(to, 0, next.splice(from, 1)[0]); return next; });
+  }
   const attempt = useConnectionAttempt((id, connection) => {
     setWorkspaces(prev => [...prev, { id, connectionID: connection.id, name: connection.name, ssh: createRef<SSHWorkspaceHandle>() }]); select(id);
   }, (connection, reuse) => {
     const id = reuse || crypto.randomUUID();
     flushSync(() => {
-      setWorkspaces(prev => reuse ? prev.map(w => w.id === id ? { ...w, name: connection.name, connectionID: connection.id, rdp: { connection } } : w) : [...prev, { id, connectionID: connection.id, name: connection.name, rdp: { connection }, view: createRef<RDPHandle>() }]);
+      setWorkspaces(prev => reuse ? prev.map(w => w.id === id ? { ...w, connectionID: connection.id, rdp: { connection } } : w) : [...prev, { id, connectionID: connection.id, name: connection.name, rdp: { connection }, view: createRef<RDPHandle>() }]);
       select(id);
     });
     return id;
@@ -137,7 +140,7 @@ export default function App() {
     { id: 'settings', label: '打开设置', kind: 'command', run: () => setSettings(true) },
   ];
   return <>
-    <Workbench tabs={<WorkspaceTabs items={workspaces} active={active} onSelect={select} onClose={(id, keyboard) => { closingKeyboard.current = !!keyboard; if (workspaces.find(w => w.id === id)?.dirty) setClosing(id); else remove(id, keyboard); }} onNew={() => openDialog(false)} />} tools={tools} settings={settings}
+    <Workbench tabs={<WorkspaceTabs items={workspaces} active={active} onSelect={select} onClose={(id, keyboard) => { closingKeyboard.current = !!keyboard; if (workspaces.find(w => w.id === id)?.dirty) setClosing(id); else remove(id, keyboard); }} onNew={() => openDialog(false)} onMove={moveWorkspace} onRename={(id, name) => setWorkspaces(prev => prev.map(w => w.id === id ? { ...w, name } : w))} />} tools={tools} settings={settings}
       status={<><span>{catalog?.session_only ? '会话存储' : '本地工作台'}</span><span>{workspaces.length} 个工作区</span><div className="status-spacer" /><button className={transfers.failed || transfers.error ? 'error' : ''} aria-expanded={transfersOpen} onClick={() => setTransfersOpen(!transfersOpen)}><Icon name="transfer" width="14" />{transfers.running ? `传输 ${transfers.running} 进行中` : transfers.items.length ? `传输 ${transfers.items.length} 项` : '传输'}{transfers.failed ? ` · ${transfers.failed} 失败` : ''}{transfers.error ? ' · 加载失败' : ''}</button></>}>
       {storageError && <div className="storage-error error" role="alert">{storageError}<Button size="sm" onPress={() => { UseSessionStorage().then(reload).catch(e => setStorageError(String(e))); }}>使用会话存储</Button></div>}
       {!dialog && (attempt.busy || (attempt.error && !current?.rdp)) && <div className="connection-feedback" role={attempt.error ? 'alert' : 'status'}><span className={attempt.error ? 'error' : ''}>{attempt.target} · {attempt.error || '正在连接…'}</span>{attempt.busy && <Button size="sm" variant="light" onPress={attempt.cancel}>取消连接</Button>}{!attempt.busy && <button className="icon-button" aria-label="关闭连接错误" onClick={attempt.clearError}><Icon name="close" /></button>}</div>}
