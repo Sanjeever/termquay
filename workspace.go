@@ -16,6 +16,7 @@ type WorkspaceTarget struct {
 	Domain        string `json:"domain"`
 	AuthMethod    string `json:"auth_method,omitempty"`
 	IdentityAgent string `json:"identity_agent,omitempty"`
+	JumpID        string `json:"jump_id,omitempty"`
 }
 type WorkspaceTabLayout struct {
 	Kind string `json:"kind"`
@@ -49,7 +50,7 @@ type WorkspaceLayout struct {
 }
 
 func (layout WorkspaceLayout) validate() error {
-	if layout.Version != 1 && layout.Version != 2 {
+	if layout.Version != 1 && layout.Version != 2 && layout.Version != 3 {
 		return errors.New("工作布局版本不受支持")
 	}
 	if len(layout.Entries) > 16 {
@@ -62,6 +63,9 @@ func (layout WorkspaceLayout) validate() error {
 		}
 		seen[entry.ID] = true
 		t := entry.Target
+		if layout.Version < 3 && t.JumpID != "" {
+			return errors.New("旧布局版本不能包含跳板字段")
+		}
 		if (t.AuthMethod != "" && t.AuthMethod != "agent" && t.AuthMethod != "password" && t.AuthMethod != "private_key") || len(t.IdentityAgent) > 4096 || (t.Protocol != "ssh" && (t.AuthMethod != "" || t.IdentityAgent != "")) {
 			return errors.New("布局认证字段无效")
 		}

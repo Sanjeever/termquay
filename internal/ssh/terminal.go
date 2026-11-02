@@ -31,18 +31,21 @@ type Request struct {
 	AuthMethod      string `json:"auth_method,omitempty"`
 	IdentityAgent   string `json:"identity_agent,omitempty"`
 	PrivateKeyToken string `json:"private_key_token,omitempty"`
+	JumpID          string `json:"jump_id,omitempty"`
 }
 
 type HostKeyError struct {
 	Fingerprint string
 	Host        string
 	Port        int
+	Jump        bool
 }
 
 func (e *HostKeyError) Error() string { return "SSH 主机身份尚未确认或已变化" }
 
 type Terminal struct {
 	client          *gossh.Client
+	jump            *gossh.Client
 	session         *gossh.Session
 	Input           io.WriteCloser
 	Output          *io.PipeReader
@@ -55,6 +58,9 @@ type Terminal struct {
 }
 
 func Dial(ctx context.Context, r Request) (*Terminal, error) {
+	if r.JumpID != "" {
+		return nil, errors.New("跳板请求必须由工作区解析")
+	}
 	client, err := dialClient(ctx, r, func(ctx context.Context, address string) (net.Conn, error) {
 		return (&net.Dialer{Timeout: 15 * time.Second}).DialContext(ctx, "tcp", address)
 	})
@@ -211,6 +217,9 @@ func (t *Terminal) Close() {
 		t.session.Close()
 		if t.connectionOwner {
 			t.client.Close()
+			if t.jump != nil {
+				t.jump.Close()
+			}
 		}
 	})
 }
@@ -218,7 +227,13 @@ func (t *Terminal) Close() {
 func (t *Terminal) KeepConnection() { t.connectionOwner = false }
 
 func (t *Terminal) WaitConnection() error { return t.client.Wait() }
-func (t *Terminal) Disconnect()           { t.Close(); t.client.Close() }
+func (t *Terminal) Disconnect() {
+	t.Close()
+	t.client.Close()
+	if t.jump != nil {
+		t.jump.Close()
+	}
+}
 func (t *Terminal) OpenPTY(cols, rows int) (*Terminal, error) {
 	if cols < 1 || cols > 1000 || rows < 1 || rows > 1000 {
 		return nil, errors.New("终端尺寸无效")

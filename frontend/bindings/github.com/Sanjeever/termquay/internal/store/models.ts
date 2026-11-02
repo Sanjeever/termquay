@@ -13,6 +13,7 @@ export interface Connection {
     "credential_id": string;
     "auth_method"?: string;
     "identity_agent"?: string;
+    "jump_id"?: string;
 }
 
 export interface ConnectionPreference {

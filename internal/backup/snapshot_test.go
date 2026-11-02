@@ -103,3 +103,14 @@ func TestAgentSnapshotVersion(t *testing.T) {
 		t.Fatal("新认证字段快照兼容失败")
 	}
 }
+func TestJumpSnapshotVersion(t *testing.T) {
+	d := store.Data{Connections: []store.Connection{{ID: "jump", Name: "跳板", Protocol: "ssh", Host: "example.invalid", Port: 22}, {ID: "target", Name: "目标", Protocol: "ssh", Host: "target.invalid", Port: 22, JumpID: "jump"}}}
+	encrypted, err := Encrypt(d, "device", "test-backup-password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := Decrypt(encrypted, "test-backup-password")
+	if err != nil || snapshot.Version != 3 || snapshot.Data.Connections[1].JumpID != "jump" {
+		t.Fatal("跳板快照兼容失败")
+	}
+}

@@ -34,6 +34,11 @@ func Encrypt(d store.Data, deviceID, password string) ([]byte, error) {
 			version = 2
 		}
 	}
+	for _, c := range d.Connections {
+		if c.JumpID != "" {
+			version = 3
+		}
+	}
 	plain, err := json.Marshal(Snapshot{Version: version, DeviceID: deviceID, CreatedAt: time.Now().UTC(), Data: d})
 	if err != nil {
 		return nil, err
@@ -89,8 +94,15 @@ func Decrypt(encrypted []byte, password string) (Snapshot, error) {
 	if err = decoder.Decode(&extra); err != io.EOF {
 		return snap, errors.New("快照尾部包含额外数据")
 	}
-	if snap.Version != 1 && snap.Version != 2 {
+	if snap.Version != 1 && snap.Version != 2 && snap.Version != 3 {
 		return snap, errors.New("不支持的快照版本")
+	}
+	if snap.Version < 3 {
+		for _, c := range snap.Data.Connections {
+			if c.JumpID != "" {
+				return snap, errors.New("旧快照版本不能包含跳板字段")
+			}
+		}
 	}
 	if snap.Version == 1 {
 		for _, c := range snap.Data.Connections {

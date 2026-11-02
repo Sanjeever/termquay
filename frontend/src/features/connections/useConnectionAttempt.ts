@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { OpenTerminal, OpenSavedTerminal, ProbeRDP, TrustHost, TrustRDPCertificate, OpenRDP, OpenSavedRDP, CloseWorkspace, CloseRDP } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
+import { OpenTerminal, OpenSavedTerminal, ProbeRDP, TrustSSHHost, TrustRDPCertificate, OpenRDP, OpenSavedRDP, CloseWorkspace, CloseRDP } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
 import type { Connection } from '../../../bindings/github.com/Sanjeever/termquay/internal/store/models';
 import type { Request } from '../../../bindings/github.com/Sanjeever/termquay/internal/ssh/models';
 import type { Grant } from '../../../bindings/github.com/Sanjeever/termquay/internal/rdp/models';
@@ -26,17 +26,17 @@ export default function useConnectionAttempt(onSSH: (id: string, connection: Con
     let owned = '';
     let rdpWorkspace = '';
     const check = () => { if (attempt.cancelled) throw new Error('连接已取消'); };
-    const ask = (fingerprint: string, reason?: string) => new Promise<boolean>(resolve => { attempt.resolve = resolve; setTrust({ host: connection.host, port: connection.port, protocol: connection.protocol, fingerprint, reason }); });
+    const ask = (fingerprint: string, reason?: string,host=connection.host,port=connection.port) => new Promise<boolean>(resolve => { attempt.resolve = resolve; setTrust({ host, port, protocol: connection.protocol, fingerprint, reason }); });
     try {
       if (connection.protocol === 'ssh') {
         const open = () => auth ? OpenTerminal(auth) : OpenSavedTerminal(connection.id);
         let operation = open(); attempt.operation = operation;
         let result = await operation; owned = result.id; check();
-        if (result.trust_required) {
-          if (!await ask(result.fingerprint)) { attempt.cancelled = true; return false; }
-          check(); await TrustHost(connection.host, connection.port, result.fingerprint); check();
+        for(let review=0;result.trust_required;review++) {
+          if(review>=2)throw new Error('身份确认次数超限，请重新连接');
+          if (!await ask(result.fingerprint,result.trust_role==='jump'?'跳板机身份':result.trust_role==='target'?'跳板机后的目标身份':undefined,result.trust_host||connection.host,result.trust_port||connection.port)) { attempt.cancelled = true; return false; }
+          check(); await TrustSSHHost(result.trust_host||connection.host, result.trust_port||connection.port, result.fingerprint,result.trust_via||''); check();
           operation = open(); attempt.operation = operation; result = await operation; owned = result.id; check();
-          if (result.trust_required) throw new Error('目标身份未确认，请重新连接');
         }
         onSSH(result.id, connection, reuse); owned = '';
       } else {

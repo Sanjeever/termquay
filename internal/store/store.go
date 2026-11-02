@@ -33,6 +33,7 @@ type Connection struct {
 	CredentialID  string `json:"credential_id"`
 	AuthMethod    string `json:"auth_method,omitempty"`
 	IdentityAgent string `json:"identity_agent,omitempty"`
+	JumpID        string `json:"jump_id,omitempty"`
 }
 
 type Credential struct {
@@ -82,6 +83,7 @@ func (d Data) Validate() error {
 		kinds[c.ID] = c.Kind
 	}
 	connections := map[string]bool{}
+	configs := map[string]Connection{}
 	for _, c := range d.Connections {
 		if (c.AuthMethod != "" && c.AuthMethod != "password" && c.AuthMethod != "private_key" && c.AuthMethod != "agent") || (c.Protocol != "ssh" && (c.AuthMethod != "" || c.IdentityAgent != "")) || len(c.IdentityAgent) > 4096 || (c.AuthMethod == "agent" && c.CredentialID != "") {
 			return errors.New("连接认证配置无效")
@@ -90,6 +92,7 @@ func (d Data) Validate() error {
 			return errors.New("连接配置无效")
 		}
 		connections[c.ID] = true
+		configs[c.ID] = c
 		if c.GroupID != "" {
 			if _, ok := groups[c.GroupID]; !ok {
 				return errors.New("连接引用的分组不存在")
@@ -100,6 +103,14 @@ func (d Data) Validate() error {
 		}
 		if c.CredentialID != "" && ((c.AuthMethod == "private_key" && kinds[c.CredentialID] != "private_key") || (c.AuthMethod == "password" && kinds[c.CredentialID] != "password")) {
 			return errors.New("连接认证方式与凭据类型不一致")
+		}
+	}
+	for _, c := range d.Connections {
+		if c.JumpID != "" {
+			jump, ok := configs[c.JumpID]
+			if !ok || c.Protocol != "ssh" || jump.Protocol != "ssh" || jump.JumpID != "" || c.ID == c.JumpID {
+				return errors.New("跳板引用无效；仅支持不同 SSH 配置的单跳连接")
+			}
 		}
 	}
 	return nil

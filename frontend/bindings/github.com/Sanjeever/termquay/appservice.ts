@@ -289,6 +289,10 @@ export function TrustRDPCertificate(host: string, port: number, fingerprint: str
     return $Call.ByID(3202247973, host, port, fingerprint);
 }
 
+export function TrustSSHHost(host: string, port: number, fingerprint: string, via: string): $CancellablePromise<void> {
+    return $Call.ByID(1019255812, host, port, fingerprint, via);
+}
+
 export function UnsubscribeMonitor(id: string): $CancellablePromise<void> {
     return $Call.ByID(4106085263, id);
 }

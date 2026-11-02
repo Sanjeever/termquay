@@ -21,6 +21,10 @@ type OpenResult struct {
 	ID            string `json:"id"`
 	Fingerprint   string `json:"fingerprint"`
 	TrustRequired bool   `json:"trust_required"`
+	TrustHost     string `json:"trust_host,omitempty"`
+	TrustPort     int    `json:"trust_port,omitempty"`
+	TrustVia      string `json:"trust_via,omitempty"`
+	TrustRole     string `json:"trust_role,omitempty"`
 }
 
 type pendingTerminal struct {
@@ -76,10 +80,27 @@ func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (Open
 	if err := a.resolvePrivateKey(&r); err != nil {
 		return OpenResult{}, err
 	}
-	address := net.JoinHostPort(r.Host, strconv.Itoa(r.Port))
+	address := sshTrustKey(r.Host, r.Port, r.JumpID)
 	stored, err := a.readTrust("ssh:" + address)
 	if err != nil {
 		return OpenResult{}, err
+	}
+	var jump *terminal.Request
+	var jumpAddress, jumpStored string
+	if r.JumpID != "" {
+		request, connection, e := a.savedRequest(r.JumpID)
+		if e != nil {
+			return OpenResult{}, e
+		}
+		if connection.Protocol != "ssh" || request.JumpID != "" {
+			return OpenResult{}, errors.New("跳板必须是无跳板引用的已保存 SSH 配置")
+		}
+		jumpAddress = sshTrustKey(request.Host, request.Port, "")
+		jumpStored, e = a.readTrust("ssh:" + jumpAddress)
+		if e != nil {
+			return OpenResult{}, e
+		}
+		jump = &request
 	}
 	a.mu.Lock()
 	if a.closed || len(a.workspaces)+a.opening >= 16 || len(a.terminals)+a.opening >= 64 {
@@ -90,21 +111,46 @@ func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (Open
 		a.trusted[address] = stored
 	}
 	r.Fingerprint = a.trusted[address]
+	if jump != nil {
+		if jumpStored != "" {
+			a.trusted[jumpAddress] = jumpStored
+		}
+		jump.Fingerprint = a.trusted[jumpAddress]
+	}
 	a.opening++
 	a.mu.Unlock()
 	defer func() { a.mu.Lock(); a.opening--; a.mu.Unlock() }()
-	t, err := terminal.Dial(ctx, r)
+	var t *terminal.Terminal
+	if jump != nil {
+		t, err = terminal.DialThrough(ctx, r, *jump)
+	} else {
+		t, err = terminal.Dial(ctx, r)
+	}
 	if err != nil {
 		var identity *terminal.HostKeyError
 		if errors.As(err, &identity) {
+			via := r.JumpID
+			role := ""
+			if jump != nil {
+				role = "target"
+			}
+			if identity.Jump {
+				via = ""
+				role = "jump"
+			}
+			identityKey := sshTrustKey(identity.Host, identity.Port, via)
 			a.mu.Lock()
 			defer a.mu.Unlock()
-			if a.trusted[address] != "" {
+			if a.trusted[identityKey] != "" {
 				return OpenResult{}, errors.New("SSH 主机密钥已变化，连接已阻止")
 			}
-			a.pendingTrust[address] = identity.Fingerprint
-			return OpenResult{Fingerprint: identity.Fingerprint, TrustRequired: true}, nil
+			a.pendingTrust[identityKey] = identity.Fingerprint
+			return OpenResult{Fingerprint: identity.Fingerprint, TrustRequired: true, TrustHost: identity.Host, TrustPort: identity.Port, TrustVia: via, TrustRole: role}, nil
 		}
+		return OpenResult{}, err
+	}
+	if err = ctx.Err(); err != nil {
+		t.Disconnect()
 		return OpenResult{}, err
 	}
 	id := base64.RawURLEncoding.EncodeToString(randomBytes(24))
@@ -143,7 +189,17 @@ func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (Open
 }
 
 func (a *AppService) TrustHost(host string, port int, fingerprint string) error {
+	return a.TrustSSHHost(host, port, fingerprint, "")
+}
+func sshTrustKey(host string, port int, via string) string {
 	address := net.JoinHostPort(host, strconv.Itoa(port))
+	if via != "" {
+		return "via:" + via + ":" + address
+	}
+	return address
+}
+func (a *AppService) TrustSSHHost(host string, port int, fingerprint, via string) error {
+	address := sshTrustKey(host, port, via)
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.pendingTrust[address] != fingerprint || fingerprint == "" || a.trusted[address] != "" {

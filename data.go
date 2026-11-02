@@ -279,6 +279,11 @@ func (a *AppService) DeleteConnection(id string) error {
 	if err != nil {
 		return err
 	}
+	for _, c := range d.Connections {
+		if c.JumpID == id {
+			return errors.New("此连接仍被用作跳板机")
+		}
+	}
 	connections := d.Connections[:0]
 	credentialID := ""
 	for _, c := range d.Connections {
@@ -321,7 +326,7 @@ func (a *AppService) savedRequest(id string) (terminal.Request, store.Connection
 		if c.ID != id {
 			continue
 		}
-		r := terminal.Request{Host: c.Host, Port: c.Port, Username: c.Username, Cols: 100, Rows: 30, AuthMethod: c.AuthMethod, IdentityAgent: c.IdentityAgent}
+		r := terminal.Request{Host: c.Host, Port: c.Port, Username: c.Username, Cols: 100, Rows: 30, AuthMethod: c.AuthMethod, IdentityAgent: c.IdentityAgent, JumpID: c.JumpID}
 		for _, credential := range d.Credentials {
 			if credential.ID != c.CredentialID {
 				continue

@@ -14,4 +14,5 @@ export interface Request {
     "auth_method"?: string;
     "identity_agent"?: string;
     "private_key_token"?: string;
+    "jump_id"?: string;
 }

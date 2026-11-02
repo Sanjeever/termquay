@@ -44,6 +44,10 @@ export interface OpenResult {
     "id": string;
     "fingerprint": string;
     "trust_required": boolean;
+    "trust_host"?: string;
+    "trust_port"?: number;
+    "trust_via"?: string;
+    "trust_role"?: string;
 }
 
 export interface PrivateKeySelection {
@@ -175,4 +179,5 @@ export interface WorkspaceTarget {
     "domain": string;
     "auth_method"?: string;
     "identity_agent"?: string;
+    "jump_id"?: string;
 }
