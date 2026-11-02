@@ -19,14 +19,14 @@ import useConnectionAttempt from './features/connections/useConnectionAttempt';
 import Icon from './components/Icon';
 import CommandPalette, { type WorkbenchCommand } from './components/CommandPalette';
 
-type Workspace = { id: string; connectionID: string; name: string; rdp?: Grant; view?: RefObject<RDPHandle>; ssh?: RefObject<SSHWorkspaceHandle>; dirty?: boolean };
+type Workspace = { id: string; connectionID: string; name: string; rdp?: { connection: Connection; grant?: Grant; error?: string }; view?: RefObject<RDPHandle>; ssh?: RefObject<SSHWorkspaceHandle>; dirty?: boolean };
 
 export default function App() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [active, setActive] = useState('');
   const [catalog, setCatalog] = useState<{ groups: Group[]; connections: Connection[]; session_only: boolean }>();
   const [storageError, setStorageError] = useState('');
-  const [dialog, setDialog] = useState<{ connection?: Connection; temporary: boolean }>();
+  const [dialog, setDialog] = useState<{ connection?: Connection; temporary: boolean; workspaceID?: string }>();
   const [sidebar, setSidebar] = useState<SidebarMode>(localStorage.getItem('termquay.layout.sidebar') === 'closed' ? null : 'connections');
   const [sidebarWidth, setSidebarWidth] = useState(Number(localStorage.getItem('termquay.layout.sidebar-width')) || 248);
   const [sidebarHost, setSidebarHost] = useState<HTMLDivElement | null>(null);
@@ -48,17 +48,27 @@ export default function App() {
   const tabNavigation = useRef(false);
 
   function remove(id: string) {
+    attempt.cancelWorkspace(id);
+    latestWorkspaces.current.find(w => w.id === id)?.view?.current?.cancel();
     setWorkspaces(prev => prev.filter(w => w.id !== id));
     setActive(prev => prev === id ? latestWorkspaces.current.find(w => w.id !== id)?.id || '' : prev);
   }
   function select(id: string, keyboard = false) { tabNavigation.current = keyboard; setActive(id); setSettings(false); }
   const attempt = useConnectionAttempt((id, connection) => {
     setWorkspaces(prev => [...prev, { id, connectionID: connection.id, name: connection.name, ssh: createRef<SSHWorkspaceHandle>() }]); select(id);
-  }, async (grant, connection, username, password, domain) => {
-    const view = createRef<RDPHandle>();
-    flushSync(() => { setWorkspaces(prev => [...prev, { id: grant.id, connectionID: connection.id, name: connection.name, rdp: grant, view }]); select(grant.id); });
-    await view.current!.connect(username, password, domain);
-  }, remove);
+  }, (connection, reuse) => {
+    const id = reuse || crypto.randomUUID();
+    flushSync(() => {
+      setWorkspaces(prev => reuse ? prev.map(w => w.id === id ? { ...w, name: connection.name, connectionID: connection.id, rdp: { connection } } : w) : [...prev, { id, connectionID: connection.id, name: connection.name, rdp: { connection }, view: createRef<RDPHandle>() }]);
+      select(id);
+    });
+    return id;
+  }, async (id, grant, username, password, domain) => {
+    flushSync(() => setWorkspaces(prev => prev.map(w => w.id === id ? { ...w, rdp: { connection: w.rdp!.connection, grant } } : w)));
+    const view = latestWorkspaces.current.find(w => w.id === id)?.view?.current;
+    if (!view) throw new Error('工作区已关闭');
+    await view.connect(username, password, domain);
+  }, (id, error) => setWorkspaces(prev => prev.map(w => w.id === id ? { ...w, rdp: { connection: w.rdp!.connection, error } } : w)), id => latestWorkspaces.current.find(w => w.id === id)?.view?.current?.cancel(), remove);
 
   async function reload() { try { const data = await GetCatalog(); setCatalog({ ...data, groups: data.groups ?? [], connections: data.connections ?? [] }); setStorageError(''); } catch (e) { setStorageError(String(e)); } }
   useEffect(() => { void reload(); }, []);
@@ -91,6 +101,16 @@ export default function App() {
     if (existing) { select(existing.id); return; }
     if (!attempt.busy) void attempt.start(c);
   }
+  function editRDP(w: Workspace) {
+    if (attempt.busy || !w.rdp) return;
+    const saved = catalog?.connections.find(c => c.id === w.connectionID);
+    attempt.clearError();
+    setDialog({ connection: saved || { ...w.rdp.connection, id: '', credential_id: '' }, temporary: !saved, workspaceID: w.id });
+  }
+  function retryRDP(w: Workspace) {
+    const saved = catalog?.connections.find(c => c.id === w.connectionID);
+    if (saved) void attempt.start(saved, undefined, w.id); else editRDP(w);
+  }
   const tools = <>
     <Tooltip content="命令搜索 · Ctrl/⌘ Shift P"><button className="icon-button" aria-label="命令搜索" onClick={() => setPalette(true)}><Icon name="search" /></button></Tooltip>
     <Tooltip content="连接侧栏"><button className="icon-button" aria-label="切换侧栏" aria-pressed={!!sidebar && !focus} onClick={() => changeSidebar(sidebar ? null : 'connections')}><Icon name="sidebar" /></button></Tooltip>
@@ -113,13 +133,13 @@ export default function App() {
       sidebar={<><div hidden={sidebar !== 'connections'} className="sidebar-content"><ConnectionSidebar connections={catalog?.connections || []} groups={catalog?.groups || []} onOpen={openSaved} onEdit={c => openDialog(false, c)} onNew={openDialog} onReload={() => void reload()} busy={attempt.busy} /></div><div className="sidebar-content" hidden={sidebar !== 'files'} ref={setSidebarHost} /></>}
       status={<><span>{catalog?.session_only ? '会话存储' : '本地工作台'}</span><span>{workspaces.length} 个工作区</span><div className="status-spacer" /><button className={transfers.failed || transfers.error ? 'error' : ''} aria-expanded={transfersOpen} onClick={() => setTransfersOpen(!transfersOpen)}><Icon name="transfer" width="14" />{transfers.running ? `传输 ${transfers.running} 进行中` : transfers.items.length ? `传输 ${transfers.items.length} 项` : '传输'}{transfers.failed ? ` · ${transfers.failed} 失败` : ''}{transfers.error ? ' · 加载失败' : ''}</button></>}>
       {storageError && <div className="storage-error error" role="alert">{storageError}<Button size="sm" onPress={() => { UseSessionStorage().then(reload).catch(e => setStorageError(String(e))); }}>使用会话存储</Button></div>}
-      {!dialog && (attempt.busy || attempt.error) && <div className="connection-feedback" role={attempt.error ? 'alert' : 'status'}><span className={attempt.error ? 'error' : ''}>{attempt.target} · {attempt.error || '正在连接…'}</span>{attempt.busy && <Button size="sm" variant="light" onPress={attempt.cancel}>取消连接</Button>}{!attempt.busy && <button className="icon-button" aria-label="关闭连接错误" onClick={attempt.clearError}><Icon name="close" /></button>}</div>}
+      {!dialog && (attempt.busy || (attempt.error && !current?.rdp)) && <div className="connection-feedback" role={attempt.error ? 'alert' : 'status'}><span className={attempt.error ? 'error' : ''}>{attempt.target} · {attempt.error || '正在连接…'}</span>{attempt.busy && <Button size="sm" variant="light" onPress={attempt.cancel}>取消连接</Button>}{!attempt.busy && <button className="icon-button" aria-label="关闭连接错误" onClick={attempt.clearError}><Icon name="close" /></button>}</div>}
       {settings && <SettingsView fontSize={fontSize} onFontSize={setFontSize} onRestore={() => void reload()} onClose={() => setSettings(false)} />}
       {!current && !settings && <div className="workspace-empty"><div className="button-row"><Button variant="bordered" onPress={() => openDialog(false)}>新建连接</Button><Button variant="light" onPress={() => openDialog(true)}>快速连接</Button></div></div>}
-      {workspaces.map(w => <div className="workspace" hidden={settings || active !== w.id} key={w.id}>{w.rdp ? <RDPView grant={w.rdp} ref={w.view} visible={!settings && active === w.id} /> : <SSHWorkspace id={w.id} ref={w.ssh} fontSize={fontSize} visible={!settings && active === w.id} sidebarHost={sidebarHost} filesVisible={sidebar === 'files' && !focus && !settings && active === w.id} monitorVisible={monitorOpen && !focus && !settings && active === w.id} onMonitorClose={() => setMonitorOpen(false)} onDirtyChange={dirty => setWorkspaces(prev => prev.map(item => item.id === w.id ? { ...item, dirty } : item))} />}</div>)}
+      {workspaces.map(w => <div className="workspace" hidden={settings || active !== w.id} key={w.id}>{w.rdp ? <RDPView target={`${w.rdp.connection.username}@${w.rdp.connection.host}:${w.rdp.connection.port}`} grant={w.rdp.grant} failure={w.rdp.error} busy={attempt.busy} onRetry={() => retryRDP(w)} onEdit={() => editRDP(w)} ref={w.view} visible={!settings && active === w.id} /> : <SSHWorkspace id={w.id} ref={w.ssh} fontSize={fontSize} visible={!settings && active === w.id} sidebarHost={sidebarHost} filesVisible={sidebar === 'files' && !focus && !settings && active === w.id} monitorVisible={monitorOpen && !focus && !settings && active === w.id} onMonitorClose={() => setMonitorOpen(false)} onDirtyChange={dirty => setWorkspaces(prev => prev.map(item => item.id === w.id ? { ...item, dirty } : item))} />}</div>)}
       {transfersOpen && <TransferPanel tasks={transfers} height={transferHeight} onHeight={setTransferHeight} onClose={() => setTransfersOpen(false)} />}
     </Workbench>
-    {dialog && <ConnectionDialog {...dialog} groups={catalog?.groups || []} busy={attempt.busy} connectionError={attempt.error} onConnect={attempt.start} onSaved={() => void reload()} onClose={() => { setDialog(undefined); attempt.clearError(); }} onCancel={attempt.cancel} />}
+    {dialog && <ConnectionDialog {...dialog} groups={catalog?.groups || []} busy={attempt.busy} connectionError={attempt.error} onConnect={(connection, auth) => attempt.start(connection, auth, dialog.workspaceID)} onSaved={() => void reload()} onClose={() => { setDialog(undefined); attempt.clearError(); }} onCancel={attempt.cancel} />}
     <HostTrustDialog target={attempt.trust} onConfirm={attempt.confirm} />
     {palette && <CommandPalette commands={commands} onClose={() => setPalette(false)} />}
     <Modal isOpen={!!closing || quitConfirm} onClose={() => { if (!savingClose) { setClosing(''); setQuitConfirm(false); setCloseError(''); } }} isDismissable={!savingClose} isKeyboardDismissDisabled={savingClose} className="app-dialog"><ModalContent><ModalHeader>未保存文件</ModalHeader><ModalBody><p>{quitConfirm ? '应用中有未保存修改。' : '此工作区有未保存修改。'}</p>{closeError && <p className="error" role="alert">{closeError}</p>}</ModalBody><ModalFooter><Button variant="light" isDisabled={savingClose} onPress={() => { setClosing(''); setQuitConfirm(false); setCloseError(''); }}>返回编辑</Button><Button color="danger" variant="light" isDisabled={savingClose} onPress={() => { if (quitConfirm) void DiscardAndQuit(); else remove(closing); setClosing(''); }}>放弃修改并{quitConfirm ? '退出' : '关闭'}</Button><Button color="primary" isLoading={savingClose} onPress={async () => {

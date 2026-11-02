@@ -1,18 +1,27 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Button, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from '@heroui/react';
 import { Events } from '@wailsio/runtime';
-import type { UserInteraction } from '@devolutions/iron-remote-desktop';
+import type { IronError, UserInteraction } from '@devolutions/iron-remote-desktop';
 import { CloseRDP } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
 import type { Grant } from '../../../bindings/github.com/Sanjeever/termquay/internal/rdp/models';
 
-export type RDPHandle = { connect(username: string, password: string, domain: string): Promise<void> };
+export type RDPHandle = { connect(username: string, password: string, domain: string): Promise<void>; cancel(): void };
 let initialization: Promise<typeof import('@devolutions/iron-remote-desktop-rdp')> | undefined;
 
-const RDPView = forwardRef<RDPHandle, { grant: Grant; visible: boolean }>(function RDPView({ grant, visible }, ref) {
+function initialize() {
+  initialization ??= import('@devolutions/iron-remote-desktop-rdp').then(async module => { await module.init('OFF'); return module; }).catch(error => { initialization = undefined; throw error; });
+  return initialization;
+}
+
+function detail(error: unknown) {
+  const iron = error as Partial<IronError> | null;
+  return typeof iron?.backtrace === 'function' ? iron.backtrace() : String(error);
+}
+
+const RDPView = forwardRef<RDPHandle, { grant?: Grant; target: string; visible: boolean; failure?: string; busy: boolean; onRetry(): void; onEdit(): void }>(function RDPView({ grant, target, visible, failure, busy, onRetry, onEdit }, ref) {
   const view = useRef<HTMLDivElement>(null);
   const container = useRef<HTMLDivElement>(null);
   const ui = useRef<UserInteraction>();
-  const closed=useRef(false);
   const [error, setError] = useState('');
   const [status, setStatus] = useState('正在装载桌面组件');
   const [clipboard, setClipboard] = useState(false);
@@ -21,56 +30,83 @@ const RDPView = forwardRef<RDPHandle, { grant: Grant; visible: boolean }>(functi
     let resolve!: (value: UserInteraction) => void;
     let reject!: (reason: unknown) => void;
     const promise = new Promise<UserInteraction>((yes, no) => { resolve = yes; reject = no; });
-    return { promise, resolve, reject };
-  }, []);
+    let stop!: (reason: Error) => void;
+    const stopped = new Promise<never>((_, no) => { stop = no; });
+    void promise.catch(() => {}); void stopped.catch(() => {});
+    return { promise, resolve, reject, stopped, stop, ended: false, disposed: false, running: false, error: '' };
+  }, [grant?.id]);
+
+  function shutdown() {
+    const api = ui.current; ui.current = undefined;
+    if (!ready.running) return '';
+    ready.running = false;
+    try { api?.shutdown(); return ''; } catch (e) { return `关闭桌面失败：${detail(e)}`; }
+  }
+
+  function finish(status: string, message = '') {
+    if (ready.ended || ready.disposed) return;
+    ready.ended = true; ready.error = message;
+    ready.stop(new Error(message || status)); ready.reject(new Error(message || status));
+    const closingError = shutdown();
+    setStatus(status); setError([message, closingError].filter(Boolean).join('\n'));
+    if (grant) void CloseRDP(grant.id).catch(e => { if (!ready.disposed) setError(previous => [previous, `关闭连接失败：${detail(e)}`].filter(Boolean).join('\n')); });
+  }
 
   useImperativeHandle(ref, () => ({
     async connect(username, password, domain) {
+      if (!grant) throw new Error('RDP 尚未授权');
+      const timer = setTimeout(() => finish('连接超时', '等待 RDP 认证与桌面建立超时'), 30000);
       try {
-        const api = await ready.promise;
-        const backend = await initialization!;
+        const api = await Promise.race([ready.promise, ready.stopped]);
+        const backend = await initialize();
+        if (ready.ended || ready.disposed) throw new Error('连接已取消');
         setStatus('正在连接');
+        api.setEnableClipboard(clipboard);
         const config = api.configBuilder().withUsername(username).withPassword(password)
           .withServerDomain(domain).withDestination(grant.destination).withProxyAddress(grant.proxy_url)
           .withAuthToken(grant.token).withDesktopSize({ width: 1280, height: 800 })
           .withExtension(backend.enableCredssp(true)).withExtension(backend.displayControl(true)).build();
-        await api.connect(config);
+        const session = await Promise.race([api.connect(config).then(result => { if (ready.ended || ready.disposed) { api.shutdown(); throw new Error('连接已取消'); } return result; }), ready.stopped]);
         api.setKeyboardUnicodeMode(true);
-        api.setEnableClipboard(false);
-        setStatus(closed.current?'已断开':'已连接');
-      } catch (e) { setError(String(e)); setStatus('连接失败'); throw e; }
-      finally { password = ''; }
+        setStatus('已连接');
+        ready.running = true;
+        void session.run().then(() => { ready.running = false; finish('已断开'); }, e => { ready.running = false; finish('会话中断', detail(e)); });
+      } catch (e) { const message = ready.error || detail(e); finish('连接失败', message); throw new Error(message); }
+      finally { clearTimeout(timer); password = ''; }
     },
-  }), [grant, ready]);
+    cancel: () => finish('连接已取消'),
+  }), [grant, ready, clipboard]);
 
   useEffect(() => {
-    let disposed = false;
+    if (!grant) return;
     let desktop: HTMLElement | undefined;
-    initialization ??= import('@devolutions/iron-remote-desktop-rdp').then(async (module) => { await module.init('OFF'); return module; });
+    const timer = setTimeout(() => finish('远程桌面装载失败', '桌面组件就绪超时'), 15000);
+    setStatus('正在装载桌面组件'); setError('');
     void (async () => {
       try {
-        const module = await initialization!;
+        const module = await initialize();
         await import('@devolutions/iron-remote-desktop');
-        if (disposed) return;
+        if (ready.disposed || ready.ended) return;
         desktop = document.createElement('iron-remote-desktop');
         Object.assign(desktop, { module: module.Backend });
         desktop.setAttribute('verbose', 'false'); desktop.setAttribute('scale', 'fit'); desktop.tabIndex = 0;
         desktop.style.cssText = 'display:flex;width:100%;height:100%;';
         desktop.addEventListener('ready', (event) => {
-          if (disposed) return;
+          if (ready.disposed || ready.ended) return;
+          clearTimeout(timer);
           ui.current = (event as CustomEvent<{ irgUserInteraction: UserInteraction }>).detail.irgUserInteraction;
           ui.current.setEnableClipboard(false);ui.current.setEnableAutoClipboard(false);
           setStatus('准备就绪'); ready.resolve(ui.current);
         }, { once: true });
         container.current!.appendChild(desktop);
-      } catch (e) { setError(String(e)); setStatus('远程桌面装载失败'); ready.reject(e); }
+      } catch (e) { finish('远程桌面装载失败', detail(e)); }
     })();
     const unsubscribe = Events.On('rdp:error', (event) => {
       const data = event.data as { id: string; error: string };
-      if (data.id === grant.id) { closed.current=true;setError(data.error); setStatus('已断开'); }
+      if (data.id === grant.id) finish('会话中断', data.error);
     });
-    const unsubscribeClosed=Events.On('rdp:closed',event=>{const data=event.data as {id:string};if(data.id===grant.id){closed.current=true;setStatus('已断开')}});
-    return () => { disposed = true; unsubscribe();unsubscribeClosed(); ui.current?.shutdown(); desktop?.remove(); CloseRDP(grant.id).catch(() => {}); ready.reject(new Error('RDP 工作区已关闭')); };
+    const unsubscribeClosed = Events.On('rdp:closed', event => { const data = event.data as { id: string }; if (data.id === grant.id) finish('已断开'); });
+    return () => { ready.disposed = true; clearTimeout(timer); unsubscribe(); unsubscribeClosed(); ready.stop(new Error('RDP 工作区已关闭')); ready.reject(new Error('RDP 工作区已关闭')); const closingError = shutdown(); if (closingError) console.error(closingError); desktop?.remove(); void CloseRDP(grant.id).catch(() => {}); };
   }, [grant, ready]);
 
   useEffect(() => {
@@ -86,17 +122,19 @@ const RDPView = forwardRef<RDPHandle, { grant: Grant; visible: boolean }>(functi
   }, [resolution,status]);
 
   useEffect(() => { if (visible && status === '已连接' && !document.activeElement?.closest('[role=tablist]')) container.current?.querySelector<HTMLElement>('iron-remote-desktop')?.focus(); }, [visible, status]);
+  useEffect(() => { ui.current?.setVisibility(visible && status === '已连接'); }, [visible, status]);
 
   return <div className="rdp-view" ref={view}>
-    <div className="rdp-toolbar">
+    <div className="rdp-toolbar" hidden={status !== '已连接' || !grant}>
       <Dropdown><DropdownTrigger><Button size="sm" variant="light" isDisabled={status !== '已连接'}>组合键</Button></DropdownTrigger><DropdownMenu aria-label="远端组合键" onAction={key => { if (key === 'secure') ui.current?.ctrlAltDel(); else ui.current?.metaKey(); container.current?.querySelector<HTMLElement>('iron-remote-desktop')?.focus(); }}><DropdownItem key="secure">Ctrl + Alt + Del</DropdownItem><DropdownItem key="windows">Windows 键</DropdownItem></DropdownMenu></Dropdown>
       <select aria-label="远程分辨率" disabled={status!=='已连接'} value={resolution} onChange={(e) => setResolution(e.target.value)}><option value="dynamic">适应窗口</option><option value="1280x800">1280 × 800</option><option value="1920x1080">1920 × 1080</option></select>
-      <label><input type="checkbox" disabled={status!=='已连接'} checked={clipboard} onChange={(e) => { setClipboard(e.target.checked); ui.current?.setEnableClipboard(e.target.checked); }} /> 文本剪贴板</label>
+      <label><input type="checkbox" checked={clipboard} onChange={e => { setClipboard(e.target.checked); finish('剪贴板设置已更改，请重连'); }} /> 文本剪贴板（重连生效）</label>
       {clipboard && <><Button size="sm" variant="light" isDisabled={status!=='已连接'} onPress={() => { ui.current?.sendClipboardData().catch((e) => setError(String(e))); }}>粘贴到远端</Button><Button size="sm" variant="light" isDisabled={status!=='已连接'} onPress={() => { ui.current?.saveRemoteClipboardData().catch((e) => setError(String(e))); }}>复制到本机</Button></>}
       <Button size="sm" variant="light" onPress={() => { const operation = document.fullscreenElement ? document.exitFullscreen() : view.current?.requestFullscreen(); operation?.catch(e => setError(String(e))); }}>切换全屏</Button>
+      <Button size="sm" variant="light" onPress={() => finish('已断开')}>断开</Button>
     </div>
-    <div className="rdp-canvas" ref={container} />
-    <div className="session-status"><span>{status}</span>{error && <span role="alert" className="error">{error}</span>}</div>
+    <div className="rdp-canvas" ref={container} hidden={status !== '已连接' || !grant} />
+    {(failure || !grant || ready.ended) ? <div className="rdp-failure" role="status"><h2>{failure ? '连接未完成' : ready.ended ? status : '正在连接'}</h2><p className="muted">{target}</p><div className="button-row"><Button size="sm" color="primary" isDisabled={busy} onPress={onRetry}>重试</Button><Button size="sm" variant="bordered" isDisabled={busy} onPress={onEdit}>编辑连接</Button></div><label className="checkbox-label"><input type="checkbox" disabled={busy} checked={clipboard} onChange={e => setClipboard(e.target.checked)} />文本剪贴板</label>{(failure || error) && <details><summary>技术详情</summary><p className="error" role="alert">{failure || error}</p></details>}</div> : <div className="session-status"><span>{status}</span>{error && <details><summary>技术详情</summary><span role="alert" className="error">{error}</span></details>}</div>}
   </div>;
 });
 
