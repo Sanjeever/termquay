@@ -1,14 +1,15 @@
 import { useEffect,useRef, useState } from 'react';
 import { Button, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
-import { SaveConnection, ParseQuickConnection, SetRDPResolution,SelectPrivateKey,ReleasePrivateKey } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
+import { SaveConnection, ParseQuickConnection, SetRDPResolution, SetConnectionPreference, GetConnectionPreferences, SelectPrivateKey,ReleasePrivateKey } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
 import type { RDPOptions } from '../rdp/RDPView';
 import type {PrivateKeySelection}from'../../../bindings/github.com/Sanjeever/termquay/models';
-import type { Connection, Group } from '../../../bindings/github.com/Sanjeever/termquay/internal/store/models';
+import type { Connection, ConnectionPreference, Group } from '../../../bindings/github.com/Sanjeever/termquay/internal/store/models';
 import type { Request } from '../../../bindings/github.com/Sanjeever/termquay/internal/ssh/models';
 
-export default function ConnectionDialog({ connection, temporary, groups, connections, busy, connectionError, onConnect, onSaved, onClose, onCancel, rdpOptions }: {
+export default function ConnectionDialog({ connection, temporary, groups, connections, busy, connectionError, onConnect, onSaved, onClose, onCancel, rdpOptions, preference }: {
   connection?: Connection; temporary: boolean; groups: Group[]; busy: boolean; connectionError: string;
   connections:Connection[];
+  preference?: ConnectionPreference;
   onConnect(connection: Connection, auth?: Request, options?: RDPOptions): Promise<boolean>; onSaved(): void; onClose(): void; onCancel(): void; rdpOptions?: RDPOptions;
 }) {
   const [saved, setSaved] = useState(connection);
@@ -37,7 +38,10 @@ export default function ConnectionDialog({ connection, temporary, groups, connec
     setError('');
     try {
       if (mode !== 'connect') {
-        setSaving(true); const result = await SaveConnection(config, request); setSaved(result); setStored(true); if (protocol === 'rdp') await SetRDPResolution(result.id, rdpResolution); onSaved(); setSaving(false);
+        setSaving(true); const result = await SaveConnection(config, request); setSaved(result); setStored(true); onSaved();
+        try { const latest = (await GetConnectionPreferences())?.[result.id]; await SetConnectionPreference(result.id, !!latest?.favorite, String(data.get('environment') || '')); if (protocol === 'rdp') await SetRDPResolution(result.id, rdpResolution); }
+        catch (e) { setError(`配置已保存，偏好保存失败：${String(e)}`); return; }
+        onSaved(); setSaving(false);
         if (mode === 'save') { onClose(); return; }
         clearSecrets();
         request.password = ''; request.private_key = ''; request.passphrase = '';
@@ -68,6 +72,7 @@ export default function ConnectionDialog({ connection, temporary, groups, connec
         {protocol==='ssh'&&authKind==='agent'?<Input name="identity_agent" label="Agent 地址（可选）" labelPlacement="outside" defaultValue={saved?.identity_agent} isDisabled={busy||saving} size="sm"/>:protocol === 'ssh' && authKind === 'private_key' ? <><div className="button-row"><Button size="sm" variant="bordered" isDisabled={busy||saving} onPress={async()=>{try{const selection=await SelectPrivateKey();if(selection.id){clearSecrets();setPrivateKey(selection);}}catch(e){setError(String(e));}}}>选择私钥文件</Button>{privateKey&&<span>{privateKey.name}</span>}</div><label className="form-field">私钥内容<textarea key={`key-${credentialEpoch}`} name="private_key" rows={5} disabled={busy || saving||!!privateKey} spellCheck={false} autoComplete="off" /></label><Input key={`passphrase-${credentialEpoch}`} name="passphrase" label="私钥口令" labelPlacement="outside" placeholder="可选" type="password" size="sm" autoComplete="off" isDisabled={busy || saving} /></> : <Input key={`password-${credentialEpoch}`} name="password" label="密码" labelPlacement="outside" placeholder="密码" type="password" size="sm" autoComplete="off" isDisabled={busy || saving} />}
       </>}
       {!temporary && <label className="form-field">分组<select name="group" defaultValue={saved?.group_id || ''} disabled={busy || saving}><option value="">未分组</option>{groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}</select></label>}
+      {!temporary && <label className="form-field">环境<select name="environment" defaultValue={preference?.environment || ''} disabled={busy || saving}><option value="">未设置</option><option value="production">生产</option><option value="staging">预发布</option><option value="development">开发</option></select></label>}
       {protocol==='ssh'&&<details><summary>内网连接</summary><label className="form-field">跳板机<select name="jump" defaultValue={saved?.jump_id||''} disabled={busy||saving}><option value="">直连</option>{connections.filter(c=>c.protocol==='ssh'&&!c.jump_id&&c.id!==saved?.id).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label></details>}
       {stored && connectionError && <p className="muted">配置已保存，连接未成功。</p>}
       {(error || connectionError) && <p role="alert" className="error">{error || connectionError}</p>}
