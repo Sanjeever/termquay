@@ -9,6 +9,21 @@ export interface Counter {
     "write_rate": number | null;
 }
 
+export interface FileSystem {
+    "source": string;
+    "target": string;
+    "type": string;
+    "size": number;
+    "used": number;
+    "available": number;
+}
+
+export interface FileSystemSample {
+    "time": string;
+    "items": FileSystem[] | null;
+    "error": string;
+}
+
 export interface Sample {
     "time": string;
     "system": string;
@@ -17,4 +32,5 @@ export interface Sample {
     "memory_available": number;
     "network": Counter[] | null;
     "disks": Counter[] | null;
+    "file_systems": FileSystemSample | null;
 }

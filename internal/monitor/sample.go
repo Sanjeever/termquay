@@ -22,15 +22,16 @@ type Counter struct {
 	WriteRate *float64 `json:"write_rate"`
 }
 type Sample struct {
-	Time            time.Time `json:"time"`
-	System          string    `json:"system"`
-	CPUTotal        uint64    `json:"-"`
-	CPUIdle         uint64    `json:"-"`
-	CPU             *float64  `json:"cpu"`
-	MemoryTotal     uint64    `json:"memory_total"`
-	MemoryAvailable uint64    `json:"memory_available"`
-	Network         []Counter `json:"network"`
-	Disks           []Counter `json:"disks"`
+	Time            time.Time         `json:"time"`
+	System          string            `json:"system"`
+	CPUTotal        uint64            `json:"-"`
+	CPUIdle         uint64            `json:"-"`
+	CPU             *float64          `json:"cpu"`
+	MemoryTotal     uint64            `json:"memory_total"`
+	MemoryAvailable uint64            `json:"memory_available"`
+	Network         []Counter         `json:"network"`
+	Disks           []Counter         `json:"disks"`
+	FileSystems     *FileSystemSample `json:"file_systems"`
 }
 
 func Parse(data []byte, now time.Time, previous *Sample) (Sample, error) {

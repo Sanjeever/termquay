@@ -34,11 +34,24 @@ func (a *AppService) SubscribeMonitor(id string) error {
 	a.mu.Unlock()
 	go func() {
 		var previous *monitor.Sample
+		var fileSystems *monitor.FileSystemSample
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			default:
+			}
+			if fileSystems == nil || time.Since(fileSystems.Time) >= 30*time.Second {
+				request, stop := context.WithTimeout(ctx, 5*time.Second)
+				data, err := t.Exec(request, monitor.FileSystemScript, 256<<10)
+				stop()
+				fileSystems = &monitor.FileSystemSample{Time: time.Now(), Items: []monitor.FileSystem{}}
+				if err == nil {
+					fileSystems.Items, err = monitor.ParseFileSystems(data)
+				}
+				if err != nil {
+					fileSystems.Error = "文件系统容量采集失败（需要 util-linux findmnt）：" + err.Error()
+				}
 			}
 			request, stop := context.WithTimeout(ctx, 10*time.Second)
 			data, err := t.Exec(request, monitor.Script, 256<<10)
@@ -51,6 +64,7 @@ func (a *AppService) SubscribeMonitor(id string) error {
 				sample, parseErr := monitor.Parse(data, time.Now(), previous)
 				err = parseErr
 				if err == nil {
+					sample.FileSystems = fileSystems
 					event.Sample = &sample
 					previous = &sample
 				}

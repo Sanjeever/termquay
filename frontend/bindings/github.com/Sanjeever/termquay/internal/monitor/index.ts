@@ -3,5 +3,7 @@
 
 export type {
     Counter,
+    FileSystem,
+    FileSystemSample,
     Sample
 } from "./models.js";

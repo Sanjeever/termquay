@@ -84,5 +84,22 @@ func TestSG1Monitor(t *testing.T) {
 	if next.MemoryTotal == 0 || next.CPU == nil {
 		t.Fatal("真实 Linux 采集缺少数据")
 	}
+	data, err = connection.Exec(ctx, FileSystemScript, 256<<10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	items, err := ParseFileSystems(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := false
+	for _, item := range items {
+		if item.Target == "/" && item.Size > 0 {
+			root = true
+		}
+	}
+	if !root {
+		t.Fatal("真实文件系统容量缺少根挂载点")
+	}
 	t.Log("真实 Linux 独立 exec 通道采集通过，未在远端落地脚本")
 }
