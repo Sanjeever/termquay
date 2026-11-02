@@ -72,13 +72,19 @@ go test -race ./...
 
 当前自动化主要是 Go 测试；前端 `check` 和 `build` 分别提供类型检查与构建验证，没有前端行为测试脚本。测试名称及实际覆盖以仓库测试为准。带凭据的真实服务测试可能在普通测试命令中执行；缺少配置时会跳过，必须区分通过与跳过。
 
+前端逻辑回归沿用 `node:test`，在支持直接运行 TypeScript 的 Node 环境中执行：
+
+```sh
+node --test frontend/src/lib/*.test.ts frontend/src/features/connections/catalog.test.ts frontend/src/features/files/editorLanguage.test.ts frontend/src/features/monitor/history.test.ts frontend/src/features/settings/appearance.test.ts
+```
+
 ### 真实 SSH 与 WebDAV
 
 测试配置通过当前进程环境安全注入，不写入仓库或提交真实样例。以下是变量名，不是应用运行所必需的生产配置：
 
 | 测试 | 必要变量 | 范围 |
 | --- | --- | --- |
-| `TestSG1PTY`、`TestSG1Files`、`TestSG1Monitor` | `SSH_MCP_SERVER_SG1_HOST`、`SSH_MCP_SERVER_SG1_PORT`、`SSH_MCP_SERVER_SG1_USERNAME`、`SSH_MCP_SERVER_SG1_PASSWORD`、`TERMQUAY_TEST_HOST_FINGERPRINT` | SSH 协议栈、隔离 SFTP 文件操作、Linux 采集 |
+| `TestSG1PTY`、`TestSG1Files`、`TestSG1Monitor`、`TestSG1Transfers` | `SSH_MCP_SERVER_SG1_HOST`、`SSH_MCP_SERVER_SG1_PORT`、`SSH_MCP_SERVER_SG1_USERNAME`、`SSH_MCP_SERVER_SG1_PASSWORD`、`TERMQUAY_TEST_HOST_FINGERPRINT` | SSH 协议栈、隔离 SFTP 文件操作、Linux 采集及批量传输、移动与非递归删除 |
 | `TestRealWebDAV` | `TERMQUAY_WEBDAV_URL`、`TERMQUAY_WEBDAV_USERNAME`、`TERMQUAY_WEBDAV_PASSWORD`、`TERMQUAY_WEBDAV_DIRECTORY` | 真实服务的密文往返、列表、解密和同名拒绝 |
 
 SSH 指纹须来自已核对的测试目标，不能为跑通测试关闭身份校验。文件测试创建并清理本次 `/tmp/termquay-*` 目录；监控运行只读 Linux 采集。WebDAV 目录指定已有可写测试集合，测试在其中创建唯一子目录并清理。遵守 [远端操作边界](../AGENTS.md#凭据与远端操作)，MCP 连通不能替代应用自身链路验证。
@@ -86,7 +92,7 @@ SSH 指纹须来自已核对的测试目标，不能为跑通测试关闭身份�
 监控脚本在 Go 嵌入边界统一为 LF。Windows 工作树曾保留 CRLF，原始字节经 `sh -s` 在真实 Linux 目标复现退出码 2，错误为 `set: Illegal option`；LF 版本成功。脚本执行成功与应用采集链路通过仍需分别验证。
 
 ```sh
-go test -race -v ./internal/ssh ./internal/files ./internal/monitor -run TestSG1
+go test -race -v . ./internal/ssh ./internal/files ./internal/monitor -run 'TestSG1(Transfers|PTY|Files|Monitor)$'
 go test -race -v ./internal/backup -run TestRealWebDAV
 ```
 
