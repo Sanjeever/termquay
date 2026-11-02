@@ -4,7 +4,7 @@ import { ReadDirectory, CreateRemoteDirectory, RenameRemotePath, DeleteRemotePat
 import type { Entry } from '../../../bindings/github.com/Sanjeever/termquay/internal/files/models';
 import Icon from '../../components/Icon';
 
-export default function FileBrowser({ id, visible, onOpen }: { id: string; visible: boolean; onOpen(entry: Entry): Promise<void> }) {
+export default function FileBrowser({ id, visible, onOpen, onClose }: { id: string; visible: boolean; onOpen(entry: Entry): Promise<void>; onClose(): void }) {
   const [directory, setDirectory] = useState('');
   const [entries, setEntries] = useState<Entry[]>([]);
   const [selected, setSelected] = useState('');
@@ -39,7 +39,7 @@ export default function FileBrowser({ id, visible, onOpen }: { id: string; visib
   }
   const parent = directory.slice(0, directory.lastIndexOf('/')) || '/';
   return <aside className="file-panel" aria-label="远端文件">
-    <div className="sidebar-heading"><h2>文件</h2><span className="muted">SFTP</span></div>
+    <div className="sidebar-heading"><h2>文件</h2><button className="icon-button" aria-label="收起文件面板" onClick={onClose}><Icon name="close" width="15" /></button></div>
     <div className="file-toolbar"><button className="icon-button" aria-label="上级目录" title="上级目录" disabled={loading || directory === '/'} onClick={() => void load(parent)}><Icon name="up" /></button><button className="icon-button" aria-label="刷新目录" title="刷新目录" disabled={loading} onClick={() => void load(directory)}><Icon name="refresh" /></button><button className="icon-button" aria-label="新建目录" title="新建目录" disabled={!directory} onClick={() => { setError(''); setAction({ kind: 'mkdir', path: directory }); }}><Icon name="files" /><span>＋</span></button><button className="icon-button" aria-label="上传文件" title="上传文件" disabled={!directory} onClick={() => { StartUpload(id, directory).catch(e => setError(String(e))); }}><Icon name="transfer" /></button></div>
     {editingPath ? <form className="path-form" onSubmit={e => { e.preventDefault(); void load(String(new FormData(e.currentTarget).get('path'))); setEditingPath(false); }}><input name="path" aria-label="远端目录" defaultValue={directory} autoFocus onFocus={e => e.target.select()} onKeyDown={e => { if (e.key === 'Escape') setEditingPath(false); }} onBlur={() => setEditingPath(false)} /></form> : <div className="path-bar"><div className="breadcrumbs"><button onClick={() => void load('/')} aria-label="根目录">/</button>{directory.split('/').filter(Boolean).map((part, index, parts) => <button key={index} onClick={() => void load(`/${parts.slice(0, index + 1).join('/')}`)}>{part}<span>/</span></button>)}</div><button className="path-edit" aria-label="编辑目录路径" title={directory} onClick={() => setEditingPath(true)}>…</button></div>}
     {error && <p role="alert" className="error file-error">{error}</p>}
