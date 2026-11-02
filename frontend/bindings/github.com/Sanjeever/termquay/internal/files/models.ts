@@ -21,3 +21,10 @@ export interface Entry {
     "mode": string;
     "modified": number;
 }
+
+export interface SyncEntry {
+    "path": string;
+    "directory": boolean;
+    "state": string;
+    "size": number;
+}

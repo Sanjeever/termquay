@@ -142,6 +142,10 @@ input[type=checkbox] { accent-color: var(--color-primary); }
 .conflict-editors { height: min(52vh, 560px); min-height: 140px; }
 .conflict-editors .cm-mergeView { height: 100%; }
 .conflict-editors .cm-mergeViewEditors { height: 100%; }
+.app-dialog.directory-sync-dialog { max-width: min(900px,calc(100vw - 24px)); }
+.sync-preview { width: 100%; font-size: 12px; border-collapse: collapse; }
+.sync-preview th,.sync-preview td { text-align: left; padding: 6px; border-bottom: 1px solid var(--color-border); }
+.sync-preview .file-path { max-width: 350px; }
 .session-status { display: flex; align-items: center; gap: 14px; flex-shrink: 0; min-height: 25px; color: var(--color-muted); font-size: 11px; padding: 4px 8px; }
 .file-panel { padding: 12px; }
 .file-panel .sidebar-heading { margin-top: -12px; }

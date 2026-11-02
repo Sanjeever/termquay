@@ -5,6 +5,7 @@ import { ReadDirectory, GetDirectoryBookmarks, SetDirectoryBookmarks, CreateRemo
 import type { UploadDropResult } from '../../../bindings/github.com/Sanjeever/termquay/models';
 import type { Entry } from '../../../bindings/github.com/Sanjeever/termquay/internal/files/models';
 import Icon from '../../components/Icon';
+import DirectorySyncDialog from './DirectorySyncDialog';
 
 export default function FileBrowser({ id, connectionID, visible, onOpen, onClose }: { id: string; connectionID: string; visible: boolean; onOpen(entry: Entry): Promise<void>; onClose(): void }) {
   const [directory, setDirectory] = useState('');
@@ -24,6 +25,7 @@ export default function FileBrowser({ id, connectionID, visible, onOpen, onClose
   const [bookmarkSaving,setBookmarkSaving]=useState(false);
   const [uploadDialog,setUploadDialog]=useState(false);
   const [overwrite,setOverwrite]=useState(false);
+  const [syncOpen,setSyncOpen]=useState(false);
   const loaded = useRef(false);
   const pending = useRef<ReturnType<typeof ReadDirectory>>();
   const list = useRef<HTMLUListElement>(null);
@@ -55,6 +57,7 @@ export default function FileBrowser({ id, connectionID, visible, onOpen, onClose
   const parent = directory.slice(0, directory.lastIndexOf('/')) || '/';
   return <aside className="file-panel" aria-label="远端文件" data-file-drop-target data-workspace-id={id} data-remote-directory={directory}>
     <div className="sidebar-heading"><h2>文件</h2><button className="icon-button" aria-label="收起文件面板" onClick={onClose}><Icon name="close" width="15" /></button></div>
+    <button className="session-tool" disabled={!directory} onClick={()=>setSyncOpen(true)}>目录同步</button>
     <div className="file-toolbar"><button aria-label="后退目录" disabled={loading||history.index<=0} onClick={()=>void load(history.paths[history.index-1],history.index-1)}>←</button><button aria-label="前进目录" disabled={loading||history.index>=history.paths.length-1} onClick={()=>void load(history.paths[history.index+1],history.index+1)}>→</button><Dropdown><DropdownTrigger><button disabled={bookmarkSaving||!directory} aria-label="目录书签">书签</button></DropdownTrigger><DropdownMenu aria-label="目录书签" items={[{key:'toggle',name:bookmarks.includes(directory)?'移除当前目录书签':'收藏当前目录'},...bookmarks.map(path=>({key:path,name:path}))]} onAction={key=>{if(key==='toggle')void toggleBookmark();else void load(String(key));}}>{item=><DropdownItem key={item.key}>{item.name}</DropdownItem>}</DropdownMenu></Dropdown><button aria-label="复制当前目录路径" onClick={()=>navigator.clipboard.writeText(directory).catch(e=>setError(String(e)))}>复制路径</button></div>
     <div className="file-toolbar"><button className="icon-button" aria-label="上级目录" title="上级目录" disabled={loading || directory === '/'} onClick={() => void load(parent)}><Icon name="up" /></button><button className="icon-button" aria-label="刷新目录" title="刷新目录" disabled={loading} onClick={() => void load(directory)}><Icon name="refresh" /></button><button className="icon-button" aria-label="新建目录" title="新建目录" disabled={!directory} onClick={() => { setError(''); setAction({ kind: 'mkdir', path: directory }); }}><Icon name="files" /><span>＋</span></button><button className="icon-button" aria-label="上传文件" title="上传文件" disabled={!directory} onClick={() => {setOverwrite(false);setUploadDialog(true);}}><Icon name="transfer" /></button></div>
     {editingPath ? <form className="path-form" onSubmit={e => { e.preventDefault(); void load(String(new FormData(e.currentTarget).get('path'))); setEditingPath(false); }}><input name="path" aria-label="远端目录" defaultValue={directory} autoFocus onFocus={e => e.target.select()} onKeyDown={e => { if (e.key === 'Escape') setEditingPath(false); }} onBlur={() => setEditingPath(false)} /></form> : <div className="path-bar"><div className="breadcrumbs"><button onClick={() => void load('/')} aria-label="根目录">/</button>{directory.split('/').filter(Boolean).map((part, index, parts) => <button key={index} onClick={() => void load(`/${parts.slice(0, index + 1).join('/')}`)}>{part}<span>/</span></button>)}</div><button className="path-edit" aria-label="编辑目录路径" title={directory} onClick={() => setEditingPath(true)}>…</button></div>}
@@ -72,6 +75,7 @@ export default function FileBrowser({ id, connectionID, visible, onOpen, onClose
       </>}
     </li>)}</ul>
     {loaded.current && !loading && entries.length === 0 && <p className="sidebar-empty">空目录</p>}
+    {syncOpen&&<DirectorySyncDialog key={id} id={id} remote={directory} onClose={()=>setSyncOpen(false)}/>}
     <Modal isOpen={uploadDialog} onClose={()=>setUploadDialog(false)} className="app-dialog"><ModalContent><ModalHeader>上传文件</ModalHeader><ModalBody><p className="file-path">{directory}</p><label className="checkbox-label"><input type="checkbox" checked={overwrite} onChange={e=>setOverwrite(e.target.checked)} />覆盖同名普通文件</label></ModalBody><ModalFooter><Button variant="light" onPress={()=>setUploadDialog(false)}>取消</Button><Button color="primary" onPress={async()=>{setUploadDialog(false);try{const result=await StartUploads(id,directory,overwrite);setError((result.errors||[]).join('\n'));}catch(e){setError(String(e));}}}>选择文件</Button></ModalFooter></ModalContent></Modal>
     <Modal isOpen={!!action && action.kind !== 'rename'} onClose={() => !working && setAction(undefined)} className="app-dialog"><ModalContent><ModalHeader>{action?.kind === 'mkdir' ? '新建目录' : '删除远端路径'}</ModalHeader><form onSubmit={e => { e.preventDefault(); void perform(String(new FormData(e.currentTarget).get('name') || '')); }}><ModalBody>{action?.kind === 'delete' ? <p>确认删除 <code>{action.path}</code>？</p> : <label className="form-field">目录名称<input className="native-input" name="name" aria-label="目录名称" required pattern="[^/]+" autoFocus /></label>}{error && <p role="alert" className="error">{error}</p>}</ModalBody><ModalFooter><Button variant="light" isDisabled={working} onPress={() => setAction(undefined)}>取消</Button><Button type="submit" color={action?.kind === 'delete' ? 'danger' : 'primary'} isLoading={working}>{action?.kind === 'delete' ? '删除' : '创建'}</Button></ModalFooter></form></ModalContent></Modal>
   </aside>;

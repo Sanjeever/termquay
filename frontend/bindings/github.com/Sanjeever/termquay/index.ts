@@ -8,6 +8,7 @@ export {
 
 export type {
     Catalog,
+    DirectorySyncPreview,
     MonitorEvent,
     OpenResult,
     RDPLaunch,

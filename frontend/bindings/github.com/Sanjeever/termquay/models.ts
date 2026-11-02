@@ -3,6 +3,9 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as files$0 from "./internal/files/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as monitor$0 from "./internal/monitor/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -15,6 +18,14 @@ export interface Catalog {
     "groups": store$0.Group[] | null;
     "connections": store$0.Connection[] | null;
     "session_only": boolean;
+}
+
+export interface DirectorySyncPreview {
+    "id": string;
+    "direction": string;
+    "local": string;
+    "remote": string;
+    "entries": files$0.SyncEntry[] | null;
 }
 
 export interface MonitorEvent {
@@ -62,6 +73,7 @@ export interface Transfer {
     "completed": number;
     "error": string;
     "sequence": number;
+    "retryable": boolean;
 }
 
 export interface TransferBatch {

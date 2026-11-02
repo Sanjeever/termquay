@@ -8,8 +8,13 @@ import (
 	"sync"
 
 	"github.com/pkg/sftp"
+	directorysftp "github.com/pkg/sftp/v2"
 	gossh "golang.org/x/crypto/ssh"
 )
+
+func (t *Terminal) DirectoryClient(ctx context.Context) (*directorysftp.Client, error) {
+	return directorysftp.NewClient(ctx, t.client, directorysftp.WithMaxInflight(4), directorysftp.WithMaxDataLength(32<<10), directorysftp.WithMaxPacketLength(1<<20))
+}
 
 func (t *Terminal) FileClient(ctx context.Context) (*sftp.Client, error) {
 	if err := ctx.Err(); err != nil {

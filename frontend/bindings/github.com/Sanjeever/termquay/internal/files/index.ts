@@ -4,5 +4,6 @@
 export type {
     Directory,
     Document,
-    Entry
+    Entry,
+    SyncEntry
 } from "./models.js";

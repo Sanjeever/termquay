@@ -32,6 +32,8 @@ type pendingTerminal struct {
 
 type workspaceOwner struct {
 	terminal *terminal.Terminal
+	ctx      context.Context
+	cancel   context.CancelFunc
 	timer    *time.Timer
 	stream   *application.StreamConn
 	opening  int
@@ -57,13 +59,15 @@ type AppService struct {
 	transferQueue    []string
 	transferSequence uint64
 	transferEvent    func(Transfer)
+	syncPlans        map[string]*directorySyncPlan
+	syncOpening      int
 	dirty            map[string]bool
 	views            map[string]bool
 	allowQuit        bool
 }
 
 func NewAppService() *AppService {
-	return &AppService{terminals: map[string]*pendingTerminal{}, workspaces: map[string]*workspaceOwner{}, trusted: map[string]string{}, pendingTrust: map[string]string{}, fileSlots: make(chan struct{}, 4), monitors: map[string]context.CancelFunc{}, transfers: map[string]*transferTask{}, dirty: map[string]bool{}, views: map[string]bool{}, transferEvent: func(view Transfer) { application.Get().Event.Emit("transfer:changed", view) }}
+	return &AppService{terminals: map[string]*pendingTerminal{}, workspaces: map[string]*workspaceOwner{}, trusted: map[string]string{}, pendingTrust: map[string]string{}, fileSlots: make(chan struct{}, 4), monitors: map[string]context.CancelFunc{}, transfers: map[string]*transferTask{}, dirty: map[string]bool{}, views: map[string]bool{}, syncPlans: map[string]*directorySyncPlan{}, transferEvent: func(view Transfer) { application.Get().Event.Emit("transfer:changed", view) }}
 }
 
 func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (OpenResult, error) {
@@ -106,7 +110,8 @@ func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (Open
 		return OpenResult{}, errors.New("应用正在关闭")
 	}
 	t.KeepConnection()
-	owner := &workspaceOwner{terminal: t}
+	ownerCtx, ownerCancel := context.WithCancel(context.Background())
+	owner := &workspaceOwner{terminal: t, ctx: ownerCtx, cancel: ownerCancel}
 	a.workspaces[id] = owner
 	go func() { t.WaitConnection(); a.CloseWorkspace(id) }()
 	owner.timer = time.AfterFunc(15*time.Second, func() {
@@ -231,6 +236,14 @@ func (a *AppService) CloseWorkspace(id string) {
 	a.mu.Lock()
 	owner := a.workspaces[id]
 	delete(a.workspaces, id)
+	if owner != nil {
+		owner.cancel()
+	}
+	for key, p := range a.syncPlans {
+		if p.workspace == id {
+			delete(a.syncPlans, key)
+		}
+	}
 	pendingTransfers := []<-chan struct{}{}
 	for _, task := range a.transfers {
 		if task.view.Workspace == id {

@@ -29,6 +29,10 @@ export function BackupWebDAV(options: backup$0.WebDAVOptions, password: string, 
     return $Call.ByID(1363831413, options, password, includeCredentials);
 }
 
+export function CancelDirectorySyncPreview(id: string): $CancellablePromise<void> {
+    return $Call.ByID(3108394696, id);
+}
+
 export function CancelTransfer(id: string): $CancellablePromise<void> {
     return $Call.ByID(3298982059, id);
 }
@@ -85,6 +89,10 @@ export function DuplicateConnection(id: string, includeCredentials: boolean): $C
     return $Call.ByID(3599925595, id, includeCredentials);
 }
 
+export function ExecuteDirectorySync(id: string, selected: string[] | null): $CancellablePromise<$models.Transfer> {
+    return $Call.ByID(874543015, id, selected);
+}
+
 export function GetCatalog(): $CancellablePromise<$models.Catalog> {
     return $Call.ByID(12026733);
 }
@@ -123,6 +131,10 @@ export function OpenTerminal(r: ssh$0.Request): $CancellablePromise<$models.Open
 
 export function ParseQuickConnection(value: string): $CancellablePromise<store$0.Connection> {
     return $Call.ByID(419808756, value);
+}
+
+export function PreviewDirectorySync(workspace: string, direction: string, local: string, remote: string): $CancellablePromise<$models.DirectorySyncPreview> {
+    return $Call.ByID(2250884002, workspace, direction, local, remote);
 }
 
 export function PreviewRestore(options: backup$0.WebDAVOptions, path: string, password: string): $CancellablePromise<$models.RestorePreview> {

@@ -27,6 +27,7 @@ type Transfer struct {
 	Completed int64  `json:"completed"`
 	Error     string `json:"error"`
 	Sequence  uint64 `json:"sequence"`
+	Retryable bool   `json:"retryable"`
 }
 type transferTask struct {
 	view   Transfer
@@ -39,9 +40,33 @@ type transferTask struct {
 type transferSpec struct {
 	workspace, local, remote, direction string
 	overwrite                           bool
+	syncPlanID                          string
 }
 
 var errTransferSkipped = errors.New("同名目标已跳过")
+
+type transferExpectation struct {
+	source, target remotefiles.SyncNode
+	targetExists   bool
+}
+
+func checkTransferExpectation(source, target os.FileInfo, expected []transferExpectation) error {
+	if len(expected) == 0 {
+		return nil
+	}
+	value := expected[0]
+	if !remotefiles.SameSyncNode(remotefiles.SyncInfo(source), value.source) {
+		return errors.New("源文件自预览后已变化")
+	}
+	if value.targetExists {
+		if target == nil || !remotefiles.SameSyncNode(remotefiles.SyncInfo(target), value.target) {
+			return errors.New("目标自预览后已变化")
+		}
+	} else if target != nil {
+		return errors.New("目标自预览后已出现")
+	}
+	return nil
+}
 
 type TransferBatch struct {
 	Items  []Transfer `json:"items"`
@@ -82,6 +107,9 @@ func (a *AppService) cancelTransferLocked(task *transferTask) {
 		return
 	}
 	task.view.State = "cancelled"
+	if task.spec != nil && task.spec.syncPlanID != "" {
+		delete(a.syncPlans, task.spec.syncPlanID)
+	}
 	task.run = nil
 	for i, id := range a.transferQueue {
 		if id == task.view.ID {
@@ -114,6 +142,7 @@ func (a *AppService) startTransfer(workspace, name, direction string, total int6
 	if len(specification) > 0 {
 		spec := specification[0]
 		task.spec = &spec
+		task.view.Retryable = spec.direction == "upload" || spec.direction == "download"
 	}
 	a.transfers[id] = task
 	a.transferQueue = append(a.transferQueue, id)
@@ -168,6 +197,9 @@ func (a *AppService) runTransfer(task *transferTask) {
 		task.view.Error = err.Error()
 	}
 	task.run = nil
+	if task.spec != nil && task.spec.syncPlanID != "" {
+		delete(a.syncPlans, task.spec.syncPlanID)
+	}
 	close(task.done)
 	a.transferEvent(task.view)
 	a.dispatchTransfersLocked()
@@ -225,21 +257,28 @@ func (a *AppService) uploadFiles(id, directory string, locals []string, overwrit
 	return result, nil
 }
 func (a *AppService) uploadPath(id, local, remote string, overwrite bool) (Transfer, error) {
+	size, run, err := a.uploadOperation(id, local, remote, overwrite)
+	if err != nil {
+		return Transfer{}, err
+	}
+	return a.startTransfer(id, path.Base(remote), "upload", size, run, transferSpec{workspace: id, local: local, remote: remote, direction: "upload", overwrite: overwrite})
+}
+func (a *AppService) uploadOperation(id, local, remote string, overwrite bool, expected ...transferExpectation) (int64, func(context.Context, func(int64, int64)) error, error) {
 	if !filepath.IsAbs(local) || !path.IsAbs(remote) || len(local) > 4096 || len(remote) > 4096 {
-		return Transfer{}, errors.New("传输路径无效")
+		return 0, nil, errors.New("传输路径无效")
 	}
 	owner, err := a.terminal(id)
 	if err != nil {
-		return Transfer{}, err
+		return 0, nil, err
 	}
 	info, err := os.Lstat(local)
 	if err != nil {
-		return Transfer{}, err
+		return 0, nil, err
 	}
 	if !info.Mode().IsRegular() {
-		return Transfer{}, errors.New("上传支持普通文件")
+		return 0, nil, errors.New("上传支持普通文件")
 	}
-	return a.startTransfer(id, path.Base(remote), "upload", info.Size(), func(ctx context.Context, report func(int64, int64)) (result error) {
+	return info.Size(), func(ctx context.Context, report func(int64, int64)) (result error) {
 		c, close, err := a.fileClient(ctx, id)
 		if err != nil {
 			return err
@@ -256,6 +295,9 @@ func (a *AppService) uploadPath(id, local, remote string, overwrite bool) (Trans
 			if !before.Mode().IsRegular() {
 				return errors.New("覆盖目标必须是普通文件")
 			}
+		}
+		if err = checkTransferExpectation(info, before, expected); err != nil {
+			return err
 		}
 		source, err := os.Open(local)
 		if err != nil {
@@ -311,6 +353,9 @@ func (a *AppService) uploadPath(id, local, remote string, overwrite bool) (Trans
 		if err = target.Close(); err != nil {
 			return err
 		}
+		if err = c.Chtimes(temporary, info.ModTime(), info.ModTime()); err != nil {
+			return err
+		}
 		if err = ctx.Err(); err != nil {
 			return err
 		}
@@ -346,7 +391,7 @@ func (a *AppService) uploadPath(id, local, remote string, overwrite bool) (Trans
 			return fmt.Errorf("上传发布失败: %w", err)
 		}
 		return nil
-	}, transferSpec{workspace: id, local: local, remote: remote, direction: "upload", overwrite: overwrite})
+	}, nil
 }
 
 func (a *AppService) StartDownload(id, remote string) (Transfer, error) {
@@ -357,10 +402,17 @@ func (a *AppService) StartDownload(id, remote string) (Transfer, error) {
 	return a.downloadPath(id, remote, local, true)
 }
 func (a *AppService) downloadPath(id, remote, local string, overwrite bool) (Transfer, error) {
-	if !filepath.IsAbs(local) || !path.IsAbs(remote) {
-		return Transfer{}, errors.New("传输路径无效")
+	run, err := a.downloadOperation(id, remote, local, overwrite)
+	if err != nil {
+		return Transfer{}, err
 	}
-	return a.startTransfer(id, path.Base(remote), "download", 0, func(ctx context.Context, report func(int64, int64)) (result error) {
+	return a.startTransfer(id, path.Base(remote), "download", 0, run, transferSpec{workspace: id, local: local, remote: remote, direction: "download", overwrite: overwrite})
+}
+func (a *AppService) downloadOperation(id, remote, local string, overwrite bool, expected ...transferExpectation) (func(context.Context, func(int64, int64)) error, error) {
+	if !filepath.IsAbs(local) || !path.IsAbs(remote) {
+		return nil, errors.New("传输路径无效")
+	}
+	return func(ctx context.Context, report func(int64, int64)) (result error) {
 		before, err := os.Lstat(local)
 		if err != nil && !os.IsNotExist(err) {
 			return err
@@ -385,6 +437,9 @@ func (a *AppService) downloadPath(id, remote, local string, overwrite bool) (Tra
 		if !info.Mode().IsRegular() {
 			return errors.New("下载支持普通文件")
 		}
+		if err = checkTransferExpectation(info, before, expected); err != nil {
+			return err
+		}
 		source, err := c.Open(remote)
 		if err != nil {
 			return err
@@ -406,6 +461,9 @@ func (a *AppService) downloadPath(id, remote, local string, overwrite bool) (Tra
 			return err
 		}
 		if err = target.Sync(); err != nil {
+			return err
+		}
+		if err = os.Chtimes(target.Name(), info.ModTime(), info.ModTime()); err != nil {
 			return err
 		}
 		if err = target.Close(); err != nil {
@@ -453,13 +511,13 @@ func (a *AppService) downloadPath(id, remote, local string, overwrite bool) (Tra
 		}
 		published = true
 		return nil
-	}, transferSpec{workspace: id, local: local, remote: remote, direction: "download", overwrite: overwrite})
+	}, nil
 }
 
 func (a *AppService) RetryTransfer(id, newName string, overwrite bool) (Transfer, error) {
 	a.mu.Lock()
 	task := a.transfers[id]
-	if task == nil || task.spec == nil || (task.view.State != "failed" && task.view.State != "cancelled" && task.view.State != "skipped") {
+	if task == nil || task.spec == nil || !task.view.Retryable || (task.view.State != "failed" && task.view.State != "cancelled" && task.view.State != "skipped") {
 		a.mu.Unlock()
 		return Transfer{}, errors.New("此任务不能重试")
 	}

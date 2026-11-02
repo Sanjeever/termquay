@@ -10,6 +10,7 @@ require (
 	github.com/coder/websocket v1.8.14
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 	github.com/pkg/sftp v1.13.10
+	github.com/pkg/sftp/v2 v2.0.0-alpha2
 	github.com/studio-b12/gowebdav v0.13.0
 	github.com/wailsapp/wails/v3 v3.0.0
 	github.com/zalando/go-keyring v0.2.6
