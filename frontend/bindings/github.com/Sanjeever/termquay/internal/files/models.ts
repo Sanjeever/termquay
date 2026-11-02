@@ -20,6 +20,8 @@ export interface Entry {
     "symlink": boolean;
     "mode": string;
     "modified": number;
+    "uid"?: number | null;
+    "gid"?: number | null;
 }
 
 export interface SyncEntry {

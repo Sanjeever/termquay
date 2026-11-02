@@ -120,5 +120,14 @@ func TestSG1Files(t *testing.T) {
 	if err != nil || len(entries.Entries) != 2 || entries.Path != dir {
 		t.Fatal("目录读取不一致")
 	}
+	current, err := client.Lstat(remote)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range entries.Entries {
+		if entry.Path == remote && (entry.UID == nil || entry.GID == nil || *entry.UID != afterOwnership.UID || *entry.GID != afterOwnership.GID || entry.Mode != current.Mode().String() || entry.Modified != current.ModTime().UnixMilli()) {
+			t.Fatal("目录元数据与服务端文件属性不一致")
+		}
+	}
 	t.Log("真实 SFTP 浏览、保存、权限、冲突与符号链接检查通过")
 }

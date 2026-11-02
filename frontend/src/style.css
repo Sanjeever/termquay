@@ -228,6 +228,18 @@ input[type=checkbox] { accent-color: var(--color-primary); }
 .file-list li { display: flex; align-items: center; gap: 4px; min-height: 32px; padding: 2px 4px; font-size: 12px; border-radius: 4px; }
 .file-list li:hover { background: var(--color-hover); }
 .file-list li.selected { background: var(--color-selected); }
+.file-tree { min-width: 0; }
+.file-tree li[role=treeitem] { min-height: 28px; outline-offset: -2px; }
+.file-tree .row-menu { height: 24px; min-height: 24px; }
+.tree-expand { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 24px; flex-shrink: 0; color: var(--color-muted); }
+.tree-expand:hover { color: var(--color-text); }
+.file-tree .tree-message { min-height: 24px; color: var(--color-muted); font-size: 11px; overflow-wrap: anywhere; }
+.file-tree .tree-message:hover { background: transparent; }
+.file-tree .tree-message.error { color: var(--color-danger); }
+.file-tooltip { max-width: min(380px, 60vw); padding: 4px; font-size: 11px; }
+.file-tooltip > div { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 10px; padding: 3px 0; }
+.file-tooltip dt { color: var(--color-muted); }
+.file-tooltip dd { overflow-wrap: anywhere; }
 .file-name { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: left; }
 .file-name span { color: var(--color-muted); }
 .file-list details { position: relative; }

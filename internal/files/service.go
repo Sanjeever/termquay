@@ -19,13 +19,15 @@ import (
 const MaxEditSize = 2 << 20
 
 type Entry struct {
-	Name      string `json:"name"`
-	Path      string `json:"path"`
-	Size      int64  `json:"size"`
-	Directory bool   `json:"directory"`
-	Symlink   bool   `json:"symlink"`
-	Mode      string `json:"mode"`
-	Modified  int64  `json:"modified"`
+	Name      string  `json:"name"`
+	Path      string  `json:"path"`
+	Size      int64   `json:"size"`
+	Directory bool    `json:"directory"`
+	Symlink   bool    `json:"symlink"`
+	Mode      string  `json:"mode"`
+	Modified  int64   `json:"modified"`
+	UID       *uint32 `json:"uid,omitempty"`
+	GID       *uint32 `json:"gid,omitempty"`
 }
 type Document struct {
 	Path     string `json:"path"`
@@ -57,7 +59,12 @@ func List(ctx context.Context, client *sftp.Client, remote string) (Directory, e
 	}
 	result := make([]Entry, 0, len(infos))
 	for _, info := range infos {
-		result = append(result, Entry{Name: info.Name(), Path: path.Join(remote, info.Name()), Size: info.Size(), Directory: info.IsDir(), Symlink: info.Mode()&os.ModeSymlink != 0, Mode: info.Mode().String(), Modified: info.ModTime().UnixMilli()})
+		entry := Entry{Name: info.Name(), Path: path.Join(remote, info.Name()), Size: info.Size(), Directory: info.IsDir(), Symlink: info.Mode()&os.ModeSymlink != 0, Mode: info.Mode().String(), Modified: info.ModTime().UnixMilli()}
+		if stat, ok := info.Sys().(*sftp.FileStat); ok {
+			entry.UID = &stat.UID
+			entry.GID = &stat.GID
+		}
+		result = append(result, entry)
 	}
 	sort.Slice(result, func(i, j int) bool {
 		if result[i].Directory != result[j].Directory {
