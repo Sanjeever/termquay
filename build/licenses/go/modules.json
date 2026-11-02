@@ -20,6 +20,10 @@
     "version": "v0.5.3"
   },
   {
+    "module": "github.com/armon/go-socks5",
+    "version": "v0.0.0-20160902184237-e75332964ef5"
+  },
+  {
     "module": "github.com/bouncyball-git/gopher-rdp",
     "version": "v1.0.8"
   },

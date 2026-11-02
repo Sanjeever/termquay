@@ -23,6 +23,7 @@ export type {
     Snippet,
     Transfer,
     TransferBatch,
+    Tunnel,
     UploadDropResult,
     WorkspaceDraftUpdate,
     WorkspaceLayout,

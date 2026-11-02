@@ -57,6 +57,10 @@ export function CloseTerminal(id: string): $CancellablePromise<void> {
     return $Call.ByID(3812665046, id);
 }
 
+export function CloseTunnel(id: string): $CancellablePromise<void> {
+    return $Call.ByID(3592808880, id);
+}
+
 export function CloseWorkspace(id: string): $CancellablePromise<void> {
     return $Call.ByID(993782487, id);
 }
@@ -131,6 +135,10 @@ export function ListSnippets(): $CancellablePromise<$models.Snippet[] | null> {
 
 export function ListTransfers(): $CancellablePromise<$models.Transfer[] | null> {
     return $Call.ByID(2832107770);
+}
+
+export function ListTunnels(workspace: string): $CancellablePromise<$models.Tunnel[] | null> {
+    return $Call.ByID(1886316137, workspace);
 }
 
 export function OpenRDP(host: string, port: number): $CancellablePromise<rdp$0.Grant> {
@@ -263,6 +271,10 @@ export function SetWorkspaceDirty(id: string, dirty: boolean): $CancellablePromi
 
 export function StartDownload(id: string, remote: string): $CancellablePromise<$models.Transfer> {
     return $Call.ByID(1386823426, id, remote);
+}
+
+export function StartTunnel(workspace: string, spec: ssh$0.ForwardSpec): $CancellablePromise<$models.Tunnel> {
+    return $Call.ByID(2597161884, workspace, spec);
 }
 
 export function StartUpload(id: string, directory: string): $CancellablePromise<$models.Transfer> {

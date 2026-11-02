@@ -12,6 +12,7 @@ import ResizeHandle from '../../components/layout/ResizeHandle';
 import FileConflictView from './FileConflictView';
 import type { RecoveryDraftInput, SSHLayout } from '../../../bindings/github.com/Sanjeever/termquay/models';
 import WorkspacePanes from './WorkspacePanes';
+import TunnelPanel from '../tunnels/TunnelPanel';
 
 type Draft = Document & { saved: string; error: string; saving: boolean; needsReview?: boolean; recovery?:boolean };
 export type SSHWorkspaceHandle = { layout():SSHLayout; hasDirty():boolean; recoveryDrafts():RecoveryDraftInput[]|null; insertionTarget():string; insert(text:string,target:string):boolean; focus(): void; saveAll(): Promise<boolean>; prepareReconnect(): Promise<boolean>; showFiles(): void; toggleMonitor(): void; toggleFocus(): void; terminalAction(action: TerminalAction): void };
@@ -38,6 +39,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   const terminalOwners=useRef(new Map([[sessionID,sessionID]]));
   const [directory,setDirectory]=useState(initialLayout?.directory||'');
   const [preparing, setPreparing] = useState(false);
+  const [tunnelsOpen,setTunnelsOpen]=useState(false);
   const [closing, setClosing] = useState('');
   const [rereading, setRereading] = useState('');
   const [conflict, setConflict] = useState('');
@@ -166,6 +168,8 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   const closingDraft = drafts.find(d => d.path === closing);
   function activate(path: string) { setActive(path); requestAnimationFrame(() => focusTab(path)); }
   return <div className="ssh-workspace">
+    <button className="session-tool" aria-pressed={tunnelsOpen} onClick={()=>setTunnelsOpen(v=>!v)}>端口转发</button>
+    <div hidden={!tunnelsOpen}><TunnelPanel id={sessionID} visible={visible&&tunnelsOpen}/></div>
     <div className="workspace-toolbar" aria-label="SSH 工作区工具"><button ref={filesToggle} className="session-tool" aria-pressed={filesShown} onClick={toggleFiles}><Icon name="files" width="15" />文件</button><button ref={monitorToggle} className="session-tool" aria-pressed={monitorShown} onClick={toggleMonitor}><Icon name="monitor" width="15" />监控</button><Button size="sm" variant="light" isDisabled={busy||preparing} onPress={onReconnect}>重新连接</Button><Dropdown><DropdownTrigger><Button size="sm" variant="light">窗格</Button></DropdownTrigger><DropdownMenu aria-label="窗格操作" disabledKeys={[...(creating||terminals.length>=16?['new']:[]),...(!active?['move']:[]),...(!split?['maximize','merge']:[])]} onAction={key=>{if(key==='new')void newTerminal(1);if(key==='move')moveActive();if(key==='maximize')setMaximized(v=>!v);if(key==='merge'){setSplit(false);setSecondary([]);setSelection([active||paneSelected[0],'']);setActivePane(0);setMaximized(false);}}}><DropdownItem key="new">新建终端到右侧</DropdownItem><DropdownItem key="move">移动当前标签到另一窗格</DropdownItem><DropdownItem key="maximize">{maximized?'恢复双窗格':'最大化当前窗格'}</DropdownItem><DropdownItem key="merge">合并窗格</DropdownItem></DropdownMenu></Dropdown><button className="icon-button focus-toggle" aria-label="专注模式" title="专注模式" aria-pressed={focus} onClick={() => setFocus(!focus)}><Icon name="focus" width="16" /></button></div>
     <div className="ssh-panels">
     <div className="file-dock" hidden={!filesShown} style={{ width: filesWidth }}><FileBrowser id={sessionID} connectionID={connectionID} initialDirectory={initialLayout?.directory} onDirectory={setDirectory} visible={visible && filesShown} onOpen={open} onClose={() => { toggleFiles(); filesToggle.current?.focus(); }} /></div>

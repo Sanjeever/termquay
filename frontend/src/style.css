@@ -143,6 +143,12 @@ input[type=checkbox] { accent-color: var(--color-primary); }
 .restored-workspace h2 { font-size: 16px; margin-bottom: 8px; }
 .restored-workspace .button-row { margin: 16px 0; }
 .restored-workspace li { padding: 4px 0; color: var(--color-muted); font-size: 12px; }
+.tunnel-panel { padding: 8px 12px; max-height: 40vh; overflow: auto; border-bottom: 1px solid var(--color-border); }
+.tunnel-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; font-size: 11px; }
+.tunnel-form > label:not(.checkbox-label) { display: flex; flex-direction: column; gap: 3px; max-width: 150px; }
+.tunnel-form input,.tunnel-form select { padding: 4px 6px; background: var(--color-background); border: 1px solid var(--color-border); border-radius: 4px; min-width: 0; }
+.tunnel-row { display: flex; gap: 12px; align-items: center; justify-content: space-between; margin-top: 8px; font-size: 12px; }
+.tunnel-row small { display: block; color: var(--color-muted); }
 .app-dialog.file-conflict-dialog { max-width: min(1100px, calc(100vw - 24px)); }
 .conflict-labels { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 12px; color: var(--color-muted); }
 .conflict-editors { height: min(52vh, 560px); min-height: 140px; }

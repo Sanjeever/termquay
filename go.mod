@@ -7,6 +7,7 @@ toolchain go1.26.10
 require (
 	filippo.io/age v1.3.2
 	github.com/Microsoft/go-winio v0.6.2
+	github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5
 	github.com/bouncyball-git/gopher-rdp v1.0.8
 	github.com/coder/websocket v1.8.14
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510

@@ -70,10 +70,12 @@ type AppService struct {
 	allowQuit        bool
 	frontendReady    bool
 	privateKeys      map[string]stagedPrivateKey
+	tunnels          map[string]*workspaceTunnel
+	closing          int
 }
 
 func NewAppService() *AppService {
-	return &AppService{terminals: map[string]*pendingTerminal{}, workspaces: map[string]*workspaceOwner{}, trusted: map[string]string{}, pendingTrust: map[string]string{}, fileSlots: make(chan struct{}, 4), monitors: map[string]context.CancelFunc{}, transfers: map[string]*transferTask{}, dirty: map[string]bool{}, views: map[string]bool{}, syncPlans: map[string]*directorySyncPlan{}, privateKeys: map[string]stagedPrivateKey{}, transferEvent: func(view Transfer) { application.Get().Event.Emit("transfer:changed", view) }}
+	return &AppService{terminals: map[string]*pendingTerminal{}, workspaces: map[string]*workspaceOwner{}, trusted: map[string]string{}, pendingTrust: map[string]string{}, fileSlots: make(chan struct{}, 4), monitors: map[string]context.CancelFunc{}, transfers: map[string]*transferTask{}, dirty: map[string]bool{}, views: map[string]bool{}, syncPlans: map[string]*directorySyncPlan{}, privateKeys: map[string]stagedPrivateKey{}, tunnels: map[string]*workspaceTunnel{}, transferEvent: func(view Transfer) { application.Get().Event.Emit("transfer:changed", view) }}
 }
 
 func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (OpenResult, error) {
@@ -103,7 +105,7 @@ func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (Open
 		jump = &request
 	}
 	a.mu.Lock()
-	if a.closed || len(a.workspaces)+a.opening >= 16 || len(a.terminals)+a.opening >= 64 {
+	if a.closed || len(a.workspaces)+a.opening+a.closing >= 16 || len(a.terminals)+a.opening >= 64 {
 		a.mu.Unlock()
 		return OpenResult{}, errors.New("当前最多运行 16 个终端")
 	}
@@ -298,6 +300,18 @@ func (a *AppService) CloseWorkspace(id string) {
 	owner := a.workspaces[id]
 	delete(a.workspaces, id)
 	if owner != nil {
+		a.closing++
+		defer func() { a.mu.Lock(); a.closing--; a.mu.Unlock() }()
+	}
+	forwarding := []*workspaceTunnel{}
+	for key, t := range a.tunnels {
+		if t.view.Workspace == id {
+			t.cancel()
+			forwarding = append(forwarding, t)
+			delete(a.tunnels, key)
+		}
+	}
+	if owner != nil {
 		owner.cancel()
 	}
 	for key, p := range a.syncPlans {
@@ -322,12 +336,16 @@ func (a *AppService) CloseWorkspace(id string) {
 		}
 	}
 	a.mu.Unlock()
+	for _, t := range forwarding {
+		if t.forward != nil {
+			t.forward.Close()
+		}
+	}
 	if cancel != nil {
 		cancel()
 	}
 	for _, p := range terminals {
 		p.timer.Stop()
-		p.terminal.Close()
 	}
 	wait, cancelWait := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelWait()
@@ -343,6 +361,9 @@ func (a *AppService) CloseWorkspace(id string) {
 			owner.stream.Close()
 		}
 		owner.terminal.Disconnect()
+	}
+	for _, p := range terminals {
+		p.terminal.Close()
 	}
 }
 

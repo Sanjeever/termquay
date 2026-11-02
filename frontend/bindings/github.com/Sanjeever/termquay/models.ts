@@ -12,6 +12,9 @@ import * as monitor$0 from "./internal/monitor/models.js";
 import * as rdp$0 from "./internal/rdp/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as ssh$0 from "./internal/ssh/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as store$0 from "./internal/store/models.js";
 
 export interface Catalog {
@@ -136,6 +139,13 @@ export interface Transfer {
 export interface TransferBatch {
     "items": Transfer[] | null;
     "errors": string[] | null;
+}
+
+export interface Tunnel {
+    "id": string;
+    "workspace": string;
+    "spec": ssh$0.ForwardSpec;
+    "info": ssh$0.ForwardInfo;
 }
 
 export interface UploadDropResult {

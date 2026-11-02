@@ -46,6 +46,8 @@ func (e *HostKeyError) Error() string { return "SSH 主机身份尚未确认或�
 type Terminal struct {
 	client          *gossh.Client
 	jump            *gossh.Client
+	forwardSlots    chan struct{}
+	forwardRequests chan struct{}
 	session         *gossh.Session
 	Input           io.WriteCloser
 	Output          *io.PipeReader
@@ -190,7 +192,7 @@ func newTerminal(client *gossh.Client, cols, rows int) (*Terminal, error) {
 		writer.Close()
 		return fail(err)
 	}
-	t := &Terminal{client: client, session: s, Input: input, Output: reader, writer: writer, Done: make(chan struct{})}
+	t := &Terminal{client: client, session: s, Input: input, Output: reader, writer: writer, Done: make(chan struct{}), forwardSlots: make(chan struct{}, 8), forwardRequests: make(chan struct{}, 4)}
 	go func() {
 		err := s.Wait()
 		t.mu.Lock()
@@ -211,6 +213,12 @@ func (t *Terminal) Resize(cols, rows int) error {
 
 func (t *Terminal) Close() {
 	t.once.Do(func() {
+		if t.connectionOwner {
+			t.client.Close()
+			if t.jump != nil {
+				t.jump.Close()
+			}
+		}
 		t.Input.Close()
 		t.Output.Close()
 		t.writer.Close()
@@ -228,11 +236,11 @@ func (t *Terminal) KeepConnection() { t.connectionOwner = false }
 
 func (t *Terminal) WaitConnection() error { return t.client.Wait() }
 func (t *Terminal) Disconnect() {
-	t.Close()
 	t.client.Close()
 	if t.jump != nil {
 		t.jump.Close()
 	}
+	t.Close()
 }
 func (t *Terminal) OpenPTY(cols, rows int) (*Terminal, error) {
 	if cols < 1 || cols > 1000 || rows < 1 || rows > 1000 {
