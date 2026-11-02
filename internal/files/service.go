@@ -25,6 +25,7 @@ type Entry struct {
 	Directory bool   `json:"directory"`
 	Symlink   bool   `json:"symlink"`
 	Mode      string `json:"mode"`
+	Modified  int64  `json:"modified"`
 }
 type Document struct {
 	Path     string `json:"path"`
@@ -56,7 +57,7 @@ func List(ctx context.Context, client *sftp.Client, remote string) (Directory, e
 	}
 	result := make([]Entry, 0, len(infos))
 	for _, info := range infos {
-		result = append(result, Entry{Name: info.Name(), Path: path.Join(remote, info.Name()), Size: info.Size(), Directory: info.IsDir(), Symlink: info.Mode()&os.ModeSymlink != 0, Mode: info.Mode().String()})
+		result = append(result, Entry{Name: info.Name(), Path: path.Join(remote, info.Name()), Size: info.Size(), Directory: info.IsDir(), Symlink: info.Mode()&os.ModeSymlink != 0, Mode: info.Mode().String(), Modified: info.ModTime().UnixMilli()})
 	}
 	sort.Slice(result, func(i, j int) bool {
 		if result[i].Directory != result[j].Directory {

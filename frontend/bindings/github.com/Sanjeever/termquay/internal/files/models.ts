@@ -19,4 +19,5 @@ export interface Entry {
     "directory": boolean;
     "symlink": boolean;
     "mode": string;
+    "modified": number;
 }

@@ -93,6 +93,10 @@ export function GetConnectionPreferences(): $CancellablePromise<{ [_ in string]?
     return $Call.ByID(3002214768);
 }
 
+export function GetDirectoryBookmarks(id: string): $CancellablePromise<string[] | null> {
+    return $Call.ByID(3658870342, id);
+}
+
 export function ListSnapshots(options: backup$0.WebDAVOptions): $CancellablePromise<backup$0.RemoteSnapshot[] | null> {
     return $Call.ByID(2845134187, options);
 }
@@ -171,6 +175,10 @@ export function SaveRemoteFile(id: string, document: files$0.Document): $Cancell
 
 export function SetConnectionPreference(id: string, favorite: boolean, environment: string): $CancellablePromise<void> {
     return $Call.ByID(238222063, id, favorite, environment);
+}
+
+export function SetDirectoryBookmarks(id: string, bookmarks: string[] | null): $CancellablePromise<void> {
+    return $Call.ByID(3472844162, id, bookmarks);
 }
 
 export function SetRDPResolution(id: string, resolution: string): $CancellablePromise<void> {

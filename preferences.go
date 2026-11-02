@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"path"
 	"sort"
 	"time"
 
@@ -150,4 +151,43 @@ func (a *AppService) SetRDPResolution(id, resolution string) error {
 		}
 	}
 	return errors.New("RDP 连接不存在")
+}
+
+func (a *AppService) GetDirectoryBookmarks(id string) ([]string, error) {
+	p, err := a.GetConnectionPreferences()
+	if err != nil {
+		return nil, err
+	}
+	return p[id].Bookmarks, nil
+}
+func (a *AppService) SetDirectoryBookmarks(id string, bookmarks []string) error {
+	if len(bookmarks) > 32 {
+		return errors.New("目录书签达到上限（32 个）")
+	}
+	seen := map[string]bool{}
+	for _, value := range bookmarks {
+		if len(value) > 4096 || !path.IsAbs(value) || path.Clean(value) != value || seen[value] {
+			return errors.New("目录书签无效或重复")
+		}
+		seen[value] = true
+	}
+	a.storeMu.Lock()
+	defer a.storeMu.Unlock()
+	p, err := a.connectionPreferences()
+	if err != nil {
+		return err
+	}
+	d, err := a.store.Read()
+	if err != nil {
+		return err
+	}
+	for _, c := range d.Connections {
+		if c.ID == id {
+			value := p[id]
+			value.Bookmarks = bookmarks
+			p[id] = value
+			return a.store.SetConnectionPreferences(p)
+		}
+	}
+	return errors.New("连接不存在")
 }

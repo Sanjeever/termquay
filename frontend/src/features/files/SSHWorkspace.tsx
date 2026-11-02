@@ -16,8 +16,8 @@ type Draft = Document & { saved: string; error: string; saving: boolean; needsRe
 export type SSHWorkspaceHandle = { focus(): void; saveAll(): Promise<boolean>; prepareReconnect(): Promise<boolean>; showFiles(): void; toggleMonitor(): void; toggleFocus(): void; terminalAction(action: TerminalAction): void };
 
 const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
-  id: string; sessionID: string; visible: boolean; fontSize?: number; onDirtyChange(dirty: boolean): void; onState(state: string): void; onReconnect(): void; busy: boolean;
-}>(function SSHWorkspace({ id, sessionID, visible, fontSize = 14, onDirtyChange, onState, onReconnect, busy }, ref) {
+  id: string; sessionID: string; connectionID: string; visible: boolean; fontSize?: number; onDirtyChange(dirty: boolean): void; onState(state: string): void; onReconnect(): void; busy: boolean;
+}>(function SSHWorkspace({ id, sessionID, connectionID, visible, fontSize = 14, onDirtyChange, onState, onReconnect, busy }, ref) {
   const [error, setError] = useState('');
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [selection,setSelection]=useState<[string,string]>([sessionID,'']);
@@ -138,7 +138,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   return <div className="ssh-workspace">
     <div className="workspace-toolbar" aria-label="SSH 工作区工具"><button ref={filesToggle} className="session-tool" aria-pressed={filesShown} onClick={toggleFiles}><Icon name="files" width="15" />文件</button><button ref={monitorToggle} className="session-tool" aria-pressed={monitorShown} onClick={toggleMonitor}><Icon name="monitor" width="15" />监控</button><Button size="sm" variant="light" isDisabled={busy||preparing} onPress={onReconnect}>重新连接</Button><Dropdown><DropdownTrigger><Button size="sm" variant="light">窗格</Button></DropdownTrigger><DropdownMenu aria-label="窗格操作" disabledKeys={[...(creating||terminals.length>=16?['new']:[]),...(!active?['move']:[]),...(!split?['maximize','merge']:[])]} onAction={key=>{if(key==='new')void newTerminal(1);if(key==='move')moveActive();if(key==='maximize')setMaximized(v=>!v);if(key==='merge'){setSplit(false);setSecondary([]);setSelection([active||paneSelected[0],'']);setActivePane(0);setMaximized(false);}}}><DropdownItem key="new">新建终端到右侧</DropdownItem><DropdownItem key="move">移动当前标签到另一窗格</DropdownItem><DropdownItem key="maximize">{maximized?'恢复双窗格':'最大化当前窗格'}</DropdownItem><DropdownItem key="merge">合并窗格</DropdownItem></DropdownMenu></Dropdown><button className="icon-button focus-toggle" aria-label="专注模式" title="专注模式" aria-pressed={focus} onClick={() => setFocus(!focus)}><Icon name="focus" width="16" /></button></div>
     <div className="ssh-panels">
-    <div className="file-dock" hidden={!filesShown} style={{ width: filesWidth }}><FileBrowser id={sessionID} visible={visible && filesShown} onOpen={open} onClose={() => { toggleFiles(); filesToggle.current?.focus(); }} /></div>
+    <div className="file-dock" hidden={!filesShown} style={{ width: filesWidth }}><FileBrowser id={sessionID} connectionID={connectionID} visible={visible && filesShown} onOpen={open} onClose={() => { toggleFiles(); filesToggle.current?.focus(); }} /></div>
     {filesShown && !narrow && <ResizeHandle label="文件面板宽度" value={filesWidth} min={200} max={420} onChange={setFilesWidth} />}
     <div className="ssh-center" ref={center}>
       <div className="inner-tabs" role="tablist" aria-label="终端与文件" aria-multiselectable={split} onKeyDown={e => {

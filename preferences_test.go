@@ -93,3 +93,26 @@ func TestRDPResolutionPreference(t *testing.T) {
 		t.Fatal("接受不存在连接")
 	}
 }
+
+func TestDirectoryBookmarksStayWithConnection(t *testing.T) {
+	a := testAppStore(t)
+	if err := a.store.Replace(store.Data{Connections: []store.Connection{{ID: "one", Name: "一", Protocol: "ssh", Host: "example.invalid", Port: 22}, {ID: "two", Name: "二", Protocol: "ssh", Host: "example.invalid", Port: 22}}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.SetDirectoryBookmarks("one", []string{"/etc", "/tmp"}); err != nil {
+		t.Fatal(err)
+	}
+	values, err := a.GetDirectoryBookmarks("one")
+	if err != nil || len(values) != 2 {
+		t.Fatal("书签未保存")
+	}
+	values, err = a.GetDirectoryBookmarks("two")
+	if err != nil || len(values) != 0 {
+		t.Fatal("书签串到其他连接")
+	}
+	for _, values := range [][]string{{"relative"}, {"/tmp/.."}, {"/tmp", "/tmp"}, make([]string, 33)} {
+		if err = a.SetDirectoryBookmarks("one", values); err == nil {
+			t.Fatal("接受无效书签")
+		}
+	}
+}
