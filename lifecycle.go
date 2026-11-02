@@ -35,13 +35,14 @@ func (a *AppService) ReleaseWorkspaceView(id string) {
 }
 func (a *AppService) canQuit() bool {
 	a.mu.Lock()
-	blocked := !a.allowQuit && len(a.dirty) > 0
+	blocked := !a.allowQuit && (a.frontendReady || len(a.dirty) > 0)
 	a.mu.Unlock()
 	if blocked {
 		application.Get().Event.Emit("app:close-requested")
 	}
 	return !blocked
 }
+func (a *AppService) SetFrontendReady() { a.mu.Lock(); a.frontendReady = true; a.mu.Unlock() }
 func (a *AppService) DiscardAndQuit() {
 	a.mu.Lock()
 	a.allowQuit = true

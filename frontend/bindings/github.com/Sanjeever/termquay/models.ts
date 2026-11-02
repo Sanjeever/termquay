@@ -28,6 +28,12 @@ export interface DirectorySyncPreview {
     "entries": files$0.SyncEntry[] | null;
 }
 
+export interface DraftRecoveryState {
+    "enabled": boolean;
+    "session_only": boolean;
+    "drafts": RecoveryDraftSummary[] | null;
+}
+
 export interface MonitorEvent {
     "id": string;
     "sample": monitor$0.Sample | null;
@@ -51,6 +57,27 @@ export interface RDPProbe {
     "fingerprint": string;
     "trust_required": boolean;
     "reason": string;
+}
+
+export interface RecoveryDraft {
+    "workspace": string;
+    "workspace_name"?: string;
+    "path": string;
+    "content": string;
+    "updated_at": string;
+}
+
+export interface RecoveryDraftInput {
+    "path": string;
+    "content": string;
+}
+
+export interface RecoveryDraftSummary {
+    "workspace": string;
+    "workspace_name"?: string;
+    "path": string;
+    "bytes": number;
+    "updated_at": string;
 }
 
 export interface RestorePreview {
@@ -92,4 +119,10 @@ export interface UploadDropResult {
     "workspace": string;
     "result": TransferBatch;
     "error": string;
+}
+
+export interface WorkspaceDraftUpdate {
+    "workspace": string;
+    "name": string;
+    "documents": RecoveryDraftInput[] | null;
 }

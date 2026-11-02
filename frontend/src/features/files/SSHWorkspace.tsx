@@ -10,14 +10,15 @@ import MonitorPanel from '../monitor/MonitorPanel';
 import Icon from '../../components/Icon';
 import ResizeHandle from '../../components/layout/ResizeHandle';
 import FileConflictView from './FileConflictView';
+import type { RecoveryDraftInput } from '../../../bindings/github.com/Sanjeever/termquay/models';
 import WorkspacePanes from './WorkspacePanes';
 
 type Draft = Document & { saved: string; error: string; saving: boolean; needsReview?: boolean };
-export type SSHWorkspaceHandle = { insertionTarget():string; insert(text:string,target:string):boolean; focus(): void; saveAll(): Promise<boolean>; prepareReconnect(): Promise<boolean>; showFiles(): void; toggleMonitor(): void; toggleFocus(): void; terminalAction(action: TerminalAction): void };
+export type SSHWorkspaceHandle = { hasDirty():boolean; recoveryDrafts():RecoveryDraftInput[]; insertionTarget():string; insert(text:string,target:string):boolean; focus(): void; saveAll(): Promise<boolean>; prepareReconnect(): Promise<boolean>; showFiles(): void; toggleMonitor(): void; toggleFocus(): void; terminalAction(action: TerminalAction): void };
 
 const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
-  id: string; sessionID: string; connectionID: string; visible: boolean; fontSize?: number; onDirtyChange(dirty: boolean): void; onState(state: string): void; onReconnect(): void; busy: boolean;
-}>(function SSHWorkspace({ id, sessionID, connectionID, visible, fontSize = 14, onDirtyChange, onState, onReconnect, busy }, ref) {
+  id: string; sessionID: string; connectionID: string; visible: boolean; fontSize?: number; onDirtyChange(dirty: boolean): void; onState(state: string): void; onStateChange():void; onReconnect(): void; busy: boolean;
+}>(function SSHWorkspace({ id, sessionID, connectionID, visible, fontSize = 14, onDirtyChange, onState, onStateChange, onReconnect, busy }, ref) {
   const [error, setError] = useState('');
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [selection,setSelection]=useState<[string,string]>([sessionID,'']);
@@ -52,6 +53,8 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   const monitorToggle = useRef<HTMLButtonElement>(null);
   const dirtyCallback = useRef(onDirtyChange); dirtyCallback.current = onDirtyChange;
   const stateCallback = useRef(onState); stateCallback.current = onState;
+  const changeCallback=useRef(onStateChange);changeCallback.current=onStateChange;
+  useEffect(()=>{changeCallback.current();},[drafts]);
   const dirty = drafts.some(d => d.content !== d.saved);
   currentDirty.current = dirty;
   const filesShown = !focus && (narrow ? narrowPanel === 'files' : filesOpen);
@@ -120,7 +123,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
     })();
     saves.current.set(path, operation); return operation;
   }
-  useImperativeHandle(ref, () => ({ insertionTarget:()=>terminalHandles.current.has(active)?active:'',insert:(text,target)=>target===active?terminalHandles.current.get(target)?.insert(text)||false:false, focus:()=>focusTab(), showFiles, toggleMonitor, terminalAction: action => terminalHandles.current.get(active)?.action(action), toggleFocus: () => setFocus(prev => !prev), async prepareReconnect(){if(terminals.length>=16){setError('保留终端达到上限（16 个），请先关闭结束标签');return false;}if(saves.current.size||creating||preparing){setError('请等待当前保存或终端创建完成');return false;}setPreparing(true);try{await CloseWorkspace(sessionID);return !disposed.current;}finally{setPreparing(false);}}, async saveAll() { for (const draft of draftsRef.current) { if (!await save(draft.path)) { setActive(draft.path); return false; } } return !draftsRef.current.some(d => d.content !== d.saved); } }));
+  useImperativeHandle(ref, () => ({ hasDirty:()=>draftsRef.current.some(d=>d.content!==d.saved), recoveryDrafts:()=>draftsRef.current.filter(d=>d.content!==d.saved).map(d=>({path:d.path,content:d.content})),insertionTarget:()=>terminalHandles.current.has(active)?active:'',insert:(text,target)=>target===active?terminalHandles.current.get(target)?.insert(text)||false:false, focus:()=>focusTab(), showFiles, toggleMonitor, terminalAction: action => terminalHandles.current.get(active)?.action(action), toggleFocus: () => setFocus(prev => !prev), async prepareReconnect(){if(terminals.length>=16){setError('保留终端达到上限（16 个），请先关闭结束标签');return false;}if(saves.current.size||creating||preparing){setError('请等待当前保存或终端创建完成');return false;}setPreparing(true);try{await CloseWorkspace(sessionID);return !disposed.current;}finally{setPreparing(false);}}, async saveAll() { for (const draft of draftsRef.current) { if (!await save(draft.path)) { setActive(draft.path); return false; } } return !draftsRef.current.some(d => d.content !== d.saved); } }));
 
   function close(path: string, discard = false) {
     const draft = draftsRef.current.find(d => d.path === path);

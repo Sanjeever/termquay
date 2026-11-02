@@ -41,6 +41,10 @@ export function ClearRecentConnections(): $CancellablePromise<void> {
     return $Call.ByID(4132811105);
 }
 
+export function ClearRecoveryDrafts(): $CancellablePromise<void> {
+    return $Call.ByID(2372928392);
+}
+
 export function ClearTransfer(id: string): $CancellablePromise<void> {
     return $Call.ByID(237303640, id);
 }
@@ -109,6 +113,10 @@ export function GetDirectoryBookmarks(id: string): $CancellablePromise<string[] 
     return $Call.ByID(3658870342, id);
 }
 
+export function GetDraftRecoveryState(): $CancellablePromise<$models.DraftRecoveryState> {
+    return $Call.ByID(187173851);
+}
+
 export function ListSnapshots(options: backup$0.WebDAVOptions): $CancellablePromise<backup$0.RemoteSnapshot[] | null> {
     return $Call.ByID(2845134187, options);
 }
@@ -157,6 +165,10 @@ export function ReadDirectory(id: string, remote: string): $CancellablePromise<f
     return $Call.ByID(2779778161, id, remote);
 }
 
+export function ReadRecoveryDraft(workspace: string, remote: string): $CancellablePromise<$models.RecoveryDraft> {
+    return $Call.ByID(609944964, workspace, remote);
+}
+
 export function ReadRemoteFile(id: string, remote: string): $CancellablePromise<files$0.Document> {
     return $Call.ByID(2337340862, id, remote);
 }
@@ -193,6 +205,10 @@ export function SaveGroup(g: store$0.Group): $CancellablePromise<void> {
     return $Call.ByID(2264337214, g);
 }
 
+export function SaveRecoveryDrafts(updates: $models.WorkspaceDraftUpdate[] | null): $CancellablePromise<void> {
+    return $Call.ByID(638098548, updates);
+}
+
 export function SaveRemoteFile(id: string, document: files$0.Document): $CancellablePromise<files$0.Document> {
     return $Call.ByID(1773240835, id, document);
 }
@@ -201,12 +217,24 @@ export function SaveSnippet(value: $models.Snippet): $CancellablePromise<$models
     return $Call.ByID(559352956, value);
 }
 
+export function SaveWorkspaceDrafts(workspace: string, documents: $models.RecoveryDraftInput[] | null): $CancellablePromise<void> {
+    return $Call.ByID(3246241316, workspace, documents);
+}
+
 export function SetConnectionPreference(id: string, favorite: boolean, environment: string): $CancellablePromise<void> {
     return $Call.ByID(238222063, id, favorite, environment);
 }
 
 export function SetDirectoryBookmarks(id: string, bookmarks: string[] | null): $CancellablePromise<void> {
     return $Call.ByID(3472844162, id, bookmarks);
+}
+
+export function SetDraftRecoveryEnabled(enabled: boolean): $CancellablePromise<void> {
+    return $Call.ByID(4060926135, enabled);
+}
+
+export function SetFrontendReady(): $CancellablePromise<void> {
+    return $Call.ByID(3243083785);
 }
 
 export function SetRDPResolution(id: string, resolution: string): $CancellablePromise<void> {
@@ -251,4 +279,8 @@ export function UnsubscribeMonitor(id: string): $CancellablePromise<void> {
 
 export function UseSessionStorage(): $CancellablePromise<void> {
     return $Call.ByID(682425716);
+}
+
+export function WorkspaceRecoveryDrafts(workspace: string): $CancellablePromise<$models.RecoveryDraft[] | null> {
+    return $Call.ByID(3414574576, workspace);
 }

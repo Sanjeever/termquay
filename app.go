@@ -64,6 +64,7 @@ type AppService struct {
 	dirty            map[string]bool
 	views            map[string]bool
 	allowQuit        bool
+	frontendReady    bool
 }
 
 func NewAppService() *AppService {

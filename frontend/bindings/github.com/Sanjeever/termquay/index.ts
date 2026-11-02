@@ -9,13 +9,18 @@ export {
 export type {
     Catalog,
     DirectorySyncPreview,
+    DraftRecoveryState,
     MonitorEvent,
     OpenResult,
     RDPLaunch,
     RDPProbe,
+    RecoveryDraft,
+    RecoveryDraftInput,
+    RecoveryDraftSummary,
     RestorePreview,
     Snippet,
     Transfer,
     TransferBatch,
-    UploadDropResult
+    UploadDropResult,
+    WorkspaceDraftUpdate
 } from "./models.js";
