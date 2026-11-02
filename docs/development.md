@@ -221,6 +221,6 @@ wails3 task package
 
 `build/config.yml` 是产品元数据与资源生成入口，平台产物仍由 `build/` 中模板和任务决定。修改 `info` 或文件关联时按该文件说明更新资源，再检查生成 diff；资源生成可能覆盖手工定制，不能用一次重新生成冲掉已有打包改动。
 
-应用图标以 [build/appicon.svg](../build/appicon.svg) 为唯一矢量源稿。使用 SVG 渲染工具导出 `build/appicon.png`（1024px）、Linux 的 `build/linux/icon-128.png` 和 DMG 的 `build/darwin/dmg-file-icon.png`，然后运行 `wails3 task common:generate:icons` 生成 ICO/ICNS。DMG 文件图标沿用同一符号，将生成的 `icons.icns` 同步到 `dmg-file-icon.icns`。Windows 构建由 syso 嵌入 ICO，macOS app 包与 DMG 卷引用 ICNS，Linux 包的 hicolor 路径使用对应 128px PNG。修改资源后需重新构建并启动原生程序检查系统入口，文件生成不能替代任务栏、Dock 或启动器验收。
+应用图标以 [build/appicon.svg](../build/appicon.svg) 为唯一矢量源稿。使用 SVG 渲染工具导出 `build/appicon.png`（1024px）、Linux 的 `build/linux/icon-128.png` 和 DMG 的 `build/darwin/dmg-file-icon.png`。macOS 单独使用 `build/darwin/appicon.png`：将通用 PNG 等比缩放至 880px，居中置于 1024px 透明画布，四边各留 72px，避免 Dock 主体比其他应用显著偏大。随后运行 `wails3 task common:generate:icons`，分别由通用和 macOS PNG 生成 ICO/ICNS；将生成的 `icons.icns` 同步到 `dmg-file-icon.icns`。运行时同样按平台选择 PNG。Windows 构建由 syso 嵌入 ICO，macOS app 包与 DMG 卷引用 ICNS，Linux 包的 hicolor 路径使用对应 128px PNG。修改资源后需重新构建并启动原生程序检查系统入口，文件生成不能替代任务栏、Dock 或启动器验收。
 
 当前打包入口不代表正式发行就绪。分发前补齐目标系统原生验证、签名分发所需资源和 [依赖许可审计](../THIRD_PARTY_NOTICES.md)，按平台核对声明材料随包携带情况；macOS 应用包已有复制入口，其他平台仍需核对。推送、Release 和签名分发需相应授权。

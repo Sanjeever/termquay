@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"log"
+	"runtime"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
@@ -11,10 +12,18 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
-//go:embed build/appicon.png
-var appIcon []byte
+//go:embed build/appicon.png build/darwin/appicon.png
+var appIcons embed.FS
 
 func main() {
+	iconPath := "build/appicon.png"
+	if runtime.GOOS == "darwin" {
+		iconPath = "build/darwin/appicon.png"
+	}
+	appIcon, err := appIcons.ReadFile(iconPath)
+	if err != nil {
+		log.Fatal(err)
+	}
 	service := NewAppService()
 	app := application.New(application.Options{
 		Name: "TermQuay", Description: "栈桥远程连接工作台",
