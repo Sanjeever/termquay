@@ -1981,6 +1981,20 @@
     "author": "The xterm.js authors"
   },
   {
+    "name": "@xterm/addon-search",
+    "versions": ["0.15.0"],
+    "license": "MIT",
+    "homepage": "https://github.com/xtermjs/xterm.js/tree/master/addons/addon-search",
+    "author": "The xterm.js authors"
+  },
+  {
+    "name": "@xterm/addon-web-links",
+    "versions": ["0.11.0"],
+    "license": "MIT",
+    "homepage": "https://github.com/xtermjs/xterm.js/tree/master/addons/addon-web-links",
+    "author": "The xterm.js authors"
+  },
+  {
     "name": "@xterm/xterm",
     "versions": [
       "5.5.0"

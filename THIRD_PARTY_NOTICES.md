@@ -6,6 +6,7 @@ TermQuay 采用 Apache-2.0。各依赖保留其原有许可证、版权与声明
 - Go 工具链原始许可证保存在 `build/licenses/go/Go/LICENSE`。
 - `frontend/pnpm-lock.yaml` 固定前端依赖。`build/licenses/frontend/packages.json` 记录生产依赖元数据，目录内保存包附带的许可文件。
 - Wails 与前端运行时采用 MIT；React、HeroUI、xterm.js、CodeMirror 及大部分前端依赖采用 MIT。具体条款以各依赖原文为准。
+- 终端搜索与链接使用 xterm 5.5 官方兼容的 `@xterm/addon-search` 0.15.0、`@xterm/addon-web-links` 0.11.0，均采用 MIT；许可原文随包保存在前端许可目录。
 - Iron Remote Desktop 0.11.0 和 RDP 后端 0.7.0 的 npm 包声明 `MIT OR Apache-2.0`。它们包含预构建 WASM，相关上游许可证已保存；发布前仍需核对该 WASM 所含 Rust 依赖及对应构建来源，不能把宿主包声明当作全部第三方声明。
 - `use-composed-ref` 1.4.0 收集时的 npm 元数据声明 MIT，但现有许可材料未包含对应原文与完整版权声明。正式分发前需从该版本包或上游来源核对补齐。
 
