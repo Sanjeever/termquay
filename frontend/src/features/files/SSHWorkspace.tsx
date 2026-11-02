@@ -27,6 +27,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   const disposed = useRef(false);
   const reads = useRef(new Map<string, ReturnType<typeof ReadRemoteFile>>());
   const saves = useRef(new Map<string, Promise<boolean>>());
+  const center = useRef<HTMLDivElement>(null);
   const dirtyCallback = useRef(onDirtyChange); dirtyCallback.current = onDirtyChange;
   const dirty = drafts.some(d => d.content !== d.saved);
 
@@ -76,12 +77,20 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
     catch (e) { if (!disposed.current) setError(String(e)); } finally { reads.current.delete(path); }
   }
   const closingDraft = drafts.find(d => d.path === closing);
+  const tabIDs = [...terminals, ...drafts.map(d => d.path)];
+  function activate(path: string) { setActive(path); requestAnimationFrame(() => center.current?.querySelector<HTMLElement>('.terminal-tab:not([hidden]) .xterm-helper-textarea, .editor-tab:not([hidden]) .cm-content')?.focus()); }
   return <div className="ssh-workspace">
     {sidebarHost && createPortal(<div hidden={!filesVisible}><FileBrowser id={id} visible={filesVisible} onOpen={open} /></div>, sidebarHost)}
-    <div className="ssh-center">
-      <div className="inner-tabs" role="tablist" aria-label="终端与文件">
-        {terminals.map((terminal, index) => <div key={terminal} className={active === terminal ? 'selected' : ''}><button role="tab" aria-selected={active === terminal} onClick={() => setActive(terminal)}><Icon name="terminal" width="14" />终端 {index + 1}</button><button aria-label={`关闭终端 ${index + 1}`} onClick={() => { setTerminals(prev => prev.filter(t => t !== terminal)); if (active === terminal) setActive(terminals.find(t => t !== terminal) || drafts[0]?.path || ''); }}><Icon name="close" width="12" /></button></div>)}
-        {drafts.map(d => <div key={d.path} className={active === d.path ? 'selected' : ''}><button role="tab" aria-selected={active === d.path} title={d.path} onClick={() => setActive(d.path)}>{d.path.split('/').pop()}{d.content !== d.saved && <span className="dirty-dot" aria-label="未保存">●</span>}</button><button aria-label={`关闭文件 ${d.path}`} disabled={d.saving} onClick={() => close(d.path)}><Icon name="close" width="12" /></button></div>)}
+    <div className="ssh-center" ref={center}>
+      <div className="inner-tabs" role="tablist" aria-label="终端与文件" onKeyDown={e => {
+        const target = e.target as HTMLElement;
+        if (target.getAttribute('role') !== 'tab' || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+        e.preventDefault(); const buttons = e.currentTarget.querySelectorAll<HTMLElement>('[role=tab]'); const index = Array.from(buttons).indexOf(target);
+        const next = e.key === 'Home' ? 0 : e.key === 'End' ? tabIDs.length - 1 : (index + (e.key === 'ArrowRight' ? 1 : -1) + tabIDs.length) % tabIDs.length;
+        setActive(tabIDs[next]); setTimeout(() => buttons[next]?.focus(), 0);
+      }}>
+        {terminals.map((terminal, index) => <div key={terminal} className={active === terminal ? 'selected' : ''}><button role="tab" tabIndex={active === terminal ? 0 : -1} aria-selected={active === terminal} onClick={() => activate(terminal)}><Icon name="terminal" width="14" />终端 {index + 1}</button><button aria-label={`关闭终端 ${index + 1}`} onClick={() => { setTerminals(prev => prev.filter(t => t !== terminal)); if (active === terminal) setActive(terminals.find(t => t !== terminal) || drafts[0]?.path || ''); }}><Icon name="close" width="12" /></button></div>)}
+        {drafts.map(d => <div key={d.path} className={active === d.path ? 'selected' : ''}><button role="tab" tabIndex={active === d.path ? 0 : -1} aria-selected={active === d.path} title={d.path} onClick={() => activate(d.path)}>{d.path.split('/').pop()}{d.content !== d.saved && <span className="dirty-dot" aria-label="未保存">●</span>}</button><button aria-label={`关闭文件 ${d.path}`} disabled={d.saving} onClick={() => close(d.path)}><Icon name="close" width="12" /></button></div>)}
         <button aria-label="新建终端" disabled={creating} onClick={async () => { setCreating(true); try { const result = await CreateTerminal(id); if (disposed.current) return; setTerminals(prev => [...prev, result.id]); setActive(result.id); } catch (e) { setError(String(e)); } finally { setCreating(false); } }}><Icon name="plus" width="15" /></button>
       </div>
       {error && <div className="connection-feedback error" role="alert">{error}</div>}

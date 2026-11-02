@@ -85,7 +85,7 @@ const RDPView = forwardRef<RDPHandle, { grant: Grant; visible: boolean }>(functi
     return () => { clearTimeout(timer); observer.disconnect(); };
   }, [resolution,status]);
 
-  useEffect(() => { if (visible && status === '已连接') container.current?.querySelector<HTMLElement>('iron-remote-desktop')?.focus(); }, [visible, status]);
+  useEffect(() => { if (visible && status === '已连接' && !document.activeElement?.closest('[role=tablist]')) container.current?.querySelector<HTMLElement>('iron-remote-desktop')?.focus(); }, [visible, status]);
 
   return <div className="rdp-view" ref={view}>
     <div className="rdp-toolbar">

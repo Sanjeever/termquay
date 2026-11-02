@@ -45,12 +45,13 @@ export default function App() {
   const [narrow, setNarrow] = useState(window.innerWidth <= 1100);
   const current = workspaces.find(w => w.id === active);
   const latestWorkspaces = useRef(workspaces); latestWorkspaces.current = workspaces;
+  const tabNavigation = useRef(false);
 
   function remove(id: string) {
     setWorkspaces(prev => prev.filter(w => w.id !== id));
     setActive(prev => prev === id ? latestWorkspaces.current.find(w => w.id !== id)?.id || '' : prev);
   }
-  function select(id: string) { setActive(id); setSettings(false); }
+  function select(id: string, keyboard = false) { tabNavigation.current = keyboard; setActive(id); setSettings(false); }
   const attempt = useConnectionAttempt((id, connection) => {
     setWorkspaces(prev => [...prev, { id, connectionID: connection.id, name: connection.name, ssh: createRef<SSHWorkspaceHandle>() }]); select(id);
   }, async (grant, connection, username, password, domain) => {
@@ -71,7 +72,8 @@ export default function App() {
   useEffect(() => { if ((!current || current.rdp) && sidebar === 'files') setSidebar('connections'); }, [current?.id, sidebar]);
   useEffect(() => {
     if (dialog || attempt.trust || closing || quitConfirm || palette || settings) return;
-    const frame = requestAnimationFrame(() => document.querySelector<HTMLElement>('.workspace:not([hidden]) .terminal-tab:not([hidden]) .xterm-helper-textarea, .workspace:not([hidden]) .editor-tab:not([hidden]) .cm-content')?.focus());
+    if (tabNavigation.current) { tabNavigation.current = false; return; }
+    const frame = requestAnimationFrame(() => document.querySelector<HTMLElement>('.workspace:not([hidden]) .terminal-tab:not([hidden]) .xterm-helper-textarea, .workspace:not([hidden]) .editor-tab:not([hidden]) .cm-content, .workspace:not([hidden]) .rdp-canvas iron-remote-desktop')?.focus());
     return () => cancelAnimationFrame(frame);
   }, [active, dialog, attempt.trust, closing, quitConfirm, palette, settings]);
   useEffect(() => {
@@ -109,7 +111,7 @@ export default function App() {
   return <>
     <Workbench tabs={<WorkspaceTabs items={workspaces} active={active} onSelect={select} onClose={id => workspaces.find(w => w.id === id)?.dirty ? setClosing(id) : remove(id)} onNew={() => openDialog(false)} />} tools={tools} sidebarMode={sidebar} sidebarWidth={sidebarWidth} onSidebarWidth={setSidebarWidth} hasSSH={!!current && !current.rdp} settings={settings} onSettings={() => setSettings(!settings)} focus={focus} onSidebar={changeSidebar}
       sidebar={<><div hidden={sidebar !== 'connections'} className="sidebar-content"><ConnectionSidebar connections={catalog?.connections || []} groups={catalog?.groups || []} onOpen={openSaved} onEdit={c => openDialog(false, c)} onNew={openDialog} onReload={() => void reload()} busy={attempt.busy} /></div><div className="sidebar-content" hidden={sidebar !== 'files'} ref={setSidebarHost} /></>}
-      status={<><span>{catalog?.session_only ? '会话存储' : '本地工作台'}</span><span>{workspaces.length} 个工作区</span><div className="status-spacer" /><button className={transfers.failed || transfers.error ? 'error' : ''} aria-expanded={transfersOpen} onClick={() => setTransfersOpen(!transfersOpen)}><Icon name="transfer" width="14" />{transfers.running ? `传输 ${transfers.running}` : '传输'}{transfers.failed ? ` · ${transfers.failed} 失败` : ''}{transfers.error ? ' · 加载失败' : ''}</button></>}>
+      status={<><span>{catalog?.session_only ? '会话存储' : '本地工作台'}</span><span>{workspaces.length} 个工作区</span><div className="status-spacer" /><button className={transfers.failed || transfers.error ? 'error' : ''} aria-expanded={transfersOpen} onClick={() => setTransfersOpen(!transfersOpen)}><Icon name="transfer" width="14" />{transfers.running ? `传输 ${transfers.running} 进行中` : transfers.items.length ? `传输 ${transfers.items.length} 项` : '传输'}{transfers.failed ? ` · ${transfers.failed} 失败` : ''}{transfers.error ? ' · 加载失败' : ''}</button></>}>
       {storageError && <div className="storage-error error" role="alert">{storageError}<Button size="sm" onPress={() => { UseSessionStorage().then(reload).catch(e => setStorageError(String(e))); }}>使用会话存储</Button></div>}
       {!dialog && (attempt.busy || attempt.error) && <div className="connection-feedback" role={attempt.error ? 'alert' : 'status'}><span className={attempt.error ? 'error' : ''}>{attempt.target} · {attempt.error || '正在连接…'}</span>{attempt.busy && <Button size="sm" variant="light" onPress={attempt.cancel}>取消连接</Button>}{!attempt.busy && <button className="icon-button" aria-label="关闭连接错误" onClick={attempt.clearError}><Icon name="close" /></button>}</div>}
       {settings && <SettingsView fontSize={fontSize} onFontSize={setFontSize} onRestore={() => void reload()} onClose={() => setSettings(false)} />}

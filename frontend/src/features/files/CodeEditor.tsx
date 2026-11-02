@@ -30,6 +30,6 @@ export default function CodeEditor({ path, content, visible, onChange, onSave }:
     try { editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: content }, annotations: Transaction.addToHistory.of(false) }); }
     finally { syncing.current = false; }
   }, [content]);
-  useEffect(() => { if (visible) { view.current?.requestMeasure(); view.current?.focus(); } }, [visible]);
+  useEffect(() => { if (visible) { view.current?.requestMeasure(); if (!document.activeElement?.closest('[role=tablist]')) view.current?.focus(); } }, [visible]);
   return <div className="code-editor" ref={host} />;
 }

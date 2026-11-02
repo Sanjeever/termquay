@@ -53,7 +53,7 @@ export default function TerminalView({ id, visible, fontSize }: { id: string; vi
     });
     return () => { disposed = true; observer.disconnect(); unsubscribe(); input.dispose(); resize.dispose(); stream.close(); term.dispose(); terminal.current = undefined; fitAddon.current = undefined; CloseTerminal(id).catch(() => {}); };
   }, [id]);
-  useEffect(() => { if (!terminal.current) return; terminal.current.options.fontSize = fontSize; if (visible && container.current?.clientWidth && container.current.clientHeight) { fitAddon.current?.fit(); terminal.current.focus(); } }, [visible, fontSize]);
+  useEffect(() => { if (!terminal.current) return; terminal.current.options.fontSize = fontSize; if (visible && container.current?.clientWidth && container.current.clientHeight) { fitAddon.current?.fit(); if (!document.activeElement?.closest('[role=tablist]')) terminal.current.focus(); } }, [visible, fontSize]);
   return <div className="terminal-view">
     <div className="terminal-canvas" ref={container} />
     <div className="session-status"><span>{connected===null?'连接中':connected ? '已连接' : '已断开'}</span>{error && <span role="alert" className="error">{error}</span>}</div>
