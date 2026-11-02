@@ -7,11 +7,12 @@ import (
 )
 
 type ConnectionPreference struct {
-	Favorite      bool       `json:"favorite"`
-	Environment   string     `json:"environment"`
-	RDPResolution string     `json:"rdp_resolution,omitempty"`
-	Bookmarks     []string   `json:"bookmarks,omitempty"`
-	LastConnected *time.Time `json:"last_connected,omitempty"`
+	Favorite       bool       `json:"favorite"`
+	Environment    string     `json:"environment"`
+	RDPResolution  string     `json:"rdp_resolution,omitempty"`
+	Bookmarks      []string   `json:"bookmarks,omitempty"`
+	PrivateKeyPath string     `json:"private_key_path,omitempty"`
+	LastConnected  *time.Time `json:"last_connected,omitempty"`
 }
 
 func (s *Store) ConnectionPreferences() (map[string]ConnectionPreference, error) {

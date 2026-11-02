@@ -44,34 +44,39 @@ type workspaceOwner struct {
 }
 
 type AppService struct {
-	mu               sync.Mutex
-	terminals        map[string]*pendingTerminal
-	workspaces       map[string]*workspaceOwner
-	trusted          map[string]string
-	pendingTrust     map[string]string
-	opening          int
-	closed           bool
-	rdp              *rdp.Bridge
-	storeMu          sync.Mutex
-	store            *store.Store
-	sessionDir       string
-	backupMu         sync.Mutex
-	preview          *pendingRestore
-	fileSlots        chan struct{}
-	monitors         map[string]context.CancelFunc
-	transfers        map[string]*transferTask
-	transferQueue    []string
-	transferSequence uint64
-	transferEvent    func(Transfer)
-	syncPlans        map[string]*directorySyncPlan
-	syncOpening      int
-	dirty            map[string]bool
-	views            map[string]bool
-	allowQuit        bool
-	frontendReady    bool
-	privateKeys      map[string]stagedPrivateKey
-	tunnels          map[string]*workspaceTunnel
-	closing          int
+	importPreview          *SSHImportPreview
+	mu                     sync.Mutex
+	terminals              map[string]*pendingTerminal
+	workspaces             map[string]*workspaceOwner
+	trusted                map[string]string
+	pendingTrust           map[string]string
+	opening                int
+	closed                 bool
+	rdp                    *rdp.Bridge
+	storeMu                sync.Mutex
+	store                  *store.Store
+	sessionDir             string
+	backupMu               sync.Mutex
+	preview                *pendingRestore
+	fileSlots              chan struct{}
+	monitors               map[string]context.CancelFunc
+	transfers              map[string]*transferTask
+	transferQueue          []string
+	transferSequence       uint64
+	transferEvent          func(Transfer)
+	syncPlans              map[string]*directorySyncPlan
+	syncOpening            int
+	dirty                  map[string]bool
+	views                  map[string]bool
+	allowQuit              bool
+	frontendReady          bool
+	privateKeys            map[string]stagedPrivateKey
+	tunnels                map[string]*workspaceTunnel
+	closing                int
+	trustEpoch             map[string]uint64
+	trustReviews           map[string]TrustReview
+	pendingTrustAt         map[string]time.Time
+	pendingTrustGeneration map[string]uint64
 }
 
 func NewAppService() *AppService {
@@ -83,12 +88,16 @@ func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (Open
 		return OpenResult{}, err
 	}
 	address := sshTrustKey(r.Host, r.Port, r.JumpID)
+	a.mu.Lock()
+	targetEpoch := a.trustEpoch[address]
+	a.mu.Unlock()
 	stored, err := a.readTrust("ssh:" + address)
 	if err != nil {
 		return OpenResult{}, err
 	}
 	var jump *terminal.Request
 	var jumpAddress, jumpStored string
+	var jumpEpoch uint64
 	if r.JumpID != "" {
 		request, connection, e := a.savedRequest(r.JumpID)
 		if e != nil {
@@ -98,6 +107,9 @@ func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (Open
 			return OpenResult{}, errors.New("跳板必须是无跳板引用的已保存 SSH 配置")
 		}
 		jumpAddress = sshTrustKey(request.Host, request.Port, "")
+		a.mu.Lock()
+		jumpEpoch = a.trustEpoch[jumpAddress]
+		a.mu.Unlock()
 		jumpStored, e = a.readTrust("ssh:" + jumpAddress)
 		if e != nil {
 			return OpenResult{}, e
@@ -105,6 +117,10 @@ func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (Open
 		jump = &request
 	}
 	a.mu.Lock()
+	if targetEpoch != a.trustEpoch[address] || (jump != nil && jumpEpoch != a.trustEpoch[jumpAddress]) {
+		a.mu.Unlock()
+		return OpenResult{}, errors.New("信任记录已变化，请重新连接")
+	}
 	if a.closed || len(a.workspaces)+a.opening+a.closing >= 16 || len(a.terminals)+a.opening >= 64 {
 		a.mu.Unlock()
 		return OpenResult{}, errors.New("当前最多运行 16 个终端")
@@ -146,7 +162,12 @@ func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (Open
 			if a.trusted[identityKey] != "" {
 				return OpenResult{}, errors.New("SSH 主机密钥已变化，连接已阻止")
 			}
-			a.pendingTrust[identityKey] = identity.Fingerprint
+			if targetEpoch != a.trustEpoch[address] || (jump != nil && jumpEpoch != a.trustEpoch[jumpAddress]) {
+				return OpenResult{}, errors.New("身份探测已失效")
+			}
+			if err = a.setPendingTrustLocked(identityKey, identity.Fingerprint); err != nil {
+				return OpenResult{}, err
+			}
 			return OpenResult{Fingerprint: identity.Fingerprint, TrustRequired: true, TrustHost: identity.Host, TrustPort: identity.Port, TrustVia: via, TrustRole: role}, nil
 		}
 		return OpenResult{}, err
@@ -161,6 +182,10 @@ func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (Open
 	if a.closed {
 		t.Close()
 		return OpenResult{}, errors.New("应用正在关闭")
+	}
+	if targetEpoch != a.trustEpoch[address] || (jump != nil && jumpEpoch != a.trustEpoch[jumpAddress]) {
+		t.Disconnect()
+		return OpenResult{}, errors.New("信任记录已变化，请重新连接")
 	}
 	t.KeepConnection()
 	ownerCtx, ownerCancel := context.WithCancel(context.Background())
@@ -204,7 +229,7 @@ func (a *AppService) TrustSSHHost(host string, port int, fingerprint, via string
 	address := sshTrustKey(host, port, via)
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if a.pendingTrust[address] != fingerprint || fingerprint == "" || a.trusted[address] != "" {
+	if !a.pendingTrustValidLocked(address, fingerprint) || a.trusted[address] != "" {
 		return errors.New("主机信任请求无效")
 	}
 	if err := a.saveTrust("ssh:"+address, fingerprint); err != nil {

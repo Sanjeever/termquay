@@ -102,6 +102,26 @@ export interface RestorePreview {
     "credentials": number;
 }
 
+export interface SSHImportChoice {
+    "id": string;
+    "action": string;
+}
+
+export interface SSHImportPreview {
+    "id": string;
+    "rows": SSHImportRow[] | null;
+    "warnings": string[] | null;
+}
+
+export interface SSHImportRow {
+    "id": string;
+    "connection": store$0.Connection;
+    "conflict": string;
+    "identity_file": string;
+    "jump_alias": string;
+    "warnings": string[] | null;
+}
+
 export interface SSHLayout {
     "tabs": WorkspaceTabLayout[] | null;
     "selected": number[];
@@ -139,6 +159,27 @@ export interface Transfer {
 export interface TransferBatch {
     "items": Transfer[] | null;
     "errors": string[] | null;
+}
+
+export interface TrustPage {
+    "items": TrustRecord[] | null;
+    "next": string;
+}
+
+export interface TrustRecord {
+    "key": string;
+    "protocol": string;
+    "host": string;
+    "port": number;
+    "via": string;
+    "fingerprint": string;
+}
+
+export interface TrustReview {
+    "id": string;
+    "record": TrustRecord;
+    "old": string;
+    "new": string;
 }
 
 export interface Tunnel {

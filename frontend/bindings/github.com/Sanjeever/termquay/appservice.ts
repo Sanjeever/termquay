@@ -69,6 +69,14 @@ export function ConfirmRestore(id: string): $CancellablePromise<void> {
     return $Call.ByID(4268329992, id);
 }
 
+export function ConfirmSSHImport(id: string, choices: $models.SSHImportChoice[] | null): $CancellablePromise<void> {
+    return $Call.ByID(2755369749, id, choices);
+}
+
+export function ConfirmTrustReview(id: string): $CancellablePromise<void> {
+    return $Call.ByID(1924586820, id);
+}
+
 export function CreateRemoteDirectory(id: string, remote: string): $CancellablePromise<void> {
     return $Call.ByID(205894039, id, remote);
 }
@@ -137,6 +145,10 @@ export function ListTransfers(): $CancellablePromise<$models.Transfer[] | null> 
     return $Call.ByID(2832107770);
 }
 
+export function ListTrusts(after: string): $CancellablePromise<$models.TrustPage> {
+    return $Call.ByID(275733621, after);
+}
+
 export function ListTunnels(workspace: string): $CancellablePromise<$models.Tunnel[] | null> {
     return $Call.ByID(1886316137, workspace);
 }
@@ -169,8 +181,16 @@ export function PreviewRestore(options: backup$0.WebDAVOptions, path: string, pa
     return $Call.ByID(1296130900, options, path, password);
 }
 
+export function PreviewSSHImport(text: string): $CancellablePromise<$models.SSHImportPreview> {
+    return $Call.ByID(3251490649, text);
+}
+
 export function ProbeRDP(host: string, port: number): $CancellablePromise<$models.RDPProbe> {
     return $Call.ByID(3045768502, host, port);
+}
+
+export function ProbeTrustReview(key: string): $CancellablePromise<$models.TrustReview> {
+    return $Call.ByID(1552533302, key);
 }
 
 export function ReadDirectory(id: string, remote: string): $CancellablePromise<files$0.Directory> {
@@ -213,6 +233,10 @@ export function RetryTransfer(id: string, newName: string, overwrite: boolean): 
     return $Call.ByID(1687759979, id, newName, overwrite);
 }
 
+export function RevokeTrust(key: string): $CancellablePromise<void> {
+    return $Call.ByID(3099451666, key);
+}
+
 export function SaveConnection(c: store$0.Connection, auth: ssh$0.Request): $CancellablePromise<store$0.Connection> {
     return $Call.ByID(1507388431, c, auth);
 }
@@ -243,6 +267,10 @@ export function SaveWorkspaceLayout(layout: $models.WorkspaceLayout): $Cancellab
 
 export function SelectPrivateKey(): $CancellablePromise<$models.PrivateKeySelection> {
     return $Call.ByID(4126206456);
+}
+
+export function SelectSSHImport(): $CancellablePromise<$models.SSHImportPreview> {
+    return $Call.ByID(2651136709);
 }
 
 export function SetConnectionPreference(id: string, favorite: boolean, environment: string): $CancellablePromise<void> {

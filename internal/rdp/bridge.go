@@ -91,6 +91,16 @@ type Bridge struct {
 	onClose  func(string, error)
 }
 
+func (b *Bridge) RevokePending(host string, port int) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for id, grant := range b.grants {
+		if !grant.claimed && grant.target.Host == host && grant.target.Port == port {
+			delete(b.grants, id)
+		}
+	}
+}
+
 func NewBridge(origins []string, onClose func(string, error)) (*Bridge, error) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

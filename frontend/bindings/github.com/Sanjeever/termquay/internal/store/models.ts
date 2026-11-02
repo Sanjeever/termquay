@@ -21,6 +21,7 @@ export interface ConnectionPreference {
     "environment": string;
     "rdp_resolution"?: string;
     "bookmarks"?: string[] | null;
+    "private_key_path"?: string;
     "last_connected"?: string | null;
 }
 

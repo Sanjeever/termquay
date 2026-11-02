@@ -42,11 +42,18 @@ func (a *AppService) OpenSavedRDP(id string) (RDPLaunch, error) {
 func (a *AppService) ProbeRDP(ctx context.Context, host string, port int) (RDPProbe, error) {
 	target := rdp.Target{Host: host, Port: port}
 	address := "rdp:" + target.Address()
+	a.mu.Lock()
+	generation := a.trustEpoch[address]
+	a.mu.Unlock()
 	stored, err := a.readTrust(address)
 	if err != nil {
 		return RDPProbe{}, err
 	}
 	a.mu.Lock()
+	if generation != a.trustEpoch[address] {
+		a.mu.Unlock()
+		return RDPProbe{}, errors.New("证书探测已失效")
+	}
 	if stored != "" {
 		a.trusted[address] = stored
 	}
@@ -57,7 +64,14 @@ func (a *AppService) ProbeRDP(ctx context.Context, host string, port int) (RDPPr
 		var cert *rdp.CertificateError
 		if errors.As(err, &cert) {
 			a.mu.Lock()
-			a.pendingTrust[address] = cert.Fingerprint
+			if generation != a.trustEpoch[address] {
+				a.mu.Unlock()
+				return RDPProbe{}, errors.New("证书探测已失效")
+			}
+			if err = a.setPendingTrustLocked(address, cert.Fingerprint); err != nil {
+				a.mu.Unlock()
+				return RDPProbe{}, err
+			}
 			a.mu.Unlock()
 			return RDPProbe{Fingerprint: cert.Fingerprint, TrustRequired: true, Reason: cert.Reason}, nil
 		}
@@ -65,6 +79,9 @@ func (a *AppService) ProbeRDP(ctx context.Context, host string, port int) (RDPPr
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	if generation != a.trustEpoch[address] {
+		return RDPProbe{}, errors.New("证书探测已失效")
+	}
 	if known := a.trusted[address]; known != "" && known != value {
 		return RDPProbe{}, errors.New("RDP 证书已变化，连接已阻止")
 	}
@@ -79,7 +96,7 @@ func (a *AppService) TrustRDPCertificate(host string, port int, fingerprint stri
 	address := "rdp:" + (rdp.Target{Host: host, Port: port}).Address()
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if fingerprint == "" || a.pendingTrust[address] != fingerprint || a.trusted[address] != "" {
+	if !a.pendingTrustValidLocked(address, fingerprint) || a.trusted[address] != "" {
 		return errors.New("RDP 证书信任请求无效")
 	}
 	if err := a.saveTrust(address, fingerprint); err != nil {

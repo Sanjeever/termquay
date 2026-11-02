@@ -242,6 +242,9 @@ func (s *Store) Read() (Data, error) {
 }
 
 func (s *Store) Replace(d Data) error {
+	return s.ReplaceWithSettings(d, nil)
+}
+func (s *Store) ReplaceWithSettings(d Data, settings map[string]string) error {
 	if err := d.Validate(); err != nil {
 		return err
 	}
@@ -280,6 +283,11 @@ func (s *Store) Replace(d Data) error {
 		}
 		ciphertext := s.aead.Seal(nonce, nonce, []byte(c.Secret), []byte(c.ID+":"+c.Kind))
 		if _, err = tx.Exec("INSERT INTO credentials VALUES (?, ?, ?)", c.ID, c.Kind, ciphertext); err != nil {
+			return err
+		}
+	}
+	for id, value := range settings {
+		if _, err = tx.Exec("INSERT INTO settings(id,data) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data", id, value); err != nil {
 			return err
 		}
 	}

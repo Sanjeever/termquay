@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -343,6 +344,32 @@ func (a *AppService) savedRequest(id string) (terminal.Request, store.Connection
 				}
 				r.PrivateKey = key.Key
 				r.Passphrase = key.Passphrase
+			}
+		}
+		if c.AuthMethod == "private_key" && r.PrivateKey == "" {
+			preferences, e := a.store.ConnectionPreferences()
+			if e != nil {
+				return r, c, e
+			}
+			if name := preferences[c.ID].PrivateKeyPath; name != "" {
+				f, e := os.Open(name)
+				if e != nil {
+					return r, c, e
+				}
+				info, e := f.Stat()
+				if e != nil || !info.Mode().IsRegular() || info.Size() > 1<<20 {
+					f.Close()
+					return r, c, errors.New("导入私钥引用无效或超过 1 MiB")
+				}
+				key, e := io.ReadAll(io.LimitReader(f, (1<<20)+1))
+				f.Close()
+				if e != nil {
+					return r, c, e
+				}
+				if len(key) > 1<<20 {
+					return r, c, errors.New("私钥超过 1 MiB")
+				}
+				r.PrivateKey = string(key)
 			}
 		}
 		return r, c, nil

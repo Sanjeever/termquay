@@ -56,6 +56,10 @@
     "version": "v1.6.0"
   },
   {
+    "module": "github.com/kevinburke/ssh_config",
+    "version": "v1.6.0"
+  },
+  {
     "module": "github.com/kr/fs",
     "version": "v0.1.0"
   },

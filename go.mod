@@ -11,6 +11,7 @@ require (
 	github.com/bouncyball-git/gopher-rdp v1.0.8
 	github.com/coder/websocket v1.8.14
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
+	github.com/kevinburke/ssh_config v1.6.0
 	github.com/pkg/sftp v1.13.10
 	github.com/pkg/sftp/v2 v2.0.0-alpha2
 	github.com/studio-b12/gowebdav v0.13.0
