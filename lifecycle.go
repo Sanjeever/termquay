@@ -1,18 +1,37 @@
 package main
 
-import "github.com/wailsapp/wails/v3/pkg/application"
+import (
+	"errors"
+	"github.com/wailsapp/wails/v3/pkg/application"
+)
 
-func (a *AppService) SetWorkspaceDirty(id string, dirty bool) {
+func (a *AppService) SetWorkspaceDirty(id string, dirty bool) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if a.workspaces[id] == nil {
-		return
+	if !a.views[id] {
+		return errors.New("界面工作区已关闭")
 	}
 	if dirty {
 		a.dirty[id] = true
 	} else {
 		delete(a.dirty, id)
 	}
+	return nil
+}
+func (a *AppService) RegisterWorkspaceView(id string) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if id == "" || len(id) > 64 || a.closed || (!a.views[id] && len(a.views) >= 16) {
+		return errors.New("界面工作区标识无效或达到上限（16 个）")
+	}
+	a.views[id] = true
+	return nil
+}
+func (a *AppService) ReleaseWorkspaceView(id string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	delete(a.views, id)
+	delete(a.dirty, id)
 }
 func (a *AppService) canQuit() bool {
 	a.mu.Lock()

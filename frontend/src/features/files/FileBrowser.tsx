@@ -24,8 +24,8 @@ export default function FileBrowser({ id, visible, onOpen, onClose }: { id: stri
     catch (e) { if (pending.current === request) setError(String(e)); }
     finally { if (pending.current === request) { pending.current = undefined; setLoading(false); } }
   }
-  useEffect(() => { if (visible && !loaded.current && !pending.current) void load(''); }, [visible]);
-  useEffect(() => () => { const operation = pending.current; pending.current = undefined; operation?.cancel(); }, [id]);
+  useEffect(() => { loaded.current=false; if(visible)void load(directory); return () => { const operation = pending.current; pending.current = undefined; operation?.cancel(); }; }, [id]);
+  useEffect(() => { if (visible && !loaded.current && !pending.current) void load(directory); }, [visible]);
 
   async function open(entry: Entry) { if (entry.directory) await load(entry.path); else { try { setError(''); await onOpen(entry); } catch (e) { setError(String(e)); } } }
   async function perform(name = '') {

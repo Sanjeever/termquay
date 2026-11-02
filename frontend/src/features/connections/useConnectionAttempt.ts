@@ -8,7 +8,7 @@ import type { RDPOptions } from '../rdp/RDPView';
 
 type Attempt = { cancelled: boolean; workspaceID?: string; operation?: { cancel(): void }; resolve?: (accept: boolean) => void };
 
-export default function useConnectionAttempt(onSSH: (id: string, connection: Connection) => void, beginRDP: (connection: Connection, reuse?: string, options?: RDPOptions) => string, onRDP: (id: string, grant: Grant, username: string, password: string, domain: string) => Promise<void>, failRDP: (id: string, error: string) => void, cancelRDP: (id: string) => void, remove: (id: string) => void) {
+export default function useConnectionAttempt(onSSH: (id: string, connection: Connection, reuse?: string) => void, beginRDP: (connection: Connection, reuse?: string, options?: RDPOptions) => string, onRDP: (id: string, grant: Grant, username: string, password: string, domain: string) => Promise<void>, failRDP: (id: string, error: string) => void, cancelRDP: (id: string) => void, remove: (id: string) => void) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [target, setTarget] = useState('');
@@ -20,7 +20,7 @@ export default function useConnectionAttempt(onSSH: (id: string, connection: Con
 
   async function start(connection: Connection, auth?: Request, reuse?: string, options?: RDPOptions) {
     if (current.current) return false;
-    const attempt: Attempt = { cancelled: false };
+    const attempt: Attempt = { cancelled: false, workspaceID: reuse };
     current.current = attempt; setBusy(true); setError(''); setTarget(connection.name || connection.host);
     let owned = '';
     let rdpWorkspace = '';
@@ -37,7 +37,7 @@ export default function useConnectionAttempt(onSSH: (id: string, connection: Con
           operation = open(); attempt.operation = operation; result = await operation; owned = result.id; check();
           if (result.trust_required) throw new Error('目标身份未确认，请重新连接');
         }
-        onSSH(result.id, connection); owned = '';
+        onSSH(result.id, connection, reuse); owned = '';
       } else {
         rdpWorkspace = beginRDP(connection, reuse, options);
         attempt.workspaceID = rdpWorkspace;

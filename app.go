@@ -55,11 +55,12 @@ type AppService struct {
 	monitors     map[string]context.CancelFunc
 	transfers    map[string]*transferTask
 	dirty        map[string]bool
+	views        map[string]bool
 	allowQuit    bool
 }
 
 func NewAppService() *AppService {
-	return &AppService{terminals: map[string]*pendingTerminal{}, workspaces: map[string]*workspaceOwner{}, trusted: map[string]string{}, pendingTrust: map[string]string{}, fileSlots: make(chan struct{}, 4), monitors: map[string]context.CancelFunc{}, transfers: map[string]*transferTask{}, dirty: map[string]bool{}}
+	return &AppService{terminals: map[string]*pendingTerminal{}, workspaces: map[string]*workspaceOwner{}, trusted: map[string]string{}, pendingTrust: map[string]string{}, fileSlots: make(chan struct{}, 4), monitors: map[string]context.CancelFunc{}, transfers: map[string]*transferTask{}, dirty: map[string]bool{}, views: map[string]bool{}}
 }
 
 func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (OpenResult, error) {
@@ -227,7 +228,6 @@ func (a *AppService) CloseWorkspace(id string) {
 	a.mu.Lock()
 	owner := a.workspaces[id]
 	delete(a.workspaces, id)
-	delete(a.dirty, id)
 	pendingTransfers := []<-chan struct{}{}
 	for _, task := range a.transfers {
 		if task.view.Workspace == id {

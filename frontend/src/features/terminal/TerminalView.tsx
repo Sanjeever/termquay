@@ -67,7 +67,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; 
         stream.send(ack);
       });
     };
-    stream.onclose = () => { if (!disposed) setConnected(false); };
+    stream.onclose = () => { if (!disposed) { setConnected(false); term.options.disableStdin = true; } };
     stream.onerror = () => fail('终端数据流中断');
     const input = term.onData((data) => {
       const bytes = new TextEncoder().encode(data);

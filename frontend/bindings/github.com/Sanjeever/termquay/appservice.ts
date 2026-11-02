@@ -141,6 +141,14 @@ export function RecordConnectionSuccess(id: string): $CancellablePromise<void> {
     return $Call.ByID(3281072426, id);
 }
 
+export function RegisterWorkspaceView(id: string): $CancellablePromise<void> {
+    return $Call.ByID(3854364985, id);
+}
+
+export function ReleaseWorkspaceView(id: string): $CancellablePromise<void> {
+    return $Call.ByID(185130705, id);
+}
+
 export function RenameRemotePath(id: string, oldPath: string, newPath: string): $CancellablePromise<void> {
     return $Call.ByID(3004310961, id, oldPath, newPath);
 }
