@@ -104,6 +104,7 @@ func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (Open
 	t.KeepConnection()
 	owner := &workspaceOwner{terminal: t}
 	a.workspaces[id] = owner
+	go func() { t.WaitConnection(); a.CloseWorkspace(id) }()
 	owner.timer = time.AfterFunc(15*time.Second, func() {
 		a.mu.Lock()
 		p := a.workspaces[id]

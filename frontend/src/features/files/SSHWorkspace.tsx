@@ -14,8 +14,8 @@ type Draft = Document & { saved: string; error: string; saving: boolean };
 export type SSHWorkspaceHandle = { saveAll(): Promise<boolean>; showFiles(): void; toggleMonitor(): void; toggleFocus(): void; terminalAction(action: TerminalAction): void };
 
 const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
-  id: string; visible: boolean; fontSize?: number; onDirtyChange(dirty: boolean): void;
-}>(function SSHWorkspace({ id, visible, fontSize = 14, onDirtyChange }, ref) {
+  id: string; visible: boolean; fontSize?: number; onDirtyChange(dirty: boolean): void; onState(state: string): void;
+}>(function SSHWorkspace({ id, visible, fontSize = 14, onDirtyChange, onState }, ref) {
   const [error, setError] = useState('');
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [active, setActive] = useState(id);
@@ -38,6 +38,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   const filesToggle = useRef<HTMLButtonElement>(null);
   const monitorToggle = useRef<HTMLButtonElement>(null);
   const dirtyCallback = useRef(onDirtyChange); dirtyCallback.current = onDirtyChange;
+  const stateCallback = useRef(onState); stateCallback.current = onState;
   const dirty = drafts.some(d => d.content !== d.saved);
   const filesShown = !focus && (narrow ? narrowPanel === 'files' : filesOpen);
   const monitorShown = !focus && (narrow ? narrowPanel === 'monitor' : monitorOpen);
@@ -53,7 +54,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   function updateDrafts(update: (prev: Draft[]) => Draft[]) { const next = update(draftsRef.current); draftsRef.current = next; setDrafts(next); }
   useEffect(() => {
     disposed.current = false;
-    const owner = Stream('workspace'); owner.onopen = () => owner.send(new TextEncoder().encode(id)); owner.onclose = () => { if (!disposed.current) setError('SSH 工作区已断开'); };
+    const owner = Stream('workspace'); owner.onopen = () => { owner.send(new TextEncoder().encode(id)); stateCallback.current('已连接'); }; owner.onclose = () => { if (!disposed.current) { setError('SSH 工作区已断开'); stateCallback.current('已断开'); } };
     return () => { disposed.current = true; for (const read of reads.current.values()) read.cancel(); reads.current.clear(); owner.close(); CloseWorkspace(id).catch(() => {}); };
   }, [id]);
   useEffect(() => { dirtyCallback.current(dirty); SetWorkspaceDirty(id, dirty).catch(e => setError(String(e))); }, [dirty, id]);

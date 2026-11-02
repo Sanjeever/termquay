@@ -33,6 +33,10 @@ export function CancelTransfer(id: string): $CancellablePromise<void> {
     return $Call.ByID(3298982059, id);
 }
 
+export function ClearRecentConnections(): $CancellablePromise<void> {
+    return $Call.ByID(4132811105);
+}
+
 export function ClearTransfer(id: string): $CancellablePromise<void> {
     return $Call.ByID(237303640, id);
 }
@@ -85,6 +89,10 @@ export function GetCatalog(): $CancellablePromise<$models.Catalog> {
     return $Call.ByID(12026733);
 }
 
+export function GetConnectionPreferences(): $CancellablePromise<{ [_ in string]?: store$0.ConnectionPreference } | null> {
+    return $Call.ByID(3002214768);
+}
+
 export function ListSnapshots(options: backup$0.WebDAVOptions): $CancellablePromise<backup$0.RemoteSnapshot[] | null> {
     return $Call.ByID(2845134187, options);
 }
@@ -125,6 +133,10 @@ export function ReadRemoteFile(id: string, remote: string): $CancellablePromise<
     return $Call.ByID(2337340862, id, remote);
 }
 
+export function RecordConnectionSuccess(id: string): $CancellablePromise<void> {
+    return $Call.ByID(3281072426, id);
+}
+
 export function RenameRemotePath(id: string, oldPath: string, newPath: string): $CancellablePromise<void> {
     return $Call.ByID(3004310961, id, oldPath, newPath);
 }
@@ -143,6 +155,10 @@ export function SaveGroup(g: store$0.Group): $CancellablePromise<void> {
 
 export function SaveRemoteFile(id: string, document: files$0.Document): $CancellablePromise<files$0.Document> {
     return $Call.ByID(1773240835, id, document);
+}
+
+export function SetConnectionPreference(id: string, favorite: boolean, environment: string): $CancellablePromise<void> {
+    return $Call.ByID(238222063, id, favorite, environment);
 }
 
 export function SetWorkspaceDirty(id: string, dirty: boolean): $CancellablePromise<void> {

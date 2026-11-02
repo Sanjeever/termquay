@@ -18,7 +18,7 @@ function detail(error: unknown) {
   return typeof iron?.backtrace === 'function' ? iron.backtrace() : String(error);
 }
 
-const RDPView = forwardRef<RDPHandle, { grant?: Grant; target: string; visible: boolean; failure?: string; busy: boolean; onRetry(): void; onEdit(): void }>(function RDPView({ grant, target, visible, failure, busy, onRetry, onEdit }, ref) {
+const RDPView = forwardRef<RDPHandle, { grant?: Grant; target: string; visible: boolean; failure?: string; busy: boolean; onRetry(): void; onEdit(): void; onState(state: string): void }>(function RDPView({ grant, target, visible, failure, busy, onRetry, onEdit, onState }, ref) {
   const view = useRef<HTMLDivElement>(null);
   const container = useRef<HTMLDivElement>(null);
   const ui = useRef<UserInteraction>();
@@ -26,6 +26,8 @@ const RDPView = forwardRef<RDPHandle, { grant?: Grant; target: string; visible: 
   const [status, setStatus] = useState('正在装载桌面组件');
   const [clipboard, setClipboard] = useState(false);
   const [resolution, setResolution] = useState('dynamic');
+  const stateCallback = useRef(onState); stateCallback.current = onState;
+  useEffect(() => { stateCallback.current(status === '已连接' ? '已连接' : ready.ended || failure ? '已断开' : '连接中'); }, [status, failure]);
   function focusDesktop() { container.current?.querySelector('iron-remote-desktop')?.shadowRoot?.querySelector<HTMLCanvasElement>('canvas')?.focus(); }
   const ready = useMemo(() => {
     let resolve!: (value: UserInteraction) => void;

@@ -13,6 +13,12 @@ export interface Connection {
     "credential_id": string;
 }
 
+export interface ConnectionPreference {
+    "favorite": boolean;
+    "environment": string;
+    "last_connected"?: string | null;
+}
+
 export interface Group {
     "id": string;
     "parent_id": string;

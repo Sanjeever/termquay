@@ -162,7 +162,9 @@ func (t *Terminal) Close() {
 }
 
 func (t *Terminal) KeepConnection() { t.connectionOwner = false }
-func (t *Terminal) Disconnect()     { t.Close(); t.client.Close() }
+
+func (t *Terminal) WaitConnection() error { return t.client.Wait() }
+func (t *Terminal) Disconnect()           { t.Close(); t.client.Close() }
 func (t *Terminal) OpenPTY(cols, rows int) (*Terminal, error) {
 	if cols < 1 || cols > 1000 || rows < 1 || rows > 1000 {
 		return nil, errors.New("终端尺寸无效")

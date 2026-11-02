@@ -68,6 +68,13 @@ input[type=checkbox] { accent-color: var(--color-primary); }
 .connection-name > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-muted); font-size: 12px; }
 .connection-name strong { font-weight: 500; font-size: 13px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
 .connection-name small { color: var(--color-muted); font-size: 11px; }
+.catalog-preferences { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; min-height: 38px; padding: 0 8px 6px; }
+.catalog-preferences select { padding: 4px 6px; max-width: 180px; }
+.connection-environment { font-style: normal; font-size: 11px; margin-left: 8px; }
+.connection-environment.production { color: var(--color-danger); }
+.connection-environment.staging { color: var(--color-warning); }
+.connection-environment.development { color: var(--color-primary); }
+.connection-session-state { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .row-menu { opacity: 0; width: 26px; }
 .connection-row:hover .row-menu, .connection-row:focus-within .row-menu, .group-row:hover .row-menu, .group-row:focus-within .row-menu, .file-list li:hover .row-menu, .file-list li:focus-within .row-menu { opacity: 1; }
 .row-menu[aria-expanded=true] { opacity: 1; }

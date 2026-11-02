@@ -1,14 +1,16 @@
 import { useRef, useState } from 'react';
 import { Button, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Input, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from '@heroui/react';
-import { DeleteConnection, DuplicateConnection, SaveGroup, DeleteGroup } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
-import type { Connection, Group } from '../../../bindings/github.com/Sanjeever/termquay/internal/store/models';
+import { DeleteConnection, DuplicateConnection, SetConnectionPreference, ClearRecentConnections, SaveGroup, DeleteGroup } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
+import type { Connection, ConnectionPreference, Group } from '../../../bindings/github.com/Sanjeever/termquay/internal/store/models';
 import Icon from '../../components/Icon';
 
-export default function ConnectionCenter({ connections, groups, onOpen, onEdit, onNew, onReload, busy }: {
+export default function ConnectionCenter({ connections, groups, preferences, sessions, onOpen, onEdit, onNew, onReload, busy }: {
   connections: Connection[]; groups: Group[]; onOpen(c: Connection, another?: boolean): void; onEdit(c: Connection): void; onNew(temporary: boolean): void; onReload(): void; busy: boolean;
+  preferences: Record<string, ConnectionPreference | undefined>; sessions: Record<string,string[]>;
 }) {
   const [search, setSearch] = useState('');
   const [protocol, setProtocol] = useState('all');
+  const [view, setView] = useState('all');
   const [group, setGroup] = useState('');
   const [collapsed, setCollapsed] = useState<string[]>([]);
   const [selected, setSelected] = useState('');
@@ -23,8 +25,9 @@ export default function ConnectionCenter({ connections, groups, onOpen, onEdit, 
   const list = useRef<HTMLDivElement>(null);
   const descendants = new Set([group]);
   for (let i = 0; i < groups.length; i++) for (const g of groups) if (descendants.has(g.parent_id)) descendants.add(g.id);
-  const visible = connections.filter(c => (protocol === 'all' || c.protocol === protocol) && (!group || (group === 'ungrouped' ? !c.group_id : descendants.has(c.group_id))) && `${c.name} ${c.host} ${c.username}`.toLowerCase().includes(search.toLowerCase()));
+  const visible = connections.filter(c => (view === 'all' || (view === 'favorite' ? preferences[c.id]?.favorite : preferences[c.id]?.last_connected)) && (protocol === 'all' || c.protocol === protocol) && (!group || (group === 'ungrouped' ? !c.group_id : descendants.has(c.group_id))) && `${c.name} ${c.host} ${c.username}`.toLowerCase().includes(search.toLowerCase())).sort((a,b) => view === 'recent' ? Date.parse(preferences[b.id]?.last_connected || '') - Date.parse(preferences[a.id]?.last_connected || '') : 0);
   const selectedConnection = visible.find(c => c.id === selected);
+  async function preference(id: string, favorite: boolean, environment: string) { setError(''); try { await SetConnectionPreference(id, favorite, environment); onReload(); } catch (e) { setError(String(e)); } }
 
   function tree(parent: string, depth = 0): React.ReactNode {
     return groups.filter(g => g.parent_id === parent).sort((a, b) => a.sort_order - b.sort_order).map(g => <div key={g.id}>
@@ -40,6 +43,10 @@ export default function ConnectionCenter({ connections, groups, onOpen, onEdit, 
     <section className="connection-catalog" aria-label="连接列表">
     <div className="catalog-toolbar"><Button size="sm" color="primary" isDisabled={busy} onPress={() => onNew(false)}>新建连接</Button><Button size="sm" variant="light" isDisabled={busy} onPress={() => onNew(true)}>快速连接</Button><div className="toolbar-divider" /><Button size="sm" variant="light" isDisabled={busy || !selectedConnection} onPress={() => selectedConnection && onOpen(selectedConnection)}>连接</Button><Button size="sm" variant="light" isDisabled={busy || !selectedConnection} onPress={() => selectedConnection && onEdit(selectedConnection)}>编辑</Button><Button size="sm" variant="light" isDisabled={working || !selectedConnection} onPress={() => { if (selectedConnection) { setError(''); setDeleting({ id: selectedConnection.id, name: selectedConnection.name }); } }}>删除</Button><button className="icon-button catalog-refresh" aria-label="刷新连接" onClick={onReload}><Icon name="refresh" width="16" /></button></div>
     <div className="catalog-filters"><div className="protocol-filters" role="group" aria-label="协议筛选">{['all', 'ssh', 'rdp'].map(value => <button key={value} aria-pressed={protocol === value} onClick={() => setProtocol(value)}>{value === 'all' ? '全部' : value.toUpperCase()}</button>)}</div><Input aria-label="搜索连接" placeholder="搜索连接" size="sm" value={search} onValueChange={setSearch} startContent={<Icon name="search" width="14" />} isClearable onClear={() => setSearch('')} /></div>
+    <div className="catalog-preferences"><select aria-label="目录视图" value={view} onChange={e => setView(e.target.value)}><option value="all">全部连接</option><option value="favorite">收藏</option><option value="recent">最近成功连接</option></select>
+      {view === 'recent' && <Button size="sm" variant="light" onPress={async () => { try { await ClearRecentConnections(); onReload(); } catch(e) { setError(String(e)); } }}>清除最近连接</Button>}
+      {selectedConnection && <><Button size="sm" variant="light" aria-pressed={!!preferences[selected]?.favorite} onPress={() => void preference(selected, !preferences[selected]?.favorite, preferences[selected]?.environment || '')}>{preferences[selected]?.favorite ? '取消收藏' : '收藏'}</Button><label>环境 <select aria-label="连接环境" value={preferences[selected]?.environment || ''} onChange={e => void preference(selected, !!preferences[selected]?.favorite, e.target.value)}><option value="">未设置</option><option value="production">生产</option><option value="staging">预发布</option><option value="development">开发</option></select></label></>}
+    </div>
     <div className="connection-columns" aria-hidden="true"><span /><span>名称</span><span>地址</span><span className="connection-user">用户名</span><span>协议</span></div>
     {error && <p role="alert" className="error">{error}</p>}
     <div className="connection-list" aria-label="已保存连接" ref={list}>{visible.map((c, index) => <div key={c.id} className={`connection-row ${selected === c.id ? 'selected' : ''}`} onContextMenu={e => { e.preventDefault(); setSelected(c.id); setMenu(c.id); }}>
@@ -49,7 +56,7 @@ export default function ConnectionCenter({ connections, groups, onOpen, onEdit, 
         if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) { e.preventDefault(); setSelected(c.id); setMenu(c.id); }
         if (e.key === 'F2' && !busy) { e.preventDefault(); onEdit(c); }
         if (e.key === 'Delete') { e.preventDefault(); setError(''); setDeleting({ id: c.id, name: c.name }); }
-      }} title={`${c.username}@${c.host}:${c.port}`}><Icon name={c.protocol === 'rdp' ? 'desktop' : 'terminal'} width="16" /><strong>{c.name}</strong><span>{c.host}:{c.port}</span><span className="connection-user">{c.username}</span><small>{c.protocol.toUpperCase()}</small></button>
+      }} title={`${c.username}@${c.host}:${c.port}`}><Icon name={c.protocol === 'rdp' ? 'desktop' : 'terminal'} width="16" /><strong>{preferences[c.id]?.favorite && <span aria-label="已收藏">★ </span>}{c.name}{preferences[c.id]?.environment && <em className={`connection-environment ${preferences[c.id]?.environment}`}>{({production:'生产',staging:'预发布',development:'开发'} as Record<string,string>)[preferences[c.id]?.environment || '']}</em>}</strong><span>{c.host}:{c.port}</span><span className="connection-user">{c.username}</span><small>{c.protocol.toUpperCase()}{sessions[c.id]?.length ? <span className="connection-session-state">{[...new Set(sessions[c.id])].map(state=>`${state} ${sessions[c.id].filter(s=>s===state).length}`).join(' / ')}</span> : null}</small></button>
       <Dropdown isOpen={menu === c.id} onOpenChange={open => setMenu(open ? c.id : '')}><DropdownTrigger><button className="icon-button row-menu" aria-label={`连接 ${c.name} 操作`} onFocus={() => setSelected(c.id)}><Icon name="more" /></button></DropdownTrigger><DropdownMenu aria-label={`连接 ${c.name} 操作`} disabledKeys={busy ? ['open', 'another', 'edit', 'duplicate'] : []} onAction={key => { if (key === 'open') onOpen(c); if (key === 'another') onOpen(c, true); if (key === 'edit') onEdit(c); if (key === 'duplicate') { setError(''); setIncludeCredentials(false); setDuplicating(c); } if (key === 'delete') { setError(''); setDeleting({ id: c.id, name: c.name }); } }}><DropdownItem key="open">连接 / 定位工作区</DropdownItem><DropdownItem key="another">新建另一工作区</DropdownItem><DropdownItem key="edit">编辑连接</DropdownItem><DropdownItem key="duplicate">复制配置</DropdownItem><DropdownItem key="delete" color="danger">删除连接</DropdownItem></DropdownMenu></Dropdown>
     </div>)}</div>
     {visible.length === 0 && <div className="sidebar-empty"><span>{search || group || protocol !== 'all' ? '没有匹配连接' : '尚无连接'}</span></div>}

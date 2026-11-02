@@ -3,5 +3,6 @@
 
 export type {
     Connection,
+    ConnectionPreference,
     Group
 } from "./models.js";
