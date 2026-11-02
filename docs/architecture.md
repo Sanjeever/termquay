@@ -68,10 +68,10 @@ WebDAV 使用追加式快照，不覆盖或自动清理历史。备份目录由�
 
 | 概念 | 实现入口 | 验证入口 |
 | --- | --- | --- |
-| 工作区、绑定与退出 | [app.go](../app.go)、[lifecycle.go](../lifecycle.go)、[App.tsx](../frontend/src/App.tsx) | `internal/ssh/terminal_test.go`、原生关闭与重载验证 |
+| 工作区、绑定与退出 | [app.go](../app.go)、[lifecycle.go](../lifecycle.go)、[App.tsx](../frontend/src/App.tsx)、[工作台布局](../frontend/src/components/layout) | `internal/ssh/terminal_test.go`、原生关闭与重载验证 |
 | SSH、PTY 与消费确认 | [internal/ssh](../internal/ssh)、[TerminalView](../frontend/src/features/terminal/TerminalView.tsx) | `internal/ssh/terminal_test.go` |
 | 文件、草稿与传输 | [internal/files](../internal/files)、[files.go](../files.go)、[transfer.go](../transfer.go)、[前端文件工作区](../frontend/src/features/files) | `internal/files/service_test.go`、`transfer_test.go`、原生传输流程 |
 | Linux 监控 | [internal/monitor](../internal/monitor)、[monitor.go](../monitor.go) | `internal/monitor/sample_test.go` |
 | RDP、证书与授权 | [internal/rdp](../internal/rdp)、[rdp.go](../rdp.go)、[RDPView](../frontend/src/features/rdp/RDPView.tsx) | `internal/rdp/bridge_test.go`、真实 RDP 与原生 WebView |
-| 存储与连接凭据 | [internal/store](../internal/store)、[data.go](../data.go) | `data_test.go`、`internal/backup/snapshot_test.go` |
+| 存储与连接凭据 | [internal/store](../internal/store)、[data.go](../data.go)、[连接界面](../frontend/src/features/connections) | `data_test.go`、`internal/backup/snapshot_test.go` |
 | 快照与恢复 | [internal/backup](../internal/backup)、[data.go](../data.go)、[BackupSettings](../frontend/src/features/settings/BackupSettings.tsx) | `internal/backup/*_test.go`、`data_test.go` |
