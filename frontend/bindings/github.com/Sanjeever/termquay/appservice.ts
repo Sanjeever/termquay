@@ -153,6 +153,14 @@ export function ListTunnels(workspace: string): $CancellablePromise<$models.Tunn
     return $Call.ByID(1886316137, workspace);
 }
 
+export function MoveConnectionsToGroup(ids: string[] | null, groupID: string): $CancellablePromise<void> {
+    return $Call.ByID(197431060, ids, groupID);
+}
+
+export function MoveGroup(id: string, parentID: string, beforeID: string): $CancellablePromise<void> {
+    return $Call.ByID(2697696238, id, parentID, beforeID);
+}
+
 export function OpenRDP(host: string, port: number): $CancellablePromise<rdp$0.Grant> {
     return $Call.ByID(1856620084, host, port);
 }

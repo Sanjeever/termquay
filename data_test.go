@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -60,6 +61,67 @@ func TestCatalogCredentialsAndGroups(t *testing.T) {
 	d, err := a.store.Read()
 	if err != nil || len(d.Credentials) != 0 {
 		t.Fatal("删除连接未清理无引用凭据")
+	}
+}
+
+func TestBatchConnectionAndGroupMovesAreAtomic(t *testing.T) {
+	a := testAppStore(t)
+	for _, g := range []store.Group{{ID: "a", Name: "父分组"}, {ID: "b", Name: "子分组", ParentID: "a"}, {ID: "c", Name: "目标分组"}} {
+		if err := a.SaveGroup(g); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, id := range []string{"one", "two"} {
+		if _, err := a.SaveConnection(store.Connection{ID: id, Name: id, Protocol: "ssh", Host: "example.invalid", Port: 22, Username: "test", GroupID: "a"}, terminal.Request{Password: "test-only"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	before, _ := a.store.Read()
+	for _, ids := range [][]string{{"one", "missing"}, {"one", "one"}, nil} {
+		if err := a.MoveConnectionsToGroup(ids, "c"); err == nil {
+			t.Fatal("无效连接批次被接受")
+		}
+		after, _ := a.store.Read()
+		if !reflect.DeepEqual(before, after) {
+			t.Fatal("失败批次改变了配置或凭据")
+		}
+	}
+	if err := a.MoveConnectionsToGroup([]string{"one", "two"}, "missing"); err == nil {
+		t.Fatal("接受失效分组")
+	}
+	if err := a.MoveConnectionsToGroup([]string{"one", "two"}, "c"); err != nil {
+		t.Fatal(err)
+	}
+	after, _ := a.store.Read()
+	for i := range after.Connections {
+		if after.Connections[i].GroupID != "c" {
+			t.Fatal("未移动整个批次")
+		}
+		after.Connections[i].GroupID = before.Connections[i].GroupID
+	}
+	if !reflect.DeepEqual(before, after) {
+		t.Fatal("移动触及凭据或连接元数据")
+	}
+	before, _ = a.store.Read()
+	for _, move := range [][3]string{{"a", "b", ""}, {"missing", "", ""}, {"a", "missing", ""}, {"a", "", "b"}} {
+		if err := a.MoveGroup(move[0], move[1], move[2]); err == nil {
+			t.Fatal("无效分组移动被接受")
+		}
+		after, _ := a.store.Read()
+		if !reflect.DeepEqual(before, after) {
+			t.Fatal("无效分组移动部分提交")
+		}
+	}
+	if err := a.MoveGroup("c", "", "a"); err != nil {
+		t.Fatal(err)
+	}
+	after, _ = a.store.Read()
+	orders := map[string]int{}
+	for _, g := range after.Groups {
+		orders[g.ID] = g.SortOrder
+	}
+	if orders["c"] >= orders["a"] {
+		t.Fatal("同级排序未持久化")
 	}
 }
 
