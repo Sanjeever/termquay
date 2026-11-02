@@ -134,15 +134,15 @@ func (a *AppService) DeleteGroup(id string) error {
 	return a.store.Replace(d)
 }
 
-func (a *AppService) SaveConnection(c store.Connection, auth terminal.Request) error {
+func (a *AppService) SaveConnection(c store.Connection, auth terminal.Request) (store.Connection, error) {
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
 	if err := a.openStorage(); err != nil {
-		return err
+		return store.Connection{}, err
 	}
 	d, err := a.store.Read()
 	if err != nil {
-		return err
+		return store.Connection{}, err
 	}
 	if c.ID == "" {
 		c.ID = base64.RawURLEncoding.EncodeToString(randomBytes(16))
@@ -166,7 +166,7 @@ func (a *AppService) SaveConnection(c store.Connection, auth terminal.Request) e
 				Passphrase string `json:"passphrase"`
 			}{auth.PrivateKey, auth.Passphrase})
 			if err != nil {
-				return err
+				return store.Connection{}, err
 			}
 			credential.Secret = string(b)
 		}
@@ -193,7 +193,10 @@ func (a *AppService) SaveConnection(c store.Connection, auth terminal.Request) e
 	if !found {
 		d.Connections = append(d.Connections, c)
 	}
-	return a.store.Replace(d)
+	if err := a.store.Replace(d); err != nil {
+		return store.Connection{}, err
+	}
+	return c, nil
 }
 
 func (a *AppService) DeleteConnection(id string) error {

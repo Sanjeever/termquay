@@ -129,7 +129,7 @@ export function ResizeTerminal(id: string, cols: number, rows: number): $Cancell
     return $Call.ByID(253488878, id, cols, rows);
 }
 
-export function SaveConnection(c: store$0.Connection, auth: ssh$0.Request): $CancellablePromise<void> {
+export function SaveConnection(c: store$0.Connection, auth: ssh$0.Request): $CancellablePromise<store$0.Connection> {
     return $Call.ByID(1507388431, c, auth);
 }
 
