@@ -1,0 +1,12 @@
+diff --git a/iron-remote-desktop.js b/iron-remote-desktop.js
+index a46cff14408f8cf1bb206cbb104fadb1d079d5d9..280a4e846c7445eb01192de143cc5261abfaea81 100644
+--- a/iron-remote-desktop.js
++++ b/iron-remote-desktop.js
+@@ -4043,6 +4043,7 @@ function ar(t, e) {
+   }
+   tr(async () => {
+     Ht.set(false), N.verbose = r() === "true", N.info("Dom ready"), await Ve(), await l.initClipboard();
++    h.dispatchEvent(new CustomEvent("clipboard-ready", { bubbles: true, composed: true }));
+   }), _n(() => {
+     window.removeEventListener("resize", ce), window.removeEventListener("keydown", $, false), window.removeEventListener("keyup", $, false), window.removeEventListener("focus", Oe), window.removeEventListener("blur", Ae), document.removeEventListener("visibilitychange", Ke), Ht.set(true);
+   });

@@ -40,12 +40,14 @@ export default function App() {
   const current = workspaces.find(w => w.id === active);
   const latestWorkspaces = useRef(workspaces); latestWorkspaces.current = workspaces;
   const tabNavigation = useRef(false);
+  const closingKeyboard = useRef(false);
 
-  function remove(id: string) {
+  function remove(id: string, keyboard = false) {
     attempt.cancelWorkspace(id);
     latestWorkspaces.current.find(w => w.id === id)?.view?.current?.cancel();
     setWorkspaces(prev => prev.filter(w => w.id !== id));
     setActive(prev => prev === id ? latestWorkspaces.current.find(w => w.id !== id)?.id || '' : prev);
+    if (keyboard) { tabNavigation.current = true; requestAnimationFrame(() => document.querySelector<HTMLElement>('.workspace-tabs [role=tab][aria-selected=true]')?.focus()); }
   }
   function select(id: string, keyboard = false) { tabNavigation.current = keyboard; setActive(id); setSettings(false); }
   const attempt = useConnectionAttempt((id, connection) => {
@@ -72,7 +74,7 @@ export default function App() {
   useEffect(() => {
     if (dialog || attempt.trust || closing || quitConfirm || palette || settings) return;
     if (tabNavigation.current) { tabNavigation.current = false; return; }
-    const frame = requestAnimationFrame(() => document.querySelector<HTMLElement>('.workspace:not([hidden]) .terminal-tab:not([hidden]) .xterm-helper-textarea, .workspace:not([hidden]) .editor-tab:not([hidden]) .cm-content, .workspace:not([hidden]) .rdp-canvas iron-remote-desktop')?.focus());
+    const frame = requestAnimationFrame(() => { if (current?.rdp) current.view?.current?.focus(); else document.querySelector<HTMLElement>('.workspace:not([hidden]) .terminal-tab:not([hidden]) .xterm-helper-textarea, .workspace:not([hidden]) .editor-tab:not([hidden]) .cm-content')?.focus(); });
     return () => cancelAnimationFrame(frame);
   }, [active, dialog, attempt.trust, closing, quitConfirm, palette, settings]);
   useEffect(() => {
@@ -114,7 +116,7 @@ export default function App() {
     { id: 'settings', label: '打开设置', kind: 'command', run: () => setSettings(true) },
   ];
   return <>
-    <Workbench tabs={<WorkspaceTabs items={workspaces} active={active} onSelect={select} onClose={id => workspaces.find(w => w.id === id)?.dirty ? setClosing(id) : remove(id)} onNew={() => openDialog(false)} />} tools={tools} settings={settings}
+    <Workbench tabs={<WorkspaceTabs items={workspaces} active={active} onSelect={select} onClose={(id, keyboard) => { closingKeyboard.current = !!keyboard; if (workspaces.find(w => w.id === id)?.dirty) setClosing(id); else remove(id, keyboard); }} onNew={() => openDialog(false)} />} tools={tools} settings={settings}
       status={<><span>{catalog?.session_only ? '会话存储' : '本地工作台'}</span><span>{workspaces.length} 个工作区</span><div className="status-spacer" /><button className={transfers.failed || transfers.error ? 'error' : ''} aria-expanded={transfersOpen} onClick={() => setTransfersOpen(!transfersOpen)}><Icon name="transfer" width="14" />{transfers.running ? `传输 ${transfers.running} 进行中` : transfers.items.length ? `传输 ${transfers.items.length} 项` : '传输'}{transfers.failed ? ` · ${transfers.failed} 失败` : ''}{transfers.error ? ' · 加载失败' : ''}</button></>}>
       {storageError && <div className="storage-error error" role="alert">{storageError}<Button size="sm" onPress={() => { UseSessionStorage().then(reload).catch(e => setStorageError(String(e))); }}>使用会话存储</Button></div>}
       {!dialog && (attempt.busy || (attempt.error && !current?.rdp)) && <div className="connection-feedback" role={attempt.error ? 'alert' : 'status'}><span className={attempt.error ? 'error' : ''}>{attempt.target} · {attempt.error || '正在连接…'}</span>{attempt.busy && <Button size="sm" variant="light" onPress={attempt.cancel}>取消连接</Button>}{!attempt.busy && <button className="icon-button" aria-label="关闭连接错误" onClick={attempt.clearError}><Icon name="close" /></button>}</div>}
@@ -126,12 +128,12 @@ export default function App() {
     {dialog && <ConnectionDialog {...dialog} groups={catalog?.groups || []} busy={attempt.busy} connectionError={attempt.error} onConnect={(connection, auth) => attempt.start(connection, auth, dialog.workspaceID)} onSaved={() => void reload()} onClose={() => { setDialog(undefined); attempt.clearError(); }} onCancel={attempt.cancel} />}
     <HostTrustDialog target={attempt.trust} onConfirm={attempt.confirm} />
     {palette && <CommandPalette commands={commands} onClose={() => setPalette(false)} />}
-    <Modal isOpen={!!closing || quitConfirm} onClose={() => { if (!savingClose) { setClosing(''); setQuitConfirm(false); setCloseError(''); } }} isDismissable={!savingClose} isKeyboardDismissDisabled={savingClose} className="app-dialog"><ModalContent><ModalHeader>未保存文件</ModalHeader><ModalBody><p>{quitConfirm ? '应用中有未保存修改。' : '此工作区有未保存修改。'}</p>{closeError && <p className="error" role="alert">{closeError}</p>}</ModalBody><ModalFooter><Button variant="light" isDisabled={savingClose} onPress={() => { setClosing(''); setQuitConfirm(false); setCloseError(''); }}>返回编辑</Button><Button color="danger" variant="light" isDisabled={savingClose} onPress={() => { if (quitConfirm) void DiscardAndQuit(); else remove(closing); setClosing(''); }}>放弃修改并{quitConfirm ? '退出' : '关闭'}</Button><Button color="primary" isLoading={savingClose} onPress={async () => {
+    <Modal isOpen={!!closing || quitConfirm} onClose={() => { if (!savingClose) { setClosing(''); setQuitConfirm(false); setCloseError(''); } }} isDismissable={!savingClose} isKeyboardDismissDisabled={savingClose} className="app-dialog"><ModalContent><ModalHeader>未保存文件</ModalHeader><ModalBody><p>{quitConfirm ? '应用中有未保存修改。' : '此工作区有未保存修改。'}</p>{closeError && <p className="error" role="alert">{closeError}</p>}</ModalBody><ModalFooter><Button variant="light" isDisabled={savingClose} onPress={() => { setClosing(''); setQuitConfirm(false); setCloseError(''); }}>返回编辑</Button><Button color="danger" variant="light" isDisabled={savingClose} onPress={() => { if (quitConfirm) void DiscardAndQuit(); else remove(closing, closingKeyboard.current); setClosing(''); }}>放弃修改并{quitConfirm ? '退出' : '关闭'}</Button><Button color="primary" isLoading={savingClose} onPress={async () => {
       setSavingClose(true); setCloseError('');
       try {
         const targets = quitConfirm ? workspaces.filter(w => w.dirty) : workspaces.filter(w => w.id === closing);
         for (const w of targets) { if (!await w.ssh?.current?.saveAll()) { select(w.id); setCloseError('保存未完成，请返回编辑处理文件错误。'); return; } }
-        if (quitConfirm) await DiscardAndQuit(); else { remove(closing); setClosing(''); }
+        if (quitConfirm) await DiscardAndQuit(); else { remove(closing, closingKeyboard.current); setClosing(''); }
       } catch (e) { setCloseError(String(e)); } finally { setSavingClose(false); }
     }}>保存并{quitConfirm ? '退出' : '关闭'}</Button></ModalFooter></ModalContent></Modal>
   </>;

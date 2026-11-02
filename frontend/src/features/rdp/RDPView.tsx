@@ -5,7 +5,7 @@ import type { IronError, UserInteraction } from '@devolutions/iron-remote-deskto
 import { CloseRDP } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
 import type { Grant } from '../../../bindings/github.com/Sanjeever/termquay/internal/rdp/models';
 
-export type RDPHandle = { connect(username: string, password: string, domain: string): Promise<void>; cancel(): void };
+export type RDPHandle = { connect(username: string, password: string, domain: string): Promise<void>; cancel(): void; focus(): void };
 let initialization: Promise<typeof import('@devolutions/iron-remote-desktop-rdp')> | undefined;
 
 function initialize() {
@@ -26,6 +26,7 @@ const RDPView = forwardRef<RDPHandle, { grant?: Grant; target: string; visible: 
   const [status, setStatus] = useState('正在装载桌面组件');
   const [clipboard, setClipboard] = useState(false);
   const [resolution, setResolution] = useState('dynamic');
+  function focusDesktop() { container.current?.querySelector('iron-remote-desktop')?.shadowRoot?.querySelector<HTMLCanvasElement>('canvas')?.focus(); }
   const ready = useMemo(() => {
     let resolve!: (value: UserInteraction) => void;
     let reject!: (reason: unknown) => void;
@@ -75,6 +76,7 @@ const RDPView = forwardRef<RDPHandle, { grant?: Grant; target: string; visible: 
       finally { clearTimeout(timer); password = ''; }
     },
     cancel: () => finish('连接已取消'),
+    focus: focusDesktop,
   }), [grant, ready, clipboard]);
 
   useEffect(() => {
@@ -93,10 +95,12 @@ const RDPView = forwardRef<RDPHandle, { grant?: Grant; target: string; visible: 
         desktop.style.cssText = 'display:flex;width:100%;height:100%;';
         desktop.addEventListener('ready', (event) => {
           if (ready.disposed || ready.ended) return;
-          clearTimeout(timer);
           ui.current = (event as CustomEvent<{ irgUserInteraction: UserInteraction }>).detail.irgUserInteraction;
           ui.current.setEnableClipboard(false);ui.current.setEnableAutoClipboard(false);
-          setStatus('准备就绪'); ready.resolve(ui.current);
+        }, { once: true });
+        desktop.addEventListener('clipboard-ready', () => {
+          if (ready.disposed || ready.ended || !ui.current) return;
+          clearTimeout(timer); setStatus('准备就绪'); ready.resolve(ui.current);
         }, { once: true });
         container.current!.appendChild(desktop);
       } catch (e) { finish('远程桌面装载失败', detail(e)); }
@@ -121,16 +125,16 @@ const RDPView = forwardRef<RDPHandle, { grant?: Grant; target: string; visible: 
     return () => { clearTimeout(timer); observer.disconnect(); };
   }, [resolution,status]);
 
-  useEffect(() => { if (visible && status === '已连接' && !document.activeElement?.closest('[role=tablist]')) container.current?.querySelector<HTMLElement>('iron-remote-desktop')?.focus(); }, [visible, status]);
+  useEffect(() => { if (visible && status === '已连接' && !document.activeElement?.closest('[role=tablist]')) focusDesktop(); }, [visible, status]);
   useEffect(() => { ui.current?.setVisibility(visible && status === '已连接'); }, [visible, status]);
 
   return <div className="rdp-view" ref={view}>
     <div className="rdp-toolbar" hidden={status !== '已连接' || !grant}>
-      <Dropdown><DropdownTrigger><Button size="sm" variant="light" isDisabled={status !== '已连接'}>组合键</Button></DropdownTrigger><DropdownMenu aria-label="远端组合键" onAction={key => { if (key === 'secure') ui.current?.ctrlAltDel(); else ui.current?.metaKey(); container.current?.querySelector<HTMLElement>('iron-remote-desktop')?.focus(); }}><DropdownItem key="secure">Ctrl + Alt + Del</DropdownItem><DropdownItem key="windows">Windows 键</DropdownItem></DropdownMenu></Dropdown>
+      <Dropdown><DropdownTrigger><Button size="sm" variant="light" isDisabled={status !== '已连接'}>组合键</Button></DropdownTrigger><DropdownMenu aria-label="远端组合键" onAction={key => { if (key === 'secure') ui.current?.ctrlAltDel(); else ui.current?.metaKey(); focusDesktop(); }}><DropdownItem key="secure">Ctrl + Alt + Del</DropdownItem><DropdownItem key="windows">Windows 键</DropdownItem></DropdownMenu></Dropdown>
       <select aria-label="远程分辨率" disabled={status!=='已连接'} value={resolution} onChange={(e) => setResolution(e.target.value)}><option value="dynamic">适应窗口</option><option value="1280x800">1280 × 800</option><option value="1920x1080">1920 × 1080</option></select>
       <label><input type="checkbox" checked={clipboard} onChange={e => { setClipboard(e.target.checked); finish('剪贴板设置已更改，请重连'); }} /> 文本剪贴板（重连生效）</label>
-      {clipboard && <><Button size="sm" variant="light" isDisabled={status!=='已连接'} onPress={() => { ui.current?.sendClipboardData().catch((e) => setError(String(e))); }}>粘贴到远端</Button><Button size="sm" variant="light" isDisabled={status!=='已连接'} onPress={() => { ui.current?.saveRemoteClipboardData().catch((e) => setError(String(e))); }}>复制到本机</Button></>}
-      <Button size="sm" variant="light" onPress={() => { const operation = document.fullscreenElement ? document.exitFullscreen() : view.current?.requestFullscreen(); operation?.catch(e => setError(String(e))); }}>切换全屏</Button>
+      {clipboard && <><Button size="sm" variant="light" isDisabled={status!=='已连接'} onPress={() => { ui.current?.sendClipboardData().then(focusDesktop).catch(e => setError(detail(e))); }}>粘贴到远端</Button><Button size="sm" variant="light" isDisabled={status!=='已连接'} onPress={() => { ui.current?.saveRemoteClipboardData().then(focusDesktop).catch(e => setError(detail(e))); }}>复制到本机</Button></>}
+      <Button size="sm" variant="light" onPress={() => { const operation = document.fullscreenElement ? document.exitFullscreen() : view.current?.requestFullscreen(); operation?.then(focusDesktop).catch(e => setError(detail(e))); }}>切换全屏</Button>
       <Button size="sm" variant="light" onPress={() => finish('已断开')}>断开</Button>
     </div>
     <div className="rdp-canvas" ref={container} hidden={status !== '已连接' || !grant} />

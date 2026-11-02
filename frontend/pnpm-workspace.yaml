@@ -4,3 +4,5 @@ allowBuilds:
 overrides:
   motion-dom: 12.23.23
   motion-utils: 12.23.6
+patchedDependencies:
+  '@devolutions/iron-remote-desktop@0.11.0': patches/@devolutions__iron-remote-desktop@0.11.0.patch

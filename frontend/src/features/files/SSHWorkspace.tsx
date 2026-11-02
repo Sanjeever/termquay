@@ -34,6 +34,8 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   const reads = useRef(new Map<string, ReturnType<typeof ReadRemoteFile>>());
   const saves = useRef(new Map<string, Promise<boolean>>());
   const center = useRef<HTMLDivElement>(null);
+  const filesToggle = useRef<HTMLButtonElement>(null);
+  const monitorToggle = useRef<HTMLButtonElement>(null);
   const dirtyCallback = useRef(onDirtyChange); dirtyCallback.current = onDirtyChange;
   const dirty = drafts.some(d => d.content !== d.saved);
   const filesShown = !focus && (narrow ? narrowPanel === 'files' : filesOpen);
@@ -96,9 +98,9 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   const tabIDs = [...terminals, ...drafts.map(d => d.path)];
   function activate(path: string) { setActive(path); requestAnimationFrame(() => center.current?.querySelector<HTMLElement>('.terminal-tab:not([hidden]) .xterm-helper-textarea, .editor-tab:not([hidden]) .cm-content')?.focus()); }
   return <div className="ssh-workspace">
-    <div className="workspace-toolbar" aria-label="SSH 工作区工具"><button className="session-tool" aria-pressed={filesShown} onClick={toggleFiles}><Icon name="files" width="15" />文件</button><button className="session-tool" aria-pressed={monitorShown} onClick={toggleMonitor}><Icon name="monitor" width="15" />监控</button><button className="icon-button focus-toggle" aria-label="专注模式" title="专注模式" aria-pressed={focus} onClick={() => setFocus(!focus)}><Icon name="focus" width="16" /></button></div>
+    <div className="workspace-toolbar" aria-label="SSH 工作区工具"><button ref={filesToggle} className="session-tool" aria-pressed={filesShown} onClick={toggleFiles}><Icon name="files" width="15" />文件</button><button ref={monitorToggle} className="session-tool" aria-pressed={monitorShown} onClick={toggleMonitor}><Icon name="monitor" width="15" />监控</button><button className="icon-button focus-toggle" aria-label="专注模式" title="专注模式" aria-pressed={focus} onClick={() => setFocus(!focus)}><Icon name="focus" width="16" /></button></div>
     <div className="ssh-panels">
-    <div className="file-dock" hidden={!filesShown} style={{ width: filesWidth }}><FileBrowser id={id} visible={visible && filesShown} onOpen={open} onClose={toggleFiles} /></div>
+    <div className="file-dock" hidden={!filesShown} style={{ width: filesWidth }}><FileBrowser id={id} visible={visible && filesShown} onOpen={open} onClose={() => { toggleFiles(); filesToggle.current?.focus(); }} /></div>
     {filesShown && !narrow && <ResizeHandle label="文件面板宽度" value={filesWidth} min={200} max={420} onChange={setFilesWidth} />}
     <div className="ssh-center" ref={center}>
       <div className="inner-tabs" role="tablist" aria-label="终端与文件" onKeyDown={e => {
@@ -121,7 +123,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
         <CodeEditor path={d.path} content={d.content} visible={visible && active === d.path} onChange={value => updateDrafts(prev => prev.map(item => item.path === d.path ? { ...item, content: value } : item))} onSave={() => void save(d.path)} />
       </div>)}
     </div>
-    <MonitorPanel id={id} visible={visible && monitorShown} onClose={toggleMonitor} />
+    <MonitorPanel id={id} visible={visible && monitorShown} onClose={() => { toggleMonitor(); monitorToggle.current?.focus(); }} />
     </div>
     <Modal isOpen={!!closingDraft} onClose={() => !closingDraft?.saving && setClosing('')} className="app-dialog"><ModalContent><ModalHeader>保存文件修改？</ModalHeader><ModalBody><p className="file-path">{closing}</p>{closingDraft?.error && <p className="error" role="alert">{closingDraft.error}</p>}</ModalBody><ModalFooter><Button variant="light" isDisabled={closingDraft?.saving} onPress={() => setClosing('')}>取消</Button><Button color="danger" variant="light" isDisabled={closingDraft?.saving} onPress={() => close(closing, true)}>放弃修改</Button><Button color="primary" isLoading={closingDraft?.saving} onPress={async () => { if (await save(closing)) close(closing, true); }}>保存并关闭</Button></ModalFooter></ModalContent></Modal>
     <Modal isOpen={!!rereading} onClose={() => setRereading('')} className="app-dialog"><ModalContent><ModalHeader>重新读取远端文件</ModalHeader><ModalBody><p className="file-path">{rereading}</p><p>将覆盖此文件的本地草稿。请先复制需要保留的内容。</p>{error && <p className="error" role="alert">{error}</p>}</ModalBody><ModalFooter><Button variant="light" onPress={() => setRereading('')}>取消</Button><Button color="danger" onPress={() => void reread(rereading)}>放弃草稿并重新读取</Button></ModalFooter></ModalContent></Modal>
