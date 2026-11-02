@@ -15,6 +15,7 @@ export default function ConnectionDialog({ connection, temporary, groups, busy, 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [stored, setStored] = useState(false);
+  const [credentialEpoch, setCredentialEpoch] = useState(0);
   const form = useRef<HTMLFormElement>(null);
 
   async function submit(mode: 'save' | 'connect' | 'both') {
@@ -37,6 +38,7 @@ export default function ConnectionDialog({ connection, temporary, groups, busy, 
   }
   function clearSecrets() {
     for (const name of ['password', 'private_key', 'passphrase']) { const field = form.current?.elements.namedItem(name) as HTMLInputElement | null; if (field) field.value = ''; }
+    if (form.current) setCredentialEpoch(value => value + 1);
   }
   return <Modal isOpen onClose={() => { if (!saving) { onCancel(); onClose(); } }} isDismissable={!busy && !saving} isKeyboardDismissDisabled={saving} size="lg" className="app-dialog" scrollBehavior="inside"><ModalContent>
     <ModalHeader>{temporary ? '快速连接' : saved ? '编辑连接' : '新建连接'}</ModalHeader>
@@ -50,7 +52,7 @@ export default function ConnectionDialog({ connection, temporary, groups, busy, 
       {saved?.credential_id && !replace ? <div className="saved-credential"><span>已保存凭据</span><Button size="sm" variant="light" isDisabled={busy || saving} onPress={() => setReplace(true)}>更换凭据</Button></div> : <>
         {saved?.credential_id && <div className="muted">留空沿用已保存凭据</div>}
         {protocol === 'ssh' && <label className="form-field">认证方式<select value={authKind} disabled={busy || saving} onChange={e => setAuthKind(e.target.value)}><option value="password">密码</option><option value="private_key">私钥</option></select></label>}
-        {protocol === 'ssh' && authKind === 'private_key' ? <><label className="form-field">私钥内容<textarea name="private_key" rows={5} disabled={busy || saving} spellCheck={false} autoComplete="off" /></label><Input name="passphrase" label="私钥口令" labelPlacement="outside" placeholder="可选" type="password" size="sm" autoComplete="off" isDisabled={busy || saving} /></> : <Input name="password" label="密码" labelPlacement="outside" placeholder="密码" type="password" size="sm" autoComplete="off" isDisabled={busy || saving} />}
+        {protocol === 'ssh' && authKind === 'private_key' ? <><label className="form-field">私钥内容<textarea key={`key-${credentialEpoch}`} name="private_key" rows={5} disabled={busy || saving} spellCheck={false} autoComplete="off" /></label><Input key={`passphrase-${credentialEpoch}`} name="passphrase" label="私钥口令" labelPlacement="outside" placeholder="可选" type="password" size="sm" autoComplete="off" isDisabled={busy || saving} /></> : <Input key={`password-${credentialEpoch}`} name="password" label="密码" labelPlacement="outside" placeholder="密码" type="password" size="sm" autoComplete="off" isDisabled={busy || saving} />}
       </>}
       {!temporary && <label className="form-field">分组<select name="group" defaultValue={saved?.group_id || ''} disabled={busy || saving}><option value="">未分组</option>{groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}</select></label>}
       {stored && connectionError && <p className="muted">配置已保存，连接未成功。</p>}
