@@ -133,6 +133,7 @@ export default function App() {
       if (event.isComposing || event.repeat || dialog || attempt.trust || closing || quitConfirm) return;
       const path = event.composedPath();
       if (path.some(target => target instanceof HTMLElement && target.matches('[role=dialog], .shortcut-recorder'))) return;
+      if (path.some(target => target instanceof HTMLElement && target.matches('.rdp-canvas')) && path.some(target => target instanceof HTMLElement && target.matches('.rdp-view[data-keyboard-target=remote]'))) return;
       const key = eventShortcut(event); if (!key) return;
       const terminal = !settings && !!current?.ssh && path.some(target => target instanceof HTMLElement && target.matches('.xterm'));
       const action = shortcutDefinitions.find(d => shortcuts[d.id] === key && (d.scope === 'app' || terminal));

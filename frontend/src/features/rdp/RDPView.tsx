@@ -29,6 +29,7 @@ const RDPView = forwardRef<RDPHandle, { grant?: Grant; target: string; visible: 
   const [activeClipboard, setActiveClipboard] = useState(false);
   const [resolution, setResolution] = useState(options.resolution);
   const [scale, setScale] = useState<'fit'|'real'>('fit');
+  const [keyboardTarget, setKeyboardTarget] = useState<'local'|'remote'>('local');
   const [fullscreen, setFullscreen] = useState(false);
   const [toolbarCollapsed, setToolbarCollapsed] = useState(false);
   useEffect(() => { setClipboard(options.clipboard); setResolution(options.resolution); }, [options]);
@@ -140,10 +141,11 @@ const RDPView = forwardRef<RDPHandle, { grant?: Grant; target: string; visible: 
   useEffect(() => { ui.current?.setVisibility(visible && status === '已连接'); }, [visible, status]);
   useEffect(() => { container.current?.querySelector('iron-remote-desktop')?.setAttribute('scale', scale); }, [scale, status]);
 
-  return <div className="rdp-view" ref={view}>
+  return <div className="rdp-view" ref={view} data-keyboard-target={keyboardTarget}>
     {fullscreen && toolbarCollapsed && <button className="rdp-toolbar-reveal" aria-label="显示远程桌面工具栏" onClick={() => { setToolbarCollapsed(false); requestAnimationFrame(() => view.current?.querySelector<HTMLElement>('.rdp-toolbar button')?.focus()); }}>显示工具栏</button>}
     <div className="rdp-toolbar" hidden={status !== '已连接' || !grant || (fullscreen && toolbarCollapsed)}>
       <Dropdown><DropdownTrigger><Button size="sm" variant="light" isDisabled={status !== '已连接'}>组合键</Button></DropdownTrigger><DropdownMenu aria-label="远端组合键" onAction={key => { if (key === 'secure') ui.current?.ctrlAltDel(); else ui.current?.metaKey(); focusDesktop(); }}><DropdownItem key="secure">Ctrl + Alt + Del</DropdownItem><DropdownItem key="windows">Windows 键</DropdownItem></DropdownMenu></Dropdown>
+      <label>应用快捷键<select aria-label="RDP 应用快捷键归属" title="操作系统截获的组合键仍由系统处理" value={keyboardTarget} onChange={e => { setKeyboardTarget(e.target.value as 'local'|'remote'); focusDesktop(); }}><option value="local">本机优先</option><option value="remote">发送远端</option></select></label>
       <label>远端分辨率<select aria-label="远程分辨率" disabled={status!=='已连接'} value={resolution} onChange={async e => { const value=e.target.value; try { await onResolution(value); setResolution(value); } catch(e) { setError(detail(e)); } }}><option value="dynamic">适应窗口</option><option value="1280x800">1280 × 800</option><option value="1920x1080">1920 × 1080</option></select></label>
       <label>本地缩放<select aria-label="本地缩放" value={scale} onChange={e => setScale(e.target.value as 'fit'|'real')}><option value="fit">适合窗口</option><option value="real">实际像素</option></select></label>
       <label><input type="checkbox" checked={clipboard} onChange={e => setClipboard(e.target.checked)} />文本剪贴板</label>
