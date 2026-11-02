@@ -126,3 +126,28 @@ func (a *AppService) ClearRecentConnections() error {
 	}
 	return a.store.SetConnectionPreferences(preferences)
 }
+
+func (a *AppService) SetRDPResolution(id, resolution string) error {
+	if resolution != "dynamic" && resolution != "1280x800" && resolution != "1920x1080" {
+		return errors.New("远程分辨率无效")
+	}
+	a.storeMu.Lock()
+	defer a.storeMu.Unlock()
+	preferences, err := a.connectionPreferences()
+	if err != nil {
+		return err
+	}
+	d, err := a.store.Read()
+	if err != nil {
+		return err
+	}
+	for _, c := range d.Connections {
+		if c.ID == id && c.Protocol == "rdp" {
+			p := preferences[id]
+			p.RDPResolution = resolution
+			preferences[id] = p
+			return a.store.SetConnectionPreferences(preferences)
+		}
+	}
+	return errors.New("RDP 连接不存在")
+}

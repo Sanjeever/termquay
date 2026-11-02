@@ -66,3 +66,30 @@ func TestConnectionPreferencesBoundRecentAndPreserveLocalState(t *testing.T) {
 		t.Fatal("接受无效环境")
 	}
 }
+
+func TestRDPResolutionPreference(t *testing.T) {
+	a := testAppStore(t)
+	if err := a.store.Replace(store.Data{Connections: []store.Connection{{ID: "rdp", Name: "桌面", Protocol: "rdp", Host: "example.invalid", Port: 3389}}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.SetRDPResolution("rdp", "1920x1080"); err != nil {
+		t.Fatal(err)
+	}
+	p, err := a.GetConnectionPreferences()
+	if err != nil || p["rdp"].RDPResolution != "1920x1080" {
+		t.Fatal("分辨率未持久保存")
+	}
+	if err = a.SetConnectionPreference("rdp", true, "production"); err != nil {
+		t.Fatal(err)
+	}
+	p, err = a.GetConnectionPreferences()
+	if err != nil || p["rdp"].RDPResolution != "1920x1080" {
+		t.Fatal("其他偏好覆盖分辨率")
+	}
+	if err = a.SetRDPResolution("rdp", "99999x99999"); err == nil {
+		t.Fatal("接受无效分辨率")
+	}
+	if err = a.SetRDPResolution("missing", "dynamic"); err == nil {
+		t.Fatal("接受不存在连接")
+	}
+}

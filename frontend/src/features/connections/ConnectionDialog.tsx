@@ -1,12 +1,13 @@
 import { useRef, useState } from 'react';
 import { Button, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
-import { SaveConnection, ParseQuickConnection } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
+import { SaveConnection, ParseQuickConnection, SetRDPResolution } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
+import type { RDPOptions } from '../rdp/RDPView';
 import type { Connection, Group } from '../../../bindings/github.com/Sanjeever/termquay/internal/store/models';
 import type { Request } from '../../../bindings/github.com/Sanjeever/termquay/internal/ssh/models';
 
-export default function ConnectionDialog({ connection, temporary, groups, busy, connectionError, onConnect, onSaved, onClose, onCancel }: {
+export default function ConnectionDialog({ connection, temporary, groups, busy, connectionError, onConnect, onSaved, onClose, onCancel, rdpOptions }: {
   connection?: Connection; temporary: boolean; groups: Group[]; busy: boolean; connectionError: string;
-  onConnect(connection: Connection, auth?: Request): Promise<boolean>; onSaved(): void; onClose(): void; onCancel(): void;
+  onConnect(connection: Connection, auth?: Request, options?: RDPOptions): Promise<boolean>; onSaved(): void; onClose(): void; onCancel(): void; rdpOptions?: RDPOptions;
 }) {
   const [saved, setSaved] = useState(connection);
   const [protocol, setProtocol] = useState(connection?.protocol || 'ssh');
@@ -18,6 +19,8 @@ export default function ConnectionDialog({ connection, temporary, groups, busy, 
   const [credentialEpoch, setCredentialEpoch] = useState(0);
   const [quickAddress, setQuickAddress] = useState('');
   const [parsed, setParsed] = useState<{ value: Connection; epoch: number }>();
+  const [rdpClipboard, setRDPClipboard] = useState(rdpOptions?.clipboard || false);
+  const [rdpResolution, setRDPResolution] = useState(rdpOptions?.resolution || 'dynamic');
   const form = useRef<HTMLFormElement>(null);
 
   async function submit(mode: 'save' | 'connect' | 'both') {
@@ -29,12 +32,12 @@ export default function ConnectionDialog({ connection, temporary, groups, busy, 
     setError('');
     try {
       if (mode !== 'connect') {
-        setSaving(true); const result = await SaveConnection(config, request); setSaved(result); setStored(true); onSaved(); setSaving(false);
+        setSaving(true); const result = await SaveConnection(config, request); setSaved(result); setStored(true); if (protocol === 'rdp') await SetRDPResolution(result.id, rdpResolution); onSaved(); setSaving(false);
         if (mode === 'save') { onClose(); return; }
         clearSecrets();
         request.password = ''; request.private_key = ''; request.passphrase = '';
-        if (await onConnect(result)) onClose();
-      } else if (await onConnect(config, request)) onClose();
+        if (await onConnect(result, undefined, {clipboard:rdpClipboard,resolution:rdpResolution})) onClose();
+      } else if (await onConnect(config, request, {clipboard:rdpClipboard,resolution:rdpResolution})) onClose();
     } catch (e) { setError(String(e)); }
     finally { setSaving(false); clearSecrets(); request.password = ''; request.private_key = ''; request.passphrase = ''; }
   }
@@ -52,6 +55,7 @@ export default function ConnectionDialog({ connection, temporary, groups, busy, 
       <div className="host-port" key={`address-${parsed?.epoch || 0}`}><Input name="host" label="主机" labelPlacement="outside" placeholder="主机名或 IP" defaultValue={parsed?.value.host ?? saved?.host} isRequired size="sm" isDisabled={busy || saving} autoComplete="off" /><Input key={protocol} name="port" label="端口" labelPlacement="outside" placeholder="端口" type="number" defaultValue={String(parsed?.value.port ?? (saved?.protocol === protocol ? saved.port : protocol === 'ssh' ? 22 : 3389))} min={1} max={65535} isRequired size="sm" isDisabled={busy || saving} /></div>
       <Input key={`user-${parsed?.epoch || 0}`} name="username" label="用户名" labelPlacement="outside" placeholder="用户名" defaultValue={parsed?.value.username ?? saved?.username} isRequired size="sm" isDisabled={busy || saving} autoComplete="off" />
       {protocol === 'rdp' && <Input name="domain" label="域（可选）" labelPlacement="outside" placeholder="域" defaultValue={saved?.domain} size="sm" isDisabled={busy || saving} />}
+      {protocol === 'rdp' && <><label className="checkbox-label"><input type="checkbox" checked={rdpClipboard} onChange={e=>setRDPClipboard(e.target.checked)} disabled={busy||saving} />文本剪贴板</label><label className="form-field">远端分辨率<select value={rdpResolution} onChange={e=>setRDPResolution(e.target.value)} disabled={busy||saving}><option value="dynamic">适应窗口</option><option value="1280x800">1280 × 800</option><option value="1920x1080">1920 × 1080</option></select></label></>}
       {saved?.credential_id && !replace ? <div className="saved-credential"><span>已保存凭据</span><Button size="sm" variant="light" isDisabled={busy || saving} onPress={() => setReplace(true)}>更换凭据</Button></div> : <>
         {saved?.credential_id && <div className="muted">留空沿用已保存凭据</div>}
         {protocol === 'ssh' && <label className="form-field">认证方式<select value={authKind} disabled={busy || saving} onChange={e => setAuthKind(e.target.value)}><option value="password">密码</option><option value="private_key">私钥</option></select></label>}

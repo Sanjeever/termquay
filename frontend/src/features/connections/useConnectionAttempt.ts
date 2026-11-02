@@ -4,10 +4,11 @@ import type { Connection } from '../../../bindings/github.com/Sanjeever/termquay
 import type { Request } from '../../../bindings/github.com/Sanjeever/termquay/internal/ssh/models';
 import type { Grant } from '../../../bindings/github.com/Sanjeever/termquay/internal/rdp/models';
 import type { HostTrust } from './HostTrustDialog';
+import type { RDPOptions } from '../rdp/RDPView';
 
 type Attempt = { cancelled: boolean; workspaceID?: string; operation?: { cancel(): void }; resolve?: (accept: boolean) => void };
 
-export default function useConnectionAttempt(onSSH: (id: string, connection: Connection) => void, beginRDP: (connection: Connection, reuse?: string) => string, onRDP: (id: string, grant: Grant, username: string, password: string, domain: string) => Promise<void>, failRDP: (id: string, error: string) => void, cancelRDP: (id: string) => void, remove: (id: string) => void) {
+export default function useConnectionAttempt(onSSH: (id: string, connection: Connection) => void, beginRDP: (connection: Connection, reuse?: string, options?: RDPOptions) => string, onRDP: (id: string, grant: Grant, username: string, password: string, domain: string) => Promise<void>, failRDP: (id: string, error: string) => void, cancelRDP: (id: string) => void, remove: (id: string) => void) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [target, setTarget] = useState('');
@@ -17,7 +18,7 @@ export default function useConnectionAttempt(onSSH: (id: string, connection: Con
   useEffect(() => () => cancel(), []);
   function confirm(accept: boolean) { current.current?.resolve?.(accept); setTrust(undefined); }
 
-  async function start(connection: Connection, auth?: Request, reuse?: string) {
+  async function start(connection: Connection, auth?: Request, reuse?: string, options?: RDPOptions) {
     if (current.current) return false;
     const attempt: Attempt = { cancelled: false };
     current.current = attempt; setBusy(true); setError(''); setTarget(connection.name || connection.host);
@@ -38,7 +39,7 @@ export default function useConnectionAttempt(onSSH: (id: string, connection: Con
         }
         onSSH(result.id, connection); owned = '';
       } else {
-        rdpWorkspace = beginRDP(connection, reuse);
+        rdpWorkspace = beginRDP(connection, reuse, options);
         attempt.workspaceID = rdpWorkspace;
         const probeOperation = ProbeRDP(connection.host, connection.port); attempt.operation = probeOperation;
         const probe = await probeOperation; check();

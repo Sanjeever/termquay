@@ -165,6 +165,10 @@ export function SetConnectionPreference(id: string, favorite: boolean, environme
     return $Call.ByID(238222063, id, favorite, environment);
 }
 
+export function SetRDPResolution(id: string, resolution: string): $CancellablePromise<void> {
+    return $Call.ByID(1869345094, id, resolution);
+}
+
 export function SetWorkspaceDirty(id: string, dirty: boolean): $CancellablePromise<void> {
     return $Call.ByID(2313705545, id, dirty);
 }

@@ -2,11 +2,11 @@ import { createRef, useEffect, useRef, useState, type RefObject } from 'react';
 import { flushSync } from 'react-dom';
 import { Events } from '@wailsio/runtime';
 import { Button, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Tooltip } from '@heroui/react';
-import { GetCatalog, GetConnectionPreferences, RecordConnectionSuccess, UseSessionStorage, DiscardAndQuit } from '../bindings/github.com/Sanjeever/termquay/appservice';
+import { GetCatalog, GetConnectionPreferences, RecordConnectionSuccess, SetRDPResolution, UseSessionStorage, DiscardAndQuit } from '../bindings/github.com/Sanjeever/termquay/appservice';
 import type { Connection, ConnectionPreference, Group } from '../bindings/github.com/Sanjeever/termquay/internal/store/models';
 import type { Grant } from '../bindings/github.com/Sanjeever/termquay/internal/rdp/models';
 import SSHWorkspace, { type SSHWorkspaceHandle } from './features/files/SSHWorkspace';
-import RDPView, { type RDPHandle } from './features/rdp/RDPView';
+import RDPView, { type RDPHandle, type RDPOptions } from './features/rdp/RDPView';
 import SettingsView from './features/settings/SettingsView';
 import TransferPanel from './features/files/TransferPanel';
 import useTransfers from './features/files/useTransfers';
@@ -20,7 +20,7 @@ import Icon from './components/Icon';
 import CommandPalette, { type WorkbenchCommand } from './components/CommandPalette';
 import { defaultShortcuts, eventShortcut, shortcutConflict, shortcutDefinitions, shortcutLabel, shortcutStorageKey, type Shortcuts } from './lib/shortcuts';
 
-type Workspace = { id: string; connectionID: string; name: string; state?: string; rdp?: { connection: Connection; grant?: Grant; error?: string }; view?: RefObject<RDPHandle>; ssh?: RefObject<SSHWorkspaceHandle>; dirty?: boolean };
+type Workspace = { id: string; connectionID: string; name: string; state?: string; rdp?: { connection: Connection; grant?: Grant; error?: string; options: RDPOptions }; view?: RefObject<RDPHandle>; ssh?: RefObject<SSHWorkspaceHandle>; dirty?: boolean };
 
 export default function App() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -29,7 +29,8 @@ export default function App() {
   const [storageError, setStorageError] = useState('');
   const [preferences, setPreferences] = useState<Record<string, ConnectionPreference | undefined>>({});
   const [preferenceError, setPreferenceError] = useState('');
-  const [dialog, setDialog] = useState<{ connection?: Connection; temporary: boolean; workspaceID?: string }>();
+  const [dialog, setDialog] = useState<{ connection?: Connection; temporary: boolean; workspaceID?: string; rdpOptions?: RDPOptions }>();
+  const [rdpStart, setRDPStart] = useState<{connection:Connection;options:RDPOptions}>();
   const [settings, setSettings] = useState(false);
   const [closing, setClosing] = useState('');
   const [quitConfirm, setQuitConfirm] = useState(false);
@@ -60,24 +61,25 @@ export default function App() {
   }
   function workspaceState(id: string, state: string) { setWorkspaces(prev => prev.map(w => w.id === id && w.state !== state ? { ...w, state } : w)); }
   async function recordSuccess(id: string) { if (!id) return; try { await RecordConnectionSuccess(id); setPreferences(await GetConnectionPreferences() || {}); } catch (e) { setPreferenceError(`记录最近连接失败：${String(e)}`); } }
+  async function saveRDPResolution(id: string, value: string) { if (!id) return; await SetRDPResolution(id,value); setPreferences(await GetConnectionPreferences() || {}); }
   const attempt = useConnectionAttempt((id, connection) => {
     setWorkspaces(prev => [...prev, { id, connectionID: connection.id, name: connection.name, ssh: createRef<SSHWorkspaceHandle>() }]); select(id);
     void recordSuccess(connection.id);
-  }, (connection, reuse) => {
+  }, (connection, reuse, options = {clipboard:false,resolution:preferences[connection.id]?.rdp_resolution || 'dynamic'}) => {
     const id = reuse || crypto.randomUUID();
     flushSync(() => {
-      setWorkspaces(prev => reuse ? prev.map(w => w.id === id ? { ...w, connectionID: connection.id, rdp: { connection } } : w) : [...prev, { id, connectionID: connection.id, name: connection.name, rdp: { connection }, view: createRef<RDPHandle>() }]);
+      setWorkspaces(prev => reuse ? prev.map(w => w.id === id ? { ...w, connectionID: connection.id, rdp: { connection, options } } : w) : [...prev, { id, connectionID: connection.id, name: connection.name, rdp: { connection, options }, view: createRef<RDPHandle>() }]);
       select(id);
     });
     return id;
   }, async (id, grant, username, password, domain) => {
-    flushSync(() => setWorkspaces(prev => prev.map(w => w.id === id ? { ...w, rdp: { connection: w.rdp!.connection, grant } } : w)));
+    flushSync(() => setWorkspaces(prev => prev.map(w => w.id === id ? { ...w, rdp: { ...w.rdp!, grant } } : w)));
     const view = latestWorkspaces.current.find(w => w.id === id)?.view?.current;
     if (!view) throw new Error('工作区已关闭');
     await view.connect(username, password, domain);
     const connectionID = latestWorkspaces.current.find(w => w.id === id)?.connectionID;
     if (connectionID) void recordSuccess(connectionID);
-  }, (id, error) => setWorkspaces(prev => prev.map(w => w.id === id ? { ...w, rdp: { connection: w.rdp!.connection, error } } : w)), id => latestWorkspaces.current.find(w => w.id === id)?.view?.current?.cancel(), remove);
+  }, (id, error) => setWorkspaces(prev => prev.map(w => w.id === id ? { ...w, rdp: { ...w.rdp!, error } } : w)), id => latestWorkspaces.current.find(w => w.id === id)?.view?.current?.cancel(), remove);
 
   async function reload() { try { const data = await GetCatalog(); setCatalog({ ...data, groups: data.groups ?? [], connections: data.connections ?? [] }); setStorageError(''); try { setPreferences(await GetConnectionPreferences() || {}); setPreferenceError(''); } catch (e) { setPreferenceError(String(e)); } } catch (e) { setStorageError(String(e)); } }
   useEffect(() => { void reload(); }, []);
@@ -94,11 +96,11 @@ export default function App() {
   useEffect(() => { localStorage.setItem('termquay.layout.transfer-height', String(transferHeight)); }, [transferHeight]);
   useEffect(() => { localStorage.setItem('termquay.terminal.font-size', String(fontSize)); }, [fontSize]);
   useEffect(() => {
-    if (dialog || attempt.trust || closing || quitConfirm || palette || settings) return;
+    if (dialog || rdpStart || attempt.trust || closing || quitConfirm || palette || settings) return;
     if (tabNavigation.current) { tabNavigation.current = false; return; }
     const frame = requestAnimationFrame(() => { if (current?.rdp) current.view?.current?.focus(); else { const search = document.querySelector<HTMLElement>('.workspace:not([hidden]) .terminal-tab:not([hidden]) .terminal-search > input'); (search || document.querySelector<HTMLElement>('.workspace:not([hidden]) .terminal-tab:not([hidden]) .xterm-helper-textarea, .workspace:not([hidden]) .editor-tab:not([hidden]) .cm-content'))?.focus(); } });
     return () => cancelAnimationFrame(frame);
-  }, [active, dialog, attempt.trust, closing, quitConfirm, palette, settings]);
+  }, [active, dialog, rdpStart, attempt.trust, closing, quitConfirm, palette, settings]);
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
       if (event.isComposing || event.repeat || dialog || attempt.trust || closing || quitConfirm) return;
@@ -115,21 +117,22 @@ export default function App() {
     };
     window.addEventListener('keydown', key, true); return () => window.removeEventListener('keydown', key, true);
   }, [dialog, attempt.trust, closing, quitConfirm, shortcuts, settings, current]);
-  function openDialog(temporary: boolean, connection?: Connection) { if (attempt.busy) return; attempt.clearError(); setDialog({ temporary, connection }); }
+  function openDialog(temporary: boolean, connection?: Connection) { if (attempt.busy) return; attempt.clearError(); setDialog({ temporary, connection, rdpOptions:{clipboard:false,resolution:preferences[connection?.id || '']?.rdp_resolution || 'dynamic'} }); }
   function openSaved(c: Connection, another = false) {
     const existing = !another && workspaces.find(w => w.connectionID === c.id);
     if (existing) { select(existing.id); return; }
+    if (c.protocol === 'rdp' && !attempt.busy) { setRDPStart({connection:c,options:{clipboard:false,resolution:preferences[c.id]?.rdp_resolution || 'dynamic'}}); return; }
     if (!attempt.busy) void attempt.start(c);
   }
   function editRDP(w: Workspace) {
     if (attempt.busy || !w.rdp) return;
     const saved = catalog?.connections.find(c => c.id === w.connectionID);
     attempt.clearError();
-    setDialog({ connection: saved || { ...w.rdp.connection, id: '', credential_id: '' }, temporary: !saved, workspaceID: w.id });
+    setDialog({ connection: saved || { ...w.rdp.connection, id: '', credential_id: '' }, temporary: !saved, workspaceID: w.id, rdpOptions:w.view?.current?.options() || w.rdp.options });
   }
   function retryRDP(w: Workspace) {
     const saved = catalog?.connections.find(c => c.id === w.connectionID);
-    if (saved) void attempt.start(saved, undefined, w.id); else editRDP(w);
+    if (saved) void attempt.start(saved, undefined, w.id, w.view?.current?.options() || w.rdp?.options); else editRDP(w);
   }
   const tools = <>
     <Tooltip content={`命令搜索 · ${shortcutLabel(shortcuts.palette)}`}><button className="icon-button" aria-label="命令搜索" onClick={() => setPalette(true)}><Icon name="search" /></button></Tooltip>
@@ -154,10 +157,11 @@ export default function App() {
       {settings && <SettingsView fontSize={fontSize} onFontSize={setFontSize} onRestore={() => void reload()} onClose={() => setSettings(false)} shortcuts={shortcuts} onShortcuts={saveShortcuts} shortcutError={shortcutError} />}
       {preferenceError && <div role="alert" className="connection-feedback error">{preferenceError}</div>}
       <div className="connection-center-page" hidden={settings || !!current}><ConnectionCenter connections={catalog?.connections || []} groups={catalog?.groups || []} preferences={preferences} sessions={Object.fromEntries((catalog?.connections || []).map(c => [c.id, workspaces.filter(w => w.connectionID === c.id).map(w => w.state || '连接中')]))} onOpen={openSaved} onEdit={c => openDialog(false, c)} onNew={openDialog} onReload={() => void reload()} busy={attempt.busy} /></div>
-      {workspaces.map(w => <div className="workspace" hidden={settings || active !== w.id} key={w.id}>{w.rdp ? <RDPView target={`${w.rdp.connection.username}@${w.rdp.connection.host}:${w.rdp.connection.port}`} grant={w.rdp.grant} failure={w.rdp.error} busy={attempt.busy} onRetry={() => retryRDP(w)} onEdit={() => editRDP(w)} ref={w.view} visible={!settings && active === w.id} onState={state => workspaceState(w.id, state)} /> : <SSHWorkspace id={w.id} ref={w.ssh} fontSize={fontSize} visible={!settings && active === w.id} onDirtyChange={dirty => setWorkspaces(prev => prev.map(item => item.id === w.id ? { ...item, dirty } : item))} onState={state => workspaceState(w.id, state)} />}</div>)}
+      {workspaces.map(w => <div className="workspace" hidden={settings || active !== w.id} key={w.id}>{w.rdp ? <RDPView target={`${w.rdp.connection.username}@${w.rdp.connection.host}:${w.rdp.connection.port}`} grant={w.rdp.grant} failure={w.rdp.error} busy={attempt.busy} options={w.rdp.options} onResolution={value=>saveRDPResolution(w.connectionID,value)} onRetry={() => retryRDP(w)} onEdit={() => editRDP(w)} ref={w.view} visible={!settings && active === w.id} onState={state => workspaceState(w.id, state)} /> : <SSHWorkspace id={w.id} ref={w.ssh} fontSize={fontSize} visible={!settings && active === w.id} onDirtyChange={dirty => setWorkspaces(prev => prev.map(item => item.id === w.id ? { ...item, dirty } : item))} onState={state => workspaceState(w.id, state)} />}</div>)}
       {transfersOpen && <TransferPanel tasks={transfers} height={transferHeight} onHeight={setTransferHeight} onClose={() => setTransfersOpen(false)} />}
     </Workbench>
-    {dialog && <ConnectionDialog {...dialog} groups={catalog?.groups || []} busy={attempt.busy} connectionError={attempt.error} onConnect={(connection, auth) => attempt.start(connection, auth, dialog.workspaceID)} onSaved={() => void reload()} onClose={() => { setDialog(undefined); attempt.clearError(); }} onCancel={attempt.cancel} />}
+    {dialog && <ConnectionDialog {...dialog} groups={catalog?.groups || []} busy={attempt.busy} connectionError={attempt.error} onConnect={(connection, auth, options) => attempt.start(connection, auth, dialog.workspaceID, options)} onSaved={() => void reload()} onClose={() => { setDialog(undefined); attempt.clearError(); }} onCancel={attempt.cancel} />}
+    <Modal isOpen={!!rdpStart} onClose={()=>setRDPStart(undefined)} className="app-dialog"><ModalContent><ModalHeader>连接远程桌面</ModalHeader><ModalBody>{rdpStart && <><p>{rdpStart.connection.name}</p><label className="checkbox-label"><input type="checkbox" checked={rdpStart.options.clipboard} onChange={e=>setRDPStart({...rdpStart,options:{...rdpStart.options,clipboard:e.target.checked}})} />文本剪贴板</label><label className="form-field">远端分辨率<select value={rdpStart.options.resolution} onChange={e=>setRDPStart({...rdpStart,options:{...rdpStart.options,resolution:e.target.value}})}><option value="dynamic">适应窗口</option><option value="1280x800">1280 × 800</option><option value="1920x1080">1920 × 1080</option></select></label></>}</ModalBody><ModalFooter><Button variant="light" onPress={()=>setRDPStart(undefined)}>取消</Button><Button color="primary" onPress={async()=>{if(!rdpStart)return;const launch=rdpStart;setRDPStart(undefined);try{await saveRDPResolution(launch.connection.id,launch.options.resolution);await attempt.start(launch.connection,undefined,undefined,launch.options);}catch(e){setPreferenceError(String(e));}}}>连接</Button></ModalFooter></ModalContent></Modal>
     <HostTrustDialog target={attempt.trust} onConfirm={attempt.confirm} />
     {palette && <CommandPalette commands={commands} onClose={() => setPalette(false)} />}
     <Modal isOpen={!!closing || quitConfirm} onClose={() => { if (!savingClose) { setClosing(''); setQuitConfirm(false); setCloseError(''); } }} isDismissable={!savingClose} isKeyboardDismissDisabled={savingClose} className="app-dialog"><ModalContent><ModalHeader>未保存文件</ModalHeader><ModalBody><p>{quitConfirm ? '应用中有未保存修改。' : '此工作区有未保存修改。'}</p>{closeError && <p className="error" role="alert">{closeError}</p>}</ModalBody><ModalFooter><Button variant="light" isDisabled={savingClose} onPress={() => { setClosing(''); setQuitConfirm(false); setCloseError(''); }}>返回编辑</Button><Button color="danger" variant="light" isDisabled={savingClose} onPress={() => { if (quitConfirm) void DiscardAndQuit(); else remove(closing, closingKeyboard.current); setClosing(''); }}>放弃修改并{quitConfirm ? '退出' : '关闭'}</Button><Button color="primary" isLoading={savingClose} onPress={async () => {

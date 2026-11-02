@@ -9,6 +9,7 @@ import (
 type ConnectionPreference struct {
 	Favorite      bool       `json:"favorite"`
 	Environment   string     `json:"environment"`
+	RDPResolution string     `json:"rdp_resolution,omitempty"`
 	LastConnected *time.Time `json:"last_connected,omitempty"`
 }
 
