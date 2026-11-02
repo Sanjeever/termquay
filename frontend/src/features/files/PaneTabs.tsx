@@ -1,9 +1,10 @@
 import Icon from '../../components/Icon';
 
-export default function PaneTabs({ pane, items, selected, focused, hidden, column, creating, onSelect, onClose, onNew }: {
+export default function PaneTabs({ pane, items, selected, focused, hidden, column, creating, onSelect, onClose, onNew, newShortcut, closeShortcut }: {
   pane: number; items: { id: string; label: string; terminal: boolean; dirty?: boolean; closingDisabled?: boolean }[];
   selected: string; focused: boolean; hidden: boolean; column: number; creating: boolean;
   onSelect(id: string): void; onClose(id: string): void; onNew(): void;
+  newShortcut: string; closeShortcut: string;
 }) {
   return <div className={`inner-tabs pane-tabs ${focused ? 'focused-pane' : ''}`} role="tablist" aria-label={`${pane === 0 ? '主' : '右侧'}窗格标签`} hidden={hidden} style={{ gridColumn: column, gridRow: 1 }} onKeyDown={e => {
     if (e.nativeEvent.isComposing || (e.target as HTMLElement).getAttribute('role') !== 'tab' || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
@@ -13,8 +14,8 @@ export default function PaneTabs({ pane, items, selected, focused, hidden, colum
   }}>
     {items.map(item => <div key={item.id} className={selected === item.id ? 'selected' : ''}>
       <button role="tab" aria-selected={selected === item.id} tabIndex={selected === item.id ? 0 : -1} title={item.id} onClick={() => onSelect(item.id)}>{item.terminal && <Icon name="terminal" width="14" />}{item.label}{item.dirty && <span className="dirty-dot" aria-label="未保存">●</span>}</button>
-      <button aria-label={`关闭${item.terminal ? '' : '文件 '}${item.label}`} disabled={item.closingDisabled} onClick={() => onClose(item.id)}><Icon name="close" width="12" /></button>
+      <button aria-label={`关闭${item.terminal ? '' : '文件 '}${item.label}`} title={`关闭 · ${closeShortcut}`} disabled={item.closingDisabled} onClick={() => onClose(item.id)}><Icon name="close" width="12" /></button>
     </div>)}
-    <button aria-label={`在${pane === 0 ? '主' : '右侧'}窗格新建终端`} disabled={creating} onClick={onNew}><Icon name="plus" width="15" /></button>
+    <button aria-label={`在${pane === 0 ? '主' : '右侧'}窗格新建终端`} title={`新建终端 · ${newShortcut}`} disabled={creating} onClick={onNew}><Icon name="plus" width="15" /></button>
   </div>;
 }

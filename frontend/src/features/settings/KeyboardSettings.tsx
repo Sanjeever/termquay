@@ -13,7 +13,7 @@ export default function KeyboardSettings({ values, onChange, error }: { values: 
         e.preventDefault(); e.stopPropagation();
         if (e.nativeEvent.isComposing) return;
         if (e.key === 'Escape') { setRecording(undefined); return; }
-        const key = eventShortcut(e.nativeEvent); if (!key) { setConflict('请使用 Ctrl/⌘ 或 Alt 搭配字母、数字、标点或功能键'); return; }
+        const key = eventShortcut(e.nativeEvent); if (!key) { setConflict('请使用 Ctrl/⌘ 或 Alt 搭配字母、数字、标点、方向键、Tab 或功能键'); return; }
         const message = shortcutConflict(d.id, key, values); setConflict(message);
         if (!message) { onChange({ ...values, [d.id]: key }); setRecording(undefined); }
       }}>{recording === d.id ? '按下组合键…' : shortcutLabel(values[d.id])}</button>

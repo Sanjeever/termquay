@@ -19,7 +19,7 @@ import HostTrustDialog from './features/connections/HostTrustDialog';
 import useConnectionAttempt from './features/connections/useConnectionAttempt';
 import Icon from './components/Icon';
 import CommandPalette, { type WorkbenchCommand } from './components/CommandPalette';
-import { defaultShortcuts, eventShortcut, shortcutConflict, shortcutDefinitions, shortcutLabel, shortcutStorageKey, type Shortcuts } from './lib/shortcuts';
+import { defaultShortcuts, mergeShortcuts, eventShortcut, shortcutConflict, shortcutDefinitions, shortcutLabel, shortcutStorageKey, type Shortcuts } from './lib/shortcuts';
 import SnippetInsertDialog from './features/terminal/SnippetInsertDialog';
 import useDraftRecovery from './features/workspaces/useDraftRecovery';
 import useWorkspaceRestore from './features/workspaces/useWorkspaceRestore';
@@ -119,7 +119,7 @@ export default function App() {
   useEffect(() => {
     try {
       const stored = localStorage.getItem(shortcutStorageKey); if (!stored) return;
-      const values = { ...defaultShortcuts, ...JSON.parse(stored) } as Shortcuts;
+      const values = mergeShortcuts(JSON.parse(stored));
       for (const d of shortcutDefinitions) { if (typeof values[d.id] !== 'string' || shortcutConflict(d.id, values[d.id], values)) throw new Error('快捷键配置无效，请在设置中复位'); }
       setShortcuts(values);
     } catch (e) { setShortcutError(String(e)); }
@@ -142,15 +142,17 @@ export default function App() {
       if (path.some(target => target instanceof HTMLElement && target.matches('.rdp-canvas')) && path.some(target => target instanceof HTMLElement && target.matches('.rdp-view[data-keyboard-target=remote]'))) return;
       const key = eventShortcut(event); if (!key) return;
       const terminal = !settings && !!current?.ssh && path.some(target => target instanceof HTMLElement && target.matches('.xterm'));
-      const action = shortcutDefinitions.find(d => shortcuts[d.id] === key && (d.scope === 'app' || terminal));
+      const action = shortcutDefinitions.find(d => shortcuts[d.id] === key && (d.scope === 'app' || (d.scope === 'workspace' && !settings && current?.ssh) || terminal));
       if (!action) return;
       event.preventDefault(); event.stopImmediatePropagation();
       if (action.id === 'palette') { setPaletteScope('all'); setPalette(prev => !prev); }
       else if (action.id === 'settings') setSettings(true);
+      else if (action.id === 'nextWorkspace' || action.id === 'previousWorkspace') { const ids = ['', ...workspaces.map(w=>w.id)]; select(ids[(ids.indexOf(active) + (action.id === 'nextWorkspace' ? 1 : -1) + ids.length) % ids.length]); }
+      else if (action.scope === 'workspace') current?.ssh?.current?.workspaceAction(action.id);
       else current?.ssh?.current?.terminalAction(action.id);
     };
     window.addEventListener('keydown', key, true); return () => window.removeEventListener('keydown', key, true);
-  }, [dialog, attempt.trust, closing, quitConfirm, shortcuts, settings, current]);
+  }, [dialog, attempt.trust, closing, quitConfirm, shortcuts, settings, current, workspaces, active]);
   function openDialog(temporary: boolean, connection?: Connection) { if (attempt.busy) return; attempt.clearError(); setDialog({ temporary, connection, rdpOptions:{clipboard:false,resolution:preferences[connection?.id || '']?.rdp_resolution || 'dynamic'} }); }
   function openSaved(c: Connection, another = false) {
     const existing = !another && workspaces.find(w => w.connectionID === c.id);
@@ -193,6 +195,7 @@ export default function App() {
     { id: 'connections', label: '进入连接中心', kind: 'command', run: () => select('') },
     ...(current?.ssh ? [{ id: 'files', label: '显示远端文件', kind: 'command' as const, run: () => current.ssh?.current?.showFiles() }, { id: 'monitor', label: '切换监控面板', kind: 'command' as const, run: () => current.ssh?.current?.toggleMonitor() }, { id: 'focus', label: '切换专注模式', kind: 'command' as const, run: () => current.ssh?.current?.toggleFocus() }] : []),
     ...(current?.ssh ? shortcutDefinitions.filter(d => d.scope === 'terminal').map(d => ({ id: `terminal-${d.id}`, label: d.label, detail: shortcutLabel(shortcuts[d.id]), kind: 'command' as const, run: () => current.ssh?.current?.terminalAction(d.id) })) : []),
+    ...(current?.ssh ? shortcutDefinitions.filter(d=>d.scope==='workspace').map(d=>({id:d.id,label:d.label,detail:shortcutLabel(shortcuts[d.id]),kind:'command' as const,run:()=>current.ssh?.current?.workspaceAction(d.id)})) : []),
     ...(current?.ssh?.current?.insertionTarget()?snippets.map(snippet=>({id:`snippet-${snippet.id}`,label:`插入片段 ${snippet.name}`,detail:snippet.group,kind:'command' as const,run:()=>{const target=current.ssh?.current?.insertionTarget();if(target)setSnippetInsert({snippet,workspace:current.id,terminal:target});}})):[]),
     { id: 'transfers', label: '查看传输任务', kind: 'command', run: () => setTransfersOpen(true) },
     { id: 'settings', label: '打开设置', kind: 'command', run: () => setSettings(true) },
@@ -207,7 +210,7 @@ export default function App() {
       {preferenceError && <div role="alert" className="connection-feedback error">{preferenceError}</div>}
       <div className="connection-center-page" hidden={settings || !!current}><ConnectionCenter connections={catalog?.connections || []} groups={catalog?.groups || []} preferences={preferences} sessions={Object.fromEntries((catalog?.connections || []).map(c => [c.id, workspaces.filter(w => w.connectionID === c.id).map(w => w.state || '连接中')]))} onOpen={openSaved} onEdit={c => openDialog(false, c)} onNew={openDialog} onReload={() => void reload()} busy={attempt.busy} loading={catalogLoading} loadError={storageError} /></div>
       {workspaces.map(w => <div className="workspace" hidden={settings || active !== w.id} key={w.id}>{w.rdp ? <RDPView target={`${w.rdp.connection.username}@${w.rdp.connection.host}:${w.rdp.connection.port}`} environment={preferences[w.connectionID]?.environment || ''} grant={w.rdp.grant} failure={w.rdp.error} busy={attempt.busy} pending={attempt.busy&&attempt.workspaceID===w.id} options={w.rdp.options} onResolution={value=>saveRDPResolution(w.connectionID,value)} onRetry={() => retryRDP(w)} onEdit={() => editRDP(w)} ref={w.view} visible={!settings && active === w.id} onState={state => workspaceState(w.id, state)} /> : w.sessionID ?
-        <SSHWorkspace id={w.id} sessionID={w.sessionID} initialLayout={w.restore} connectionID={w.connectionID} target={`${w.connection?.username}@${w.connection?.host}:${w.connection?.port}`} environment={preferences[w.connectionID]?.environment || ''} state={w.state || '连接中'} ref={w.ssh} fontSize={fontSize} busy={attempt.busy} onStateChange={()=>notifyLocalState()} onReconnect={()=>reconnectSSH(w)} visible={!settings && active === w.id} onDirtyChange={dirty => setWorkspaces(prev => prev.map(item => item.id === w.id ? { ...item, dirty } : item))} onState={state => workspaceState(w.id, state)} /> :
+        <SSHWorkspace id={w.id} sessionID={w.sessionID} initialLayout={w.restore} connectionID={w.connectionID} target={`${w.connection?.username}@${w.connection?.host}:${w.connection?.port}`} environment={preferences[w.connectionID]?.environment || ''} state={w.state || '连接中'} shortcuts={shortcuts} ref={w.ssh} fontSize={fontSize} busy={attempt.busy} onStateChange={()=>notifyLocalState()} onReconnect={()=>reconnectSSH(w)} visible={!settings && active === w.id} onDirtyChange={dirty => setWorkspaces(prev => prev.map(item => item.id === w.id ? { ...item, dirty } : item))} onState={state => workspaceState(w.id, state)} /> :
         <div className="restored-workspace"><h2>尚未连接</h2><p>{w.connection?.username}@{w.connection?.host}:{w.connection?.port}</p><div className="button-row"><Button size="sm" color="primary" isDisabled={attempt.busy} onPress={()=>reconnectSSH(w)}>连接</Button><Button size="sm" variant="light" isDisabled={attempt.busy} onPress={()=>{if(w.connection)setDialog({connection:{...w.connection,id:'',credential_id:''},temporary:true,workspaceID:w.id});}}>重新填写连接</Button></div><ul>{(w.restore?.tabs||[]).filter(t=>t.kind==='file').map(t=><li className="file-path" key={t.path}>{t.path}</li>)}</ul></div>}
       </div>)}
       {transfersOpen && <TransferPanel tasks={transfers} height={transferHeight} onHeight={setTransferHeight} onClose={() => setTransfersOpen(false)} />}
