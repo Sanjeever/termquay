@@ -237,6 +237,8 @@ func (a *AppService) TrustSSHHost(host string, port int, fingerprint, via string
 	}
 	a.trusted[address] = fingerprint
 	delete(a.pendingTrust, address)
+	delete(a.pendingTrustAt, address)
+	delete(a.pendingTrustGeneration, address)
 	return nil
 }
 

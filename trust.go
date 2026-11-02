@@ -35,6 +35,9 @@ type TrustReview struct {
 
 func parseTrust(key, fp string) (TrustRecord, error) {
 	r := TrustRecord{Key: key, Fingerprint: fp}
+	if !strings.HasPrefix(key, "trust:") {
+		return r, errors.New("信任键无效")
+	}
 	value := strings.TrimPrefix(key, "trust:")
 	r.Protocol, value, _ = strings.Cut(value, ":")
 	if r.Protocol != "ssh" && r.Protocol != "rdp" {
@@ -42,10 +45,13 @@ func parseTrust(key, fp string) (TrustRecord, error) {
 	}
 	if strings.HasPrefix(value, "via:") {
 		r.Via, value, _ = strings.Cut(strings.TrimPrefix(value, "via:"), ":")
+		if r.Protocol != "ssh" || r.Via == "" {
+			return r, errors.New("跳板信任无效")
+		}
 	}
 	host, port, err := net.SplitHostPort(value)
-	if err != nil {
-		return r, err
+	if err != nil || host == "" {
+		return r, errors.New("信任地址无效")
 	}
 	r.Host = host
 	r.Port, err = strconv.Atoi(port)
@@ -125,6 +131,8 @@ func (a *AppService) RevokeTrust(key string) error {
 	cache := trustCacheKey(r)
 	delete(a.trusted, cache)
 	delete(a.pendingTrust, cache)
+	delete(a.pendingTrustAt, cache)
+	delete(a.pendingTrustGeneration, cache)
 	if a.trustEpoch == nil {
 		a.trustEpoch = map[string]uint64{}
 	}
@@ -242,7 +250,12 @@ func (a *AppService) ConfirmTrustReview(ctx context.Context, id string) error {
 	}
 	a.trusted[cache] = review.New
 	delete(a.pendingTrust, cache)
+	delete(a.pendingTrustAt, cache)
+	delete(a.pendingTrustGeneration, cache)
 	delete(a.trustReviews, id)
 	a.trustEpoch[cache]++
+	if review.Record.Protocol == "rdp" && a.rdp != nil {
+		a.rdp.RevokePending(review.Record.Host, review.Record.Port)
+	}
 	return nil
 }

@@ -91,6 +91,36 @@ func TestExpiredCertificateCannotBeTrusted(t *testing.T) {
 	}
 }
 
+func TestRevokePendingPreservesActiveAndOtherTargets(t *testing.T) {
+	b, err := NewBridge([]string{"wails://localhost"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	target := Target{Host: "127.0.0.1", Port: 3389}
+	pending, err := b.Create(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	active, err := b.Create(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := b.Create(Target{Host: "127.0.0.1", Port: 3390})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b.mu.Lock()
+	b.grants[active.ID].claimed = true
+	b.mu.Unlock()
+	b.RevokePending(target.Host, target.Port)
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.grants[pending.ID] != nil || b.grants[active.ID] == nil || b.grants[other.ID] == nil {
+		t.Fatal("撤销未隔离目标或中断已领取授权")
+	}
+}
+
 func TestCertificateVerification(t *testing.T) {
 	target, _ := localRDPTLS(t)
 	expected := target.Fingerprint

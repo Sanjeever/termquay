@@ -104,6 +104,8 @@ func (a *AppService) TrustRDPCertificate(host string, port int, fingerprint stri
 	}
 	a.trusted[address] = fingerprint
 	delete(a.pendingTrust, address)
+	delete(a.pendingTrustAt, address)
+	delete(a.pendingTrustGeneration, address)
 	return nil
 }
 
