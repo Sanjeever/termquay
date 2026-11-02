@@ -1,0 +1,58 @@
+import { useRef, useState } from 'react';
+import { Button, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Input, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from '@heroui/react';
+import { DeleteConnection, SaveGroup, DeleteGroup } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
+import type { Connection, Group } from '../../../bindings/github.com/Sanjeever/termquay/internal/store/models';
+import Icon from '../../components/Icon';
+
+export default function ConnectionCenter({ connections, groups, onOpen, onEdit, onNew, onReload, busy }: {
+  connections: Connection[]; groups: Group[]; onOpen(c: Connection, another?: boolean): void; onEdit(c: Connection): void; onNew(temporary: boolean): void; onReload(): void; busy: boolean;
+}) {
+  const [search, setSearch] = useState('');
+  const [protocol, setProtocol] = useState('all');
+  const [group, setGroup] = useState('');
+  const [collapsed, setCollapsed] = useState<string[]>([]);
+  const [selected, setSelected] = useState('');
+  const [error, setError] = useState('');
+  const [groupDialog, setGroupDialog] = useState<{ value?: Group }>();
+  const [deleting, setDeleting] = useState<{ id: string; name: string; group?: boolean }>();
+  const [working, setWorking] = useState(false);
+  const [menu, setMenu] = useState('');
+  const [groupMenu, setGroupMenu] = useState('');
+  const list = useRef<HTMLDivElement>(null);
+  const descendants = new Set([group]);
+  for (let i = 0; i < groups.length; i++) for (const g of groups) if (descendants.has(g.parent_id)) descendants.add(g.id);
+  const visible = connections.filter(c => (protocol === 'all' || c.protocol === protocol) && (!group || (group === 'ungrouped' ? !c.group_id : descendants.has(c.group_id))) && `${c.name} ${c.host} ${c.username}`.toLowerCase().includes(search.toLowerCase()));
+  const selectedConnection = visible.find(c => c.id === selected);
+
+  function tree(parent: string, depth = 0): React.ReactNode {
+    return groups.filter(g => g.parent_id === parent).sort((a, b) => a.sort_order - b.sort_order).map(g => <div key={g.id}>
+      <div className={`group-row ${group === g.id ? 'selected' : ''}`} style={{ paddingLeft: 8 + depth * 12 }} onContextMenu={e => { e.preventDefault(); setGroup(g.id); setGroupMenu(g.id); }} onKeyDown={e => { if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) { e.preventDefault(); setGroupMenu(g.id); } }}>
+        <button className="group-expand" aria-label={`${collapsed.includes(g.id) ? '展开' : '收起'}分组 ${g.name}`} aria-expanded={!collapsed.includes(g.id)} onClick={() => setCollapsed(prev => prev.includes(g.id) ? prev.filter(id => id !== g.id) : [...prev, g.id])}><Icon name="chevron" width="12" height="12" style={{ transform: collapsed.includes(g.id) ? undefined : 'rotate(90deg)' }} /></button>
+        <button className="group-name" onClick={() => setGroup(g.id)}>{g.name}</button>
+        <Dropdown isOpen={groupMenu === g.id} onOpenChange={open => setGroupMenu(open ? g.id : '')}><DropdownTrigger><button className="icon-button row-menu" aria-label={`分组 ${g.name} 操作`}><Icon name="more" width="14" /></button></DropdownTrigger><DropdownMenu aria-label={`分组 ${g.name} 操作`} onAction={key => { setError(''); if (key === 'edit') setGroupDialog({ value: g }); else setDeleting({ id: g.id, name: g.name, group: true }); }}><DropdownItem key="edit">编辑分组</DropdownItem><DropdownItem key="delete" color="danger">删除分组</DropdownItem></DropdownMenu></Dropdown>
+      </div>{!collapsed.includes(g.id) && tree(g.id, depth + 1)}
+    </div>);
+  }
+  return <div className="connection-center">
+    <aside className="connection-groups" aria-label="连接分组"><div className="sidebar-heading"><h2>分组</h2><button className="icon-button" aria-label="新增分组" title="新增分组" onClick={() => { setError(''); setGroupDialog({}); }}><Icon name="plus" width="16" /></button></div><div className="group-tree"><button className={`group-filter ${!group ? 'selected' : ''}`} onClick={() => setGroup('')}>全部连接<span>{connections.length}</span></button>{tree('')}<button className={`group-filter ${group === 'ungrouped' ? 'selected' : ''}`} onClick={() => setGroup('ungrouped')}>未分组</button></div></aside>
+    <section className="connection-catalog" aria-label="连接列表">
+    <div className="catalog-toolbar"><Button size="sm" color="primary" isDisabled={busy} onPress={() => onNew(false)}>新建连接</Button><Button size="sm" variant="light" isDisabled={busy} onPress={() => onNew(true)}>快速连接</Button><div className="toolbar-divider" /><Button size="sm" variant="light" isDisabled={busy || !selectedConnection} onPress={() => selectedConnection && onOpen(selectedConnection)}>连接</Button><Button size="sm" variant="light" isDisabled={busy || !selectedConnection} onPress={() => selectedConnection && onEdit(selectedConnection)}>编辑</Button><Button size="sm" variant="light" isDisabled={working || !selectedConnection} onPress={() => { if (selectedConnection) { setError(''); setDeleting({ id: selectedConnection.id, name: selectedConnection.name }); } }}>删除</Button><button className="icon-button catalog-refresh" aria-label="刷新连接" onClick={onReload}><Icon name="refresh" width="16" /></button></div>
+    <div className="catalog-filters"><div className="protocol-filters" role="group" aria-label="协议筛选">{['all', 'ssh', 'rdp'].map(value => <button key={value} aria-pressed={protocol === value} onClick={() => setProtocol(value)}>{value === 'all' ? '全部' : value.toUpperCase()}</button>)}</div><Input aria-label="搜索连接" placeholder="搜索连接" size="sm" value={search} onValueChange={setSearch} startContent={<Icon name="search" width="14" />} isClearable onClear={() => setSearch('')} /></div>
+    <div className="connection-columns" aria-hidden="true"><span /><span>名称</span><span>地址</span><span className="connection-user">用户名</span><span>协议</span></div>
+    {error && <p role="alert" className="error">{error}</p>}
+    <div className="connection-list" aria-label="已保存连接" ref={list}>{visible.map((c, index) => <div key={c.id} className={`connection-row ${selected === c.id ? 'selected' : ''}`} onContextMenu={e => { e.preventDefault(); setSelected(c.id); setMenu(c.id); }}>
+      <button className="connection-name" aria-pressed={selected === c.id} tabIndex={selectedConnection ? selected === c.id ? 0 : -1 : index === 0 ? 0 : -1} onClick={() => setSelected(c.id)} onDoubleClick={() => !busy && onOpen(c)} onKeyDown={e => {
+        if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) { e.preventDefault(); const next = e.key === 'Home' ? 0 : e.key === 'End' ? visible.length - 1 : Math.max(0, Math.min(visible.length - 1, index + (e.key === 'ArrowDown' ? 1 : -1))); setSelected(visible[next].id); list.current?.querySelectorAll<HTMLElement>('.connection-name')[next]?.focus(); }
+        if (e.key === 'Enter') { e.preventDefault(); if (!busy) onOpen(c); }
+        if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) { e.preventDefault(); setSelected(c.id); setMenu(c.id); }
+        if (e.key === 'F2' && !busy) { e.preventDefault(); onEdit(c); }
+        if (e.key === 'Delete') { e.preventDefault(); setError(''); setDeleting({ id: c.id, name: c.name }); }
+      }} title={`${c.username}@${c.host}:${c.port}`}><Icon name={c.protocol === 'rdp' ? 'desktop' : 'terminal'} width="16" /><strong>{c.name}</strong><span>{c.host}:{c.port}</span><span className="connection-user">{c.username}</span><small>{c.protocol.toUpperCase()}</small></button>
+      <Dropdown isOpen={menu === c.id} onOpenChange={open => setMenu(open ? c.id : '')}><DropdownTrigger><button className="icon-button row-menu" aria-label={`连接 ${c.name} 操作`} onFocus={() => setSelected(c.id)}><Icon name="more" /></button></DropdownTrigger><DropdownMenu aria-label={`连接 ${c.name} 操作`} disabledKeys={busy ? ['open', 'another', 'edit'] : []} onAction={key => { if (key === 'open') onOpen(c); if (key === 'another') onOpen(c, true); if (key === 'edit') onEdit(c); if (key === 'delete') { setError(''); setDeleting({ id: c.id, name: c.name }); } }}><DropdownItem key="open">连接 / 定位工作区</DropdownItem><DropdownItem key="another">新建另一工作区</DropdownItem><DropdownItem key="edit">编辑连接</DropdownItem><DropdownItem key="delete" color="danger">删除连接</DropdownItem></DropdownMenu></Dropdown>
+    </div>)}</div>
+    {visible.length === 0 && <div className="sidebar-empty"><span>{search || group || protocol !== 'all' ? '没有匹配连接' : '尚无连接'}</span></div>}
+    </section>
+    <Modal isOpen={!!groupDialog} onClose={() => !working && setGroupDialog(undefined)} className="app-dialog"><ModalContent><ModalHeader>{groupDialog?.value ? '编辑分组' : '新增分组'}</ModalHeader><form onSubmit={async e => { e.preventDefault(); const data = new FormData(e.currentTarget); setWorking(true); try { await SaveGroup({ id: groupDialog?.value?.id || '', name: String(data.get('name')), parent_id: String(data.get('parent')), sort_order: groupDialog?.value?.sort_order ?? groups.length }); onReload(); setGroupDialog(undefined); } catch (e) { setError(String(e)); } finally { setWorking(false); } }}><ModalBody><Input name="name" label="分组名称" labelPlacement="outside" placeholder="分组名称" defaultValue={groupDialog?.value?.name} isRequired autoFocus /><label className="form-field">父分组<select name="parent" defaultValue={groupDialog?.value?.parent_id || ''}><option value="">顶层分组</option>{groups.filter(g => g.id !== groupDialog?.value?.id).map(g => <option key={g.id} value={g.id}>{g.name}</option>)}</select></label>{error && <p role="alert" className="error">{error}</p>}</ModalBody><ModalFooter><Button variant="light" onPress={() => setGroupDialog(undefined)} isDisabled={working}>取消</Button><Button type="submit" color="primary" isLoading={working}>保存</Button></ModalFooter></form></ModalContent></Modal>
+    <Modal isOpen={!!deleting} onClose={() => !working && setDeleting(undefined)} className="app-dialog"><ModalContent><ModalHeader>删除{deleting?.group ? '分组' : '连接'}</ModalHeader><ModalBody><p>确认删除“{deleting?.name}”？</p>{error && <p role="alert" className="error">{error}</p>}</ModalBody><ModalFooter><Button variant="light" isDisabled={working} onPress={() => setDeleting(undefined)}>取消</Button><Button color="danger" isLoading={working} onPress={async () => { if (!deleting) return; setWorking(true); try { await (deleting.group ? DeleteGroup(deleting.id) : DeleteConnection(deleting.id)); if (group === deleting.id) setGroup(''); setDeleting(undefined); setError(''); onReload(); } catch (e) { setError(String(e)); } finally { setWorking(false); } }}>删除</Button></ModalFooter></ModalContent></Modal>
+  </div>;
+}

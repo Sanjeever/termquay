@@ -10,9 +10,9 @@ import RDPView, { type RDPHandle } from './features/rdp/RDPView';
 import SettingsView from './features/settings/SettingsView';
 import TransferPanel from './features/files/TransferPanel';
 import useTransfers from './features/files/useTransfers';
-import Workbench, { type SidebarMode } from './components/layout/Workbench';
+import Workbench from './components/layout/Workbench';
 import WorkspaceTabs from './components/layout/WorkspaceTabs';
-import ConnectionSidebar from './features/connections/ConnectionSidebar';
+import ConnectionCenter from './features/connections/ConnectionCenter';
 import ConnectionDialog from './features/connections/ConnectionDialog';
 import HostTrustDialog from './features/connections/HostTrustDialog';
 import useConnectionAttempt from './features/connections/useConnectionAttempt';
@@ -27,7 +27,7 @@ export default function App() {
   const [catalog, setCatalog] = useState<{ groups: Group[]; connections: Connection[]; session_only: boolean }>();
   const [storageError, setStorageError] = useState('');
   const [dialog, setDialog] = useState<{ connection?: Connection; temporary: boolean; workspaceID?: string }>();
-  const [sidebar, setSidebar] = useState<SidebarMode>(localStorage.getItem('termquay.layout.sidebar') === 'closed' ? null : 'connections');
+  const [sidebar, setSidebar] = useState(localStorage.getItem('termquay.layout.sidebar') !== 'closed');
   const [sidebarWidth, setSidebarWidth] = useState(Number(localStorage.getItem('termquay.layout.sidebar-width')) || 248);
   const [sidebarHost, setSidebarHost] = useState<HTMLDivElement | null>(null);
   const [settings, setSettings] = useState(false);
@@ -78,8 +78,7 @@ export default function App() {
   useEffect(() => { localStorage.setItem('termquay.layout.transfer-height', String(transferHeight)); }, [transferHeight]);
   useEffect(() => { localStorage.setItem('termquay.terminal.font-size', String(fontSize)); }, [fontSize]);
   useEffect(() => { const media = window.matchMedia('(max-width: 1100px)'); const update = () => setNarrow(media.matches); media.addEventListener('change', update); return () => media.removeEventListener('change', update); }, []);
-  useEffect(() => { if (narrow && active) setSidebar(null); }, [narrow, active]);
-  useEffect(() => { if ((!current || current.rdp) && sidebar === 'files') setSidebar('connections'); }, [current?.id, sidebar]);
+  useEffect(() => { if (narrow && active) setSidebar(false); }, [narrow, active]);
   useEffect(() => {
     if (dialog || attempt.trust || closing || quitConfirm || palette || settings) return;
     if (tabNavigation.current) { tabNavigation.current = false; return; }
@@ -94,7 +93,7 @@ export default function App() {
     };
     window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key);
   }, [dialog, attempt.trust, closing, quitConfirm]);
-  function changeSidebar(mode: SidebarMode) { setSettings(false); setFocus(false); setSidebar(mode); localStorage.setItem('termquay.layout.sidebar', mode || 'closed'); }
+  function changeSidebar(open: boolean) { setSettings(false); setFocus(false); setSidebar(open); localStorage.setItem('termquay.layout.sidebar', open ? 'files' : 'closed'); }
   function openDialog(temporary: boolean, connection?: Connection) { if (attempt.busy) return; attempt.clearError(); setDialog({ temporary, connection }); }
   function openSaved(c: Connection, another = false) {
     const existing = !another && workspaces.find(w => w.connectionID === c.id);
@@ -113,30 +112,31 @@ export default function App() {
   }
   const tools = <>
     <Tooltip content="命令搜索 · Ctrl/⌘ Shift P"><button className="icon-button" aria-label="命令搜索" onClick={() => setPalette(true)}><Icon name="search" /></button></Tooltip>
-    <Tooltip content="连接侧栏"><button className="icon-button" aria-label="切换侧栏" aria-pressed={!!sidebar && !focus} onClick={() => changeSidebar(sidebar ? null : 'connections')}><Icon name="sidebar" /></button></Tooltip>
+    <Tooltip content="远端文件"><button className="icon-button" aria-label="远端文件" aria-pressed={sidebar && !focus} disabled={!current || !!current.rdp} onClick={() => changeSidebar(!sidebar)}><Icon name="files" /></button></Tooltip>
     <Tooltip content="服务器监控"><button className="icon-button" aria-label="服务器监控" aria-pressed={monitorOpen && !focus} disabled={!current || !!current.rdp} onClick={() => setMonitorOpen(!monitorOpen)}><Icon name="monitor" /></button></Tooltip>
     <Tooltip content="专注模式"><button className="icon-button" aria-label="专注模式" aria-pressed={focus} onClick={() => setFocus(!focus)}><Icon name="focus" /></button></Tooltip>
+    <Tooltip content="设置"><button className="icon-button" aria-label="设置" aria-pressed={settings} onClick={() => setSettings(!settings)}><Icon name="settings" /></button></Tooltip>
   </>;
   const commands: WorkbenchCommand[] = [
     ...workspaces.map(w => ({ id: `workspace-${w.id}`, label: w.name, detail: w.rdp ? 'RDP' : 'SSH', kind: 'workspace' as const, run: () => select(w.id) })),
     ...(catalog?.connections || []).map(c => ({ id: `connection-${c.id}`, label: c.name, detail: `${c.protocol.toUpperCase()} · ${c.host}`, kind: 'connection' as const, run: () => openSaved(c) })),
     { id: 'new', label: '新建连接', kind: 'command', run: () => openDialog(false) },
     { id: 'quick', label: '快速连接', kind: 'command', run: () => openDialog(true) },
-    { id: 'connections', label: '显示连接侧栏', kind: 'command', run: () => changeSidebar('connections') },
-    ...(current && !current.rdp ? [{ id: 'files', label: '显示文件侧栏', kind: 'command' as const, run: () => changeSidebar('files') }, { id: 'monitor', label: monitorOpen ? '收起监控' : '打开监控', kind: 'command' as const, run: () => { setFocus(false); setMonitorOpen(!monitorOpen); } }] : []),
+    { id: 'connections', label: '进入连接中心', kind: 'command', run: () => select('') },
+    ...(current && !current.rdp ? [{ id: 'files', label: '显示远端文件', kind: 'command' as const, run: () => changeSidebar(true) }, { id: 'monitor', label: monitorOpen ? '收起监控' : '打开监控', kind: 'command' as const, run: () => { setFocus(false); setMonitorOpen(!monitorOpen); } }] : []),
     { id: 'transfers', label: '查看传输任务', kind: 'command', run: () => setTransfersOpen(true) },
     { id: 'focus', label: focus ? '退出专注模式' : '进入专注模式', kind: 'command', run: () => setFocus(!focus) },
     { id: 'settings', label: '打开设置', kind: 'command', run: () => setSettings(true) },
   ];
   return <>
-    <Workbench tabs={<WorkspaceTabs items={workspaces} active={active} onSelect={select} onClose={id => workspaces.find(w => w.id === id)?.dirty ? setClosing(id) : remove(id)} onNew={() => openDialog(false)} />} tools={tools} sidebarMode={sidebar} sidebarWidth={sidebarWidth} onSidebarWidth={setSidebarWidth} hasSSH={!!current && !current.rdp} settings={settings} onSettings={() => setSettings(!settings)} focus={focus} onSidebar={changeSidebar}
-      sidebar={<><div hidden={sidebar !== 'connections'} className="sidebar-content"><ConnectionSidebar connections={catalog?.connections || []} groups={catalog?.groups || []} onOpen={openSaved} onEdit={c => openDialog(false, c)} onNew={openDialog} onReload={() => void reload()} busy={attempt.busy} /></div><div className="sidebar-content" hidden={sidebar !== 'files'} ref={setSidebarHost} /></>}
+    <Workbench tabs={<WorkspaceTabs items={workspaces} active={active} onSelect={select} onClose={id => workspaces.find(w => w.id === id)?.dirty ? setClosing(id) : remove(id)} onNew={() => openDialog(false)} />} tools={tools} sidebarOpen={sidebar && !!current && !current.rdp} sidebarWidth={sidebarWidth} onSidebarWidth={setSidebarWidth} settings={settings} focus={focus}
+      sidebar={<div className="sidebar-content" ref={setSidebarHost} />}
       status={<><span>{catalog?.session_only ? '会话存储' : '本地工作台'}</span><span>{workspaces.length} 个工作区</span><div className="status-spacer" /><button className={transfers.failed || transfers.error ? 'error' : ''} aria-expanded={transfersOpen} onClick={() => setTransfersOpen(!transfersOpen)}><Icon name="transfer" width="14" />{transfers.running ? `传输 ${transfers.running} 进行中` : transfers.items.length ? `传输 ${transfers.items.length} 项` : '传输'}{transfers.failed ? ` · ${transfers.failed} 失败` : ''}{transfers.error ? ' · 加载失败' : ''}</button></>}>
       {storageError && <div className="storage-error error" role="alert">{storageError}<Button size="sm" onPress={() => { UseSessionStorage().then(reload).catch(e => setStorageError(String(e))); }}>使用会话存储</Button></div>}
       {!dialog && (attempt.busy || (attempt.error && !current?.rdp)) && <div className="connection-feedback" role={attempt.error ? 'alert' : 'status'}><span className={attempt.error ? 'error' : ''}>{attempt.target} · {attempt.error || '正在连接…'}</span>{attempt.busy && <Button size="sm" variant="light" onPress={attempt.cancel}>取消连接</Button>}{!attempt.busy && <button className="icon-button" aria-label="关闭连接错误" onClick={attempt.clearError}><Icon name="close" /></button>}</div>}
       {settings && <SettingsView fontSize={fontSize} onFontSize={setFontSize} onRestore={() => void reload()} onClose={() => setSettings(false)} />}
-      {!current && !settings && <div className="workspace-empty"><div className="button-row"><Button variant="bordered" onPress={() => openDialog(false)}>新建连接</Button><Button variant="light" onPress={() => openDialog(true)}>快速连接</Button></div></div>}
-      {workspaces.map(w => <div className="workspace" hidden={settings || active !== w.id} key={w.id}>{w.rdp ? <RDPView target={`${w.rdp.connection.username}@${w.rdp.connection.host}:${w.rdp.connection.port}`} grant={w.rdp.grant} failure={w.rdp.error} busy={attempt.busy} onRetry={() => retryRDP(w)} onEdit={() => editRDP(w)} ref={w.view} visible={!settings && active === w.id} /> : <SSHWorkspace id={w.id} ref={w.ssh} fontSize={fontSize} visible={!settings && active === w.id} sidebarHost={sidebarHost} filesVisible={sidebar === 'files' && !focus && !settings && active === w.id} monitorVisible={monitorOpen && !focus && !settings && active === w.id} onMonitorClose={() => setMonitorOpen(false)} onDirtyChange={dirty => setWorkspaces(prev => prev.map(item => item.id === w.id ? { ...item, dirty } : item))} />}</div>)}
+      <div className="connection-center-page" hidden={settings || !!current}><ConnectionCenter connections={catalog?.connections || []} groups={catalog?.groups || []} onOpen={openSaved} onEdit={c => openDialog(false, c)} onNew={openDialog} onReload={() => void reload()} busy={attempt.busy} /></div>
+      {workspaces.map(w => <div className="workspace" hidden={settings || active !== w.id} key={w.id}>{w.rdp ? <RDPView target={`${w.rdp.connection.username}@${w.rdp.connection.host}:${w.rdp.connection.port}`} grant={w.rdp.grant} failure={w.rdp.error} busy={attempt.busy} onRetry={() => retryRDP(w)} onEdit={() => editRDP(w)} ref={w.view} visible={!settings && active === w.id} /> : <SSHWorkspace id={w.id} ref={w.ssh} fontSize={fontSize} visible={!settings && active === w.id} sidebarHost={sidebarHost} filesVisible={sidebar && !focus && !settings && active === w.id} monitorVisible={monitorOpen && !focus && !settings && active === w.id} onMonitorClose={() => setMonitorOpen(false)} onDirtyChange={dirty => setWorkspaces(prev => prev.map(item => item.id === w.id ? { ...item, dirty } : item))} />}</div>)}
       {transfersOpen && <TransferPanel tasks={transfers} height={transferHeight} onHeight={setTransferHeight} onClose={() => setTransfersOpen(false)} />}
     </Workbench>
     {dialog && <ConnectionDialog {...dialog} groups={catalog?.groups || []} busy={attempt.busy} connectionError={attempt.error} onConnect={(connection, auth) => attempt.start(connection, auth, dialog.workspaceID)} onSaved={() => void reload()} onClose={() => { setDialog(undefined); attempt.clearError(); }} onCancel={attempt.cancel} />}
