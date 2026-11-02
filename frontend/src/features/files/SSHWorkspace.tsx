@@ -125,7 +125,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   useEffect(() => { const handler = (event: BeforeUnloadEvent) => { if (draftsRef.current.some(d => d.content !== d.saved)) { event.preventDefault(); event.returnValue = ''; } }; window.addEventListener('beforeunload', handler); return () => window.removeEventListener('beforeunload', handler); }, []);
 
   async function open(entry: Entry) {
-    return openPath(entry.path);
+    await openPath(entry.path); if (narrow) setNarrowPanel(null);
   }
   async function openPath(path:string){
     if(restoring||!restoreReady)throw new Error('请等待或重试本地草稿载入');

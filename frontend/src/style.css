@@ -185,8 +185,12 @@ input[type=checkbox] { accent-color: var(--color-primary); }
 .sync-preview th,.sync-preview td { text-align: left; padding: 6px; border-bottom: 1px solid var(--color-border); }
 .sync-preview .file-path { max-width: 350px; }
 .session-status { display: flex; align-items: center; gap: 14px; flex-shrink: 0; min-height: 25px; color: var(--color-muted); font-size: 11px; padding: 4px 8px; }
-.file-panel { padding: 12px; }
-.file-panel .sidebar-heading { margin-top: -12px; }
+.file-panel { padding: 0 8px 8px; container-type: inline-size; }
+.file-heading { height: 36px; gap: 0; }
+.file-heading h2 { font-size: 12px; margin-right: auto; }
+.file-heading .icon-button { width: 26px; height: 28px; }
+.file-metadata { display: none; color: var(--color-muted); font-size: 11px; white-space: nowrap; }
+@container (min-width: 340px) { .file-metadata { display: inline-block; max-width: 90px; overflow: hidden; text-overflow: ellipsis; } }
 .path-bar { display: flex; align-items: center; border: 1px solid var(--color-border); border-radius: 4px; min-height: 32px; padding-left: 6px; }
 .breadcrumbs { display: flex; gap: 2px; flex: 1; overflow: auto; white-space: nowrap; font: 11px var(--font-mono); }
 .breadcrumbs button:hover { color: var(--color-primary); }
@@ -201,7 +205,7 @@ input[type=checkbox] { accent-color: var(--color-primary); }
 .file-save-error { padding: 8px 12px; background: var(--color-surface); }
 .native-input { background: var(--color-background); border: 1px solid var(--color-border); border-radius: 6px; min-height: 36px; padding: 8px; }
 .inner-tabs [role=tab] { display: flex; gap: 6px; align-items: center; }
-.file-toolbar { display: flex; gap: 8px; padding-bottom: 10px; font-size: 11px; color: var(--color-muted); flex-wrap: wrap; }
+.file-toolbar { display: flex; align-items: center; gap: 2px; padding-bottom: 4px; font-size: 11px; color: var(--color-muted); }
 .file-panel input { width: 100%; background: var(--color-background); border: 1px solid var(--color-border); padding: 5px 6px; font-size: 12px; border-radius: 4px; }
 .file-list { margin-top: 8px; }
 .file-filters { display: flex; flex-direction: column; gap: 6px; margin: 6px 0; }
