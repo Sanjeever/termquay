@@ -310,6 +310,8 @@ input[type=checkbox] { accent-color: var(--color-primary); }
 .settings-panel h3 { font-size: 13px; font-weight: 500; padding-top: 12px; border-top: 1px solid var(--color-border); }
 .command-palette { margin-top: 12vh; padding: 10px; }
 .command-results { max-height: 420px; overflow-y: auto; padding-top: 8px; }
+.command-scopes { padding-top: 8px; }
+.command-group-heading { padding: 8px 10px 2px; font-size: 11px; color: var(--color-muted); }
 .command-result { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 6px; cursor: pointer; }
 .command-result.selected { background: var(--color-selected); }
 .command-result > svg { color: var(--color-muted); }

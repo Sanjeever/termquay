@@ -1,16 +1,15 @@
 import Icon from '../Icon';
 import { useState } from 'react';
-import { Button, Input, Modal, ModalBody, ModalContent, ModalHeader, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from '@heroui/react';
+import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from '@heroui/react';
 
-export default function WorkspaceTabs({ items, active, onSelect, onClose, onNew, onRename, onMove }: {
+export default function WorkspaceTabs({ items, active, onSelect, onClose, onNew, onRename, onMove, onSearch }: {
   items: { id: string; name: string; rdp?: unknown; dirty?: boolean }[]; active: string;
   onSelect(id: string, keyboard?: boolean): void; onClose(id: string, keyboard?: boolean): void; onNew(): void;
   onRename(id: string, name: string): void; onMove(id: string, target: string): void;
+  onSearch(): void;
 }) {
   const [renaming, setRenaming] = useState<string>();
   const [name, setName] = useState('');
-  const [list, setList] = useState(false);
-  const [query, setQuery] = useState('');
   function rename(id: string, value: string) { setName(value); setRenaming(id); }
   function finishRename() { if (renaming && name.trim()) onRename(renaming, name.trim()); setRenaming(undefined); }
   function focusTab(id: string) { requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-workspace-id="${CSS.escape(id)}"] [role=tab]`)?.focus()); }
@@ -33,9 +32,6 @@ export default function WorkspaceTabs({ items, active, onSelect, onClose, onNew,
       </button>}{index !== 0 && <><Dropdown><DropdownTrigger><button className="tab-close" aria-label={`工作区菜单 ${item.name}`}><Icon name="more" width="13" height="13" /></button></DropdownTrigger><DropdownMenu aria-label="工作区操作" onAction={key => { if (key === 'rename') rename(item.id, item.name); if (key === 'left' && index > 1) onMove(item.id, tabs[index - 1].id); if (key === 'right' && index < tabs.length - 1) onMove(item.id, tabs[index + 1].id); }} disabledKeys={[...(index <= 1 ? ['left'] : []), ...(index === tabs.length - 1 ? ['right'] : [])]}><DropdownItem key="rename">临时重命名</DropdownItem><DropdownItem key="left">左移工作区</DropdownItem><DropdownItem key="right">右移工作区</DropdownItem></DropdownMenu></Dropdown><button className="tab-close" aria-label={`关闭工作区 ${item.name}`} onClick={e => onClose(item.id, e.detail === 0)}><Icon name="close" width="13" height="13" /></button></>}
     </div>)}
     <button className="icon-button" title="新建连接" aria-label="新建连接" onClick={onNew}><Icon name="plus" /></button>
-    <button className="icon-button" title="已打开工作区" aria-label="已打开工作区" onClick={() => { setQuery(''); setList(true); }}><Icon name="search" /></button>
-    <Modal isOpen={list} onClose={() => setList(false)} className="app-dialog" onKeyDown={e => { if (e.key === 'Escape' && !e.nativeEvent.isComposing) { e.stopPropagation(); setList(false); } }}><ModalContent><ModalHeader>已打开工作区</ModalHeader><ModalBody><Input autoFocus aria-label="搜索已打开工作区" value={query} onValueChange={setQuery} />
-      <div className="workspace-list">{items.filter(w => w.name.toLowerCase().includes(query.toLowerCase())).map(w => <Button key={w.id} variant="light" className="workspace-list-item" aria-pressed={w.id === active} onPress={() => { setList(false); onSelect(w.id); }}>{w.name}</Button>)}</div>
-    </ModalBody></ModalContent></Modal>
+    <button className="icon-button" title="已打开工作区" aria-label="已打开工作区" onClick={onSearch}><Icon name="search" /></button>
   </div>;
 }

@@ -24,6 +24,8 @@ import SnippetInsertDialog from './features/terminal/SnippetInsertDialog';
 import useDraftRecovery from './features/workspaces/useDraftRecovery';
 import useWorkspaceRestore from './features/workspaces/useWorkspaceRestore';
 import WorkspaceRestoreDialog from './features/workspaces/WorkspaceRestoreDialog';
+import { nextWorkspaceAfterClose } from './lib/workspaces';
+import type { CommandKind } from './lib/commands';
 
 type Workspace = { id: string; sessionID?: string; connection?: Connection; connectionID: string; name: string; state?: string; restore?:SSHLayout; restored?:boolean; rdp?: { connection: Connection; grant?: Grant; error?: string; options: RDPOptions }; view?: RefObject<RDPHandle>; ssh?: RefObject<SSHWorkspaceHandle>; dirty?: boolean };
 
@@ -49,6 +51,9 @@ export default function App() {
   const transfers = useTransfers();
   const [fontSize, setFontSize] = useState(Math.max(11, Math.min(24, Number(localStorage.getItem('termquay.terminal.font-size')) || 14)));
   const [palette, setPalette] = useState(false);
+  const [paletteScope, setPaletteScope] = useState<'all' | CommandKind>('all');
+  const recentWorkspaces = useRef<string[]>([]);
+  useEffect(() => { if (active) recentWorkspaces.current = [active, ...recentWorkspaces.current.filter(id => id !== active)].slice(0, 16); }, [active]);
   const [snippets,setSnippets]=useState<Snippet[]>([]);
   const [snippetError,setSnippetError]=useState('');
   const [snippetInsert,setSnippetInsert]=useState<{snippet:Snippet;workspace:string;terminal:string}>();
@@ -76,7 +81,7 @@ export default function App() {
     latestWorkspaces.current.find(w => w.id === id)?.view?.current?.cancel();
     notifyLocalState(latestWorkspaces.current.filter(w=>w.id!==id));
     setWorkspaces(prev => prev.filter(w => w.id !== id));
-    setActive(prev => prev === id ? latestWorkspaces.current.find(w => w.id !== id)?.id || '' : prev);
+    setActive(prev => nextWorkspaceAfterClose(latestWorkspaces.current, prev, id, recentWorkspaces.current));
     if (keyboard) { tabNavigation.current = true; requestAnimationFrame(() => document.querySelector<HTMLElement>('.workspace-tabs [role=tab][aria-selected=true]')?.focus()); }
   }
   function select(id: string, keyboard = false) { tabNavigation.current = keyboard; setActive(id); setSettings(false); }
@@ -140,7 +145,7 @@ export default function App() {
       const action = shortcutDefinitions.find(d => shortcuts[d.id] === key && (d.scope === 'app' || terminal));
       if (!action) return;
       event.preventDefault(); event.stopImmediatePropagation();
-      if (action.id === 'palette') setPalette(prev => !prev);
+      if (action.id === 'palette') { setPaletteScope('all'); setPalette(prev => !prev); }
       else if (action.id === 'settings') setSettings(true);
       else current?.ssh?.current?.terminalAction(action.id);
     };
@@ -177,12 +182,12 @@ export default function App() {
   function reconnectSSH(w:Workspace){const saved=catalog?.connections.find(c=>c.id===w.connectionID);if(saved&&saved.protocol!=='ssh'){setPreferenceError('保存配置的协议已改变，请新建工作区');return;}if(saved&&w.restored&&w.connection&&!sameTarget(saved,w.connection)){setPreferenceError('保存配置目标已改变，请重新填写恢复入口后确认连接');return;}if(saved)void connect(saved,undefined,w.id);else if(w.connection)setDialog({connection:{...w.connection,id:'',credential_id:''},temporary:true,workspaceID:w.id});}
   async function restoreWorkspaces(entries:WorkspaceLayoutEntry[]){await recovery.flush();const currentIDs=new Set(latestWorkspaces.current.map(w=>w.id));const values=entries.filter(e=>!currentIDs.has(e.id));if(values.length+currentIDs.size>16)throw new Error('打开工作区达到上限（16 个）');const restored:Workspace[]=values.map(e=>{const c:Connection={...e.target,id:e.connection_id,group_id:'',credential_id:''};return {id:e.id,connectionID:e.connection_id,connection:c,name:e.name,state:'未连接',restored:true,...(c.protocol==='ssh'?{ssh:createRef<SSHWorkspaceHandle>(),restore:e.ssh||undefined}:{rdp:{connection:c,options:{clipboard:false,resolution:preferences[c.id]?.rdp_resolution||'dynamic'}},view:createRef<RDPHandle>()})};});setWorkspaces(prev=>[...prev,...restored]);if(restored.length)select(restored.some(w=>w.id===restoreDialog?.active)?restoreDialog!.active:restored[0].id);}
   const tools = <>
-    <Tooltip content={`命令搜索 · ${shortcutLabel(shortcuts.palette)}`}><button className="icon-button" aria-label="命令搜索" onClick={() => setPalette(true)}><Icon name="search" /></button></Tooltip>
+    <Tooltip content={`命令搜索 · ${shortcutLabel(shortcuts.palette)}`}><button className="icon-button" aria-label="命令搜索" onClick={() => { setPaletteScope('all'); setPalette(true); }}><Icon name="search" /></button></Tooltip>
     <Tooltip content="设置"><button className="icon-button" aria-label="设置" aria-pressed={settings} onClick={() => setSettings(!settings)}><Icon name="settings" /></button></Tooltip>
   </>;
   const commands: WorkbenchCommand[] = [
-    ...workspaces.map(w => ({ id: `workspace-${w.id}`, label: w.name, detail: w.rdp ? 'RDP' : 'SSH', kind: 'workspace' as const, run: () => select(w.id) })),
-    ...(catalog?.connections || []).map(c => ({ id: `connection-${c.id}`, label: c.name, detail: `${c.protocol.toUpperCase()} · ${c.host}`, kind: 'connection' as const, run: () => openSaved(c) })),
+    ...workspaces.map(w => { const c = w.rdp?.connection || w.connection; return { id: `workspace-${w.id}`, label: w.name, detail: `${c?.protocol.toUpperCase()} · ${c?.username}@${c?.host}:${c?.port}`, search: catalog?.groups.find(g=>g.id===c?.group_id)?.name, kind: 'workspace' as const, run: () => select(w.id) }; }),
+    ...(catalog?.connections || []).map(c => ({ id: `connection-${c.id}`, label: c.name, detail: `${c.protocol.toUpperCase()} · ${c.username}@${c.host}:${c.port}`, search: catalog?.groups.find(g=>g.id===c.group_id)?.name, kind: 'connection' as const, run: () => openSaved(c) })),
     { id: 'new', label: '新建连接', kind: 'command', run: () => openDialog(false) },
     { id: 'quick', label: '快速连接', kind: 'command', run: () => openDialog(true) },
     { id: 'connections', label: '进入连接中心', kind: 'command', run: () => select('') },
@@ -194,7 +199,7 @@ export default function App() {
     ...(workspaceRestore.startup?.entries?.length?[{id:'restore-layout',label:'恢复上次工作布局',kind:'command' as const,run:()=>setRestoreDialog(workspaceRestore.startup)}]:[]),
   ];
   return <>
-    <Workbench tabs={<WorkspaceTabs items={workspaces} active={active} onSelect={select} onClose={(id, keyboard) => { closingKeyboard.current = !!keyboard; if (workspaces.find(w => w.id === id)?.ssh?.current?.hasDirty()) setClosing(id); else remove(id, keyboard); }} onNew={() => openDialog(false)} onMove={moveWorkspace} onRename={(id, name) => setWorkspaces(prev => prev.map(w => w.id === id ? { ...w, name } : w))} />} tools={tools} settings={settings}
+    <Workbench tabs={<WorkspaceTabs items={workspaces} active={active} onSelect={select} onClose={(id, keyboard) => { closingKeyboard.current = !!keyboard; if (workspaces.find(w => w.id === id)?.ssh?.current?.hasDirty()) setClosing(id); else remove(id, keyboard); }} onSearch={() => { setPaletteScope('workspace'); setPalette(true); }} onNew={() => openDialog(false)} onMove={moveWorkspace} onRename={(id, name) => setWorkspaces(prev => prev.map(w => w.id === id ? { ...w, name } : w))} />} tools={tools} settings={settings}
       status={<><span>{catalog?.session_only ? '会话存储' : '本地工作台'}</span><span>{workspaces.length} 个工作区</span><div className="status-spacer" />{recovery.error&&<button className="error" onClick={()=>{setSettingsSection('recovery');setSettings(true);}}>本地草稿保存失败</button>}<button className={transfers.failed || transfers.error ? 'error' : ''} aria-expanded={transfersOpen} onClick={() => setTransfersOpen(!transfersOpen)}><Icon name="transfer" width="14" />{transfers.running ? `传输 ${transfers.running} 进行中` : transfers.items.length ? `传输 ${transfers.items.length} 项` : '传输'}{transfers.failed ? ` · ${transfers.failed} 失败` : ''}{transfers.error ? ' · 加载失败' : ''}</button></>}>
       {storageError && <div className="storage-error error" role="alert">{storageError}<Button size="sm" onPress={() => { UseSessionStorage().then(async()=>{await reload();await recovery.refresh();}).catch(e => setStorageError(String(e))); }}>使用会话存储</Button></div>}
       {!dialog && (attempt.busy || (attempt.error && !current?.rdp)) && <div className="connection-feedback" role={attempt.error ? 'alert' : 'status'}><span className={attempt.error ? 'error' : ''}>{attempt.target} · {attempt.error || '正在连接…'}</span>{attempt.busy && <Button size="sm" variant="light" onPress={attempt.cancel}>取消连接</Button>}{!attempt.busy && <button className="icon-button" aria-label="关闭连接错误" onClick={attempt.clearError}><Icon name="close" /></button>}</div>}
@@ -211,7 +216,7 @@ export default function App() {
     <Modal isOpen={!!rdpStart} onClose={()=>setRDPStart(undefined)} className="app-dialog"><ModalContent><ModalHeader>连接远程桌面</ModalHeader><ModalBody>{rdpStart && <><p>{rdpStart.connection.name}</p><label className="checkbox-label"><input type="checkbox" checked={rdpStart.options.clipboard} onChange={e=>setRDPStart({...rdpStart,options:{...rdpStart.options,clipboard:e.target.checked}})} />文本剪贴板</label><label className="form-field">远端分辨率<select value={rdpStart.options.resolution} onChange={e=>setRDPStart({...rdpStart,options:{...rdpStart.options,resolution:e.target.value}})}><option value="dynamic">适应窗口</option><option value="1280x800">1280 × 800</option><option value="1920x1080">1920 × 1080</option></select></label></>}</ModalBody><ModalFooter><Button variant="light" onPress={()=>setRDPStart(undefined)}>取消</Button><Button color="primary" onPress={async()=>{if(!rdpStart)return;const launch=rdpStart;setRDPStart(undefined);try{await saveRDPResolution(launch.connection.id,launch.options.resolution);await attempt.start(launch.connection,undefined,undefined,launch.options);}catch(e){setPreferenceError(String(e));}}}>连接</Button></ModalFooter></ModalContent></Modal>
     <HostTrustDialog target={attempt.trust} onConfirm={attempt.confirm} />
     {restoreDialog&&<WorkspaceRestoreDialog layout={restoreDialog} connections={catalog?.connections||[]} openIDs={workspaces.map(w=>w.id)} onRestore={restoreWorkspaces} onClose={()=>setRestoreDialog(undefined)}/>}
-    {palette && <CommandPalette commands={commands} onClose={() => setPalette(false)} error={snippetError} />}
+    {palette && <CommandPalette commands={commands} initialScope={paletteScope} onClose={() => setPalette(false)} error={snippetError} />}
     {snippetInsert&&<SnippetInsertDialog snippet={snippetInsert.snippet} onClose={()=>setSnippetInsert(undefined)} onInsert={text=>active===snippetInsert.workspace&&!!current?.ssh?.current?.insert(text,snippetInsert.terminal)}/>}
     <Modal isOpen={!!closing || quitConfirm} onClose={() => { if (!savingClose) { setClosing(''); setQuitConfirm(false); setCloseError('');setExitPersistenceError(false); } }} isDismissable={!savingClose} isKeyboardDismissDisabled={savingClose} className="app-dialog"><ModalContent><ModalHeader>{exitPersistenceError?'本地状态保存失败':'未保存文件'}</ModalHeader><ModalBody><p>{exitPersistenceError?'最新本地状态尚未保存。':quitConfirm ? '应用中有未保存修改。' : '此工作区有未保存修改。'}</p>{closeError && <p className="error" role="alert">{closeError}</p>}</ModalBody><ModalFooter><Button variant="light" isDisabled={savingClose} onPress={() => { setClosing(''); setQuitConfirm(false); setCloseError('');setExitPersistenceError(false); }}>返回编辑</Button><Button color="danger" variant="light" isDisabled={savingClose} onPress={async () => { if(!quitConfirm){remove(closing,closingKeyboard.current);setClosing('');return;}setSavingClose(true);try{if(!exitPersistenceError)await flushLocalState();await DiscardAndQuit();}catch(e){setCloseError(String(e));setExitPersistenceError(true);}finally{setSavingClose(false);} }}>{quitConfirm?(exitPersistenceError?'忽略本地保存错误并退出':recovery.enabled?'保留本地草稿并退出':'放弃修改并退出'):'放弃修改并关闭'}</Button><Button color="primary" isLoading={savingClose} onPress={async () => {
       setSavingClose(true); setCloseError('');
