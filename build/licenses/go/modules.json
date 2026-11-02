@@ -12,6 +12,10 @@
     "version": "v0.4.0"
   },
   {
+    "module": "github.com/Microsoft/go-winio",
+    "version": "v0.6.2"
+  },
+  {
     "module": "github.com/adrg/xdg",
     "version": "v0.5.3"
   },

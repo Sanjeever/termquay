@@ -26,7 +26,7 @@ func TestWorkspaceLayoutMetadataAndValidation(t *testing.T) {
 	if err = a.SaveWorkspaceLayout(layout); err == nil {
 		t.Fatal("保存 PTY 标识")
 	}
-	if err = a.store.SetSetting("workspace_layout", `{"version":2,"active":"","entries":[]}`); err != nil {
+	if err = a.store.SetSetting("workspace_layout", `{"version":99,"active":"","entries":[]}`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = a.GetWorkspaceLayout(); err == nil {

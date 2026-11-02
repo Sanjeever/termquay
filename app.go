@@ -65,13 +65,17 @@ type AppService struct {
 	views            map[string]bool
 	allowQuit        bool
 	frontendReady    bool
+	privateKeys      map[string]stagedPrivateKey
 }
 
 func NewAppService() *AppService {
-	return &AppService{terminals: map[string]*pendingTerminal{}, workspaces: map[string]*workspaceOwner{}, trusted: map[string]string{}, pendingTrust: map[string]string{}, fileSlots: make(chan struct{}, 4), monitors: map[string]context.CancelFunc{}, transfers: map[string]*transferTask{}, dirty: map[string]bool{}, views: map[string]bool{}, syncPlans: map[string]*directorySyncPlan{}, transferEvent: func(view Transfer) { application.Get().Event.Emit("transfer:changed", view) }}
+	return &AppService{terminals: map[string]*pendingTerminal{}, workspaces: map[string]*workspaceOwner{}, trusted: map[string]string{}, pendingTrust: map[string]string{}, fileSlots: make(chan struct{}, 4), monitors: map[string]context.CancelFunc{}, transfers: map[string]*transferTask{}, dirty: map[string]bool{}, views: map[string]bool{}, syncPlans: map[string]*directorySyncPlan{}, privateKeys: map[string]stagedPrivateKey{}, transferEvent: func(view Transfer) { application.Get().Event.Emit("transfer:changed", view) }}
 }
 
 func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (OpenResult, error) {
+	if err := a.resolvePrivateKey(&r); err != nil {
+		return OpenResult{}, err
+	}
 	address := net.JoinHostPort(r.Host, strconv.Itoa(r.Port))
 	stored, err := a.readTrust("ssh:" + address)
 	if err != nil {
@@ -333,6 +337,11 @@ func (a *AppService) handleTerminal(c *application.StreamConn) {
 func (a *AppService) ServiceShutdown() error {
 	a.mu.Lock()
 	a.closed = true
+	for id, key := range a.privateKeys {
+		key.timer.Stop()
+		clear(key.data)
+		delete(a.privateKeys, id)
+	}
 	ids := make([]string, 0, len(a.workspaces))
 	for id := range a.workspaces {
 		ids = append(ids, id)

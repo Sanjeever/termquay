@@ -185,6 +185,10 @@ export function RegisterWorkspaceView(id: string): $CancellablePromise<void> {
     return $Call.ByID(3854364985, id);
 }
 
+export function ReleasePrivateKey(id: string): $CancellablePromise<void> {
+    return $Call.ByID(2630642893, id);
+}
+
 export function ReleaseWorkspaceView(id: string): $CancellablePromise<void> {
     return $Call.ByID(185130705, id);
 }
@@ -227,6 +231,10 @@ export function SaveWorkspaceDrafts(workspace: string, documents: $models.Recove
 
 export function SaveWorkspaceLayout(layout: $models.WorkspaceLayout): $CancellablePromise<void> {
     return $Call.ByID(27998338, layout);
+}
+
+export function SelectPrivateKey(): $CancellablePromise<$models.PrivateKeySelection> {
+    return $Call.ByID(4126206456);
 }
 
 export function SetConnectionPreference(id: string, favorite: boolean, environment: string): $CancellablePromise<void> {

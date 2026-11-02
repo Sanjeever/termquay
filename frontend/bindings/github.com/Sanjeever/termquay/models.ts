@@ -46,6 +46,11 @@ export interface OpenResult {
     "trust_required": boolean;
 }
 
+export interface PrivateKeySelection {
+    "id": string;
+    "name": string;
+}
+
 export interface RDPLaunch {
     "grant": rdp$0.Grant;
     "username": string;
@@ -168,4 +173,6 @@ export interface WorkspaceTarget {
     "port": number;
     "username": string;
     "domain": string;
+    "auth_method"?: string;
+    "identity_agent"?: string;
 }

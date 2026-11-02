@@ -8,12 +8,14 @@ import (
 )
 
 type WorkspaceTarget struct {
-	Name     string `json:"name"`
-	Protocol string `json:"protocol"`
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
-	Username string `json:"username"`
-	Domain   string `json:"domain"`
+	Name          string `json:"name"`
+	Protocol      string `json:"protocol"`
+	Host          string `json:"host"`
+	Port          int    `json:"port"`
+	Username      string `json:"username"`
+	Domain        string `json:"domain"`
+	AuthMethod    string `json:"auth_method,omitempty"`
+	IdentityAgent string `json:"identity_agent,omitempty"`
 }
 type WorkspaceTabLayout struct {
 	Kind string `json:"kind"`
@@ -47,7 +49,7 @@ type WorkspaceLayout struct {
 }
 
 func (layout WorkspaceLayout) validate() error {
-	if layout.Version != 1 {
+	if layout.Version != 1 && layout.Version != 2 {
 		return errors.New("工作布局版本不受支持")
 	}
 	if len(layout.Entries) > 16 {
@@ -60,6 +62,12 @@ func (layout WorkspaceLayout) validate() error {
 		}
 		seen[entry.ID] = true
 		t := entry.Target
+		if (t.AuthMethod != "" && t.AuthMethod != "agent" && t.AuthMethod != "password" && t.AuthMethod != "private_key") || len(t.IdentityAgent) > 4096 || (t.Protocol != "ssh" && (t.AuthMethod != "" || t.IdentityAgent != "")) {
+			return errors.New("布局认证字段无效")
+		}
+		if layout.Version == 1 && (t.AuthMethod != "" || t.IdentityAgent != "") {
+			return errors.New("v1 工作布局不能包含新认证字段")
+		}
 		if (t.Protocol != "ssh" && t.Protocol != "rdp") || t.Host == "" || len(t.Host) > 1024 || t.Port < 1 || t.Port > 65535 || len(t.Username) > 256 || len(t.Domain) > 256 || len(t.Name) > 256 {
 			return errors.New("布局连接目标无效")
 		}

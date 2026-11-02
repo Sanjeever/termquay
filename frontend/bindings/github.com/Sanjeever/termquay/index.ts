@@ -12,6 +12,7 @@ export type {
     DraftRecoveryState,
     MonitorEvent,
     OpenResult,
+    PrivateKeySelection,
     RDPLaunch,
     RDPProbe,
     RecoveryDraft,

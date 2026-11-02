@@ -19,9 +19,10 @@ import (
 	"time"
 
 	gossh "golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/agent"
 )
 
-func localServer(t *testing.T) (Request, <-chan string) {
+func localServer(t *testing.T, allowed ...gossh.PublicKey) (Request, <-chan string) {
 	t.Helper()
 	_, key, _ := ed25519.GenerateKey(rand.Reader)
 	signer, _ := gossh.NewSignerFromKey(key)
@@ -32,6 +33,14 @@ func localServer(t *testing.T) (Request, <-chan string) {
 		return nil, nil
 	}}
 	config.AddHostKey(signer)
+	if len(allowed) > 0 {
+		config.PublicKeyCallback = func(_ gossh.ConnMetadata, key gossh.PublicKey) (*gossh.Permissions, error) {
+			if bytes.Equal(key.Marshal(), allowed[0].Marshal()) {
+				return nil, nil
+			}
+			return nil, errors.New("密钥不匹配")
+		}
+	}
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -91,6 +100,48 @@ func localServer(t *testing.T) (Request, <-chan string) {
 	host, port, _ := net.SplitHostPort(listener.Addr().String())
 	n, _ := strconv.Atoi(port)
 	return Request{Host: host, Port: n, Username: "test", Password: "local-test", Fingerprint: gossh.FingerprintSHA256(signer.PublicKey()), Cols: 80, Rows: 24}, inputs
+}
+func TestAgentAuthenticationAndUnavailable(t *testing.T) {
+	_, private, _ := ed25519.GenerateKey(rand.Reader)
+	signer, _ := gossh.NewSignerFromKey(private)
+	r, inputs := localServer(t, signer.PublicKey())
+	listener, address := testAgentListener(t)
+	keyring := agent.NewKeyring()
+	if err := keyring.Add(agent.AddedKey{PrivateKey: private}); err != nil {
+		t.Fatal(err)
+	}
+	go func() {
+		conn, err := listener.Accept()
+		if err == nil {
+			defer conn.Close()
+			agent.ServeAgent(keyring, conn)
+		}
+	}()
+	r.AuthMethod = "agent"
+	r.IdentityAgent = address
+	r.Password = "wrong-password"
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	term, err := Dial(ctx, r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer term.Close()
+	if _, err = io.WriteString(term.Input, "agent-check\n"); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case text := <-inputs:
+		if text != "agent-check" {
+			t.Fatal("Agent 认证后输入异常")
+		}
+	case <-ctx.Done():
+		t.Fatal("Agent 认证未建立终端")
+	}
+	r.IdentityAgent = "none"
+	if _, err = Dial(ctx, r); err == nil {
+		t.Fatal("禁用 Agent 后回退到密码")
+	}
 }
 
 func TestSFTPInitializationCancellationPreservesPTY(t *testing.T) {

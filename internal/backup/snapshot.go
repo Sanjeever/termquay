@@ -28,7 +28,13 @@ func Encrypt(d store.Data, deviceID, password string) ([]byte, error) {
 	if deviceID == "" || password == "" {
 		return nil, errors.New("设备标识和备份密码不能为空")
 	}
-	plain, err := json.Marshal(Snapshot{Version: 1, DeviceID: deviceID, CreatedAt: time.Now().UTC(), Data: d})
+	version := 1
+	for _, c := range d.Connections {
+		if c.AuthMethod != "" || c.IdentityAgent != "" {
+			version = 2
+		}
+	}
+	plain, err := json.Marshal(Snapshot{Version: version, DeviceID: deviceID, CreatedAt: time.Now().UTC(), Data: d})
 	if err != nil {
 		return nil, err
 	}
@@ -83,8 +89,15 @@ func Decrypt(encrypted []byte, password string) (Snapshot, error) {
 	if err = decoder.Decode(&extra); err != io.EOF {
 		return snap, errors.New("快照尾部包含额外数据")
 	}
-	if snap.Version != 1 {
+	if snap.Version != 1 && snap.Version != 2 {
 		return snap, errors.New("不支持的快照版本")
+	}
+	if snap.Version == 1 {
+		for _, c := range snap.Data.Connections {
+			if c.AuthMethod != "" || c.IdentityAgent != "" {
+				return snap, errors.New("v1 快照不能包含新认证字段")
+			}
+		}
 	}
 	if snap.DeviceID == "" || snap.CreatedAt.IsZero() {
 		return snap, errors.New("快照元数据不完整")

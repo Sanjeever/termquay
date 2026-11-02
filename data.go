@@ -135,6 +135,9 @@ func (a *AppService) DeleteGroup(id string) error {
 }
 
 func (a *AppService) SaveConnection(c store.Connection, auth terminal.Request) (store.Connection, error) {
+	if err := a.resolvePrivateKey(&auth); err != nil {
+		return store.Connection{}, err
+	}
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
 	if err := a.openStorage(); err != nil {
@@ -148,11 +151,21 @@ func (a *AppService) SaveConnection(c store.Connection, auth terminal.Request) (
 		c.ID = base64.RawURLEncoding.EncodeToString(randomBytes(16))
 	}
 	c.CredentialID = ""
+	oldMethod := ""
 	for _, old := range d.Connections {
 		if old.ID == c.ID {
 			c.CredentialID = old.CredentialID
+			oldMethod = old.AuthMethod
 			break
 		}
+	}
+	if c.AuthMethod == "agent" {
+		c.CredentialID = ""
+		auth.Password = ""
+		auth.PrivateKey = ""
+	}
+	if c.CredentialID != "" && auth.Password == "" && auth.PrivateKey == "" {
+		c.AuthMethod = oldMethod
 	}
 	if auth.Password != "" || auth.PrivateKey != "" {
 		if c.CredentialID == "" {
@@ -160,6 +173,7 @@ func (a *AppService) SaveConnection(c store.Connection, auth terminal.Request) (
 		}
 		credential := store.Credential{ID: c.CredentialID, Kind: "password", Secret: auth.Password}
 		if auth.PrivateKey != "" {
+			c.AuthMethod = "private_key"
 			credential.Kind = "private_key"
 			b, err := json.Marshal(struct {
 				Key        string `json:"key"`
@@ -169,6 +183,8 @@ func (a *AppService) SaveConnection(c store.Connection, auth terminal.Request) (
 				return store.Connection{}, err
 			}
 			credential.Secret = string(b)
+		} else if c.Protocol == "ssh" {
+			c.AuthMethod = "password"
 		}
 		found := false
 		for i, old := range d.Credentials {
@@ -193,6 +209,17 @@ func (a *AppService) SaveConnection(c store.Connection, auth terminal.Request) (
 	if !found {
 		d.Connections = append(d.Connections, c)
 	}
+	used := map[string]bool{}
+	for _, connection := range d.Connections {
+		used[connection.CredentialID] = true
+	}
+	credentials := d.Credentials[:0]
+	for _, credential := range d.Credentials {
+		if used[credential.ID] {
+			credentials = append(credentials, credential)
+		}
+	}
+	d.Credentials = credentials
 	if err := a.store.Replace(d); err != nil {
 		return store.Connection{}, err
 	}
@@ -294,7 +321,7 @@ func (a *AppService) savedRequest(id string) (terminal.Request, store.Connection
 		if c.ID != id {
 			continue
 		}
-		r := terminal.Request{Host: c.Host, Port: c.Port, Username: c.Username, Cols: 100, Rows: 30}
+		r := terminal.Request{Host: c.Host, Port: c.Port, Username: c.Username, Cols: 100, Rows: 30, AuthMethod: c.AuthMethod, IdentityAgent: c.IdentityAgent}
 		for _, credential := range d.Credentials {
 			if credential.ID != c.CredentialID {
 				continue

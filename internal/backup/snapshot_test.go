@@ -92,3 +92,14 @@ func TestGroupCycles(t *testing.T) {
 		t.Fatal("接受循环分组")
 	}
 }
+func TestAgentSnapshotVersion(t *testing.T) {
+	d := store.Data{Connections: []store.Connection{{ID: "agent", Name: "Agent", Protocol: "ssh", Host: "example.invalid", Port: 22, Username: "test", AuthMethod: "agent", IdentityAgent: "test-agent-address"}}}
+	encrypted, err := Encrypt(d, "device", "test-backup-password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := Decrypt(encrypted, "test-backup-password")
+	if err != nil || snapshot.Version != 2 || snapshot.Data.Connections[0].AuthMethod != "agent" {
+		t.Fatal("新认证字段快照兼容失败")
+	}
+}

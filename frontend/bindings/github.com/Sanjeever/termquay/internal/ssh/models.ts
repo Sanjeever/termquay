@@ -11,4 +11,7 @@ export interface Request {
     "fingerprint": string;
     "cols": number;
     "rows": number;
+    "auth_method"?: string;
+    "identity_agent"?: string;
+    "private_key_token"?: string;
 }

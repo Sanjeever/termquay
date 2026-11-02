@@ -22,15 +22,17 @@ type Group struct {
 }
 
 type Connection struct {
-	ID           string `json:"id"`
-	GroupID      string `json:"group_id"`
-	Name         string `json:"name"`
-	Protocol     string `json:"protocol"`
-	Host         string `json:"host"`
-	Port         int    `json:"port"`
-	Username     string `json:"username"`
-	Domain       string `json:"domain,omitempty"`
-	CredentialID string `json:"credential_id"`
+	ID            string `json:"id"`
+	GroupID       string `json:"group_id"`
+	Name          string `json:"name"`
+	Protocol      string `json:"protocol"`
+	Host          string `json:"host"`
+	Port          int    `json:"port"`
+	Username      string `json:"username"`
+	Domain        string `json:"domain,omitempty"`
+	CredentialID  string `json:"credential_id"`
+	AuthMethod    string `json:"auth_method,omitempty"`
+	IdentityAgent string `json:"identity_agent,omitempty"`
 }
 
 type Credential struct {
@@ -71,14 +73,19 @@ func (d Data) Validate() error {
 		}
 	}
 	credentials := map[string]bool{}
+	kinds := map[string]string{}
 	for _, c := range d.Credentials {
 		if c.ID == "" || credentials[c.ID] || (c.Kind != "password" && c.Kind != "private_key") {
 			return errors.New("凭据 ID 或类型无效")
 		}
 		credentials[c.ID] = true
+		kinds[c.ID] = c.Kind
 	}
 	connections := map[string]bool{}
 	for _, c := range d.Connections {
+		if (c.AuthMethod != "" && c.AuthMethod != "password" && c.AuthMethod != "private_key" && c.AuthMethod != "agent") || (c.Protocol != "ssh" && (c.AuthMethod != "" || c.IdentityAgent != "")) || len(c.IdentityAgent) > 4096 || (c.AuthMethod == "agent" && c.CredentialID != "") {
+			return errors.New("连接认证配置无效")
+		}
 		if c.ID == "" || connections[c.ID] || c.Name == "" || c.Host == "" || c.Port < 1 || c.Port > 65535 || (c.Protocol != "ssh" && c.Protocol != "rdp") {
 			return errors.New("连接配置无效")
 		}
@@ -90,6 +97,9 @@ func (d Data) Validate() error {
 		}
 		if c.CredentialID != "" && !credentials[c.CredentialID] {
 			return errors.New("连接引用的凭据不存在")
+		}
+		if c.CredentialID != "" && ((c.AuthMethod == "private_key" && kinds[c.CredentialID] != "private_key") || (c.AuthMethod == "password" && kinds[c.CredentialID] != "password")) {
+			return errors.New("连接认证方式与凭据类型不一致")
 		}
 	}
 	return nil

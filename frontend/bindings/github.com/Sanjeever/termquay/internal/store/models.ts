@@ -11,6 +11,8 @@ export interface Connection {
     "username": string;
     "domain"?: string;
     "credential_id": string;
+    "auth_method"?: string;
+    "identity_agent"?: string;
 }
 
 export interface ConnectionPreference {
