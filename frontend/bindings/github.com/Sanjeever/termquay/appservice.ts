@@ -97,6 +97,10 @@ export function DeleteRemotePath(id: string, remote: string): $CancellablePromis
     return $Call.ByID(3430269924, id, remote);
 }
 
+export function DeleteRemotePaths(id: string, paths: string[] | null): $CancellablePromise<$models.RemotePathResult[] | null> {
+    return $Call.ByID(1952638645, id, paths);
+}
+
 export function DeleteSnippet(id: string): $CancellablePromise<void> {
     return $Call.ByID(988896974, id);
 }
@@ -159,6 +163,10 @@ export function MoveConnectionsToGroup(ids: string[] | null, groupID: string): $
 
 export function MoveGroup(id: string, parentID: string, beforeID: string): $CancellablePromise<void> {
     return $Call.ByID(2697696238, id, parentID, beforeID);
+}
+
+export function MoveRemotePaths(id: string, paths: string[] | null, directory: string): $CancellablePromise<$models.RemotePathResult[] | null> {
+    return $Call.ByID(53028431, id, paths, directory);
 }
 
 export function OpenRDP(host: string, port: number): $CancellablePromise<rdp$0.Grant> {
@@ -307,6 +315,10 @@ export function SetWorkspaceDirty(id: string, dirty: boolean): $CancellablePromi
 
 export function StartDownload(id: string, remote: string): $CancellablePromise<$models.Transfer> {
     return $Call.ByID(1386823426, id, remote);
+}
+
+export function StartDownloads(id: string, remotes: string[] | null, overwrite: boolean): $CancellablePromise<$models.TransferBatch> {
+    return $Call.ByID(2439962339, id, remotes, overwrite);
 }
 
 export function StartTunnel(workspace: string, spec: ssh$0.ForwardSpec): $CancellablePromise<$models.Tunnel> {

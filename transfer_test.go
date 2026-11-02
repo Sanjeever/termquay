@@ -49,6 +49,40 @@ func TestTransferCopyPreservesBytes(t *testing.T) {
 	}
 }
 
+func TestDownloadBatchUsesBoundedQueue(t *testing.T) {
+	a := NewAppService()
+	a.transferEvent = func(Transfer) {}
+	a.workspaces["test"] = &workspaceOwner{}
+	for i := 0; i < 2; i++ {
+		if _, err := a.startTransfer("test", "blocking", "download", 0, func(ctx context.Context, _ func(int64, int64)) error { <-ctx.Done(); return ctx.Err() }); err != nil {
+			t.Fatal(err)
+		}
+	}
+	paths := make([]string, 64)
+	for i := range paths {
+		paths[i] = fmt.Sprintf("/tmp/file-%d", i)
+	}
+	batch, err := a.downloadFiles("test", t.TempDir(), paths, false)
+	if err != nil || len(batch.Items) != 32 || len(batch.Errors) != 32 {
+		t.Fatalf("批量下载绕过限额: items=%d errors=%d err=%v", len(batch.Items), len(batch.Errors), err)
+	}
+	for _, view := range a.ListTransfers() {
+		a.CancelTransfer(view.ID)
+	}
+	for _, task := range a.transfers {
+		select {
+		case <-task.done:
+		case <-time.After(3 * time.Second):
+			t.Fatal("取消未释放任务")
+		}
+	}
+	for _, paths := range [][]string{nil, {"/"}, {"relative"}, {"/tmp/a", "/tmp/a"}, make([]string, 65)} {
+		if err := validateRemotePaths(paths); err == nil {
+			t.Fatal("接受无效路径批次")
+		}
+	}
+}
+
 func TestTransferQueueFIFOAndWaitingCancellation(t *testing.T) {
 	a := NewAppService()
 	a.transferEvent = func(Transfer) {}

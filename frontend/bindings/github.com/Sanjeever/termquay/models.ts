@@ -92,6 +92,13 @@ export interface RecoveryDraftSummary {
     "updated_at": string;
 }
 
+export interface RemotePathResult {
+    "path": string;
+    "target": string;
+    "state": string;
+    "error": string;
+}
+
 export interface RestorePreview {
     "id": string;
     "device_id": string;

@@ -401,6 +401,54 @@ func (a *AppService) StartDownload(id, remote string) (Transfer, error) {
 	}
 	return a.downloadPath(id, remote, local, true)
 }
+
+func (a *AppService) StartDownloads(id string, remotes []string, overwrite bool) (TransferBatch, error) {
+	if err := validateRemotePaths(remotes); err != nil {
+		return TransferBatch{}, err
+	}
+	if _, err := a.terminal(id); err != nil {
+		return TransferBatch{}, err
+	}
+	directory, err := application.Get().Dialog.OpenFile().SetTitle("选择下载目录").CanChooseFiles(false).CanChooseDirectories(true).PromptForSingleSelection()
+	if err != nil || directory == "" {
+		return TransferBatch{}, err
+	}
+	return a.downloadFiles(id, directory, remotes, overwrite)
+}
+
+func (a *AppService) downloadFiles(id, directory string, remotes []string, overwrite bool) (TransferBatch, error) {
+	if err := validateRemotePaths(remotes); err != nil {
+		return TransferBatch{}, err
+	}
+	if !filepath.IsAbs(directory) {
+		return TransferBatch{}, errors.New("下载目录必须是本机绝对路径")
+	}
+	info, err := os.Stat(directory)
+	if err != nil {
+		return TransferBatch{}, err
+	}
+	if !info.IsDir() {
+		return TransferBatch{}, errors.New("下载目标不是目录")
+	}
+	if _, err := a.terminal(id); err != nil {
+		return TransferBatch{}, err
+	}
+	result := TransferBatch{Items: []Transfer{}, Errors: []string{}}
+	for _, remote := range remotes {
+		name := path.Base(remote)
+		if filepath.Base(name) != name || name == "." || name == ".." {
+			result.Errors = append(result.Errors, remote+": 本机文件名无效，未入队")
+			continue
+		}
+		view, err := a.downloadPath(id, remote, filepath.Join(directory, name), overwrite)
+		if err != nil {
+			result.Errors = append(result.Errors, remote+": 未入队："+err.Error())
+		} else {
+			result.Items = append(result.Items, view)
+		}
+	}
+	return result, nil
+}
 func (a *AppService) downloadPath(id, remote, local string, overwrite bool) (Transfer, error) {
 	run, err := a.downloadOperation(id, remote, local, overwrite)
 	if err != nil {

@@ -18,6 +18,7 @@ export type {
     RecoveryDraft,
     RecoveryDraftInput,
     RecoveryDraftSummary,
+    RemotePathResult,
     RestorePreview,
     SSHImportChoice,
     SSHImportPreview,
