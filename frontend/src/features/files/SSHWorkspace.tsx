@@ -3,7 +3,7 @@ import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from
 import { Stream } from '@wailsio/runtime';
 import { ReadRemoteFile, SaveRemoteFile, CreateTerminal, CloseWorkspace, SetWorkspaceDirty } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
 import type { Document, Entry } from '../../../bindings/github.com/Sanjeever/termquay/internal/files/models';
-import TerminalView from '../terminal/TerminalView';
+import TerminalView, { type TerminalAction, type TerminalHandle } from '../terminal/TerminalView';
 import CodeEditor from './CodeEditor';
 import FileBrowser from './FileBrowser';
 import MonitorPanel from '../monitor/MonitorPanel';
@@ -11,7 +11,7 @@ import Icon from '../../components/Icon';
 import ResizeHandle from '../../components/layout/ResizeHandle';
 
 type Draft = Document & { saved: string; error: string; saving: boolean };
-export type SSHWorkspaceHandle = { saveAll(): Promise<boolean>; showFiles(): void; toggleMonitor(): void; toggleFocus(): void };
+export type SSHWorkspaceHandle = { saveAll(): Promise<boolean>; showFiles(): void; toggleMonitor(): void; toggleFocus(): void; terminalAction(action: TerminalAction): void };
 
 const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   id: string; visible: boolean; fontSize?: number; onDirtyChange(dirty: boolean): void;
@@ -34,6 +34,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   const reads = useRef(new Map<string, ReturnType<typeof ReadRemoteFile>>());
   const saves = useRef(new Map<string, Promise<boolean>>());
   const center = useRef<HTMLDivElement>(null);
+  const terminalHandles = useRef(new Map<string, TerminalHandle>());
   const filesToggle = useRef<HTMLButtonElement>(null);
   const monitorToggle = useRef<HTMLButtonElement>(null);
   const dirtyCallback = useRef(onDirtyChange); dirtyCallback.current = onDirtyChange;
@@ -81,7 +82,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
     })();
     saves.current.set(path, operation); return operation;
   }
-  useImperativeHandle(ref, () => ({ showFiles, toggleMonitor, toggleFocus: () => setFocus(prev => !prev), async saveAll() { for (const draft of draftsRef.current) { if (!await save(draft.path)) { setActive(draft.path); return false; } } return !draftsRef.current.some(d => d.content !== d.saved); } }));
+  useImperativeHandle(ref, () => ({ showFiles, toggleMonitor, terminalAction: action => terminalHandles.current.get(active)?.action(action), toggleFocus: () => setFocus(prev => !prev), async saveAll() { for (const draft of draftsRef.current) { if (!await save(draft.path)) { setActive(draft.path); return false; } } return !draftsRef.current.some(d => d.content !== d.saved); } }));
 
   function close(path: string, discard = false) {
     const draft = draftsRef.current.find(d => d.path === path);
@@ -116,7 +117,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
       </div>
       {error && <div className="connection-feedback error" role="alert">{error}</div>}
       {!active && <div className="workspace-empty">从标签栏新建终端或打开文件</div>}
-      {terminals.map(terminal => <div className="terminal-tab" hidden={active !== terminal} key={terminal}><TerminalView id={terminal} visible={visible && active === terminal} fontSize={fontSize} /></div>)}
+      {terminals.map(terminal => <div className="terminal-tab" hidden={active !== terminal} key={terminal}><TerminalView ref={handle => { if (handle) terminalHandles.current.set(terminal, handle); else terminalHandles.current.delete(terminal); }} id={terminal} visible={visible && active === terminal} fontSize={fontSize} /></div>)}
       {drafts.map(d => <div key={d.path} className="editor-tab" hidden={active !== d.path}>
         <div className="editor-toolbar"><span title={d.path}>{d.path}</span><Button size="sm" isLoading={d.saving} isDisabled={d.content === d.saved} onPress={() => void save(d.path)}>保存</Button></div>
         {d.error && <div className="file-save-error"><p role="alert" className="error">{d.error}</p><div className="button-row"><Button size="sm" variant="light" onPress={() => setRereading(d.path)}>重新读取</Button><Button size="sm" variant="light" onPress={() => { navigator.clipboard.writeText(d.content).catch(e => setError(String(e))); }}>复制草稿</Button></div></div>}

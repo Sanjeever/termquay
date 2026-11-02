@@ -1,0 +1,32 @@
+export const shortcutDefinitions = [
+  { id: 'palette', label: '命令搜索', scope: 'app', key: 'Mod+Shift+KeyP' },
+  { id: 'settings', label: '打开设置', scope: 'app', key: 'Mod+Shift+Comma' },
+  { id: 'find', label: '终端查找', scope: 'terminal', key: 'Mod+Shift+KeyF' },
+  { id: 'copy', label: '复制终端选择', scope: 'terminal', key: 'Mod+Shift+KeyC' },
+  { id: 'paste', label: '粘贴到终端', scope: 'terminal', key: 'Mod+Shift+KeyV' },
+  { id: 'clear', label: '清空终端显示', scope: 'terminal', key: 'Mod+Shift+KeyL' },
+  { id: 'selectAll', label: '全选终端', scope: 'terminal', key: '' },
+  { id: 'zoomIn', label: '放大终端字号', scope: 'terminal', key: '' },
+  { id: 'zoomOut', label: '缩小终端字号', scope: 'terminal', key: '' },
+  { id: 'zoomReset', label: '复位终端字号', scope: 'terminal', key: '' },
+] as const;
+export type ShortcutID = typeof shortcutDefinitions[number]['id'];
+export type Shortcuts = Record<ShortcutID, string>;
+export const defaultShortcuts = Object.fromEntries(shortcutDefinitions.map(d => [d.id, d.key])) as Shortcuts;
+export const shortcutStorageKey = 'termquay.shortcuts';
+export function eventShortcut(event: KeyboardEvent): string {
+  if (event.isComposing || event.key === 'Process' || event.getModifierState('AltGraph') || !/^(Key[A-Z]|Digit[0-9]|Comma|Period|Slash|Backslash|Semicolon|Quote|BracketLeft|BracketRight|Minus|Equal|F[1-9]|F1[0-2])$/.test(event.code)) return '';
+  const mac = /Mac|iPhone|iPad/.test(navigator.platform);
+  if ((mac ? event.ctrlKey : event.metaKey) || !(event.ctrlKey || event.metaKey || event.altKey)) return '';
+  return [event.ctrlKey || event.metaKey ? 'Mod' : '', event.altKey ? 'Alt' : '', event.shiftKey ? 'Shift' : '', event.code].filter(Boolean).join('+');
+}
+export function shortcutLabel(key: string) {
+  return key.replace('Mod', /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl').replace(/Key|Digit/g, '').replace('Comma', ',').replace('Period', '.').replace('Minus', '-').replace('Equal', '=').replace('Slash', '/').replace(/\+/g, ' + ') || '未分配';
+}
+export function shortcutConflict(id: ShortcutID, key: string, values: Shortcuts): string {
+  if (!key) return '';
+  const other = shortcutDefinitions.find(d => d.id !== id && values[d.id] === key);
+  if (other) return `与“${other.label}”冲突`;
+  if (/^Mod\+(Key[ACFVXYZS]|KeyW|KeyQ)$/.test(key) || /^Alt\+F4$/.test(key)) return '此组合保留给输入组件或系统';
+  return '';
+}

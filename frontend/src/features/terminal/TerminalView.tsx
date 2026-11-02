@@ -39,7 +39,6 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; 
     if (name === 'zoomReset') setZoom(0);
     if (name !== 'find' && name !== 'paste') term.focus();
   }
-  const actions = useRef(action); actions.current = action;
   useImperativeHandle(ref, () => ({ action, insert }));
   useEffect(() => {
     const term = new Terminal({
@@ -53,14 +52,6 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; 
       if (!(event.ctrlKey || event.metaKey)) return;
       const url = new URL(uri); if (url.protocol === 'http:' || url.protocol === 'https:') Browser.OpenURL(url).catch(e => setError(String(e)));
     }));
-    term.attachCustomKeyEventHandler(event => {
-      if (event.isComposing || event.type !== 'keydown') return true;
-      if ((event.ctrlKey || event.metaKey) && event.shiftKey) {
-        const name = ({ f: 'find', c: 'copy', v: 'paste' } as const)[event.key.toLowerCase() as 'f' | 'c' | 'v'];
-        if (name) { event.preventDefault(); actions.current(name); return false; }
-      }
-      return true;
-    });
     terminal.current = term; fitAddon.current = fit;
     const fitVisible = () => { if (container.current && container.current.clientWidth > 0 && container.current.clientHeight > 0) fit.fit(); };
     const stream = Stream('terminal');

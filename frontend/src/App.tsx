@@ -18,6 +18,7 @@ import HostTrustDialog from './features/connections/HostTrustDialog';
 import useConnectionAttempt from './features/connections/useConnectionAttempt';
 import Icon from './components/Icon';
 import CommandPalette, { type WorkbenchCommand } from './components/CommandPalette';
+import { defaultShortcuts, eventShortcut, shortcutConflict, shortcutDefinitions, shortcutLabel, shortcutStorageKey, type Shortcuts } from './lib/shortcuts';
 
 type Workspace = { id: string; connectionID: string; name: string; rdp?: { connection: Connection; grant?: Grant; error?: string }; view?: RefObject<RDPHandle>; ssh?: RefObject<SSHWorkspaceHandle>; dirty?: boolean };
 
@@ -37,6 +38,8 @@ export default function App() {
   const transfers = useTransfers();
   const [fontSize, setFontSize] = useState(Math.max(11, Math.min(24, Number(localStorage.getItem('termquay.terminal.font-size')) || 14)));
   const [palette, setPalette] = useState(false);
+  const [shortcuts, setShortcuts] = useState<Shortcuts>({ ...defaultShortcuts });
+  const [shortcutError, setShortcutError] = useState('');
   const current = workspaces.find(w => w.id === active);
   const latestWorkspaces = useRef(workspaces); latestWorkspaces.current = workspaces;
   const tabNavigation = useRef(false);
@@ -68,23 +71,40 @@ export default function App() {
 
   async function reload() { try { const data = await GetCatalog(); setCatalog({ ...data, groups: data.groups ?? [], connections: data.connections ?? [] }); setStorageError(''); } catch (e) { setStorageError(String(e)); } }
   useEffect(() => { void reload(); }, []);
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(shortcutStorageKey); if (!stored) return;
+      const values = { ...defaultShortcuts, ...JSON.parse(stored) } as Shortcuts;
+      for (const d of shortcutDefinitions) { if (typeof values[d.id] !== 'string' || shortcutConflict(d.id, values[d.id], values)) throw new Error('快捷键配置无效，请在设置中复位'); }
+      setShortcuts(values);
+    } catch (e) { setShortcutError(String(e)); }
+  }, []);
+  function saveShortcuts(values: Shortcuts) { try { localStorage.setItem(shortcutStorageKey, JSON.stringify(values)); setShortcuts(values); setShortcutError(''); } catch (e) { setShortcutError(String(e)); } }
   useEffect(() => Events.On('app:close-requested', () => setQuitConfirm(true)), []);
   useEffect(() => { localStorage.setItem('termquay.layout.transfer-height', String(transferHeight)); }, [transferHeight]);
   useEffect(() => { localStorage.setItem('termquay.terminal.font-size', String(fontSize)); }, [fontSize]);
   useEffect(() => {
     if (dialog || attempt.trust || closing || quitConfirm || palette || settings) return;
     if (tabNavigation.current) { tabNavigation.current = false; return; }
-    const frame = requestAnimationFrame(() => { if (current?.rdp) current.view?.current?.focus(); else document.querySelector<HTMLElement>('.workspace:not([hidden]) .terminal-tab:not([hidden]) .xterm-helper-textarea, .workspace:not([hidden]) .editor-tab:not([hidden]) .cm-content')?.focus(); });
+    const frame = requestAnimationFrame(() => { if (current?.rdp) current.view?.current?.focus(); else { const search = document.querySelector<HTMLElement>('.workspace:not([hidden]) .terminal-tab:not([hidden]) .terminal-search > input'); (search || document.querySelector<HTMLElement>('.workspace:not([hidden]) .terminal-tab:not([hidden]) .xterm-helper-textarea, .workspace:not([hidden]) .editor-tab:not([hidden]) .cm-content'))?.focus(); } });
     return () => cancelAnimationFrame(frame);
   }, [active, dialog, attempt.trust, closing, quitConfirm, palette, settings]);
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
-      if (!(event.ctrlKey || event.metaKey) || !event.shiftKey || event.key.toLowerCase() !== 'p' || dialog || attempt.trust || closing || quitConfirm) return;
-      if (event.composedPath().some(target => target instanceof HTMLElement && target.matches('.terminal-view, .rdp-view, .code-editor'))) return;
-      event.preventDefault(); setPalette(prev => !prev);
+      if (event.isComposing || event.repeat || dialog || attempt.trust || closing || quitConfirm) return;
+      const path = event.composedPath();
+      if (path.some(target => target instanceof HTMLElement && target.matches('[role=dialog], .shortcut-recorder'))) return;
+      const key = eventShortcut(event); if (!key) return;
+      const terminal = !settings && !!current?.ssh && path.some(target => target instanceof HTMLElement && target.matches('.xterm'));
+      const action = shortcutDefinitions.find(d => shortcuts[d.id] === key && (d.scope === 'app' || terminal));
+      if (!action) return;
+      event.preventDefault(); event.stopImmediatePropagation();
+      if (action.id === 'palette') setPalette(prev => !prev);
+      else if (action.id === 'settings') setSettings(true);
+      else current?.ssh?.current?.terminalAction(action.id);
     };
-    window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key);
-  }, [dialog, attempt.trust, closing, quitConfirm]);
+    window.addEventListener('keydown', key, true); return () => window.removeEventListener('keydown', key, true);
+  }, [dialog, attempt.trust, closing, quitConfirm, shortcuts, settings, current]);
   function openDialog(temporary: boolean, connection?: Connection) { if (attempt.busy) return; attempt.clearError(); setDialog({ temporary, connection }); }
   function openSaved(c: Connection, another = false) {
     const existing = !another && workspaces.find(w => w.connectionID === c.id);
@@ -102,7 +122,7 @@ export default function App() {
     if (saved) void attempt.start(saved, undefined, w.id); else editRDP(w);
   }
   const tools = <>
-    <Tooltip content="命令搜索 · Ctrl/⌘ Shift P"><button className="icon-button" aria-label="命令搜索" onClick={() => setPalette(true)}><Icon name="search" /></button></Tooltip>
+    <Tooltip content={`命令搜索 · ${shortcutLabel(shortcuts.palette)}`}><button className="icon-button" aria-label="命令搜索" onClick={() => setPalette(true)}><Icon name="search" /></button></Tooltip>
     <Tooltip content="设置"><button className="icon-button" aria-label="设置" aria-pressed={settings} onClick={() => setSettings(!settings)}><Icon name="settings" /></button></Tooltip>
   </>;
   const commands: WorkbenchCommand[] = [
@@ -112,6 +132,7 @@ export default function App() {
     { id: 'quick', label: '快速连接', kind: 'command', run: () => openDialog(true) },
     { id: 'connections', label: '进入连接中心', kind: 'command', run: () => select('') },
     ...(current?.ssh ? [{ id: 'files', label: '显示远端文件', kind: 'command' as const, run: () => current.ssh?.current?.showFiles() }, { id: 'monitor', label: '切换监控面板', kind: 'command' as const, run: () => current.ssh?.current?.toggleMonitor() }, { id: 'focus', label: '切换专注模式', kind: 'command' as const, run: () => current.ssh?.current?.toggleFocus() }] : []),
+    ...(current?.ssh ? shortcutDefinitions.filter(d => d.scope === 'terminal').map(d => ({ id: `terminal-${d.id}`, label: d.label, detail: shortcutLabel(shortcuts[d.id]), kind: 'command' as const, run: () => current.ssh?.current?.terminalAction(d.id) })) : []),
     { id: 'transfers', label: '查看传输任务', kind: 'command', run: () => setTransfersOpen(true) },
     { id: 'settings', label: '打开设置', kind: 'command', run: () => setSettings(true) },
   ];
@@ -120,7 +141,7 @@ export default function App() {
       status={<><span>{catalog?.session_only ? '会话存储' : '本地工作台'}</span><span>{workspaces.length} 个工作区</span><div className="status-spacer" /><button className={transfers.failed || transfers.error ? 'error' : ''} aria-expanded={transfersOpen} onClick={() => setTransfersOpen(!transfersOpen)}><Icon name="transfer" width="14" />{transfers.running ? `传输 ${transfers.running} 进行中` : transfers.items.length ? `传输 ${transfers.items.length} 项` : '传输'}{transfers.failed ? ` · ${transfers.failed} 失败` : ''}{transfers.error ? ' · 加载失败' : ''}</button></>}>
       {storageError && <div className="storage-error error" role="alert">{storageError}<Button size="sm" onPress={() => { UseSessionStorage().then(reload).catch(e => setStorageError(String(e))); }}>使用会话存储</Button></div>}
       {!dialog && (attempt.busy || (attempt.error && !current?.rdp)) && <div className="connection-feedback" role={attempt.error ? 'alert' : 'status'}><span className={attempt.error ? 'error' : ''}>{attempt.target} · {attempt.error || '正在连接…'}</span>{attempt.busy && <Button size="sm" variant="light" onPress={attempt.cancel}>取消连接</Button>}{!attempt.busy && <button className="icon-button" aria-label="关闭连接错误" onClick={attempt.clearError}><Icon name="close" /></button>}</div>}
-      {settings && <SettingsView fontSize={fontSize} onFontSize={setFontSize} onRestore={() => void reload()} onClose={() => setSettings(false)} />}
+      {settings && <SettingsView fontSize={fontSize} onFontSize={setFontSize} onRestore={() => void reload()} onClose={() => setSettings(false)} shortcuts={shortcuts} onShortcuts={saveShortcuts} shortcutError={shortcutError} />}
       <div className="connection-center-page" hidden={settings || !!current}><ConnectionCenter connections={catalog?.connections || []} groups={catalog?.groups || []} onOpen={openSaved} onEdit={c => openDialog(false, c)} onNew={openDialog} onReload={() => void reload()} busy={attempt.busy} /></div>
       {workspaces.map(w => <div className="workspace" hidden={settings || active !== w.id} key={w.id}>{w.rdp ? <RDPView target={`${w.rdp.connection.username}@${w.rdp.connection.host}:${w.rdp.connection.port}`} grant={w.rdp.grant} failure={w.rdp.error} busy={attempt.busy} onRetry={() => retryRDP(w)} onEdit={() => editRDP(w)} ref={w.view} visible={!settings && active === w.id} /> : <SSHWorkspace id={w.id} ref={w.ssh} fontSize={fontSize} visible={!settings && active === w.id} onDirtyChange={dirty => setWorkspaces(prev => prev.map(item => item.id === w.id ? { ...item, dirty } : item))} />}</div>)}
       {transfersOpen && <TransferPanel tasks={transfers} height={transferHeight} onHeight={setTransferHeight} onClose={() => setTransfersOpen(false)} />}
