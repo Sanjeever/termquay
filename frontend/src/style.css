@@ -128,6 +128,9 @@ input[type=checkbox] { accent-color: var(--color-primary); }
 .fingerprint { padding: 12px; font: 12px/1.6 var(--font-mono); background: var(--color-background); border-radius: 6px; overflow-wrap: anywhere; }
 .ssh-workspace { display: flex; flex-direction: column; height: 100%; min-width: 0; min-height: 0; }
 .workspace-toolbar { display: flex; align-items: center; gap: 6px; height: 36px; flex-shrink: 0; padding: 0 10px; border-bottom: 1px solid var(--color-border); background: var(--color-surface); }
+.session-target { min-width: 80px; max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 12px var(--font-mono); margin-right: auto; }
+.session-state { font-size: 11px; color: var(--color-muted); white-space: nowrap; }
+.workspace-toolbar > button, .workspace-toolbar > span:not(.session-target) { flex-shrink: 0; }
 .session-tool { display: flex; gap: 6px; align-items: center; padding: 5px 9px; border-radius: 4px; color: var(--color-muted); font-size: 12px; }
 .session-tool:hover, .session-tool[aria-pressed=true] { color: var(--color-text); background: var(--color-hover); }
 .focus-toggle { margin-left: auto; }
@@ -135,10 +138,12 @@ input[type=checkbox] { accent-color: var(--color-primary); }
 .file-dock { flex-shrink: 0; overflow: auto; background: var(--color-surface); }
 .ssh-center { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .workspace-panes { display: grid; flex: 1; min-height: 0; min-width: 0; grid-template-rows: minmax(0,1fr); }
-.workspace-pane-separator { grid-column: 2; grid-row: 1; display: flex; }
+.workspace-pane-separator { grid-column: 2; grid-row: 1 / -1; display: flex; }
 .workspace-pane-separator > .panel-separator { height: 100%; }
 .workspace-panes > .focused-pane { box-shadow: inset 0 1px var(--color-primary); }
 .inner-tabs { display: flex; flex-shrink: 0; height: 36px; overflow-x: auto; border-bottom: 1px solid var(--color-border); background: var(--color-background); }
+.pane-tabs { min-width: 0; }
+.pane-tabs > div { min-width: 0; flex-shrink: 0; max-width: 260px; }
 .inner-tabs > div { display: flex; white-space: nowrap; align-items: center; }
 .inner-tabs > div > [role=tab] { max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
 .inner-tabs > div > button:last-child { flex-shrink: 0; padding: 7px; }
