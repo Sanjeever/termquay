@@ -4,5 +4,5 @@ import App from './App';
 import './style.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <HeroUIProvider><App /></HeroUIProvider>,
+  <HeroUIProvider disableAnimation><App /></HeroUIProvider>,
 );

@@ -10,6 +10,7 @@ export default function BackupSettings({ onRestore }: { onRestore(): void }) {
   const [error, setError] = useState('');
   const [result, setResult] = useState('');
   const [busy, setBusy] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   async function run(form: HTMLFormElement, action: string, path = '') {
     const data = new FormData(form);
@@ -18,10 +19,10 @@ export default function BackupSettings({ onRestore }: { onRestore(): void }) {
     try {
       switch (action) {
         case 'test': await TestWebDAV(options); setResult('WebDAV 连接正常'); break;
-        case 'list': setSnapshots(await ListSnapshots(options)??[]); break;
+        case 'list': setSnapshots(await ListSnapshots(options)??[]); setLoaded(true); break;
         case 'backup': {
           const remote = await BackupWebDAV(options, String(data.get('recovery')), data.get('credentials') === 'on');
-          setResult(`快照已保存：${remote}`); setSnapshots(await ListSnapshots(options)??[]); break;
+          setResult(`快照已保存：${remote}`); setSnapshots(await ListSnapshots(options)??[]); setLoaded(true); break;
         }
         case 'preview': setPreview(await PreviewRestore(options, path, String(data.get('recovery')))); break;
         case 'restore': await ConfirmRestore(preview!.id); setPreview(undefined); setResult('恢复完成'); onRestore(); break;
@@ -31,17 +32,20 @@ export default function BackupSettings({ onRestore }: { onRestore(): void }) {
   }
 
   return <section className="settings-panel">
-    <h2>加密备份</h2>
+    <h2>备份恢复</h2>
     <form onSubmit={(e) => e.preventDefault()}>
-      <Input name="url" type="url" label="WebDAV 地址" size="sm" isRequired />
-      <Input name="username" label="用户名" size="sm" autoComplete="off" />
-      <Input name="password" label="WebDAV 密码" type="password" size="sm" autoComplete="off" />
-      <Input name="directory" label="备份目录" defaultValue="termquay/backups" size="sm" isRequired />
-      <Input name="recovery" label="独立备份密码" type="password" size="sm" autoComplete="off" />
+      <h3>WebDAV</h3>
+      <Input name="url" type="url" label="地址" labelPlacement="outside" placeholder="https://" size="sm" isRequired isDisabled={busy} />
+      <Input name="username" label="用户名" labelPlacement="outside" placeholder="用户名" size="sm" autoComplete="off" isDisabled={busy} />
+      <Input name="password" label="WebDAV 密码" labelPlacement="outside" placeholder="密码" type="password" size="sm" autoComplete="off" isDisabled={busy} />
+      <Input name="directory" label="备份目录" labelPlacement="outside" placeholder="相对路径" defaultValue="termquay/backups" size="sm" isRequired isDisabled={busy} />
+      <h3>快照</h3>
+      <Input name="recovery" label="独立备份密码" labelPlacement="outside" placeholder="独立备份密码" type="password" size="sm" autoComplete="off" isDisabled={busy} />
       <label className="checkbox-label"><input type="checkbox" name="credentials" /> 携带连接密码与私钥内容</label>
       <div className="button-row">{[['test', '测试连接'], ['list', '读取快照'], ['backup', '创建快照']].map(([action, label]) => <Button key={action} size="sm" isDisabled={busy} onPress={(event) => { const form = (event.target as HTMLElement).closest('form')!; if (form.reportValidity()) void run(form, action); }}>{label}</Button>)}</div>
       {result && <p role="status" className="operation-result">{result}</p>}
       {error && <p role="alert" className="error">{error}</p>}
+      <h3>远端快照</h3>{loaded && snapshots.length === 0 && <p className="muted">暂无快照</p>}
       <ul className="snapshot-list">{snapshots.map((s) => <li key={s.path}><div><code>{s.path}</code><span>{Math.ceil(s.size / 1024)} KiB</span></div><Button size="sm" variant="light" isDisabled={busy} onPress={(e) => void run((e.target as HTMLElement).closest('form')!, 'preview', s.path)}>预览恢复</Button></li>)}</ul>
       {preview && <div className="restore-preview">
         <h3>恢复预览</h3><p>{preview.device_id} · {new Date(preview.created_at).toLocaleString()}</p>

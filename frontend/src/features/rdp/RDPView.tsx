@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { Button } from '@heroui/react';
+import { Button, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from '@heroui/react';
 import { Events } from '@wailsio/runtime';
 import type { UserInteraction } from '@devolutions/iron-remote-desktop';
 import { CloseRDP } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
@@ -8,12 +8,13 @@ import type { Grant } from '../../../bindings/github.com/Sanjeever/termquay/inte
 export type RDPHandle = { connect(username: string, password: string, domain: string): Promise<void> };
 let initialization: Promise<typeof import('@devolutions/iron-remote-desktop-rdp')> | undefined;
 
-const RDPView = forwardRef<RDPHandle, { grant: Grant }>(function RDPView({ grant }, ref) {
+const RDPView = forwardRef<RDPHandle, { grant: Grant; visible: boolean }>(function RDPView({ grant, visible }, ref) {
+  const view = useRef<HTMLDivElement>(null);
   const container = useRef<HTMLDivElement>(null);
   const ui = useRef<UserInteraction>();
   const closed=useRef(false);
   const [error, setError] = useState('');
-  const [status, setStatus] = useState('正在准备远程桌面');
+  const [status, setStatus] = useState('正在装载桌面组件');
   const [clipboard, setClipboard] = useState(false);
   const [resolution, setResolution] = useState('dynamic');
   const ready = useMemo(() => {
@@ -53,7 +54,7 @@ const RDPView = forwardRef<RDPHandle, { grant: Grant }>(function RDPView({ grant
         if (disposed) return;
         desktop = document.createElement('iron-remote-desktop');
         Object.assign(desktop, { module: module.Backend });
-        desktop.setAttribute('verbose', 'false'); desktop.setAttribute('scale', 'fit');
+        desktop.setAttribute('verbose', 'false'); desktop.setAttribute('scale', 'fit'); desktop.tabIndex = 0;
         desktop.style.cssText = 'display:flex;width:100%;height:100%;';
         desktop.addEventListener('ready', (event) => {
           if (disposed) return;
@@ -84,14 +85,15 @@ const RDPView = forwardRef<RDPHandle, { grant: Grant }>(function RDPView({ grant
     return () => { clearTimeout(timer); observer.disconnect(); };
   }, [resolution,status]);
 
-  return <div className="rdp-view">
+  useEffect(() => { if (visible && status === '已连接') container.current?.querySelector<HTMLElement>('iron-remote-desktop')?.focus(); }, [visible, status]);
+
+  return <div className="rdp-view" ref={view}>
     <div className="rdp-toolbar">
-      <Button size="sm" variant="light" isDisabled={status!=='已连接'} onPress={() => ui.current?.ctrlAltDel()}>Ctrl+Alt+Del</Button>
-      <Button size="sm" variant="light" isDisabled={status!=='已连接'} onPress={() => ui.current?.metaKey()}>Windows 键</Button>
+      <Dropdown><DropdownTrigger><Button size="sm" variant="light" isDisabled={status !== '已连接'}>组合键</Button></DropdownTrigger><DropdownMenu aria-label="远端组合键" onAction={key => { if (key === 'secure') ui.current?.ctrlAltDel(); else ui.current?.metaKey(); container.current?.querySelector<HTMLElement>('iron-remote-desktop')?.focus(); }}><DropdownItem key="secure">Ctrl + Alt + Del</DropdownItem><DropdownItem key="windows">Windows 键</DropdownItem></DropdownMenu></Dropdown>
       <select aria-label="远程分辨率" disabled={status!=='已连接'} value={resolution} onChange={(e) => setResolution(e.target.value)}><option value="dynamic">适应窗口</option><option value="1280x800">1280 × 800</option><option value="1920x1080">1920 × 1080</option></select>
       <label><input type="checkbox" disabled={status!=='已连接'} checked={clipboard} onChange={(e) => { setClipboard(e.target.checked); ui.current?.setEnableClipboard(e.target.checked); }} /> 文本剪贴板</label>
       {clipboard && <><Button size="sm" variant="light" isDisabled={status!=='已连接'} onPress={() => { ui.current?.sendClipboardData().catch((e) => setError(String(e))); }}>粘贴到远端</Button><Button size="sm" variant="light" isDisabled={status!=='已连接'} onPress={() => { ui.current?.saveRemoteClipboardData().catch((e) => setError(String(e))); }}>复制到本机</Button></>}
-      <Button size="sm" variant="light" onPress={() => { container.current?.requestFullscreen().catch((e) => setError(String(e))); }}>全屏</Button>
+      <Button size="sm" variant="light" onPress={() => { const operation = document.fullscreenElement ? document.exitFullscreen() : view.current?.requestFullscreen(); operation?.catch(e => setError(String(e))); }}>切换全屏</Button>
     </div>
     <div className="rdp-canvas" ref={container} />
     <div className="session-status"><span>{status}</span>{error && <span role="alert" className="error">{error}</span>}</div>
