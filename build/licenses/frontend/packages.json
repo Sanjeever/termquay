@@ -1072,6 +1072,13 @@
     "author": "Marijn Haverbeke"
   },
   {
+    "name": "@codemirror/merge",
+    "versions": ["6.12.3"],
+    "license": "MIT",
+    "homepage": "https://codemirror.net/",
+    "author": "Marijn Haverbeke"
+  },
+  {
     "name": "@codemirror/search",
     "versions": [
       "6.7.2"

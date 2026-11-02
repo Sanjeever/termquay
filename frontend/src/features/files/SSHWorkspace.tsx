@@ -9,6 +9,7 @@ import FileBrowser from './FileBrowser';
 import MonitorPanel from '../monitor/MonitorPanel';
 import Icon from '../../components/Icon';
 import ResizeHandle from '../../components/layout/ResizeHandle';
+import FileConflictView from './FileConflictView';
 
 type Draft = Document & { saved: string; error: string; saving: boolean; needsReview?: boolean };
 export type SSHWorkspaceHandle = { saveAll(): Promise<boolean>; prepareReconnect(): Promise<boolean>; showFiles(): void; toggleMonitor(): void; toggleFocus(): void; terminalAction(action: TerminalAction): void };
@@ -23,6 +24,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   const [preparing, setPreparing] = useState(false);
   const [closing, setClosing] = useState('');
   const [rereading, setRereading] = useState('');
+  const [conflict, setConflict] = useState('');
   const [creating, setCreating] = useState(false);
   const [filesOpen, setFilesOpen] = useState(localStorage.getItem('termquay.layout.files-open') !== 'false');
   const [filesWidth, setFilesWidth] = useState(Math.max(200, Math.min(420, Number(localStorage.getItem('termquay.layout.files-width') || localStorage.getItem('termquay.layout.sidebar-width')) || 248)));
@@ -140,12 +142,13 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
       {terminals.map(terminal => <div className="terminal-tab" hidden={active !== terminal} key={terminal}><TerminalView ref={handle => { if (handle) terminalHandles.current.set(terminal, handle); else terminalHandles.current.delete(terminal); }} id={terminal} visible={visible && active === terminal} fontSize={fontSize} /></div>)}
       {drafts.map(d => <div key={d.path} className="editor-tab" hidden={active !== d.path}>
         <div className="editor-toolbar"><span title={d.path}>{d.path}</span><Button size="sm" isLoading={d.saving} isDisabled={d.content === d.saved} onPress={() => void save(d.path)}>保存</Button></div>
-        {d.error && <div className="file-save-error"><p role="alert" className="error">{d.error}</p><div className="button-row"><Button size="sm" variant="light" onPress={() => setRereading(d.path)}>重新读取</Button><Button size="sm" variant="light" onPress={() => { navigator.clipboard.writeText(d.content).catch(e => setError(String(e))); }}>复制草稿</Button></div></div>}
+        {d.error && <div className="file-save-error"><p role="alert" className="error">{d.error}</p><div className="button-row"><Button size="sm" variant="light" isDisabled={d.saving} onPress={()=>setConflict(d.path)}>对比与合并</Button><Button size="sm" variant="light" onPress={() => setRereading(d.path)}>重新读取</Button><Button size="sm" variant="light" onPress={() => { navigator.clipboard.writeText(d.content).catch(e => setError(String(e))); }}>复制草稿</Button></div></div>}
         <CodeEditor path={d.path} content={d.content} visible={visible && active === d.path} onChange={value => updateDrafts(prev => prev.map(item => item.path === d.path ? { ...item, content: value } : item))} onSave={() => void save(d.path)} />
       </div>)}
     </div>
     <MonitorPanel id={sessionID} visible={visible && monitorShown} onClose={() => { toggleMonitor(); monitorToggle.current?.focus(); }} />
     </div>
+    {conflict && drafts.find(d=>d.path===conflict) && <FileConflictView key={`${sessionID}:${conflict}`} sessionID={sessionID} path={conflict} content={drafts.find(d=>d.path===conflict)!.content} onClose={()=>setConflict('')} onApply={(content,remote)=>{updateDrafts(prev=>prev.map(d=>d.path===conflict?{...d,content,saved:remote.content,revision:remote.revision,needsReview:false,error:''}:d));setConflict('');}} />}
     <Modal isOpen={!!closingDraft} onClose={() => !closingDraft?.saving && setClosing('')} className="app-dialog"><ModalContent><ModalHeader>保存文件修改？</ModalHeader><ModalBody><p className="file-path">{closing}</p>{closingDraft?.error && <p className="error" role="alert">{closingDraft.error}</p>}</ModalBody><ModalFooter><Button variant="light" isDisabled={closingDraft?.saving} onPress={() => setClosing('')}>取消</Button><Button color="danger" variant="light" isDisabled={closingDraft?.saving} onPress={() => close(closing, true)}>放弃修改</Button><Button color="primary" isLoading={closingDraft?.saving} onPress={async () => { if (await save(closing)) close(closing, true); }}>保存并关闭</Button></ModalFooter></ModalContent></Modal>
     <Modal isOpen={!!rereading} onClose={() => setRereading('')} className="app-dialog"><ModalContent><ModalHeader>重新读取远端文件</ModalHeader><ModalBody><p className="file-path">{rereading}</p><p>将覆盖此文件的本地草稿。请先复制需要保留的内容。</p>{error && <p className="error" role="alert">{error}</p>}</ModalBody><ModalFooter><Button variant="light" onPress={() => setRereading('')}>取消</Button><Button color="danger" onPress={() => void reread(rereading)}>放弃草稿并重新读取</Button></ModalFooter></ModalContent></Modal>
   </div>;
