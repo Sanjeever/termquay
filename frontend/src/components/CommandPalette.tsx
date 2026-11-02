@@ -5,8 +5,8 @@ import { commandResults, commandKinds, type CommandKind } from '../lib/commands'
 
 export type WorkbenchCommand = { id: string; label: string; detail?: string; search?: string; kind: CommandKind; run(): void };
 
-export default function CommandPalette({ commands, onClose, error, initialScope = 'all' }: { commands: WorkbenchCommand[]; onClose(): void; error?:string; initialScope?: 'all' | CommandKind }) {
-  const [query, setQuery] = useState('');
+export default function CommandPalette({ commands, onClose, error, initialScope = 'all', initialQuery = '' }: { commands: WorkbenchCommand[]; onClose(): void; error?:string; initialScope?: 'all' | CommandKind; initialQuery?: string }) {
+  const [query, setQuery] = useState(initialQuery);
   const [selected, setSelected] = useState(0);
   const [scope, setScope] = useState(initialScope);
   const list = useRef<HTMLDivElement>(null);

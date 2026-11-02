@@ -5,7 +5,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { SearchAddon } from '@xterm/addon-search';
 import { WebLinksAddon } from '@xterm/addon-web-links';
-import TerminalSearch from './TerminalSearch';
+import TerminalSearch, { searchHighlightLimit } from './TerminalSearch';
 import Icon from '../../components/Icon';
 import { useAppearance } from '../settings/AppearanceProvider';
 import { monoFonts, terminalTheme } from '../settings/appearance';
@@ -14,7 +14,7 @@ import '@xterm/xterm/css/xterm.css';
 
 export type TerminalAction = 'find' | 'copy' | 'paste' | 'selectAll' | 'clear' | 'zoomIn' | 'zoomOut' | 'zoomReset';
 export type TerminalHandle = { ended():boolean; action(action: TerminalAction): void; insert(text: string): boolean };
-const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; fontSize: number; focusOnShow?:boolean; onConnectionChange?():void }>(function TerminalView({ id, visible, fontSize, focusOnShow=true, onConnectionChange }, ref) {
+const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; fontSize: number; focusOnShow?:boolean; onConnectionChange?():void; onSnippets(): void }>(function TerminalView({ id, visible, fontSize, focusOnShow=true, onConnectionChange, onSnippets }, ref) {
   const container = useRef<HTMLDivElement>(null);
   const [error, setError] = useState('');
   const [connected, setConnected] = useState<boolean|null>(null);
@@ -55,10 +55,10 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; 
     const term = new Terminal({
       fontFamily: monoFonts[appearance.monoFont],
       fontSize, lineHeight: 1.3, scrollback: 5000, cursorBlink: true,
-      allowProposedApi: false, theme: colors,
+      allowProposedApi: true, theme: colors,
     });
     const fit = new FitAddon(); term.loadAddon(fit); term.open(container.current!);
-    const finder = new SearchAddon(); term.loadAddon(finder); search.current = finder;
+    const finder = new SearchAddon({highlightLimit:searchHighlightLimit}); term.loadAddon(finder); search.current = finder;
     term.loadAddon(new WebLinksAddon((event, uri) => {
       if (!(event.ctrlKey || event.metaKey)) return;
       const url = new URL(uri); if (url.protocol === 'http:' || url.protocol === 'https:') Browser.OpenURL(url).catch(e => setError(String(e)));
@@ -102,7 +102,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; 
   useEffect(() => { if (!terminal.current) return; terminal.current.options.fontSize = Math.max(9, Math.min(36, fontSize + zoom)); if (visible && container.current?.clientWidth && container.current.clientHeight) { fitAddon.current?.fit(); if (focusRequested.current&&!document.activeElement?.closest('[role=tablist]')) terminal.current.focus(); } }, [visible, fontSize, zoom]);
   function closeSearch() { setSearchOpen(false); search.current?.clearDecorations(); terminal.current?.focus(); }
   return <div className="terminal-view" onPasteCapture={e => { if (!(e.target as HTMLElement).closest('.xterm')) return; e.preventDefault(); e.stopPropagation(); insert(e.clipboardData.getData('text/plain')); }}>
-    <div className="terminal-tools"><button className="icon-button" aria-label="终端查找" onClick={() => action('find')}><Icon name="search" width="14" /></button>
+    <div className="terminal-tools"><button className="session-tool" onClick={onSnippets}>命令片段</button><button className="icon-button" aria-label="终端查找" onClick={() => action('find')}><Icon name="search" width="14" /></button>
       <Dropdown><DropdownTrigger><button className="icon-button" aria-label="终端操作"><Icon name="more" width="14" /></button></DropdownTrigger><DropdownMenu aria-label="终端操作" onAction={key => action(key as TerminalAction)}>
         <DropdownItem key="copy">复制</DropdownItem><DropdownItem key="paste">粘贴</DropdownItem><DropdownItem key="selectAll">全选</DropdownItem><DropdownItem key="find">查找</DropdownItem><DropdownItem key="clear">清空显示</DropdownItem><DropdownItem key="zoomIn">放大字号</DropdownItem><DropdownItem key="zoomOut">缩小字号</DropdownItem><DropdownItem key="zoomReset">复位字号</DropdownItem>
       </DropdownMenu></Dropdown>
