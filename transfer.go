@@ -11,6 +11,7 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -33,9 +34,29 @@ type transferTask struct {
 	done   chan struct{}
 	ctx    context.Context
 	run    func(context.Context, func(int64, int64)) error
+	spec   *transferSpec
+}
+type transferSpec struct {
+	workspace, local, remote, direction string
+	overwrite                           bool
 }
 
-func init() { application.RegisterEvent[Transfer]("transfer:changed") }
+var errTransferSkipped = errors.New("同名目标已跳过")
+
+type TransferBatch struct {
+	Items  []Transfer `json:"items"`
+	Errors []string   `json:"errors"`
+}
+type UploadDropResult struct {
+	Workspace string        `json:"workspace"`
+	Result    TransferBatch `json:"result"`
+	Error     string        `json:"error"`
+}
+
+func init() {
+	application.RegisterEvent[Transfer]("transfer:changed")
+	application.RegisterEvent[UploadDropResult]("files:upload-result")
+}
 
 func (a *AppService) ListTransfers() []Transfer {
 	a.mu.Lock()
@@ -79,7 +100,7 @@ func (a *AppService) ClearTransfer(id string) {
 	}
 }
 
-func (a *AppService) startTransfer(workspace, name, direction string, total int64, run func(context.Context, func(int64, int64)) error) (Transfer, error) {
+func (a *AppService) startTransfer(workspace, name, direction string, total int64, run func(context.Context, func(int64, int64)) error, specification ...transferSpec) (Transfer, error) {
 	a.mu.Lock()
 	if a.workspaces[workspace] == nil || a.closed || len(a.transferQueue) >= 32 || len(a.transfers) >= 100 {
 		a.mu.Unlock()
@@ -90,6 +111,10 @@ func (a *AppService) startTransfer(workspace, name, direction string, total int6
 	a.transferSequence++
 	view := Transfer{ID: id, Workspace: workspace, Name: name, Direction: direction, State: "queued", Total: total, Sequence: a.transferSequence}
 	task := &transferTask{view: view, cancel: cancel, done: make(chan struct{}), ctx: ctx, run: run}
+	if len(specification) > 0 {
+		spec := specification[0]
+		task.spec = &spec
+	}
 	a.transfers[id] = task
 	a.transferQueue = append(a.transferQueue, id)
 	a.transferEvent(task.view)
@@ -131,7 +156,9 @@ func (a *AppService) runTransfer(task *transferTask) {
 	}
 	err := task.run(task.ctx, report)
 	a.mu.Lock()
-	if err == nil {
+	if errors.Is(err, errTransferSkipped) {
+		task.view.State = "skipped"
+	} else if err == nil {
 		task.view.State = "done"
 	} else if task.ctx.Err() != nil {
 		task.view.State = "cancelled"
@@ -166,33 +193,82 @@ func (w *transferWriter) Write(data []byte) (int, error) {
 }
 
 func (a *AppService) StartUpload(id, directory string) (Transfer, error) {
-	owner, err := a.terminal(id)
-	if err != nil {
-		return Transfer{}, err
-	}
 	local, err := application.Get().Dialog.OpenFile().SetTitle("选择上传文件").PromptForSingleSelection()
 	if err != nil || local == "" {
 		return Transfer{}, err
 	}
-	info, err := os.Stat(local)
+	return a.uploadPath(id, local, path.Join(directory, filepath.Base(local)), false)
+}
+func (a *AppService) StartUploads(id, directory string, overwrite bool) (TransferBatch, error) {
+	paths, err := application.Get().Dialog.OpenFile().SetTitle("选择上传文件").PromptForMultipleSelection()
+	if err != nil {
+		return TransferBatch{}, err
+	}
+	return a.uploadFiles(id, directory, paths, overwrite)
+}
+func (a *AppService) uploadFiles(id, directory string, locals []string, overwrite bool) (TransferBatch, error) {
+	if len(locals) > 64 || !path.IsAbs(directory) {
+		return TransferBatch{}, errors.New("上传目录无效或文件超过 64 个")
+	}
+	if _, err := a.terminal(id); err != nil {
+		return TransferBatch{}, err
+	}
+	result := TransferBatch{Items: []Transfer{}, Errors: []string{}}
+	for _, local := range locals {
+		view, err := a.uploadPath(id, local, path.Join(directory, filepath.Base(local)), overwrite)
+		if err != nil {
+			result.Errors = append(result.Errors, filepath.Base(local)+": "+err.Error())
+		} else {
+			result.Items = append(result.Items, view)
+		}
+	}
+	return result, nil
+}
+func (a *AppService) uploadPath(id, local, remote string, overwrite bool) (Transfer, error) {
+	if !filepath.IsAbs(local) || !path.IsAbs(remote) || len(local) > 4096 || len(remote) > 4096 {
+		return Transfer{}, errors.New("传输路径无效")
+	}
+	owner, err := a.terminal(id)
+	if err != nil {
+		return Transfer{}, err
+	}
+	info, err := os.Lstat(local)
 	if err != nil {
 		return Transfer{}, err
 	}
 	if !info.Mode().IsRegular() {
 		return Transfer{}, errors.New("上传支持普通文件")
 	}
-	remote := path.Join(directory, filepath.Base(local))
-	return a.startTransfer(id, filepath.Base(local), "upload", info.Size(), func(ctx context.Context, report func(int64, int64)) (result error) {
+	return a.startTransfer(id, path.Base(remote), "upload", info.Size(), func(ctx context.Context, report func(int64, int64)) (result error) {
 		c, close, err := a.fileClient(ctx, id)
 		if err != nil {
 			return err
 		}
 		defer close()
+		before, err := c.Lstat(remote)
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		if before != nil {
+			if !overwrite {
+				return errTransferSkipped
+			}
+			if !before.Mode().IsRegular() {
+				return errors.New("覆盖目标必须是普通文件")
+			}
+		}
 		source, err := os.Open(local)
 		if err != nil {
 			return err
 		}
 		defer source.Close()
+		current, err := source.Stat()
+		if err != nil {
+			return err
+		}
+		if !os.SameFile(info, current) || info.Size() != current.Size() || !info.ModTime().Equal(current.ModTime()) {
+			return errors.New("本地源文件已变化，请显式重试")
+		}
 		staging, err := remotefiles.CreateStaging(c, path.Dir(remote))
 		if err != nil {
 			return err
@@ -238,11 +314,39 @@ func (a *AppService) StartUpload(id, directory string) (Transfer, error) {
 		if err = ctx.Err(); err != nil {
 			return err
 		}
-		if err = c.Rename(temporary, remote); err != nil {
-			return errors.New("上传发布失败，同名目标不会被覆盖: " + err.Error())
+		current, err = source.Stat()
+		if err != nil {
+			return err
+		}
+		if info.Size() != current.Size() || !info.ModTime().Equal(current.ModTime()) {
+			return errors.New("上传期间本地源文件已变化")
+		}
+		latest, err := c.Lstat(remote)
+		if before == nil {
+			if err == nil {
+				return errors.New("目标在上传期间出现，发布已阻止")
+			}
+			if !os.IsNotExist(err) {
+				return err
+			}
+		} else {
+			if err != nil {
+				return err
+			}
+			if before.Size() != latest.Size() || !before.ModTime().Equal(latest.ModTime()) || before.Mode() != latest.Mode() {
+				return errors.New("目标在上传期间已变化，覆盖已阻止")
+			}
+		}
+		if before != nil {
+			err = c.PosixRename(temporary, remote)
+		} else {
+			err = c.Rename(temporary, remote)
+		}
+		if err != nil {
+			return fmt.Errorf("上传发布失败: %w", err)
 		}
 		return nil
-	})
+	}, transferSpec{workspace: id, local: local, remote: remote, direction: "upload", overwrite: overwrite})
 }
 
 func (a *AppService) StartDownload(id, remote string) (Transfer, error) {
@@ -250,7 +354,25 @@ func (a *AppService) StartDownload(id, remote string) (Transfer, error) {
 	if err != nil || local == "" {
 		return Transfer{}, err
 	}
+	return a.downloadPath(id, remote, local, true)
+}
+func (a *AppService) downloadPath(id, remote, local string, overwrite bool) (Transfer, error) {
+	if !filepath.IsAbs(local) || !path.IsAbs(remote) {
+		return Transfer{}, errors.New("传输路径无效")
+	}
 	return a.startTransfer(id, path.Base(remote), "download", 0, func(ctx context.Context, report func(int64, int64)) (result error) {
+		before, err := os.Lstat(local)
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		if before != nil {
+			if !overwrite {
+				return errTransferSkipped
+			}
+			if !before.Mode().IsRegular() {
+				return errors.New("覆盖目标必须是普通文件")
+			}
+		}
 		c, close, err := a.fileClient(ctx, id)
 		if err != nil {
 			return err
@@ -292,10 +414,69 @@ func (a *AppService) StartDownload(id, remote string) (Transfer, error) {
 		if err = ctx.Err(); err != nil {
 			return err
 		}
+		remoteLatest, err := c.Lstat(remote)
+		if err != nil {
+			return err
+		}
+		if info.Size() != remoteLatest.Size() || !info.ModTime().Equal(remoteLatest.ModTime()) || info.Mode() != remoteLatest.Mode() {
+			return errors.New("下载期间远端源文件已变化")
+		}
+		latest, err := os.Lstat(local)
+		if before == nil {
+			if err == nil {
+				return errors.New("本地目标在下载期间出现")
+			}
+			if !os.IsNotExist(err) {
+				return err
+			}
+		} else {
+			if err != nil {
+				return err
+			}
+			if !os.SameFile(before, latest) || before.Size() != latest.Size() || !before.ModTime().Equal(latest.ModTime()) {
+				return errors.New("本地目标在下载期间已变化")
+			}
+		}
+		if before == nil {
+			if err = os.Link(target.Name(), local); err != nil {
+				return err
+			}
+			if err = os.Remove(target.Name()); err != nil {
+				published = true
+				return fmt.Errorf("文件已下载，暂存清理失败: %w", err)
+			}
+			published = true
+			return nil
+		}
 		if err = os.Rename(target.Name(), local); err != nil {
 			return err
 		}
 		published = true
 		return nil
-	})
+	}, transferSpec{workspace: id, local: local, remote: remote, direction: "download", overwrite: overwrite})
+}
+
+func (a *AppService) RetryTransfer(id, newName string, overwrite bool) (Transfer, error) {
+	a.mu.Lock()
+	task := a.transfers[id]
+	if task == nil || task.spec == nil || (task.view.State != "failed" && task.view.State != "cancelled" && task.view.State != "skipped") {
+		a.mu.Unlock()
+		return Transfer{}, errors.New("此任务不能重试")
+	}
+	spec := *task.spec
+	a.mu.Unlock()
+	if newName != "" {
+		if newName == "." || newName == ".." || strings.ContainsAny(newName, "/\\\x00\r\n:") {
+			return Transfer{}, errors.New("新文件名无效")
+		}
+		if spec.direction == "upload" {
+			spec.remote = path.Join(path.Dir(spec.remote), newName)
+		} else {
+			spec.local = filepath.Join(filepath.Dir(spec.local), newName)
+		}
+	}
+	if spec.direction == "upload" {
+		return a.uploadPath(spec.workspace, spec.local, spec.remote, overwrite)
+	}
+	return a.downloadPath(spec.workspace, spec.remote, spec.local, overwrite)
 }

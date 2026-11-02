@@ -13,5 +13,7 @@ export type {
     RDPLaunch,
     RDPProbe,
     RestorePreview,
-    Transfer
+    Transfer,
+    TransferBatch,
+    UploadDropResult
 } from "./models.js";

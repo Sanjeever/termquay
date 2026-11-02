@@ -63,3 +63,14 @@ export interface Transfer {
     "error": string;
     "sequence": number;
 }
+
+export interface TransferBatch {
+    "items": Transfer[] | null;
+    "errors": string[] | null;
+}
+
+export interface UploadDropResult {
+    "workspace": string;
+    "result": TransferBatch;
+    "error": string;
+}

@@ -29,6 +29,21 @@ func main() {
 	window := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title: "TermQuay · 栈桥", Width: 1280, Height: 820, MinWidth: 900, MinHeight: 600,
 		BackgroundColour: application.NewRGB(16, 18, 22), URL: "/",
+		EnableFileDrop: true,
+	})
+	window.OnWindowEvent(events.Common.WindowFilesDropped, func(event *application.WindowEvent) {
+		details := event.Context().DropTargetDetails()
+		if details == nil {
+			return
+		}
+		id := details.Attributes["data-workspace-id"]
+		directory := details.Attributes["data-remote-directory"]
+		result, err := service.uploadFiles(id, directory, event.Context().DroppedFiles(), false)
+		message := ""
+		if err != nil {
+			message = err.Error()
+		}
+		app.Event.Emit("files:upload-result", UploadDropResult{Workspace: id, Result: result, Error: message})
 	})
 	window.RegisterHook(events.Common.WindowClosing, func(event *application.WindowEvent) {
 		if !service.canQuit() {

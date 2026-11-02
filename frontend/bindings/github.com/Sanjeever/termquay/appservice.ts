@@ -161,6 +161,10 @@ export function ResizeTerminal(id: string, cols: number, rows: number): $Cancell
     return $Call.ByID(253488878, id, cols, rows);
 }
 
+export function RetryTransfer(id: string, newName: string, overwrite: boolean): $CancellablePromise<$models.Transfer> {
+    return $Call.ByID(1687759979, id, newName, overwrite);
+}
+
 export function SaveConnection(c: store$0.Connection, auth: ssh$0.Request): $CancellablePromise<store$0.Connection> {
     return $Call.ByID(1507388431, c, auth);
 }
@@ -195,6 +199,10 @@ export function StartDownload(id: string, remote: string): $CancellablePromise<$
 
 export function StartUpload(id: string, directory: string): $CancellablePromise<$models.Transfer> {
     return $Call.ByID(4062547527, id, directory);
+}
+
+export function StartUploads(id: string, directory: string, overwrite: boolean): $CancellablePromise<$models.TransferBatch> {
+    return $Call.ByID(1696521180, id, directory, overwrite);
 }
 
 export function SubscribeMonitor(id: string): $CancellablePromise<void> {

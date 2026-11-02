@@ -4,7 +4,13 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
+	terminal "github.com/Sanjeever/termquay/internal/ssh"
 	"io"
+	"net"
+	"os"
+	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -148,5 +154,115 @@ func TestTransferQueueBound(t *testing.T) {
 		case <-time.After(3 * time.Second):
 			t.Fatal("取消后未释放任务")
 		}
+	}
+}
+
+func TestSG1Transfers(t *testing.T) {
+	password := os.Getenv("SSH_MCP_SERVER_SG1_PASSWORD")
+	if password == "" {
+		t.Skip("未配置真实 SSH 凭据")
+	}
+	port, err := strconv.Atoi(os.Getenv("SSH_MCP_SERVER_SG1_PORT"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	fingerprint := os.Getenv("TERMQUAY_TEST_HOST_FINGERPRINT")
+	if fingerprint == "" {
+		t.Fatal("缺少经独立核对的指纹")
+	}
+	a := testAppStore(t)
+	a.transferEvent = func(Transfer) {}
+	host := os.Getenv("SSH_MCP_SERVER_SG1_HOST")
+	if err = a.store.SetSetting("trust:ssh:"+net.JoinHostPort(host, strconv.Itoa(port)), fingerprint); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	opened, err := a.OpenTerminal(ctx, terminal.Request{Host: host, Port: port, Username: os.Getenv("SSH_MCP_SERVER_SG1_USERNAME"), Password: password, Cols: 80, Rows: 24})
+	if err != nil || opened.TrustRequired {
+		t.Fatalf("SSH 未建立: %v", err)
+	}
+	t.Cleanup(func() { a.CloseWorkspace(opened.ID) })
+	a.mu.Lock()
+	a.workspaces[opened.ID].timer.Stop()
+	a.mu.Unlock()
+	a.CloseTerminal(opened.ID)
+	c, closeClient, err := a.fileClient(ctx, opened.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeClient()
+	remote := fmt.Sprintf("/tmp/termquay-transfer-%d", time.Now().UnixNano())
+	if err = c.Mkdir(remote); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		cleanup, done, err := a.fileClient(context.Background(), opened.ID)
+		if err != nil {
+			t.Error("测试清理无法建立 SFTP")
+			return
+		}
+		defer done()
+		for _, name := range []string{"source.bin", "renamed.bin"} {
+			cleanup.Remove(remote + "/" + name)
+		}
+		if err = cleanup.RemoveDirectory(remote); err != nil {
+			t.Error("测试目录清理失败")
+		}
+	})
+	local := filepath.Join(t.TempDir(), "source.bin")
+	data := bytes.Repeat([]byte{0, 1, 2, 255}, 1<<20)
+	if err = os.WriteFile(local, data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	wait := func(view Transfer, want string) {
+		t.Helper()
+		a.mu.Lock()
+		task := a.transfers[view.ID]
+		a.mu.Unlock()
+		select {
+		case <-task.done:
+		case <-ctx.Done():
+			t.Fatal("真实传输超时")
+		}
+		a.mu.Lock()
+		defer a.mu.Unlock()
+		if task.view.State != want {
+			t.Fatalf("传输状态 %s，期望 %s: %s", task.view.State, want, task.view.Error)
+		}
+	}
+	upload, err := a.uploadPath(opened.ID, local, remote+"/source.bin", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wait(upload, "done")
+	skipped, err := a.uploadPath(opened.ID, local, remote+"/source.bin", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wait(skipped, "skipped")
+	renamed, err := a.RetryTransfer(skipped.ID, "renamed.bin", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wait(renamed, "done")
+	data = append(data, 3)
+	if err = os.WriteFile(local, data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	overwritten, err := a.uploadPath(opened.ID, local, remote+"/source.bin", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wait(overwritten, "done")
+	downloadPath := filepath.Join(t.TempDir(), "download.bin")
+	download, err := a.downloadPath(opened.ID, remote+"/source.bin", downloadPath, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wait(download, "done")
+	got, err := os.ReadFile(downloadPath)
+	if err != nil || !bytes.Equal(got, data) {
+		t.Fatal("真实传输往返内容不一致")
 	}
 }
