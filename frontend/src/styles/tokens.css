@@ -13,9 +13,26 @@
   --color-danger: #ffaaaa;
   --font-mono: "Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", "Microsoft YaHei", monospace;
   --radius: 6px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei UI", "PingFang SC", sans-serif;
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei UI", "PingFang SC", sans-serif;
+  font-family: var(--font-ui);
   font-size: 16px;
   color: var(--color-text);
   background: var(--color-background);
   color-scheme: dark;
+}
+
+:root.light {
+  --color-background: #f8f9fc;
+  --color-surface: #ffffff;
+  --color-elevated: #eef1f6;
+  --color-hover: #e5eaf2;
+  --color-border: #cbd2de;
+  --color-text: #202633;
+  --color-muted: #566175;
+  --color-primary: #3456bc;
+  --color-selected: #dce6ff;
+  --color-success: #22613f;
+  --color-warning: #795400;
+  --color-danger: #a52131;
+  color-scheme: light;
 }

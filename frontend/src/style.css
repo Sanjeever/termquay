@@ -270,7 +270,12 @@ input[type=checkbox] { accent-color: var(--color-primary); }
 .settings-row { display: flex; align-items: center; justify-content: space-between; padding: 16px 0; border-bottom: 1px solid var(--color-border); gap: 16px; }
 .settings-row output { width: 40px; text-align: right; font-variant-numeric: tabular-nums; }
 .settings-row input[type=range] { accent-color: var(--color-primary); width: 140px; }
-.terminal-preview { display: flex; align-items: center; gap: 12px; margin-top: 24px; padding: 20px; font-family: var(--font-mono); color: var(--color-primary); border: 1px solid var(--color-border); border-radius: 6px; }
+.terminal-preview { display: flex; align-items: center; margin: 24px 0 16px; padding: 20px; overflow: auto; font-family: var(--font-mono); color: var(--color-primary); border: 1px solid var(--color-border); border-radius: 6px; }
+.settings-row select { max-width: 55%; }
+.cm-search { color: var(--color-text); background: var(--color-elevated); }
+.cm-search input, .cm-search button { background: var(--color-background); color: var(--color-text); border: 1px solid var(--color-border); }
+.cm-merge-a .cm-changedLine, .cm-deletedChunk { background: color-mix(in srgb, var(--color-danger) 12%, transparent); }
+.cm-merge-b .cm-changedLine { background: color-mix(in srgb, var(--color-success) 12%, transparent); }
 .settings-panel h3 { font-size: 13px; font-weight: 500; padding-top: 12px; border-top: 1px solid var(--color-border); }
 .command-palette { margin-top: 12vh; padding: 10px; }
 .command-results { max-height: 420px; overflow-y: auto; padding-top: 8px; }

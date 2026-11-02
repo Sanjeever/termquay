@@ -5,10 +5,10 @@ import KeyboardSettings from './KeyboardSettings';
 import SnippetSettings from './SnippetSettings';
 import RecoverySettings from './RecoverySettings';
 import TrustSettings from './TrustSettings';
+import AppearanceSettings from './AppearanceSettings';
 import type useDraftRecovery from '../workspaces/useDraftRecovery';
 import type { Shortcuts } from '../../lib/shortcuts';
 import packageInfo from '../../../package.json';
-import Icon from '../../components/Icon';
 import appIcon from '../../../../build/appicon.svg';
 
 export default function SettingsView({ fontSize, onFontSize, onRestore, onClose, shortcuts, onShortcuts, shortcutError, recovery, initialSection='appearance' }: { fontSize: number; onFontSize(value: number): void; onRestore(): void; onClose(): void; shortcuts: Shortcuts; onShortcuts(value: Shortcuts): void; shortcutError: string; recovery:ReturnType<typeof useDraftRecovery>; initialSection?:string }) {
@@ -17,7 +17,7 @@ export default function SettingsView({ fontSize, onFontSize, onRestore, onClose,
     <div className="settings-header"><h1>设置</h1><Button size="sm" variant="light" onPress={onClose}>返回工作区</Button></div>
     <div className="settings-layout"><nav className="settings-navigation" aria-label="设置分类">{[['appearance', '外观与终端'], ['keyboard', '快捷键'], ['snippets','命令片段'],['recovery','本地草稿恢复'],['trust','身份信任'], ['backup', '备份恢复'], ['about', '关于']].map(([id, label]) => <button key={id} className={section === id ? 'selected' : ''} aria-current={section === id ? 'page' : undefined} onClick={() => setSection(id)}>{label}</button>)}</nav>
       <div className="settings-content">
-        {section === 'appearance' && <div className="settings-section"><h2>外观与终端</h2><div className="settings-row"><span>主题</span><span className="muted">深色</span></div><div className="settings-row"><label htmlFor="terminal-font-size">终端字号</label><div className="button-row"><input id="terminal-font-size" type="range" min="11" max="24" value={fontSize} onChange={e => onFontSize(Number(e.target.value))} /><output htmlFor="terminal-font-size">{fontSize}px</output></div></div><div className="terminal-preview" style={{ fontSize }}><Icon name="terminal" width="16" /><span>远程终端 · ~/workspace</span></div></div>}
+        {section === 'appearance' && <AppearanceSettings fontSize={fontSize} onFontSize={onFontSize} />}
         {section === 'backup' && <BackupSettings onRestore={onRestore} />}
         {section === 'keyboard' && <KeyboardSettings values={shortcuts} onChange={onShortcuts} error={shortcutError} />}
         {section === 'snippets' && <SnippetSettings/>}

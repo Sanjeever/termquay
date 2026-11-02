@@ -7,6 +7,8 @@ import { SearchAddon } from '@xterm/addon-search';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import TerminalSearch from './TerminalSearch';
 import Icon from '../../components/Icon';
+import { useAppearance } from '../settings/AppearanceProvider';
+import { monoFonts, terminalTheme } from '../settings/appearance';
 import { CloseTerminal, ResizeTerminal } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
 import '@xterm/xterm/css/xterm.css';
 
@@ -17,6 +19,8 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; 
   const [error, setError] = useState('');
   const [connected, setConnected] = useState<boolean|null>(null);
   const terminal = useRef<Terminal>();
+  const { appearance, dark } = useAppearance();
+  const colors = terminalTheme(appearance.terminalPalette, dark);
   const fitAddon = useRef<FitAddon>();
   const search = useRef<SearchAddon>();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -49,9 +53,9 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; 
   useImperativeHandle(ref, () => ({ action, insert,ended:()=>!!inputStream.current&&inputStream.current.readyState===inputStream.current.CLOSED }));
   useEffect(() => {
     const term = new Terminal({
-      fontFamily: getComputedStyle(document.documentElement).getPropertyValue('--font-mono'),
+      fontFamily: monoFonts[appearance.monoFont],
       fontSize, lineHeight: 1.3, scrollback: 5000, cursorBlink: true,
-      allowProposedApi: false, theme: { background: '#101216', foreground: '#e6e9ef', cursor: '#8ba7ff', selectionBackground: '#252f48' },
+      allowProposedApi: false, theme: colors,
     });
     const fit = new FitAddon(); term.loadAddon(fit); term.open(container.current!);
     const finder = new SearchAddon(); term.loadAddon(finder); search.current = finder;
@@ -94,6 +98,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; 
     });
     return () => { disposed = true; observer.disconnect(); unsubscribe(); input.dispose(); resize.dispose(); stream.close(); term.dispose(); terminal.current = undefined; fitAddon.current = undefined; search.current = undefined; inputStream.current=undefined; CloseTerminal(id).catch(() => {}); };
   }, [id]);
+  useEffect(() => { const term = terminal.current; if (!term) return; term.options.theme = terminalTheme(appearance.terminalPalette, dark); term.options.fontFamily = monoFonts[appearance.monoFont]; if (visible && container.current?.clientWidth && container.current.clientHeight) fitAddon.current?.fit(); }, [dark, appearance.terminalPalette, appearance.monoFont, visible]);
   useEffect(() => { if (!terminal.current) return; terminal.current.options.fontSize = Math.max(9, Math.min(36, fontSize + zoom)); if (visible && container.current?.clientWidth && container.current.clientHeight) { fitAddon.current?.fit(); if (focusRequested.current&&!document.activeElement?.closest('[role=tablist]')) terminal.current.focus(); } }, [visible, fontSize, zoom]);
   function closeSearch() { setSearchOpen(false); search.current?.clearDecorations(); terminal.current?.focus(); }
   return <div className="terminal-view" onPasteCapture={e => { if (!(e.target as HTMLElement).closest('.xterm')) return; e.preventDefault(); e.stopPropagation(); insert(e.clipboardData.getData('text/plain')); }}>
@@ -103,7 +108,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; 
       </DropdownMenu></Dropdown>
     </div>
     {searchOpen && search.current && <TerminalSearch addon={search.current} onClose={closeSearch} />}
-    <div className="terminal-canvas" ref={container} />
+    <div className="terminal-canvas" ref={container} style={{ background: colors.background }} />
     <div className="session-status"><span>{connected===null?'连接中':connected ? '已连接' : '已断开'}</span>{error && <span role="alert" className="error">{error}</span>}</div>
     <Modal isOpen={paste !== undefined} onClose={() => { setPaste(undefined); terminal.current?.focus(); }} className="app-dialog"><ModalContent><ModalHeader>确认多行粘贴</ModalHeader><ModalBody><p>换行可能立即执行命令，请核对内容。</p><pre className="paste-preview">{paste}</pre></ModalBody><ModalFooter><Button variant="light" onPress={() => { setPaste(undefined); terminal.current?.focus(); }}>取消</Button><Button color="primary" onPress={() => { if (paste !== undefined) terminal.current?.paste(paste); setPaste(undefined); terminal.current?.focus(); }}>粘贴到终端</Button></ModalFooter></ModalContent></Modal>
   </div>;
