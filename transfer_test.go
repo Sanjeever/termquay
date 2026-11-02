@@ -90,7 +90,15 @@ func TestClearFinishedTransfersPreservesActiveAndTarget(t *testing.T) {
 	a.workspaces["test"] = &workspaceOwner{target: "test@example.invalid:22"}
 	views := []Transfer{}
 	for i := 0; i < 3; i++ {
-		v, err := a.startTransfer("test", "file", "upload", 0, func(ctx context.Context, _ func(int64, int64)) error { <-ctx.Done(); return ctx.Err() }, transferSpec{direction: "upload", local: "/tmp/source", remote: "/remote/target"})
+		direction := "upload"
+		if i == 1 {
+			direction = "download"
+		}
+		specDirection := direction
+		if i == 2 {
+			specDirection = "sync"
+		}
+		v, err := a.startTransfer("test", "file", direction, 0, func(ctx context.Context, _ func(int64, int64)) error { <-ctx.Done(); return ctx.Err() }, transferSpec{direction: specDirection, local: "/tmp/source", remote: "/remote/target"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -102,7 +110,11 @@ func TestClearFinishedTransfersPreservesActiveAndTarget(t *testing.T) {
 		t.Fatal("清理移除了活动任务")
 	}
 	for _, v := range views {
-		if v.Target != "test@example.invalid:22" || v.SourcePath != "/tmp/source" || v.DestinationPath != "/remote/target" {
+		source, target := "/tmp/source", "/remote/target"
+		if v.Direction == "download" {
+			source, target = target, source
+		}
+		if v.Target != "test@example.invalid:22" || v.SourcePath != source || v.DestinationPath != target {
 			t.Fatal("传输未保存所属目标和路径")
 		}
 		a.CancelTransfer(v.ID)

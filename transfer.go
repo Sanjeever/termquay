@@ -160,7 +160,7 @@ func (a *AppService) startTransfer(workspace, name, direction string, total int6
 		spec := specification[0]
 		task.spec = &spec
 		task.view.Retryable = spec.direction == "upload" || spec.direction == "download"
-		if spec.direction == "upload" {
+		if direction == "upload" {
 			task.view.SourcePath = spec.local
 			task.view.DestinationPath = spec.remote
 		} else {

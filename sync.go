@@ -176,7 +176,7 @@ func (a *AppService) ExecuteDirectorySync(id string, selected []string) (Transfe
 			report(completed, total)
 		}
 		return nil
-	}, transferSpec{workspace: p.workspace, direction: "sync", syncPlanID: id})
+	}, transferSpec{workspace: p.workspace, direction: "sync", local: p.preview.Local, remote: p.preview.Remote, syncPlanID: id})
 	if err != nil {
 		a.mu.Lock()
 		p.executing = false
