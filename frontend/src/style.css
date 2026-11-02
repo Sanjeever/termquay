@@ -181,6 +181,7 @@ input[type=checkbox] { accent-color: var(--color-primary); }
 .settings-content { flex: 1; min-width: 0; overflow: auto; }
 .settings-section { max-width: 760px; padding: 28px; }
 .settings-section h2 { font-size: 16px; font-weight: 500; margin-bottom: 24px; }
+.about-section > img { margin-bottom: 20px; }
 .settings-row { display: flex; align-items: center; justify-content: space-between; padding: 16px 0; border-bottom: 1px solid var(--color-border); gap: 16px; }
 .settings-row output { width: 40px; text-align: right; font-variant-numeric: tabular-nums; }
 .settings-row input[type=range] { accent-color: var(--color-primary); width: 140px; }

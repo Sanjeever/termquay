@@ -19,7 +19,7 @@ release: "1"
 contents:
   - src: "./bin/termquay"
     dst: "/usr/local/bin/termquay"
-  - src: "./build/appicon.png"
+  - src: "./build/linux/icon-128.png"
     dst: "/usr/share/icons/hicolor/128x128/apps/termquay.png"
   - src: "./build/linux/termquay.desktop"
     dst: "/usr/share/applications/termquay.desktop"

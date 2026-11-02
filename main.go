@@ -24,7 +24,7 @@ func main() {
 	app.HandleStream("workspace", service.handleWorkspace)
 	window := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title: "TermQuay · 栈桥", Width: 1280, Height: 820, MinWidth: 900, MinHeight: 600,
-		BackgroundColour: application.NewRGB(18, 20, 24), URL: "/",
+		BackgroundColour: application.NewRGB(16, 18, 22), URL: "/",
 	})
 	window.RegisterHook(events.Common.WindowClosing, func(event *application.WindowEvent) {
 		if !service.canQuit() {
