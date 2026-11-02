@@ -1,6 +1,6 @@
-# This file contains the configuration for this project.
-# When you update `info` or `fileAssociations`, run `wails3 task common:update:build-assets` to update the assets.
-# Note that this will overwrite any changes you have made to the assets.
+# Wails 开发与构建资源配置，操作入口见 docs/development.md。
+# 修改 info 或 fileAssociations 后，用 wails3 task common:update:build-assets 更新资源。
+# 生成可能覆盖手工定制，执行前后检查平台资源 diff。
 version: '3'
 
 # This information is used to generate the build assets.
@@ -68,7 +68,7 @@ dev_mode:
       exit_policy: shutdown
 
 # File Associations
-# More information at: https://v3.wails.io/noit/done/yet
+# 文件关联由 Wails 生成到平台资源，下面保留模板示例，当前未启用。
 fileAssociations:
 #  - ext: wails
 #    name: Wails

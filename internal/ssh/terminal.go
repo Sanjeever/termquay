@@ -225,7 +225,7 @@ func Relay(t *Terminal, s Stream) error {
 			}
 		}
 	}()
-	// 每次至多一个 32 KiB 输出帧等待 xterm.js 解析确认。
+	// 等待 xterm.js 解析确认后再读下一帧，避免积压转移到前端解析队列。
 	for {
 		buf := make([]byte, ChunkSize)
 		n, err := t.Output.Read(buf)

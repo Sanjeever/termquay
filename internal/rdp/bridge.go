@@ -324,7 +324,7 @@ func negotiate(ctx context.Context, target Target, request []byte) (*tls.Conn, [
 	}
 	config := &tls.Config{ServerName: target.Host, MinVersion: tls.VersionTLS12}
 	if target.Fingerprint != "" {
-		// 用户明确确认后，以精确证书指纹校验替代系统 CA 与主机名校验。
+		// 已固定指纹时校验精确身份与有效期，也支持用户确认的自签名证书。
 		config.InsecureSkipVerify = true
 		config.VerifyConnection = func(state tls.ConnectionState) error {
 			if len(state.PeerCertificates) == 0 || fingerprint(state.PeerCertificates[0].Raw) != target.Fingerprint {
