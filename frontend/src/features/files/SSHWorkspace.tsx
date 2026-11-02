@@ -14,8 +14,8 @@ type Draft = Document & { saved: string; error: string; saving: boolean };
 export type SSHWorkspaceHandle = { saveAll(): Promise<boolean> };
 
 const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
-  id: string; visible: boolean; sidebarHost: HTMLDivElement | null; filesVisible: boolean; monitorVisible: boolean; fontSize?: number; onDirtyChange(dirty: boolean): void;
-}>(function SSHWorkspace({ id, visible, sidebarHost, filesVisible, monitorVisible, fontSize = 14, onDirtyChange }, ref) {
+  id: string; visible: boolean; sidebarHost: HTMLDivElement | null; filesVisible: boolean; monitorVisible: boolean; onMonitorClose(): void; fontSize?: number; onDirtyChange(dirty: boolean): void;
+}>(function SSHWorkspace({ id, visible, sidebarHost, filesVisible, monitorVisible, onMonitorClose, fontSize = 14, onDirtyChange }, ref) {
   const [error, setError] = useState('');
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [active, setActive] = useState(id);
@@ -93,7 +93,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
         <CodeEditor path={d.path} content={d.content} visible={visible && active === d.path} onChange={value => updateDrafts(prev => prev.map(item => item.path === d.path ? { ...item, content: value } : item))} onSave={() => void save(d.path)} />
       </div>)}
     </div>
-    {visible && monitorVisible && <MonitorPanel id={id} />}
+    <MonitorPanel id={id} visible={visible && monitorVisible} onClose={onMonitorClose} />
     <Modal isOpen={!!closingDraft} onClose={() => !closingDraft?.saving && setClosing('')} className="app-dialog"><ModalContent><ModalHeader>保存文件修改？</ModalHeader><ModalBody><p className="file-path">{closing}</p>{closingDraft?.error && <p className="error" role="alert">{closingDraft.error}</p>}</ModalBody><ModalFooter><Button variant="light" isDisabled={closingDraft?.saving} onPress={() => setClosing('')}>取消</Button><Button color="danger" variant="light" isDisabled={closingDraft?.saving} onPress={() => close(closing, true)}>放弃修改</Button><Button color="primary" isLoading={closingDraft?.saving} onPress={async () => { if (await save(closing)) close(closing, true); }}>保存并关闭</Button></ModalFooter></ModalContent></Modal>
     <Modal isOpen={!!rereading} onClose={() => setRereading('')} className="app-dialog"><ModalContent><ModalHeader>重新读取远端文件</ModalHeader><ModalBody><p className="file-path">{rereading}</p><p>将覆盖此文件的本地草稿。请先复制需要保留的内容。</p>{error && <p className="error" role="alert">{error}</p>}</ModalBody><ModalFooter><Button variant="light" onPress={() => setRereading('')}>取消</Button><Button color="danger" onPress={() => void reread(rereading)}>放弃草稿并重新读取</Button></ModalFooter></ModalContent></Modal>
   </div>;

@@ -9,6 +9,7 @@ import SSHWorkspace, { type SSHWorkspaceHandle } from './features/files/SSHWorks
 import RDPView, { type RDPHandle } from './features/rdp/RDPView';
 import BackupSettings from './features/settings/BackupSettings';
 import TransferPanel from './features/files/TransferPanel';
+import useTransfers from './features/files/useTransfers';
 import Workbench, { type SidebarMode } from './components/layout/Workbench';
 import WorkspaceTabs from './components/layout/WorkspaceTabs';
 import ConnectionSidebar from './features/connections/ConnectionSidebar';
@@ -35,6 +36,8 @@ export default function App() {
   const [savingClose, setSavingClose] = useState(false);
   const [closeError, setCloseError] = useState('');
   const [transfersOpen, setTransfersOpen] = useState(false);
+  const [transferHeight, setTransferHeight] = useState(Number(localStorage.getItem('termquay.layout.transfer-height')) || 220);
+  const transfers = useTransfers();
   const [monitorOpen, setMonitorOpen] = useState(localStorage.getItem('termquay.layout.monitor') === 'true');
   const current = workspaces.find(w => w.id === active);
   const latestWorkspaces = useRef(workspaces); latestWorkspaces.current = workspaces;
@@ -57,6 +60,7 @@ export default function App() {
   useEffect(() => Events.On('app:close-requested', () => setQuitConfirm(true)), []);
   useEffect(() => { localStorage.setItem('termquay.layout.sidebar-width', String(sidebarWidth)); }, [sidebarWidth]);
   useEffect(() => { localStorage.setItem('termquay.layout.monitor', String(monitorOpen)); }, [monitorOpen]);
+  useEffect(() => { localStorage.setItem('termquay.layout.transfer-height', String(transferHeight)); }, [transferHeight]);
   function openDialog(temporary: boolean, connection?: Connection) { if (attempt.busy) return; attempt.clearError(); setDialog({ temporary, connection }); }
   function openSaved(c: Connection, another = false) {
     const existing = !another && workspaces.find(w => w.connectionID === c.id);
@@ -71,13 +75,13 @@ export default function App() {
   return <>
     <Workbench tabs={<WorkspaceTabs items={workspaces} active={active} onSelect={select} onClose={id => workspaces.find(w => w.id === id)?.dirty ? setClosing(id) : remove(id)} onNew={() => openDialog(false)} />} tools={tools} sidebarMode={sidebar} sidebarWidth={sidebarWidth} onSidebarWidth={setSidebarWidth} hasSSH={!!current && !current.rdp} settings={settings} onSettings={() => setSettings(!settings)} focus={focus} onSidebar={mode => { setSettings(false); setFocus(false); setSidebar(mode); }}
       sidebar={<><div hidden={sidebar !== 'connections'} className="sidebar-content"><ConnectionSidebar connections={catalog?.connections || []} groups={catalog?.groups || []} onOpen={openSaved} onEdit={c => openDialog(false, c)} onNew={openDialog} onReload={() => void reload()} busy={attempt.busy} /></div><div className="sidebar-content" hidden={sidebar !== 'files'} ref={setSidebarHost} /></>}
-      status={<><span>{catalog?.session_only ? '会话存储' : '本地工作台'}</span><span>{workspaces.length} 个工作区</span><div className="status-spacer" /><button aria-expanded={transfersOpen} onClick={() => setTransfersOpen(!transfersOpen)}><Icon name="transfer" width="14" />传输</button></>}>
+      status={<><span>{catalog?.session_only ? '会话存储' : '本地工作台'}</span><span>{workspaces.length} 个工作区</span><div className="status-spacer" /><button className={transfers.failed || transfers.error ? 'error' : ''} aria-expanded={transfersOpen} onClick={() => setTransfersOpen(!transfersOpen)}><Icon name="transfer" width="14" />{transfers.running ? `传输 ${transfers.running}` : '传输'}{transfers.failed ? ` · ${transfers.failed} 失败` : ''}{transfers.error ? ' · 加载失败' : ''}</button></>}>
       {storageError && <div className="storage-error error" role="alert">{storageError}<Button size="sm" onPress={() => { UseSessionStorage().then(reload).catch(e => setStorageError(String(e))); }}>使用会话存储</Button></div>}
       {!dialog && (attempt.busy || attempt.error) && <div className="connection-feedback" role={attempt.error ? 'alert' : 'status'}><span className={attempt.error ? 'error' : ''}>{attempt.target} · {attempt.error || '正在连接…'}</span>{attempt.busy && <Button size="sm" variant="light" onPress={attempt.cancel}>取消连接</Button>}{!attempt.busy && <button className="icon-button" aria-label="关闭连接错误" onClick={attempt.clearError}><Icon name="close" /></button>}</div>}
       {settings && <BackupSettings onRestore={() => void reload()} />}
       {!current && !settings && <div className="workspace-empty"><div className="button-row"><Button variant="bordered" onPress={() => openDialog(false)}>新建连接</Button><Button variant="light" onPress={() => openDialog(true)}>快速连接</Button></div></div>}
-      {workspaces.map(w => <div className="workspace" hidden={settings || active !== w.id} key={w.id}>{w.rdp ? <RDPView grant={w.rdp} ref={w.view} /> : <SSHWorkspace id={w.id} ref={w.ssh} visible={!settings && active === w.id} sidebarHost={sidebarHost} filesVisible={sidebar === 'files' && !focus && !settings && active === w.id} monitorVisible={monitorOpen && !focus && !settings && active === w.id} onDirtyChange={dirty => setWorkspaces(prev => prev.map(item => item.id === w.id ? { ...item, dirty } : item))} />}</div>)}
-      {transfersOpen && <TransferPanel />}
+      {workspaces.map(w => <div className="workspace" hidden={settings || active !== w.id} key={w.id}>{w.rdp ? <RDPView grant={w.rdp} ref={w.view} /> : <SSHWorkspace id={w.id} ref={w.ssh} visible={!settings && active === w.id} sidebarHost={sidebarHost} filesVisible={sidebar === 'files' && !focus && !settings && active === w.id} monitorVisible={monitorOpen && !focus && !settings && active === w.id} onMonitorClose={() => setMonitorOpen(false)} onDirtyChange={dirty => setWorkspaces(prev => prev.map(item => item.id === w.id ? { ...item, dirty } : item))} />}</div>)}
+      {transfersOpen && <TransferPanel tasks={transfers} height={transferHeight} onHeight={setTransferHeight} onClose={() => setTransfersOpen(false)} />}
     </Workbench>
     {dialog && <ConnectionDialog {...dialog} groups={catalog?.groups || []} busy={attempt.busy} connectionError={attempt.error} onConnect={attempt.start} onSaved={() => void reload()} onClose={() => setDialog(undefined)} onCancel={attempt.cancel} />}
     <HostTrustDialog target={attempt.trust} onConfirm={attempt.confirm} />
