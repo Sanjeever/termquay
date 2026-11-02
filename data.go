@@ -199,6 +199,49 @@ func (a *AppService) SaveConnection(c store.Connection, auth terminal.Request) (
 	return c, nil
 }
 
+func (a *AppService) DuplicateConnection(id string, includeCredentials bool) (store.Connection, error) {
+	a.storeMu.Lock()
+	defer a.storeMu.Unlock()
+	if err := a.openStorage(); err != nil {
+		return store.Connection{}, err
+	}
+	d, err := a.store.Read()
+	if err != nil {
+		return store.Connection{}, err
+	}
+	for _, source := range d.Connections {
+		if source.ID != id {
+			continue
+		}
+		copy := source
+		copy.ID = base64.RawURLEncoding.EncodeToString(randomBytes(16))
+		copy.Name += " 副本"
+		copy.CredentialID = ""
+		if includeCredentials && source.CredentialID != "" {
+			found := false
+			for _, credential := range d.Credentials {
+				if credential.ID != source.CredentialID {
+					continue
+				}
+				credential.ID = base64.RawURLEncoding.EncodeToString(randomBytes(16))
+				copy.CredentialID = credential.ID
+				d.Credentials = append(d.Credentials, credential)
+				found = true
+				break
+			}
+			if !found {
+				return store.Connection{}, errors.New("连接凭据不存在")
+			}
+		}
+		d.Connections = append(d.Connections, copy)
+		if err = a.store.Replace(d); err != nil {
+			return store.Connection{}, err
+		}
+		return copy, nil
+	}
+	return store.Connection{}, errors.New("连接不存在")
+}
+
 func (a *AppService) DeleteConnection(id string) error {
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()

@@ -63,6 +63,44 @@ func TestCatalogCredentialsAndGroups(t *testing.T) {
 	}
 }
 
+func TestDuplicateConnectionOwnsCredentials(t *testing.T) {
+	a := testAppStore(t)
+	source, err := a.SaveConnection(store.Connection{Name: "原连接", Protocol: "ssh", Host: "example.invalid", Port: 22, Username: "test"}, terminal.Request{Password: "original-test-only"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	copy, err := a.DuplicateConnection(source.ID, true)
+	if err != nil || copy.ID == source.ID || copy.CredentialID == source.CredentialID || copy.CredentialID == "" {
+		t.Fatalf("副本未分离身份: %v", err)
+	}
+	without, err := a.DuplicateConnection(source.ID, false)
+	if err != nil || without.CredentialID != "" {
+		t.Fatalf("未授权复制凭据: %v", err)
+	}
+	if _, err = a.SaveConnection(source, terminal.Request{Password: "changed-test-only"}); err != nil {
+		t.Fatal(err)
+	}
+	request, _, err := a.savedRequest(copy.ID)
+	if err != nil || request.Password != "original-test-only" {
+		t.Fatal("原连接修改影响副本凭据")
+	}
+	if err = a.DeleteConnection(source.ID); err != nil {
+		t.Fatal(err)
+	}
+	request, _, err = a.savedRequest(copy.ID)
+	if err != nil || request.Password != "original-test-only" {
+		t.Fatal("原连接删除影响副本凭据")
+	}
+	if _, err = a.DuplicateConnection("missing", true); err == nil {
+		t.Fatal("允许复制不存在连接")
+	}
+	catalog, err := a.GetCatalog()
+	raw, _ := json.Marshal(catalog)
+	if err != nil || strings.Contains(string(raw), "original-test-only") {
+		t.Fatal("公开副本泄露凭据")
+	}
+}
+
 func TestRestorePreservesLocalSettingsAndRejectsStalePreview(t *testing.T) {
 	a := testAppStore(t)
 	if err := a.store.SetSecretSetting("webdav", "test-private-setting"); err != nil {

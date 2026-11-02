@@ -77,6 +77,10 @@ export function DiscardAndQuit(): $CancellablePromise<void> {
     return $Call.ByID(2297958254);
 }
 
+export function DuplicateConnection(id: string, includeCredentials: boolean): $CancellablePromise<store$0.Connection> {
+    return $Call.ByID(3599925595, id, includeCredentials);
+}
+
 export function GetCatalog(): $CancellablePromise<$models.Catalog> {
     return $Call.ByID(12026733);
 }
