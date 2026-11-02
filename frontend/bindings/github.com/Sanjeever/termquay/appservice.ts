@@ -117,6 +117,10 @@ export function OpenTerminal(r: ssh$0.Request): $CancellablePromise<$models.Open
     return $Call.ByID(3614603658, r);
 }
 
+export function ParseQuickConnection(value: string): $CancellablePromise<store$0.Connection> {
+    return $Call.ByID(419808756, value);
+}
+
 export function PreviewRestore(options: backup$0.WebDAVOptions, path: string, password: string): $CancellablePromise<$models.RestorePreview> {
     return $Call.ByID(1296130900, options, path, password);
 }

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Button, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
-import { SaveConnection } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
+import { SaveConnection, ParseQuickConnection } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
 import type { Connection, Group } from '../../../bindings/github.com/Sanjeever/termquay/internal/store/models';
 import type { Request } from '../../../bindings/github.com/Sanjeever/termquay/internal/ssh/models';
 
@@ -16,6 +16,8 @@ export default function ConnectionDialog({ connection, temporary, groups, busy, 
   const [error, setError] = useState('');
   const [stored, setStored] = useState(false);
   const [credentialEpoch, setCredentialEpoch] = useState(0);
+  const [quickAddress, setQuickAddress] = useState('');
+  const [parsed, setParsed] = useState<{ value: Connection; epoch: number }>();
   const form = useRef<HTMLFormElement>(null);
 
   async function submit(mode: 'save' | 'connect' | 'both') {
@@ -44,10 +46,11 @@ export default function ConnectionDialog({ connection, temporary, groups, busy, 
     <ModalHeader>{temporary ? '快速连接' : saved ? '编辑连接' : '新建连接'}</ModalHeader>
     <ModalBody><form ref={form} id="connection-dialog-form" className="connection-form" onSubmit={e => { e.preventDefault(); void submit(temporary ? 'connect' : 'both'); }}>
       {temporary && <div className="muted">临时连接，不保存配置与凭据</div>}
+      {temporary && <div className="button-row"><Input label="地址或 SSH 命令" labelPlacement="outside" placeholder="user@host:22 / ssh -p 22 -l user host" value={quickAddress} onValueChange={setQuickAddress} isDisabled={busy || saving} /><Button size="sm" variant="bordered" isDisabled={busy || saving || !quickAddress.trim()} onPress={async () => { try { const value = await ParseQuickConnection(quickAddress); setProtocol('ssh'); setParsed(prev => ({value,epoch:(prev?.epoch || 0)+1})); setError(''); } catch(e) { setError(String(e)); } }}>解析</Button></div>}
       <Input name="name" label="名称" labelPlacement="outside" placeholder="连接名称" defaultValue={saved?.name} autoFocus size="sm" isDisabled={busy || saving} />
       <label className="form-field">协议<select value={protocol} disabled={busy || saving} onChange={e => { setProtocol(e.target.value); setReplace(true); }}><option value="ssh">SSH</option><option value="rdp">RDP</option></select></label>
-      <div className="host-port"><Input name="host" label="主机" labelPlacement="outside" placeholder="主机名或 IP" defaultValue={saved?.host} isRequired size="sm" isDisabled={busy || saving} autoComplete="off" /><Input key={protocol} name="port" label="端口" labelPlacement="outside" placeholder="端口" type="number" defaultValue={String(saved?.protocol === protocol ? saved.port : protocol === 'ssh' ? 22 : 3389)} min={1} max={65535} isRequired size="sm" isDisabled={busy || saving} /></div>
-      <Input name="username" label="用户名" labelPlacement="outside" placeholder="用户名" defaultValue={saved?.username} isRequired size="sm" isDisabled={busy || saving} autoComplete="off" />
+      <div className="host-port" key={`address-${parsed?.epoch || 0}`}><Input name="host" label="主机" labelPlacement="outside" placeholder="主机名或 IP" defaultValue={parsed?.value.host ?? saved?.host} isRequired size="sm" isDisabled={busy || saving} autoComplete="off" /><Input key={protocol} name="port" label="端口" labelPlacement="outside" placeholder="端口" type="number" defaultValue={String(parsed?.value.port ?? (saved?.protocol === protocol ? saved.port : protocol === 'ssh' ? 22 : 3389))} min={1} max={65535} isRequired size="sm" isDisabled={busy || saving} /></div>
+      <Input key={`user-${parsed?.epoch || 0}`} name="username" label="用户名" labelPlacement="outside" placeholder="用户名" defaultValue={parsed?.value.username ?? saved?.username} isRequired size="sm" isDisabled={busy || saving} autoComplete="off" />
       {protocol === 'rdp' && <Input name="domain" label="域（可选）" labelPlacement="outside" placeholder="域" defaultValue={saved?.domain} size="sm" isDisabled={busy || saving} />}
       {saved?.credential_id && !replace ? <div className="saved-credential"><span>已保存凭据</span><Button size="sm" variant="light" isDisabled={busy || saving} onPress={() => setReplace(true)}>更换凭据</Button></div> : <>
         {saved?.credential_id && <div className="muted">留空沿用已保存凭据</div>}
