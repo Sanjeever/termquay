@@ -9,6 +9,7 @@ TermQuay 采用 Apache-2.0。各依赖保留其原有许可证、版权与声明
 - 终端搜索与链接使用 xterm 5.5 官方兼容的 `@xterm/addon-search` 0.15.0、`@xterm/addon-web-links` 0.11.0，均采用 MIT；许可原文随包保存在前端许可目录。
 - 快速连接使用 `github.com/google/shlex` 解析引号与词法，采用 Apache-2.0；不执行解析内容。许可原文保存在 Go 许可目录。
 - 文件冲突对比使用 `@codemirror/merge` 6.12.3，采用 MIT；许可原文保存在前端许可目录。
+- Shell、INI、TOML 与 nginx 配置高亮使用 `@codemirror/legacy-modes` 6.5.1，采用 MIT，复用 CodeMirror 的流式语言接口；许可原文保存在前端许可目录。
 - 有界目录扫描使用 `github.com/pkg/sftp/v2` 2.0.0-alpha2 的分页目录 API，采用 BSD-2-Clause，许可原文保存在 Go 许可目录。该预发布模块限定用于扫描；文件传输继续使用已验证的 v1 模块，升级前需复核分页、取消与资源释放。
 - Windows SSH Agent 命名管道使用 `github.com/Microsoft/go-winio` 0.6.2，采用 MIT；许可原文保存在 Go 许可目录。
 - 动态转发使用 `github.com/armon/go-socks5`，采用 MIT；SOCKS 协议解析复用该库，许可原文保存在 Go 许可目录。

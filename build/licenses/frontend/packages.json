@@ -1063,6 +1063,13 @@
     "author": "Marijn Haverbeke"
   },
   {
+    "name": "@codemirror/legacy-modes",
+    "versions": ["6.5.1"],
+    "license": "MIT",
+    "homepage": "https://github.com/codemirror/legacy-modes#readme",
+    "author": "Marijn Haverbeke"
+  },
+  {
     "name": "@codemirror/lint",
     "versions": [
       "6.9.7"

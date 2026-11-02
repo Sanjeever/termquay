@@ -11,5 +11,7 @@ export function editorTheme(dark: boolean) {
     '.cm-selectionBackground': { background: 'var(--color-selected) !important' },
     '.cm-panels': { background: 'var(--color-elevated)', color: 'var(--color-text)' },
     '.cm-selectionMatch': { background: 'var(--color-selected)' },
+    '.cm-search': { padding: '6px 8px', fontFamily: 'var(--font-ui)', fontSize: '12px' },
+    '.cm-search input, .cm-search button': { borderRadius: '4px', padding: '3px 6px' },
   }, { dark });
 }
