@@ -274,9 +274,10 @@ func TestSG1Transfers(t *testing.T) {
 			return
 		}
 		defer done()
-		for _, name := range []string{"source.bin", "renamed.bin"} {
+		for _, name := range []string{"source.bin", "renamed.bin", "batch/source.bin"} {
 			cleanup.Remove(remote + "/" + name)
 		}
+		cleanup.RemoveDirectory(remote + "/batch")
 		if err = cleanup.RemoveDirectory(remote); err != nil {
 			t.Error("测试目录清理失败")
 		}
@@ -335,5 +336,41 @@ func TestSG1Transfers(t *testing.T) {
 	got, err := os.ReadFile(downloadPath)
 	if err != nil || !bytes.Equal(got, data) {
 		t.Fatal("真实传输往返内容不一致")
+	}
+
+	batchDir := t.TempDir()
+	batch, err := a.downloadFiles(opened.ID, batchDir, []string{remote + "/source.bin", remote + "/renamed.bin"}, false)
+	if err != nil || len(batch.Items) != 2 || len(batch.Errors) != 0 {
+		t.Fatalf("批量下载入队失败: %v", err)
+	}
+	for _, view := range batch.Items {
+		wait(view, "done")
+	}
+	got, err = os.ReadFile(filepath.Join(batchDir, "source.bin"))
+	if err != nil || !bytes.Equal(got, data) {
+		t.Fatal("批量下载内容不一致")
+	}
+	batch, err = a.downloadFiles(opened.ID, batchDir, []string{remote + "/source.bin"}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wait(batch.Items[0], "skipped")
+	if err := c.Mkdir(remote + "/batch"); err != nil {
+		t.Fatal(err)
+	}
+	results, err := a.MoveRemotePaths(ctx, opened.ID, []string{remote + "/source.bin", remote + "/missing"}, remote+"/batch")
+	if err != nil || len(results) != 2 || results[0].State != "done" || results[1].State != "failed" {
+		t.Fatalf("批量移动未按项报告: %+v %v", results, err)
+	}
+	if err := a.RenameRemotePath(ctx, opened.ID, remote+"/renamed.bin", remote+"/source.bin"); err != nil {
+		t.Fatal(err)
+	}
+	results, err = a.MoveRemotePaths(ctx, opened.ID, []string{remote + "/source.bin"}, remote+"/batch")
+	if err != nil || results[0].State != "failed" {
+		t.Fatal("批量移动覆盖已有文件")
+	}
+	results, err = a.DeleteRemotePaths(ctx, opened.ID, []string{remote + "/batch", remote + "/source.bin", remote + "/missing"})
+	if err != nil || results[0].State != "failed" || results[1].State != "done" || results[2].State != "failed" {
+		t.Fatalf("批量删除扩展了递归能力或未准确报告: %+v %v", results, err)
 	}
 }
