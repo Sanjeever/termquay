@@ -13,7 +13,7 @@ import FileConflictView from './FileConflictView';
 import WorkspacePanes from './WorkspacePanes';
 
 type Draft = Document & { saved: string; error: string; saving: boolean; needsReview?: boolean };
-export type SSHWorkspaceHandle = { focus(): void; saveAll(): Promise<boolean>; prepareReconnect(): Promise<boolean>; showFiles(): void; toggleMonitor(): void; toggleFocus(): void; terminalAction(action: TerminalAction): void };
+export type SSHWorkspaceHandle = { insertionTarget():string; insert(text:string,target:string):boolean; focus(): void; saveAll(): Promise<boolean>; prepareReconnect(): Promise<boolean>; showFiles(): void; toggleMonitor(): void; toggleFocus(): void; terminalAction(action: TerminalAction): void };
 
 const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   id: string; sessionID: string; connectionID: string; visible: boolean; fontSize?: number; onDirtyChange(dirty: boolean): void; onState(state: string): void; onReconnect(): void; busy: boolean;
@@ -63,7 +63,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   useEffect(()=>{if(!paneSelected[activePane]&&paneSelected[1-activePane])setActivePane(1-activePane);},[paneSelected[0],paneSelected[1],activePane]);
   function setActive(path:string){const pane=paneFor(path);setActivePane(pane);setSelection(prev=>pane===0?[path,prev[1]]:[prev[0],path]);}
   function shown(path:string){return path===paneSelected[paneFor(path)]&&(!maximized||paneFor(path)===activePane);}
-  function focusTab(path=active){center.current?.querySelector<HTMLElement>(`[data-tab-id="${CSS.escape(path)}"] .terminal-search > input, [data-tab-id="${CSS.escape(path)}"] .xterm-helper-textarea, [data-tab-id="${CSS.escape(path)}"] .cm-content`)?.focus();}
+  function focusTab(path=active){if(document.querySelector('[role=dialog][data-open=true]'))return;center.current?.querySelector<HTMLElement>(`[data-tab-id="${CSS.escape(path)}"] .terminal-search > input, [data-tab-id="${CSS.escape(path)}"] .xterm-helper-textarea, [data-tab-id="${CSS.escape(path)}"] .cm-content`)?.focus();}
   function moveActive(){if(!active)return;const target=1-paneFor(active);setSplit(true);setMaximized(false);setSecondary(prev=>target===1?[...prev,active]:prev.filter(p=>p!==active));setSelection(prev=>target===0?[active,prev[1]]:[prev[0],active]);setActivePane(target);requestAnimationFrame(()=>focusTab(active));}
   async function newTerminal(pane=activePane){if(creating||terminals.length>=16)return;setCreating(true);try{const result=await CreateTerminal(sessionID);if(disposed.current||instance.current!==sessionID)return;setTerminals(prev=>[...prev,result.id]);if(pane===1){setSplit(true);setSecondary(prev=>[...prev,result.id]);}setSelection(prev=>pane===0?[result.id,prev[1]]:[prev[0],result.id]);setActivePane(pane);setMaximized(false);}catch(e){setError(String(e));}finally{setCreating(false);}}
 
@@ -120,7 +120,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
     })();
     saves.current.set(path, operation); return operation;
   }
-  useImperativeHandle(ref, () => ({ focus:()=>focusTab(), showFiles, toggleMonitor, terminalAction: action => terminalHandles.current.get(active)?.action(action), toggleFocus: () => setFocus(prev => !prev), async prepareReconnect(){if(terminals.length>=16){setError('保留终端达到上限（16 个），请先关闭结束标签');return false;}if(saves.current.size||creating||preparing){setError('请等待当前保存或终端创建完成');return false;}setPreparing(true);try{await CloseWorkspace(sessionID);return !disposed.current;}finally{setPreparing(false);}}, async saveAll() { for (const draft of draftsRef.current) { if (!await save(draft.path)) { setActive(draft.path); return false; } } return !draftsRef.current.some(d => d.content !== d.saved); } }));
+  useImperativeHandle(ref, () => ({ insertionTarget:()=>terminalHandles.current.has(active)?active:'',insert:(text,target)=>target===active?terminalHandles.current.get(target)?.insert(text)||false:false, focus:()=>focusTab(), showFiles, toggleMonitor, terminalAction: action => terminalHandles.current.get(active)?.action(action), toggleFocus: () => setFocus(prev => !prev), async prepareReconnect(){if(terminals.length>=16){setError('保留终端达到上限（16 个），请先关闭结束标签');return false;}if(saves.current.size||creating||preparing){setError('请等待当前保存或终端创建完成');return false;}setPreparing(true);try{await CloseWorkspace(sessionID);return !disposed.current;}finally{setPreparing(false);}}, async saveAll() { for (const draft of draftsRef.current) { if (!await save(draft.path)) { setActive(draft.path); return false; } } return !draftsRef.current.some(d => d.content !== d.saved); } }));
 
   function close(path: string, discard = false) {
     const draft = draftsRef.current.find(d => d.path === path);

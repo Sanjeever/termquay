@@ -63,6 +63,13 @@ export interface RestorePreview {
     "credentials": number;
 }
 
+export interface Snippet {
+    "id": string;
+    "name": string;
+    "group": string;
+    "body": string;
+}
+
 export interface Transfer {
     "id": string;
     "workspace": string;

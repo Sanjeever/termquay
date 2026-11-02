@@ -81,6 +81,10 @@ export function DeleteRemotePath(id: string, remote: string): $CancellablePromis
     return $Call.ByID(3430269924, id, remote);
 }
 
+export function DeleteSnippet(id: string): $CancellablePromise<void> {
+    return $Call.ByID(988896974, id);
+}
+
 export function DiscardAndQuit(): $CancellablePromise<void> {
     return $Call.ByID(2297958254);
 }
@@ -107,6 +111,10 @@ export function GetDirectoryBookmarks(id: string): $CancellablePromise<string[] 
 
 export function ListSnapshots(options: backup$0.WebDAVOptions): $CancellablePromise<backup$0.RemoteSnapshot[] | null> {
     return $Call.ByID(2845134187, options);
+}
+
+export function ListSnippets(): $CancellablePromise<$models.Snippet[] | null> {
+    return $Call.ByID(907386644);
 }
 
 export function ListTransfers(): $CancellablePromise<$models.Transfer[] | null> {
@@ -187,6 +195,10 @@ export function SaveGroup(g: store$0.Group): $CancellablePromise<void> {
 
 export function SaveRemoteFile(id: string, document: files$0.Document): $CancellablePromise<files$0.Document> {
     return $Call.ByID(1773240835, id, document);
+}
+
+export function SaveSnippet(value: $models.Snippet): $CancellablePromise<$models.Snippet> {
+    return $Call.ByID(559352956, value);
 }
 
 export function SetConnectionPreference(id: string, favorite: boolean, environment: string): $CancellablePromise<void> {

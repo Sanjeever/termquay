@@ -11,7 +11,7 @@ import { CloseTerminal, ResizeTerminal } from '../../../bindings/github.com/Sanj
 import '@xterm/xterm/css/xterm.css';
 
 export type TerminalAction = 'find' | 'copy' | 'paste' | 'selectAll' | 'clear' | 'zoomIn' | 'zoomOut' | 'zoomReset';
-export type TerminalHandle = { action(action: TerminalAction): void; insert(text: string): void };
+export type TerminalHandle = { action(action: TerminalAction): void; insert(text: string): boolean };
 const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; fontSize: number; focusOnShow?:boolean }>(function TerminalView({ id, visible, fontSize, focusOnShow=true }, ref) {
   const container = useRef<HTMLDivElement>(null);
   const [error, setError] = useState('');
@@ -24,9 +24,14 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; 
   const [zoom, setZoom] = useState(0);
   const shown = useRef(visible); shown.current = visible;
   const focusRequested=useRef(focusOnShow);focusRequested.current=focusOnShow;
-  function insert(text: string) {
-    if (new TextEncoder().encode(text).length > 256 * 1024 - 16) { setError('粘贴内容超过输入队列上限（256 KiB）'); return; }
+  const inputStream=useRef<ReturnType<typeof Stream>>();
+  function insert(text: string):boolean {
+    const size=new TextEncoder().encode(text).length;
+    if (size > 256 * 1024 - 16) { setError('粘贴内容超过输入队列上限（256 KiB）'); return false; }
+    const stream=inputStream.current;if(!stream||stream.readyState!==stream.OPEN){setError('终端已断开');return false;}
+    if(stream.bufferedAmount+size+Math.ceil(size/32768)+16>256*1024){setError('输入队列已满，请等待远端响应');return false;}
     if (/[\r\n]/.test(text)) setPaste(text); else terminal.current?.paste(text);
+    return true;
   }
   function action(name: TerminalAction) {
     const term = terminal.current; if (!term) return;
@@ -56,6 +61,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; 
     terminal.current = term; fitAddon.current = fit;
     const fitVisible = () => { if (container.current && container.current.clientWidth > 0 && container.current.clientHeight > 0) fit.fit(); };
     const stream = Stream('terminal');
+    inputStream.current=stream;
     let disposed = false;
     const fail = (e: unknown) => { if (!disposed) setError(String(e)); };
     stream.onopen = () => { stream.send(new TextEncoder().encode(id)); setConnected(true); fitVisible(); if (shown.current&&focusRequested.current) term.focus(); };
@@ -73,7 +79,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; 
     const input = term.onData((data) => {
       const bytes = new TextEncoder().encode(data);
       if (stream.readyState !== stream.OPEN) return;
-      if (stream.bufferedAmount + bytes.length > 256 * 1024) { fail('输入队列已满，请等待远端响应'); return; }
+      if (stream.bufferedAmount + bytes.length + Math.ceil(bytes.length/32768) > 256 * 1024) { fail('输入队列已满，请等待远端响应'); return; }
       for (let offset = 0; offset < bytes.length; offset += 32768) {
         const chunk = bytes.subarray(offset, offset + 32768);
         const frame = new Uint8Array(chunk.length + 1); frame.set(chunk, 1); stream.send(frame);
@@ -85,7 +91,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; 
       const data = event.data as { id: string; error: string };
       if (data.id === id) fail(data.error);
     });
-    return () => { disposed = true; observer.disconnect(); unsubscribe(); input.dispose(); resize.dispose(); stream.close(); term.dispose(); terminal.current = undefined; fitAddon.current = undefined; search.current = undefined; CloseTerminal(id).catch(() => {}); };
+    return () => { disposed = true; observer.disconnect(); unsubscribe(); input.dispose(); resize.dispose(); stream.close(); term.dispose(); terminal.current = undefined; fitAddon.current = undefined; search.current = undefined; inputStream.current=undefined; CloseTerminal(id).catch(() => {}); };
   }, [id]);
   useEffect(() => { if (!terminal.current) return; terminal.current.options.fontSize = Math.max(9, Math.min(36, fontSize + zoom)); if (visible && container.current?.clientWidth && container.current.clientHeight) { fitAddon.current?.fit(); if (focusRequested.current&&!document.activeElement?.closest('[role=tablist]')) terminal.current.focus(); } }, [visible, fontSize, zoom]);
   function closeSearch() { setSearchOpen(false); search.current?.clearDecorations(); terminal.current?.focus(); }

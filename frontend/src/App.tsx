@@ -2,7 +2,8 @@ import { createRef, useEffect, useRef, useState, type RefObject } from 'react';
 import { flushSync } from 'react-dom';
 import { Events } from '@wailsio/runtime';
 import { Button, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Tooltip } from '@heroui/react';
-import { GetCatalog, GetConnectionPreferences, RecordConnectionSuccess, SetRDPResolution, UseSessionStorage, DiscardAndQuit } from '../bindings/github.com/Sanjeever/termquay/appservice';
+import { GetCatalog, GetConnectionPreferences, RecordConnectionSuccess, SetRDPResolution, ListSnippets, UseSessionStorage, DiscardAndQuit } from '../bindings/github.com/Sanjeever/termquay/appservice';
+import type { Snippet } from '../bindings/github.com/Sanjeever/termquay/models';
 import type { Connection, ConnectionPreference, Group } from '../bindings/github.com/Sanjeever/termquay/internal/store/models';
 import type { Grant } from '../bindings/github.com/Sanjeever/termquay/internal/rdp/models';
 import SSHWorkspace, { type SSHWorkspaceHandle } from './features/files/SSHWorkspace';
@@ -19,6 +20,7 @@ import useConnectionAttempt from './features/connections/useConnectionAttempt';
 import Icon from './components/Icon';
 import CommandPalette, { type WorkbenchCommand } from './components/CommandPalette';
 import { defaultShortcuts, eventShortcut, shortcutConflict, shortcutDefinitions, shortcutLabel, shortcutStorageKey, type Shortcuts } from './lib/shortcuts';
+import SnippetInsertDialog from './features/terminal/SnippetInsertDialog';
 
 type Workspace = { id: string; sessionID?: string; connection?: Connection; connectionID: string; name: string; state?: string; rdp?: { connection: Connection; grant?: Grant; error?: string; options: RDPOptions }; view?: RefObject<RDPHandle>; ssh?: RefObject<SSHWorkspaceHandle>; dirty?: boolean };
 
@@ -41,6 +43,9 @@ export default function App() {
   const transfers = useTransfers();
   const [fontSize, setFontSize] = useState(Math.max(11, Math.min(24, Number(localStorage.getItem('termquay.terminal.font-size')) || 14)));
   const [palette, setPalette] = useState(false);
+  const [snippets,setSnippets]=useState<Snippet[]>([]);
+  const [snippetError,setSnippetError]=useState('');
+  const [snippetInsert,setSnippetInsert]=useState<{snippet:Snippet;workspace:string;terminal:string}>();
   const [shortcuts, setShortcuts] = useState<Shortcuts>({ ...defaultShortcuts });
   const [shortcutError, setShortcutError] = useState('');
   const current = workspaces.find(w => w.id === active);
@@ -86,6 +91,7 @@ export default function App() {
 
   async function reload() { try { const data = await GetCatalog(); setCatalog({ ...data, groups: data.groups ?? [], connections: data.connections ?? [] }); setStorageError(''); try { setPreferences(await GetConnectionPreferences() || {}); setPreferenceError(''); } catch (e) { setPreferenceError(String(e)); } } catch (e) { setStorageError(String(e)); } }
   useEffect(() => { void reload(); }, []);
+  useEffect(()=>{if(!palette||!current?.ssh){setSnippets([]);return;}let ended=false;const request=ListSnippets();request.then(values=>{if(!ended){setSnippets(values||[]);setSnippetError('');}}).catch(e=>{if(!ended)setSnippetError(String(e));});return()=>{ended=true;request.cancel();};},[palette,active]);
   useEffect(() => {
     try {
       const stored = localStorage.getItem(shortcutStorageKey); if (!stored) return;
@@ -99,11 +105,11 @@ export default function App() {
   useEffect(() => { localStorage.setItem('termquay.layout.transfer-height', String(transferHeight)); }, [transferHeight]);
   useEffect(() => { localStorage.setItem('termquay.terminal.font-size', String(fontSize)); }, [fontSize]);
   useEffect(() => {
-    if (dialog || rdpStart || attempt.trust || closing || quitConfirm || palette || settings) return;
+    if (dialog || rdpStart || snippetInsert || attempt.trust || closing || quitConfirm || palette || settings) return;
     if (tabNavigation.current) { tabNavigation.current = false; return; }
     const frame = requestAnimationFrame(() => { if (current?.rdp) current.view?.current?.focus(); else current?.ssh?.current?.focus(); });
     return () => cancelAnimationFrame(frame);
-  }, [active, dialog, rdpStart, attempt.trust, closing, quitConfirm, palette, settings]);
+  }, [active, dialog, rdpStart, snippetInsert, attempt.trust, closing, quitConfirm, palette, settings]);
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
       if (event.isComposing || event.repeat || dialog || attempt.trust || closing || quitConfirm) return;
@@ -156,6 +162,7 @@ export default function App() {
     { id: 'connections', label: '进入连接中心', kind: 'command', run: () => select('') },
     ...(current?.ssh ? [{ id: 'files', label: '显示远端文件', kind: 'command' as const, run: () => current.ssh?.current?.showFiles() }, { id: 'monitor', label: '切换监控面板', kind: 'command' as const, run: () => current.ssh?.current?.toggleMonitor() }, { id: 'focus', label: '切换专注模式', kind: 'command' as const, run: () => current.ssh?.current?.toggleFocus() }] : []),
     ...(current?.ssh ? shortcutDefinitions.filter(d => d.scope === 'terminal').map(d => ({ id: `terminal-${d.id}`, label: d.label, detail: shortcutLabel(shortcuts[d.id]), kind: 'command' as const, run: () => current.ssh?.current?.terminalAction(d.id) })) : []),
+    ...(current?.ssh?.current?.insertionTarget()?snippets.map(snippet=>({id:`snippet-${snippet.id}`,label:`插入片段 ${snippet.name}`,detail:snippet.group,kind:'command' as const,run:()=>{const target=current.ssh?.current?.insertionTarget();if(target)setSnippetInsert({snippet,workspace:current.id,terminal:target});}})):[]),
     { id: 'transfers', label: '查看传输任务', kind: 'command', run: () => setTransfersOpen(true) },
     { id: 'settings', label: '打开设置', kind: 'command', run: () => setSettings(true) },
   ];
@@ -173,7 +180,8 @@ export default function App() {
     {dialog && <ConnectionDialog {...dialog} groups={catalog?.groups || []} busy={attempt.busy} connectionError={attempt.error} onConnect={(connection, auth, options) => connect(connection, auth, dialog.workspaceID, options)} onSaved={() => void reload()} onClose={() => { setDialog(undefined); attempt.clearError(); }} onCancel={attempt.cancel} />}
     <Modal isOpen={!!rdpStart} onClose={()=>setRDPStart(undefined)} className="app-dialog"><ModalContent><ModalHeader>连接远程桌面</ModalHeader><ModalBody>{rdpStart && <><p>{rdpStart.connection.name}</p><label className="checkbox-label"><input type="checkbox" checked={rdpStart.options.clipboard} onChange={e=>setRDPStart({...rdpStart,options:{...rdpStart.options,clipboard:e.target.checked}})} />文本剪贴板</label><label className="form-field">远端分辨率<select value={rdpStart.options.resolution} onChange={e=>setRDPStart({...rdpStart,options:{...rdpStart.options,resolution:e.target.value}})}><option value="dynamic">适应窗口</option><option value="1280x800">1280 × 800</option><option value="1920x1080">1920 × 1080</option></select></label></>}</ModalBody><ModalFooter><Button variant="light" onPress={()=>setRDPStart(undefined)}>取消</Button><Button color="primary" onPress={async()=>{if(!rdpStart)return;const launch=rdpStart;setRDPStart(undefined);try{await saveRDPResolution(launch.connection.id,launch.options.resolution);await attempt.start(launch.connection,undefined,undefined,launch.options);}catch(e){setPreferenceError(String(e));}}}>连接</Button></ModalFooter></ModalContent></Modal>
     <HostTrustDialog target={attempt.trust} onConfirm={attempt.confirm} />
-    {palette && <CommandPalette commands={commands} onClose={() => setPalette(false)} />}
+    {palette && <CommandPalette commands={commands} onClose={() => setPalette(false)} error={snippetError} />}
+    {snippetInsert&&<SnippetInsertDialog snippet={snippetInsert.snippet} onClose={()=>setSnippetInsert(undefined)} onInsert={text=>active===snippetInsert.workspace&&!!current?.ssh?.current?.insert(text,snippetInsert.terminal)}/>}
     <Modal isOpen={!!closing || quitConfirm} onClose={() => { if (!savingClose) { setClosing(''); setQuitConfirm(false); setCloseError(''); } }} isDismissable={!savingClose} isKeyboardDismissDisabled={savingClose} className="app-dialog"><ModalContent><ModalHeader>未保存文件</ModalHeader><ModalBody><p>{quitConfirm ? '应用中有未保存修改。' : '此工作区有未保存修改。'}</p>{closeError && <p className="error" role="alert">{closeError}</p>}</ModalBody><ModalFooter><Button variant="light" isDisabled={savingClose} onPress={() => { setClosing(''); setQuitConfirm(false); setCloseError(''); }}>返回编辑</Button><Button color="danger" variant="light" isDisabled={savingClose} onPress={() => { if (quitConfirm) void DiscardAndQuit(); else remove(closing, closingKeyboard.current); setClosing(''); }}>放弃修改并{quitConfirm ? '退出' : '关闭'}</Button><Button color="primary" isLoading={savingClose} onPress={async () => {
       setSavingClose(true); setCloseError('');
       try {

@@ -14,6 +14,7 @@ export type {
     RDPLaunch,
     RDPProbe,
     RestorePreview,
+    Snippet,
     Transfer,
     TransferBatch,
     UploadDropResult
