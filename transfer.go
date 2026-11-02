@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -24,11 +25,14 @@ type Transfer struct {
 	Total     int64  `json:"total"`
 	Completed int64  `json:"completed"`
 	Error     string `json:"error"`
+	Sequence  uint64 `json:"sequence"`
 }
 type transferTask struct {
 	view   Transfer
 	cancel context.CancelFunc
 	done   chan struct{}
+	ctx    context.Context
+	run    func(context.Context, func(int64, int64)) error
 }
 
 func init() { application.RegisterEvent[Transfer]("transfer:changed") }
@@ -40,73 +44,107 @@ func (a *AppService) ListTransfers() []Transfer {
 	for _, task := range a.transfers {
 		result = append(result, task.view)
 	}
+	sort.Slice(result, func(i, j int) bool { return result[i].Sequence < result[j].Sequence })
 	return result
 }
 func (a *AppService) CancelTransfer(id string) {
 	a.mu.Lock()
+	defer a.mu.Unlock()
 	task := a.transfers[id]
-	a.mu.Unlock()
 	if task != nil {
-		task.cancel()
+		a.cancelTransferLocked(task)
 	}
+}
+func (a *AppService) cancelTransferLocked(task *transferTask) {
+	task.cancel()
+	if task.view.State != "queued" {
+		return
+	}
+	task.view.State = "cancelled"
+	task.run = nil
+	for i, id := range a.transferQueue {
+		if id == task.view.ID {
+			a.transferQueue = append(a.transferQueue[:i], a.transferQueue[i+1:]...)
+			break
+		}
+	}
+	close(task.done)
+	a.transferEvent(task.view)
 }
 func (a *AppService) ClearTransfer(id string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if task := a.transfers[id]; task != nil && task.view.State != "running" {
+	if task := a.transfers[id]; task != nil && task.view.State != "running" && task.view.State != "queued" {
 		delete(a.transfers, id)
 	}
 }
 
 func (a *AppService) startTransfer(workspace, name, direction string, total int64, run func(context.Context, func(int64, int64)) error) (Transfer, error) {
 	a.mu.Lock()
+	if a.workspaces[workspace] == nil || a.closed || len(a.transferQueue) >= 32 || len(a.transfers) >= 100 {
+		a.mu.Unlock()
+		return Transfer{}, errors.New("工作区已关闭，或传输任务达到上限（并行 2 个，等待 32 个，历史 100 个）")
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	id := base64.RawURLEncoding.EncodeToString(randomBytes(16))
+	a.transferSequence++
+	view := Transfer{ID: id, Workspace: workspace, Name: name, Direction: direction, State: "queued", Total: total, Sequence: a.transferSequence}
+	task := &transferTask{view: view, cancel: cancel, done: make(chan struct{}), ctx: ctx, run: run}
+	a.transfers[id] = task
+	a.transferQueue = append(a.transferQueue, id)
+	a.transferEvent(task.view)
+	a.dispatchTransfersLocked()
+	view = task.view
+	a.mu.Unlock()
+	return view, nil
+}
+
+func (a *AppService) dispatchTransfersLocked() {
 	running := 0
 	for _, task := range a.transfers {
 		if task.view.State == "running" {
 			running++
 		}
 	}
-	if a.workspaces[workspace] == nil || a.closed || running >= 2 || len(a.transfers) >= 100 {
-		a.mu.Unlock()
-		return Transfer{}, errors.New("工作区已关闭，或传输任务达到上限（并行 2 个，历史 100 个）")
+	for !a.closed && running < 2 && len(a.transferQueue) > 0 {
+		id := a.transferQueue[0]
+		a.transferQueue = a.transferQueue[1:]
+		task := a.transfers[id]
+		task.view.State = "running"
+		a.transferEvent(task.view)
+		running++
+		go a.runTransfer(task)
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	id := base64.RawURLEncoding.EncodeToString(randomBytes(16))
-	view := Transfer{ID: id, Workspace: workspace, Name: name, Direction: direction, State: "running", Total: total}
-	task := &transferTask{view: view, cancel: cancel, done: make(chan struct{})}
-	a.transfers[id] = task
-	a.mu.Unlock()
-	go func() {
-		defer close(task.done)
-		defer cancel()
-		last := time.Time{}
-		report := func(completed, total int64) {
-			a.mu.Lock()
-			task.view.Completed = completed
-			task.view.Total = total
-			v := task.view
-			a.mu.Unlock()
-			if time.Since(last) >= 150*time.Millisecond {
-				last = time.Now()
-				application.Get().Event.Emit("transfer:changed", v)
-			}
-		}
-		err := run(ctx, report)
+}
+func (a *AppService) runTransfer(task *transferTask) {
+	defer task.cancel()
+	last := time.Time{}
+	report := func(completed, total int64) {
 		a.mu.Lock()
-		if err == nil {
-			task.view.State = "done"
-		} else if ctx.Err() != nil {
-			task.view.State = "cancelled"
-			task.view.Error = err.Error()
-		} else {
-			task.view.State = "failed"
-			task.view.Error = err.Error()
+		task.view.Completed = completed
+		task.view.Total = total
+		if time.Since(last) >= 150*time.Millisecond {
+			last = time.Now()
+			a.transferEvent(task.view)
 		}
-		v := task.view
 		a.mu.Unlock()
-		application.Get().Event.Emit("transfer:changed", v)
-	}()
-	return view, nil
+	}
+	err := task.run(task.ctx, report)
+	a.mu.Lock()
+	if err == nil {
+		task.view.State = "done"
+	} else if task.ctx.Err() != nil {
+		task.view.State = "cancelled"
+		task.view.Error = err.Error()
+	} else {
+		task.view.State = "failed"
+		task.view.Error = err.Error()
+	}
+	task.run = nil
+	close(task.done)
+	a.transferEvent(task.view)
+	a.dispatchTransfersLocked()
+	a.mu.Unlock()
 }
 
 type transferWriter struct {

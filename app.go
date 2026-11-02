@@ -38,29 +38,32 @@ type workspaceOwner struct {
 }
 
 type AppService struct {
-	mu           sync.Mutex
-	terminals    map[string]*pendingTerminal
-	workspaces   map[string]*workspaceOwner
-	trusted      map[string]string
-	pendingTrust map[string]string
-	opening      int
-	closed       bool
-	rdp          *rdp.Bridge
-	storeMu      sync.Mutex
-	store        *store.Store
-	sessionDir   string
-	backupMu     sync.Mutex
-	preview      *pendingRestore
-	fileSlots    chan struct{}
-	monitors     map[string]context.CancelFunc
-	transfers    map[string]*transferTask
-	dirty        map[string]bool
-	views        map[string]bool
-	allowQuit    bool
+	mu               sync.Mutex
+	terminals        map[string]*pendingTerminal
+	workspaces       map[string]*workspaceOwner
+	trusted          map[string]string
+	pendingTrust     map[string]string
+	opening          int
+	closed           bool
+	rdp              *rdp.Bridge
+	storeMu          sync.Mutex
+	store            *store.Store
+	sessionDir       string
+	backupMu         sync.Mutex
+	preview          *pendingRestore
+	fileSlots        chan struct{}
+	monitors         map[string]context.CancelFunc
+	transfers        map[string]*transferTask
+	transferQueue    []string
+	transferSequence uint64
+	transferEvent    func(Transfer)
+	dirty            map[string]bool
+	views            map[string]bool
+	allowQuit        bool
 }
 
 func NewAppService() *AppService {
-	return &AppService{terminals: map[string]*pendingTerminal{}, workspaces: map[string]*workspaceOwner{}, trusted: map[string]string{}, pendingTrust: map[string]string{}, fileSlots: make(chan struct{}, 4), monitors: map[string]context.CancelFunc{}, transfers: map[string]*transferTask{}, dirty: map[string]bool{}, views: map[string]bool{}}
+	return &AppService{terminals: map[string]*pendingTerminal{}, workspaces: map[string]*workspaceOwner{}, trusted: map[string]string{}, pendingTrust: map[string]string{}, fileSlots: make(chan struct{}, 4), monitors: map[string]context.CancelFunc{}, transfers: map[string]*transferTask{}, dirty: map[string]bool{}, views: map[string]bool{}, transferEvent: func(view Transfer) { application.Get().Event.Emit("transfer:changed", view) }}
 }
 
 func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (OpenResult, error) {
@@ -231,7 +234,7 @@ func (a *AppService) CloseWorkspace(id string) {
 	pendingTransfers := []<-chan struct{}{}
 	for _, task := range a.transfers {
 		if task.view.Workspace == id {
-			task.cancel()
+			a.cancelTransferLocked(task)
 			pendingTransfers = append(pendingTransfers, task.done)
 		}
 	}

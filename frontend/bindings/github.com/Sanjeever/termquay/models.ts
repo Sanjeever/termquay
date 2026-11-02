@@ -61,4 +61,5 @@ export interface Transfer {
     "total": number;
     "completed": number;
     "error": string;
+    "sequence": number;
 }
