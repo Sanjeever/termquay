@@ -75,7 +75,7 @@ go test -race ./...
 前端逻辑回归沿用 `node:test`，在支持直接运行 TypeScript 的 Node 环境中执行：
 
 ```sh
-node --test frontend/src/lib/*.test.ts frontend/src/features/connections/catalog.test.ts frontend/src/features/files/editorLanguage.test.ts frontend/src/features/monitor/history.test.ts frontend/src/features/settings/appearance.test.ts
+node --test frontend/src/lib/*.test.ts frontend/src/features/connections/catalog.test.ts frontend/src/features/files/*.test.ts frontend/src/features/monitor/history.test.ts frontend/src/features/settings/appearance.test.ts
 ```
 
 ### 真实 SSH 与 WebDAV
@@ -139,6 +139,8 @@ SSH 工具栏“窗格”可新建右侧终端、移动当前标签、最大化/
 远端文件区以 SFTP 根目录 `/` 的全部一级项目组织目录树，初次展开当前目录的祖先路径。箭头独立展开或收起目录，单击选择，双击或 Enter 将目录设为路径栏中的当前目录。左右方向键展开、收起或进入父子节点，上下方向键在可见节点间移动。展开按需读取，收起释放子树，隐藏文件面板会取消未完成请求；并发读取和展开目录数量由 [目录树实现](../frontend/src/features/files/useFileTree.ts) 限制。切换工作区保留树状态，恢复应用布局时按已保存目录重新展开，不持久保存远端目录缓存。
 
 路径面包屑、直接输入、前进/后退与书签继续可用。过滤通过标题栏搜索按钮展开，范围为已展开目录，保留匹配项的祖先；不为过滤扫描未展开目录。Escape 清除并收起过滤。排序、显示隐藏文件、复制目录路径与目录同步位于“文件视图选项”，排序在每个目录内进行，目录优先。空目录、无匹配、分支加载和读取失败分别反馈。悬停或键盘聚焦节点时，tooltip 展示路径、类型、大小、修改时间、权限及服务端报告的 UID/GID，不因悬停追加网络读取。窄面板优先展示名称，加宽后显示已有元数据列。书签最多 32 个，临时连接书签留在本次工作区。拖入文件时以命中的目录节点或文件所属目录为上传位置；工具栏上传、新建与目录同步使用路径栏的当前目录。窄窗口打开文件后收起临时文件面板，保留树、过滤与书签状态。
+
+目录和文件使用本地 SVG 图标，按文件名、扩展名和目录用途识别源码、配置、容器、包清单、文档、媒体、压缩包、数据库与可执行文件；未知类型使用通用文件图标。目录区分展开状态，`.ssh`、`.config`、`.git`、`.docker`、源码与依赖目录带有对应标记。符号链接保持独立图标及原有打开规则，不因图标分类改变文件操作权限。
 
 传输保留两个并行任务，其余按 FIFO 等待，最多 32 个等待任务与 100 条任务记录。等待可取消，不能直接移除；关闭所属 SSH 实例取消运行及等待。达到限额会报错，需要取消或移除已结束记录后再次操作。
 
