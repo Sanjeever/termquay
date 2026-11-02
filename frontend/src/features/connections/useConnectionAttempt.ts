@@ -1,0 +1,67 @@
+import { useEffect, useRef, useState } from 'react';
+import { OpenTerminal, OpenSavedTerminal, ProbeRDP, TrustHost, TrustRDPCertificate, OpenRDP, OpenSavedRDP, CloseWorkspace, CloseRDP } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
+import type { Connection } from '../../../bindings/github.com/Sanjeever/termquay/internal/store/models';
+import type { Request } from '../../../bindings/github.com/Sanjeever/termquay/internal/ssh/models';
+import type { Grant } from '../../../bindings/github.com/Sanjeever/termquay/internal/rdp/models';
+import type { HostTrust } from './HostTrustDialog';
+
+type Attempt = { cancelled: boolean; operation?: { cancel(): void }; resolve?: (accept: boolean) => void };
+
+export default function useConnectionAttempt(onSSH: (id: string, connection: Connection) => void, onRDP: (grant: Grant, connection: Connection, username: string, password: string, domain: string) => Promise<void>, remove: (id: string) => void) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [target, setTarget] = useState('');
+  const [trust, setTrust] = useState<HostTrust>();
+  const current = useRef<Attempt>();
+  function cancel() { const attempt = current.current; if (!attempt) return; attempt.cancelled = true; attempt.operation?.cancel(); attempt.resolve?.(false); setTrust(undefined); }
+  useEffect(() => () => cancel(), []);
+  function confirm(accept: boolean) { current.current?.resolve?.(accept); setTrust(undefined); }
+
+  async function start(connection: Connection, auth?: Request) {
+    if (current.current) return false;
+    const attempt: Attempt = { cancelled: false };
+    current.current = attempt; setBusy(true); setError(''); setTarget(connection.name || connection.host);
+    let owned = '';
+    const check = () => { if (attempt.cancelled) throw new Error('连接已取消'); };
+    const ask = (fingerprint: string, reason?: string) => new Promise<boolean>(resolve => { attempt.resolve = resolve; setTrust({ host: connection.host, port: connection.port, protocol: connection.protocol, fingerprint, reason }); });
+    try {
+      if (connection.protocol === 'ssh') {
+        const open = () => auth ? OpenTerminal(auth) : OpenSavedTerminal(connection.id);
+        let operation = open(); attempt.operation = operation;
+        let result = await operation; owned = result.id; check();
+        if (result.trust_required) {
+          if (!await ask(result.fingerprint)) { attempt.cancelled = true; return false; }
+          check(); await TrustHost(connection.host, connection.port, result.fingerprint); check();
+          operation = open(); attempt.operation = operation; result = await operation; owned = result.id; check();
+          if (result.trust_required) throw new Error('目标身份未确认，请重新连接');
+        }
+        onSSH(result.id, connection); owned = '';
+      } else {
+        const probeOperation = ProbeRDP(connection.host, connection.port); attempt.operation = probeOperation;
+        const probe = await probeOperation; check();
+        if (probe.trust_required) {
+          if (!await ask(probe.fingerprint, probe.reason)) { attempt.cancelled = true; return false; }
+          check(); await TrustRDPCertificate(connection.host, connection.port, probe.fingerprint); check();
+        }
+        let grant: Grant; let username: string; let password: string; let domain: string;
+        if (auth) {
+          const operation = OpenRDP(connection.host, connection.port); attempt.operation = operation;
+          grant = await operation; username = auth.username; password = auth.password; domain = connection.domain || '';
+        } else {
+          const operation = OpenSavedRDP(connection.id); attempt.operation = operation;
+          const launch = await operation; grant = launch.grant; username = launch.username; password = launch.password; domain = launch.domain; launch.password = '';
+        }
+        owned = grant.id; check(); attempt.operation = { cancel: () => remove(grant.id) };
+        try { await onRDP(grant, connection, username, password, domain); check(); } finally { password = ''; }
+        owned = '';
+      }
+      return true;
+    } catch (e) { if (!attempt.cancelled) setError(String(e)); return false; }
+    finally {
+      if (owned) { remove(owned); if (connection.protocol === 'ssh') await CloseWorkspace(owned); else await CloseRDP(owned); }
+      if (auth) { auth.password = ''; auth.private_key = ''; auth.passphrase = ''; }
+      current.current = undefined; setBusy(false); setTrust(undefined);
+    }
+  }
+  return { start, busy, error, target, trust, confirm, cancel, clearError: () => setError('') };
+}

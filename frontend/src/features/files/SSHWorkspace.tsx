@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Button } from '@heroui/react';
 import { Stream } from '@wailsio/runtime';
 import { ReadDirectory, ReadRemoteFile, SaveRemoteFile, CreateRemoteDirectory, RenameRemotePath, DeleteRemotePath, CreateTerminal, CloseWorkspace, StartUpload, StartDownload,SetWorkspaceDirty } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
@@ -9,16 +10,13 @@ import MonitorPanel from '../monitor/MonitorPanel';
 
 type Draft = Document & { saved: string; error: string; saving: boolean };
 
-export default function SSHWorkspace({ id, onDirtyChange,onTransferStarted }: { id: string; onDirtyChange(dirty: boolean): void;onTransferStarted():void }) {
+export default function SSHWorkspace({ id, visible, sidebarHost, filesVisible, monitorVisible, onDirtyChange,onTransferStarted }: { id: string; visible: boolean; sidebarHost: HTMLDivElement | null; filesVisible: boolean; monitorVisible: boolean; onDirtyChange(dirty: boolean): void;onTransferStarted():void }) {
   const [directory, setDirectory] = useState('');
   const [entries, setEntries] = useState<Entry[]>([]);
   const [error, setError] = useState('');
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [active, setActive] = useState(id);
   const [terminals,setTerminals]=useState([id]);
-  const [filesOpen, setFilesOpen] = useState(true);
-  const [monitorOpen,setMonitorOpen]=useState(false);
-  const [width, setWidth] = useState(Number(localStorage.getItem('termquay.files-width')) || 220);
   const [action, setAction] = useState<{ kind: string; path: string }>();
   const [closing, setClosing] = useState('');
   const pending = useRef<ReturnType<typeof ReadDirectory>>();
@@ -67,23 +65,20 @@ export default function SSHWorkspace({ id, onDirtyChange,onTransferStarted }: { 
   }
 
   return <div className="ssh-workspace">
-    {filesOpen && <>
-      <aside className="file-panel" style={{ width }}>
+    {sidebarHost && createPortal(<div hidden={!filesVisible}>
+      <aside className="file-panel">
         <div className="file-toolbar"><button aria-label="上级目录" onClick={() => void load(directory.slice(0, directory.lastIndexOf('/')) || '/')}>↑</button><button aria-label="刷新目录" onClick={() => void load(directory)}>刷新</button><button onClick={() => setAction({ kind: 'mkdir', path: directory })}>新建目录</button><button onClick={()=>{StartUpload(id,directory).then(result=>{if(result.id)onTransferStarted()}).catch(e=>setError(String(e)))}}>上传</button></div>
         <form onSubmit={(e) => { e.preventDefault(); void load(String(new FormData(e.currentTarget).get('path'))); }}><input key={directory} name="path" aria-label="远端目录" defaultValue={directory} /></form>
         {error && <p role="alert" className="error">{error}</p>}
         {action && <form className="file-action" onSubmit={(e) => { e.preventDefault(); void perform(e.currentTarget); }}>{action.kind === 'delete' ? <span>删除 {action.path.split('/').pop()}？</span> : <input name="name" aria-label={action.kind === 'mkdir' ? '新目录名称' : '新名称'} defaultValue={action.kind === 'rename' ? action.path.split('/').pop() : ''} required pattern="[^/]+" />}<div className="button-row"><Button size="sm" type="submit" color={action.kind === 'delete' ? 'danger' : 'default'}>确认</Button><Button size="sm" variant="light" onPress={() => setAction(undefined)}>取消</Button></div></form>}
         <ul className="file-list">{entries.map((entry) => <li key={entry.path}><button className="file-name" onClick={() => void open(entry)} title={`${entry.mode} · ${entry.size} 字节`}><span>{entry.directory ? '▸' : entry.symlink ? '↗' : '·'}</span>{entry.name}</button><details><summary aria-label={`${entry.name} 操作`}>⋯</summary><div className="file-menu">{!entry.directory&&<button onClick={()=>{StartDownload(id,entry.path).then(result=>{if(result.id)onTransferStarted()}).catch(e=>setError(String(e)))}}>下载</button>}<button onClick={() => setAction({ kind: 'rename', path: entry.path })}>重命名</button><button onClick={() => setAction({ kind: 'delete', path: entry.path })}>删除</button></div></details></li>)}</ul>
       </aside>
-      <div className="panel-separator" role="separator" aria-label="文件面板宽度" aria-orientation="vertical" aria-valuenow={width} aria-valuemin={160} aria-valuemax={500} tabIndex={0}
-        onKeyDown={(e) => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') setWidth((w) => Math.max(160, Math.min(500, w + (e.key === 'ArrowRight' ? 10 : -10)))); }}
-        onPointerDown={(e) => { const start = e.clientX; const initial = width; const element = e.currentTarget; element.setPointerCapture(e.pointerId); element.onpointermove = (event) => setWidth(Math.max(160, Math.min(500, initial + event.clientX - start))); element.onpointerup = () => { element.onpointermove = null; element.onpointerup = null; }; }} />
-    </>}
+    </div>, sidebarHost)}
     <div className="ssh-center">
-      <div className="inner-tabs"><button onClick={() => { localStorage.setItem('termquay.files-width', String(width)); setFilesOpen(!filesOpen); }} aria-label={filesOpen ? '收起文件面板' : '展开文件面板'}>文件</button>{terminals.map((terminal,index)=><div key={terminal} className={active===terminal?'selected':''}><button onClick={()=>setActive(terminal)}>终端 {index+1}</button><button aria-label={`关闭终端 ${index+1}`} onClick={()=>{setTerminals(prev=>prev.filter(t=>t!==terminal));if(active===terminal)setActive(terminals.find(t=>t!==terminal)||drafts[0]?.path||'')}}>×</button></div>)}<button aria-label="新建终端" onClick={()=>{CreateTerminal(id).then(result=>{setTerminals(prev=>[...prev,result.id]);setActive(result.id)}).catch(e=>setError(String(e)))}}>＋</button>{drafts.map((d) => <div key={d.path} className={active === d.path ? 'selected' : ''}><button onClick={() => setActive(d.path)}>{d.path.split('/').pop()}{d.content !== d.saved ? ' ●' : ''}</button><button aria-label={`关闭文件 ${d.path}`} onClick={() => close(d.path)}>×</button></div>)}<button className="monitor-toggle" onClick={()=>setMonitorOpen(!monitorOpen)} aria-label={monitorOpen?'收起监控面板':'展开监控面板'}>监控</button></div>
+      <div className="inner-tabs">{terminals.map((terminal,index)=><div key={terminal} className={active===terminal?'selected':''}><button onClick={()=>setActive(terminal)}>终端 {index+1}</button><button aria-label={`关闭终端 ${index+1}`} onClick={()=>{setTerminals(prev=>prev.filter(t=>t!==terminal));if(active===terminal)setActive(terminals.find(t=>t!==terminal)||drafts[0]?.path||'')}}>×</button></div>)}<button aria-label="新建终端" onClick={()=>{CreateTerminal(id).then(result=>{setTerminals(prev=>[...prev,result.id]);setActive(result.id)}).catch(e=>setError(String(e)))}}>＋</button>{drafts.map((d) => <div key={d.path} className={active === d.path ? 'selected' : ''}><button title={d.path} onClick={() => setActive(d.path)}>{d.path.split('/').pop()}{d.content !== d.saved ? ' ●' : ''}</button><button aria-label={`关闭文件 ${d.path}`} onClick={() => close(d.path)}>×</button></div>)}</div>
       {terminals.map(terminal=><div className="terminal-tab" hidden={active!==terminal} key={terminal}><TerminalView id={terminal}/></div>)}
       {drafts.map((d) => <div key={d.path} className="editor-tab" hidden={active !== d.path}><div className="editor-toolbar"><span>{d.path}</span><Button size="sm" isDisabled={d.saving || d.content === d.saved} onPress={() => void save(d)}>保存</Button></div>{d.error && <p role="alert" className="error">{d.error}</p>}{closing === d.path && <div className="draft-confirm">文件有未保存修改<Button size="sm" onPress={() => { void save(d); setClosing(''); }}>保存</Button><Button size="sm" color="danger" onPress={() => close(d.path, true)}>放弃修改</Button><Button size="sm" variant="light" onPress={() => setClosing('')}>取消</Button></div>}<CodeEditor path={d.path} content={d.content} onChange={(value) => setDrafts((prev) => prev.map((item) => item.path === d.path ? { ...item, content: value } : item))} onSave={() => void save(d)} /></div>)}
     </div>
-    {monitorOpen&&<MonitorPanel id={id}/>}
+    {visible && monitorVisible && <MonitorPanel id={id}/>}
   </div>;
 }
