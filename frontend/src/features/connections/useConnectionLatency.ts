@@ -14,7 +14,7 @@ export default function useConnectionLatency(connections: Connection[], active: 
   const targets = useMemo(() => {
     const byID = new Map(connections.map(connection => [connection.id, connection]));
     return new Map(connections.map(connection => {
-      const route = [];
+      const route: (string | number | undefined)[][] = [];
       let hop: Connection | undefined = connection;
       for (let index = 0; hop && index < 5; index++) {
         route.push([hop.id, hop.host, hop.port, hop.username, hop.jump_id, hop.proxy_address]);
