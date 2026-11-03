@@ -471,6 +471,18 @@ button:active:not(:disabled):not([role=tab]) { filter: brightness(.93); }
 .transfer-target { max-width: 180px; overflow-wrap: anywhere; font: 11px var(--font-mono); }
 .transfer-panel td:last-child button { margin-right: 8px; white-space: nowrap; }
 .transfer-panel progress { display: block; width: 160px; height: 4px; margin-top: 6px; accent-color: var(--color-primary); }
+.transfer-destination { display: block; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-muted); font: 11px var(--font-mono); margin-top: 4px; }
+.transfer-progress { min-width: 200px; font-variant-numeric: tabular-nums; }
+.transfer-state { white-space: nowrap; }
+.transfer-metrics { display: flex; justify-content: space-between; gap: 12px; margin-top: 5px; color: var(--color-muted); font-size: 11px; }
+.transfer-batch-summary { margin: 2px 12px 8px; color: var(--color-muted); font-size: 12px; }
+.transfer-reason { margin-top: 5px; font-size: 11px; overflow-wrap: anywhere; }
+.transfer-revealed { background: color-mix(in srgb, var(--color-selected) 45%, transparent); }
+@media (max-width: 1000px) {
+  .transfer-panel .transfer-target { display: none; }
+  .transfer-heading { flex-wrap: wrap; gap: 8px; }
+  .transfer-panel td, .transfer-panel th { padding-inline: 8px; }
+}
 .settings-panel { flex: 1; min-height: 0; max-width: 800px; padding: 28px 36px; }
 .settings-panel h2 { font-size: 16px; margin-bottom: 24px; font-weight: 600; }
 .settings-panel form { max-width: 660px; display: flex; flex-direction: column; gap: 18px; }

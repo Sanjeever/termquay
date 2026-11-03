@@ -264,6 +264,9 @@ export interface Transfer {
     "resumable": boolean;
     "temporary_path"?: string;
     "batch_id": string;
+    "phase": string;
+    "speed": number;
+    "remaining_seconds": number;
 }
 
 export interface TransferBatch {

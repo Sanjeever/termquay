@@ -18,22 +18,25 @@ import (
 )
 
 type Transfer struct {
-	ID              string `json:"id"`
-	Workspace       string `json:"workspace"`
-	Name            string `json:"name"`
-	Direction       string `json:"direction"`
-	State           string `json:"state"`
-	Total           int64  `json:"total"`
-	Completed       int64  `json:"completed"`
-	Error           string `json:"error"`
-	Sequence        uint64 `json:"sequence"`
-	Retryable       bool   `json:"retryable"`
-	Target          string `json:"target"`
-	SourcePath      string `json:"source_path"`
-	DestinationPath string `json:"destination_path"`
-	Resumable       bool   `json:"resumable"`
-	TemporaryPath   string `json:"temporary_path,omitempty"`
-	BatchID         string `json:"batch_id"`
+	ID               string `json:"id"`
+	Workspace        string `json:"workspace"`
+	Name             string `json:"name"`
+	Direction        string `json:"direction"`
+	State            string `json:"state"`
+	Total            int64  `json:"total"`
+	Completed        int64  `json:"completed"`
+	Error            string `json:"error"`
+	Sequence         uint64 `json:"sequence"`
+	Retryable        bool   `json:"retryable"`
+	Target           string `json:"target"`
+	SourcePath       string `json:"source_path"`
+	DestinationPath  string `json:"destination_path"`
+	Resumable        bool   `json:"resumable"`
+	TemporaryPath    string `json:"temporary_path,omitempty"`
+	BatchID          string `json:"batch_id"`
+	Phase            string `json:"phase"`
+	Speed            int64  `json:"speed"`
+	RemainingSeconds int64  `json:"remaining_seconds"`
 }
 type transferTask struct {
 	view          Transfer
@@ -110,6 +113,11 @@ func (a *AppService) CancelTransfer(id string) {
 func (a *AppService) cancelTransferLocked(task *transferTask) {
 	task.cancel()
 	if task.view.State != "queued" {
+		if task.view.State == "running" {
+			task.view.Phase = "cancelling"
+			task.view.Speed, task.view.RemainingSeconds = 0, -1
+			a.transferEvent(task.view)
+		}
 		return
 	}
 	task.view.State = "cancelled"
@@ -164,7 +172,7 @@ func (a *AppService) startTransfer(workspace, name, direction string, total int6
 	ctx, cancel := context.WithCancel(context.Background())
 	id := base64.RawURLEncoding.EncodeToString(randomBytes(16))
 	a.transferSequence++
-	view := Transfer{ID: id, Workspace: workspace, Name: name, Direction: direction, State: "queued", Total: total, Sequence: a.transferSequence, Target: a.workspaces[workspace].target}
+	view := Transfer{ID: id, Workspace: workspace, Name: name, Direction: direction, State: "queued", Total: total, Sequence: a.transferSequence, Target: a.workspaces[workspace].target, RemainingSeconds: -1}
 	task := &transferTask{view: view, cancel: cancel, done: make(chan struct{}), ctx: ctx, run: run, peerIdentity: a.workspaces[workspace].identity}
 	if len(specification) > 0 {
 		spec := specification[0]
@@ -204,6 +212,7 @@ func (a *AppService) dispatchTransfersLocked() {
 		a.transferQueue = a.transferQueue[1:]
 		task := a.transfers[id]
 		task.view.State = "running"
+		task.view.Phase = "preparing"
 		a.transferEvent(task.view)
 		running++
 		go a.runTransfer(task)
@@ -211,18 +220,52 @@ func (a *AppService) dispatchTransfersLocked() {
 }
 func (a *AppService) runTransfer(task *transferTask) {
 	defer task.cancel()
+	a.mu.Lock()
+	meter := transferMeter{}
+	meter.sample(time.Now(), task.view.Completed)
+	a.mu.Unlock()
 	last := time.Time{}
 	report := func(completed, total int64) {
 		a.mu.Lock()
 		task.view.Completed = completed
 		task.view.Total = total
+		if task.ctx.Err() == nil {
+			task.view.Phase = "copying"
+			if completed >= total {
+				task.view.Phase = "finishing"
+				task.view.Speed, task.view.RemainingSeconds = 0, -1
+			}
+		}
 		if time.Since(last) >= 150*time.Millisecond {
 			last = time.Now()
 			a.transferEvent(task.view)
 		}
 		a.mu.Unlock()
 	}
-	err := task.run(context.WithValue(task.ctx, transferContextKey{}, task), report)
+	result := make(chan error, 1)
+	go func() { result <- task.run(context.WithValue(task.ctx, transferContextKey{}, task), report) }()
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+	var err error
+sampling:
+	for {
+		select {
+		case err = <-result:
+			break sampling
+		case <-ticker.C:
+			a.mu.Lock()
+			speed := meter.sample(time.Now(), task.view.Completed)
+			task.view.Speed, task.view.RemainingSeconds = 0, -1
+			if task.view.Phase == "copying" {
+				task.view.Speed = speed
+				if speed > 0 && task.view.Total > task.view.Completed {
+					task.view.RemainingSeconds = (task.view.Total-task.view.Completed-1)/speed + 1
+				}
+			}
+			a.transferEvent(task.view)
+			a.mu.Unlock()
+		}
+	}
 	a.mu.Lock()
 	if errors.Is(err, errTransferSkipped) {
 		task.view.State = "skipped"
@@ -235,6 +278,11 @@ func (a *AppService) runTransfer(task *transferTask) {
 		task.view.State = "failed"
 		task.view.Error = err.Error()
 	}
+	if errors.Is(err, errTransferSkipped) {
+		task.view.Error = err.Error()
+	}
+	task.view.Phase = ""
+	task.view.Speed, task.view.RemainingSeconds = 0, -1
 	task.run = nil
 	task.view.Resumable = task.resume != nil
 	if task.resume != nil {
@@ -403,6 +451,7 @@ func (a *AppService) uploadOperation(id, local, remote string, overwrite bool, e
 			}
 		}()
 		writer := &transferWriter{ctx: ctx, writer: target, report: report, total: info.Size(), limit: a.transferRate.Load}
+		report(0, info.Size())
 		if _, err = io.CopyBuffer(writer, source, make([]byte, 64<<10)); err != nil {
 			retained = a.retainTransfer(ctx, &transferResume{source: info, before: before, offset: writer.completed, temporary: temporary, staging: staging})
 			return err
@@ -566,6 +615,7 @@ func (a *AppService) downloadOperation(id, remote, local string, overwrite bool,
 			}
 		}()
 		writer := &transferWriter{ctx: ctx, writer: target, report: report, total: info.Size(), limit: a.transferRate.Load}
+		report(0, info.Size())
 		if _, err = io.CopyBuffer(writer, source, make([]byte, 64<<10)); err != nil {
 			retained = a.retainTransfer(ctx, &transferResume{source: info, before: before, offset: writer.completed, temporary: target.Name()})
 			return err
