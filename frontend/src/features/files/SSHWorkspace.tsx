@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { forwardRef, lazy, Suspense, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Button, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
 import { Stream } from '@wailsio/runtime';
 import { ReadRemoteFile, ReadRemoteFileEncoded, DownloadFileDraft, SaveRemoteFile, CreateTerminal, CloseTerminal, WorkspaceRecoveryDrafts, CloseWorkspace, RegisterWorkspaceView, ReleaseWorkspaceView, SetWorkspaceDirty } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
@@ -6,12 +6,10 @@ import SelectControl from '../../components/SelectControl';
 import { documentFormat, formatKey, editorEncodings } from './editorFormat';
 import type { Document, Entry } from '../../../bindings/github.com/Sanjeever/termquay/internal/files/models';
 import TerminalView, { type TerminalAction, type TerminalHandle } from '../terminal/TerminalView';
-import CodeEditor from './CodeEditor';
 import FileBrowser from './FileBrowser';
 import MonitorPanel from '../monitor/MonitorPanel';
 import Icon from '../../components/Icon';
 import ResizeHandle from '../../components/layout/ResizeHandle';
-import FileConflictView from './FileConflictView';
 import type { RecoveryDraftInput, SSHLayout } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import WorkspacePanes from './WorkspacePanes';
 import TunnelPanel from '../tunnels/TunnelPanel';
@@ -19,6 +17,9 @@ import PaneTabs from './PaneTabs';
 import { shortcutLabel, type Shortcuts } from '../../lib/shortcuts';
 import { shellQuote } from '../terminal/shellIntegration';
 import useSSHReconnect from '../connections/useSSHReconnect';
+
+const CodeEditor = lazy(() => import('./CodeEditor'));
+const FileConflictView = lazy(() => import('./FileConflictView'));
 
 type Draft = Document & { saved: string; savedFormat?: string; reloadEpoch?: number; error: string; saving: boolean; needsReview?: boolean; recovery?:boolean };
 function isDirty(draft: Draft) { return !!draft.recovery || draft.content !== draft.saved || !!draft.savedFormat && formatKey(draft) !== draft.savedFormat; }
@@ -227,13 +228,13 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
       {fileOrder.filter(path=>!drafts.some(d=>d.path===path)).map(path=><div key={path} className="editor-tab pending-file" data-tab-id={path} hidden={!shown(path)} style={{gridColumn:maximized?1:paneFor(path)===0?1:3,gridRow:2}}><p className="file-path">{path}</p>{pendingErrors[path]&&<p role="alert" className="error">{pendingErrors[path]}</p>}<SelectControl aria-label="以指定编码打开文件" value="" disabled={restoring} onChange={e=>{if(e.target.value)void openPath(path,e.target.value).catch(()=>{});}}><option value="" disabled>以编码打开…</option>{editorEncodings.map(([value,label])=><option key={value} value={value}>{label}</option>)}</SelectControl></div>)}
       {drafts.map(d => <div key={d.path} className={`editor-tab ${activePane===paneFor(d.path)?'focused-pane':''}`} data-tab-id={d.path} hidden={!shown(d.path)} style={{gridColumn:maximized?1:paneFor(d.path)===0?1:3,gridRow:2}} onFocusCapture={()=>setActivePane(paneFor(d.path))}>
         {d.error && <div className="file-save-error"><p role="alert" className="error">{d.error}</p><div className="button-row"><Button size="sm" variant="light" isDisabled={d.saving} onPress={()=>setConflict(d.path)}>对比与合并</Button><Button size="sm" variant="light" onPress={() => setRereading(d.path)}>重新读取</Button><Button size="sm" variant="light" onPress={() => { navigator.clipboard.writeText(d.content).catch(e => setError(String(e))); }}>复制草稿</Button></div></div>}
-        <CodeEditor path={d.path} jumpTo={fileJump?.path === d.path ? fileJump : undefined} content={d.content} format={documentFormat(d)} saving={d.saving} dirty={isDirty(d)} reloadEpoch={d.reloadEpoch} visible={visible && shown(d.path)} focusOnShow={activePane===paneFor(d.path)} onChange={(value,format) => updateDrafts(prev => prev.map(item => item.path === d.path ? { ...item, ...format, content: value } : item))} onSave={() => void save(d.path)} onReload={encoding=>requestReload(d.path,encoding)} onDownload={()=>void DownloadFileDraft({...d,...documentFormat(d)}).catch(e=>updateDrafts(prev=>prev.map(item=>item.path===d.path?{...item,error:String(e)}:item)))} />
+        <Suspense fallback={<div className="view-loading" role="status">正在载入编辑器…</div>}><CodeEditor path={d.path} jumpTo={fileJump?.path === d.path ? fileJump : undefined} content={d.content} format={documentFormat(d)} saving={d.saving} dirty={isDirty(d)} reloadEpoch={d.reloadEpoch} visible={visible && shown(d.path)} focusOnShow={activePane===paneFor(d.path)} onChange={(value,format) => updateDrafts(prev => prev.map(item => item.path === d.path ? { ...item, ...format, content: value } : item))} onSave={() => void save(d.path)} onReload={encoding=>requestReload(d.path,encoding)} onDownload={()=>void DownloadFileDraft({...d,...documentFormat(d)}).catch(e=>updateDrafts(prev=>prev.map(item=>item.path===d.path?{...item,error:String(e)}:item)))} /></Suspense>
       </div>)}
       </WorkspacePanes>
     </div>
     <MonitorPanel id={sessionID} visible={visible && monitorShown} onClose={() => { toggleMonitor(); monitorToggle.current?.focus(); }} />
     </div>
-    {conflict && drafts.find(d=>d.path===conflict) && <FileConflictView key={`${sessionID}:${conflict}`} sessionID={sessionID} path={conflict} content={drafts.find(d=>d.path===conflict)!.content} encoding={savedEncoding(drafts.find(d=>d.path===conflict)!)} lineEnding={drafts.find(d=>d.path===conflict)!.line_ending || 'LF'} onClose={()=>setConflict('')} onApply={(content,remote)=>{updateDrafts(prev=>prev.map(d=>d.path===conflict?{...d,content,saved:remote.content,savedFormat:formatKey(remote),revision:remote.revision,needsReview:false,recovery:false,error:''}:d));setConflict('');}} />}
+    {conflict && drafts.find(d=>d.path===conflict) && <Suspense fallback={<div className="session-status" role="status">正在载入差异视图…</div>}><FileConflictView key={`${sessionID}:${conflict}`} sessionID={sessionID} path={conflict} content={drafts.find(d=>d.path===conflict)!.content} encoding={savedEncoding(drafts.find(d=>d.path===conflict)!)} lineEnding={drafts.find(d=>d.path===conflict)!.line_ending || 'LF'} onClose={()=>setConflict('')} onApply={(content,remote)=>{updateDrafts(prev=>prev.map(d=>d.path===conflict?{...d,content,saved:remote.content,savedFormat:formatKey(remote),revision:remote.revision,needsReview:false,recovery:false,error:''}:d));setConflict('');}} /></Suspense>}
     <Modal isOpen={!!closingDraft} onClose={() => !closingDraft?.saving && setClosing('')} className="app-dialog"><ModalContent><ModalHeader>保存文件修改？</ModalHeader><ModalBody><p className="file-path">{closing}</p>{closingDraft?.error && <p className="error" role="alert">{closingDraft.error}</p>}</ModalBody><ModalFooter><Button variant="light" isDisabled={closingDraft?.saving} onPress={() => setClosing('')}>取消</Button><Button color="danger" variant="light" isDisabled={closingDraft?.saving} onPress={() => close(closing, true)}>放弃修改</Button><Button color="primary" isLoading={closingDraft?.saving} onPress={async () => { if (await save(closing)) close(closing, true); }}>保存并关闭</Button></ModalFooter></ModalContent></Modal>
     <Modal isOpen={!!rereading} onClose={() => setRereading('')} className="app-dialog"><ModalContent><ModalHeader>重新读取远端文件</ModalHeader><ModalBody><p className="file-path">{rereading}</p><p>将覆盖此文件的本地草稿。请先复制需要保留的内容。</p>{error && <p className="error" role="alert">{error}</p>}</ModalBody><ModalFooter><Button variant="light" onPress={() => setRereading('')}>取消</Button><Button color="danger" onPress={() => void reread(rereading)}>放弃草稿并重新读取</Button></ModalFooter></ModalContent></Modal>
   </div>;

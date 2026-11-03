@@ -1,5 +1,5 @@
 import SelectControl from './components/SelectControl';
-import { createRef, useEffect, useRef, useState, type RefObject } from 'react';
+import { createRef, lazy, Suspense, useEffect, useRef, useState, type RefObject } from 'react';
 import { flushSync } from 'react-dom';
 import { AnimatePresence } from 'framer-motion';
 import { Events, System } from '@wailsio/runtime';
@@ -10,7 +10,6 @@ import type { Connection, ConnectionPreference, Group } from '../bindings/github
 import type { Grant } from '../bindings/github.com/Sanjeever/termquay/internal/rdp/models';
 import SSHWorkspace, { type SSHWorkspaceHandle } from './features/files/SSHWorkspace';
 import RDPView, { type RDPHandle, type RDPOptions } from './features/rdp/RDPView';
-import SettingsView from './features/settings/SettingsView';
 import TransferPanel from './features/files/TransferPanel';
 import useTransfers from './features/files/useTransfers';
 import Workbench from './components/layout/Workbench';
@@ -41,6 +40,8 @@ import { nextWorkspaceAfterClose } from './lib/workspaces';
 import type { CommandKind } from './lib/commands';
 import { useAppearance } from './features/settings/AppearanceProvider';
 import { uiZoomLevels } from './features/settings/appearance';
+
+const SettingsView = lazy(() => import('./features/settings/SettingsView'));
 
 type Workspace = { id: string; sessionID?: string; connection?: Connection; connectionID: string; name: string; state?: string; restore?:SSHLayout; restored?:boolean; rdp?: { connection: Connection; grant?: Grant; error?: string; options: RDPOptions }; local?:{shell:string;terminal:RefObject<TerminalHandle>}; view?: RefObject<RDPHandle>; ssh?: RefObject<SSHWorkspaceHandle>; dirty?: boolean };
 
@@ -277,7 +278,7 @@ export default function App() {
       status={<><span>{catalog?.session_only ? '会话存储' : '本地工作台'}</span><span>{workspaces.length} 个工作区</span><div className="status-spacer" />{recovery.error&&<button className="error" onClick={()=>{setSettingsSection('recovery');setSettings(true);}}>本地草稿保存失败</button>}<button className={transfers.failed || transfers.error ? 'error' : ''} aria-expanded={transfersOpen} onClick={() => setTransfersOpen(!transfersOpen)}><Icon name="transfer" width="14" />{transfers.running ? `传输 ${transfers.running} 进行中` : transfers.items.length ? `传输 ${transfers.items.length} 项` : '传输'}{transfers.waiting ? ` · ${transfers.waiting} 等待` : ''}{transfers.failed ? ` · ${transfers.failed} 失败` : ''}{transfers.error ? ' · 加载失败' : ''}</button></>}>
       {storageError && <div className="storage-error error" role="alert">{storageError}<Button size="sm" onPress={() => { UseSessionStorage().then(async()=>{await reload();await recovery.refresh();}).catch(e => setStorageError(String(e))); }}>使用会话存储</Button></div>}
       {!dialog && (attempt.busy || (attempt.error && !current?.rdp)) && <div className="connection-feedback" role={attempt.error ? 'alert' : 'status'}><span className={attempt.error ? 'error' : ''}>{attempt.target} · {attempt.error || '正在连接…'}</span>{attempt.busy && <Button size="sm" variant="light" onPress={attempt.cancel}>取消连接</Button>}{!attempt.busy && <button className="icon-button" aria-label="关闭连接错误" onClick={attempt.clearError}><Icon name="close" /></button>}</div>}
-      {settings && <SettingsView key={settingsSection} initialSection={settingsSection} recovery={recovery} fontSize={fontSize} onFontSize={setFontSize} onRestore={() => void reload()} onClose={() => setSettings(false)} shortcuts={shortcuts} onShortcuts={saveShortcuts} shortcutError={shortcutError} automaticBackup={automaticBackup} updates={updates} onRestart={() => { restartUpdate.current = true; nativeClose.current(); }} activeWorkspaces={workspaces.length} activeTransfers={transfers.items.filter(item => ['queued','running'].includes(item.state)).length} />}
+      {settings && <Suspense fallback={<div className="view-loading" role="status">正在载入设置…</div>}><SettingsView section={settingsSection} onSectionChange={setSettingsSection} recovery={recovery} fontSize={fontSize} onFontSize={setFontSize} onRestore={() => void reload()} onClose={() => setSettings(false)} shortcuts={shortcuts} onShortcuts={saveShortcuts} shortcutError={shortcutError} automaticBackup={automaticBackup} updates={updates} onRestart={() => { restartUpdate.current = true; nativeClose.current(); }} activeWorkspaces={workspaces.length} activeTransfers={transfers.items.filter(item => ['queued','running'].includes(item.state)).length} /></Suspense>}
       {preferenceError && <div role="alert" className="connection-feedback error">{preferenceError}</div>}
       {(automaticBackup.error || automaticBackup.status?.error) && !settings && <div className="connection-feedback error" role="alert"><button className="session-tool" onClick={() => { setSettingsSection('backup'); setSettings(true); }}>自动备份失败 · 查看详情</button></div>}
       <div className="connection-center-page" hidden={settings || !!current}><ConnectionCenter connections={catalog?.connections || []} groups={catalog?.groups || []} preferences={preferences} sessions={Object.fromEntries((catalog?.connections || []).map(c => [c.id, workspaces.filter(w => w.connectionID === c.id).map(w => w.state || '连接中')]))} onOpen={openSaved} onEdit={c => openDialog(false, c)} onNew={openDialog} onReload={() => void reload()} busy={attempt.busy||openingLocal} loading={catalogLoading} loadError={storageError} systemRDP={systemRDP} shells={localShells} onLocal={kind=>{void openLocalShell(kind);}} active={!settings && !current} /></div>

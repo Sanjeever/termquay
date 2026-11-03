@@ -1,5 +1,5 @@
 import Icon from '../Icon';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from '@heroui/react';
 
 export default function WorkspaceTabs({ items, active, onSelect, onClose, onNew, onRename, onMove, onSearch }: {
@@ -10,11 +10,13 @@ export default function WorkspaceTabs({ items, active, onSelect, onClose, onNew,
 }) {
   const [renaming, setRenaming] = useState<string>();
   const [name, setName] = useState('');
+  const list = useRef<HTMLDivElement>(null);
+  useEffect(()=>{list.current?.querySelector('[aria-selected=true]')?.closest('.workspace-tab')?.scrollIntoView({block:'nearest',inline:'nearest'});},[active]);
   function rename(id: string, value: string) { setName(value); setRenaming(id); }
   function finishRename() { if (renaming && name.trim()) onRename(renaming, name.trim()); setRenaming(undefined); }
   function focusTab(id: string) { requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-workspace-id="${CSS.escape(id)}"] [role=tab]`)?.focus()); }
   const tabs = [{ id: '', name: '连接中心', rdp: undefined, dirty: false }, ...items];
-  return <div className="workspace-tabs" role="tablist" aria-label="连接工作区">
+  return <div className="workspace-tabs" ref={list} role="tablist" aria-label="连接工作区">
     {tabs.map((item, index) => <div className={`workspace-tab ${index === 0 ? 'connection-center-tab' : ''} ${active === item.id ? 'active' : ''}`} key={item.id} data-workspace-id={item.id} draggable={index !== 0 && renaming !== item.id}
       onDragStart={e => { e.dataTransfer.setData('application/x-termquay-workspace', item.id); e.dataTransfer.effectAllowed = 'move'; }}
       onDragOver={e => { if (index && e.dataTransfer.types.includes('application/x-termquay-workspace')) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; } }}
