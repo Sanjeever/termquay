@@ -34,7 +34,7 @@ export default function TitleBar({ tabs, tools, onError }: {
   }
   function doubleClick() { if (System.IsLinux()) run(() => Window.ToggleMaximise()); }
   return <header className={`workbench-header${mac ? ' mac-titlebar' : ''}${fullscreen ? ' fullscreen-titlebar' : ''}${focused ? '' : ' inactive-titlebar'}`}>
-    <div className="titlebar-brand" onDoubleClick={doubleClick}><img src={appIcon} alt="" width="20" height="20" draggable={false} /><span>TermQuay</span></div>
+    <div className="titlebar-brand" title="TermQuay" onDoubleClick={doubleClick}><img src={appIcon} alt="" width="18" height="18" draggable={false} /><span>TermQuay</span></div>
     {tabs}
     <div className="titlebar-drag" aria-hidden="true" onDoubleClick={doubleClick} />
     <div className="workbench-tools">{tools}</div>

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
 import { defaultAppearance, parseAppearance, terminalPalettes, terminalTheme } from './appearance.ts';
 
-test('外观设置缺省保留深色，非法值明确拒绝', () => {
+test('外观设置缺省跟随系统，非法值明确拒绝', () => {
   assert.deepEqual(parseAppearance(null), defaultAppearance);
   assert.throws(() => parseAppearance('{'));
   assert.throws(() => parseAppearance(JSON.stringify({ ...defaultAppearance, monoFont: '__proto__' })));

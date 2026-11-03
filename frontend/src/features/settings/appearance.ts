@@ -1,7 +1,7 @@
 export const appearanceKey = 'termquay.appearance';
 export const terminalPalettes = { theme: '跟随主题', dark: '经典深色', light: '浅色纸张', 'one-dark': 'One Dark', 'tokyo-night': 'Tokyo Night' };
 export type Appearance = { theme: 'dark' | 'light' | 'system'; uiFont: 'system' | 'yahei' | 'pingfang'; monoFont: 'system' | 'cascadia' | 'consolas' | 'jetbrains'; terminalPalette: keyof typeof terminalPalettes; terminalLogHighlight: boolean };
-export const defaultAppearance: Appearance = { theme: 'dark', uiFont: 'system', monoFont: 'system', terminalPalette: 'theme', terminalLogHighlight: true };
+export const defaultAppearance: Appearance = { theme: 'system', uiFont: 'system', monoFont: 'system', terminalPalette: 'theme', terminalLogHighlight: true };
 export const uiFonts = {
   system: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei UI", "PingFang SC", sans-serif',
   yahei: '"Microsoft YaHei UI", "Microsoft YaHei", sans-serif',
@@ -34,11 +34,11 @@ export function terminalTheme(palette: Appearance['terminalPalette'], dark: bool
   };
   const useDark = palette === 'theme' ? dark : palette === 'dark';
   return useDark ? {
-    background: '#101216', foreground: '#e6e9ef', cursor: '#8ba7ff', selectionBackground: '#354462',
+    background: '#191a1c', foreground: '#eeeef0', cursor: '#91b5ff', selectionBackground: '#334969',
     black: '#282c34', red: '#e88b88', green: '#8ed6b2', yellow: '#e8c484', blue: '#8ba7ff', magenta: '#cf9fe8', cyan: '#7ed1d9', white: '#d7dce5',
     brightBlack: '#808a9d', brightRed: '#ffaaaa', brightGreen: '#b0eacb', brightYellow: '#f4d9a5', brightBlue: '#b3c5ff', brightMagenta: '#e4bcf5', brightCyan: '#a6e5ec', brightWhite: '#ffffff',
   } : {
-    background: '#f8f9fc', foreground: '#202633', cursor: '#3456bc', selectionBackground: '#ccdaff',
+    background: '#fcfcfd', foreground: '#242529', cursor: '#245fd5', selectionBackground: '#dce7fb',
     black: '#202633', red: '#a52131', green: '#22613f', yellow: '#795400', blue: '#3456bc', magenta: '#793c94', cyan: '#12646c', white: '#677183',
     brightBlack: '#555f70', brightRed: '#b72b3b', brightGreen: '#287047', brightYellow: '#856000', brightBlue: '#4263c5', brightMagenta: '#8847a3', brightCyan: '#18747c', brightWhite: '#909aac',
   };
