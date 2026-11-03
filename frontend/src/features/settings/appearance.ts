@@ -1,6 +1,7 @@
 export const appearanceKey = 'termquay.appearance';
-export type Appearance = { theme: 'dark' | 'light' | 'system'; uiFont: 'system' | 'yahei' | 'pingfang'; monoFont: 'system' | 'cascadia' | 'consolas' | 'jetbrains'; terminalPalette: 'theme' | 'dark' | 'light' };
-export const defaultAppearance: Appearance = { theme: 'dark', uiFont: 'system', monoFont: 'system', terminalPalette: 'theme' };
+export const terminalPalettes = { theme: '跟随主题', dark: '经典深色', light: '浅色纸张', 'one-dark': 'One Dark', 'tokyo-night': 'Tokyo Night' };
+export type Appearance = { theme: 'dark' | 'light' | 'system'; uiFont: 'system' | 'yahei' | 'pingfang'; monoFont: 'system' | 'cascadia' | 'consolas' | 'jetbrains'; terminalPalette: keyof typeof terminalPalettes; terminalLogHighlight: boolean };
+export const defaultAppearance: Appearance = { theme: 'dark', uiFont: 'system', monoFont: 'system', terminalPalette: 'theme', terminalLogHighlight: true };
 export const uiFonts = {
   system: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei UI", "PingFang SC", sans-serif',
   yahei: '"Microsoft YaHei UI", "Microsoft YaHei", sans-serif',
@@ -16,11 +17,21 @@ export const monoFonts = {
 export function parseAppearance(value: string | null): Appearance {
   if (!value) return { ...defaultAppearance };
   const settings = JSON.parse(value);
-  if (!settings || !['dark', 'light', 'system'].includes(settings.theme) || !Object.prototype.hasOwnProperty.call(uiFonts, settings.uiFont) || !Object.prototype.hasOwnProperty.call(monoFonts, settings.monoFont) || !['theme', 'dark', 'light'].includes(settings.terminalPalette)) throw new Error('外观设置无效，请复位');
-  return { theme: settings.theme, uiFont: settings.uiFont, monoFont: settings.monoFont, terminalPalette: settings.terminalPalette };
+  if (!settings || !['dark', 'light', 'system'].includes(settings.theme) || !Object.prototype.hasOwnProperty.call(uiFonts, settings.uiFont) || !Object.prototype.hasOwnProperty.call(monoFonts, settings.monoFont) || !Object.prototype.hasOwnProperty.call(terminalPalettes, settings.terminalPalette) || (settings.terminalLogHighlight !== undefined && typeof settings.terminalLogHighlight !== 'boolean')) throw new Error('外观设置无效，请复位');
+  return { theme: settings.theme, uiFont: settings.uiFont, monoFont: settings.monoFont, terminalPalette: settings.terminalPalette, terminalLogHighlight: settings.terminalLogHighlight ?? defaultAppearance.terminalLogHighlight };
 }
 
 export function terminalTheme(palette: Appearance['terminalPalette'], dark: boolean) {
+  if (palette === 'one-dark') return {
+    background: '#282c34', foreground: '#abb2bf', cursor: '#61afef', selectionBackground: '#3e4451',
+    black: '#282c34', red: '#e06c75', green: '#98c379', yellow: '#e5c07b', blue: '#61afef', magenta: '#c678dd', cyan: '#56b6c2', white: '#abb2bf',
+    brightBlack: '#7f848e', brightRed: '#f08c95', brightGreen: '#b4d88e', brightYellow: '#f0d399', brightBlue: '#82c7f5', brightMagenta: '#d89af0', brightCyan: '#79cdd7', brightWhite: '#ffffff',
+  };
+  if (palette === 'tokyo-night') return {
+    background: '#1a1b26', foreground: '#c0caf5', cursor: '#c0caf5', selectionBackground: '#33467c',
+    black: '#15161e', red: '#f7768e', green: '#9ece6a', yellow: '#e0af68', blue: '#7aa2f7', magenta: '#bb9af7', cyan: '#7dcfff', white: '#a9b1d6',
+    brightBlack: '#737aa2', brightRed: '#ff9eaf', brightGreen: '#b9e38b', brightYellow: '#f0c98a', brightBlue: '#9bbcff', brightMagenta: '#d1b7ff', brightCyan: '#a4e1ff', brightWhite: '#c0caf5',
+  };
   const useDark = palette === 'theme' ? dark : palette === 'dark';
   return useDark ? {
     background: '#101216', foreground: '#e6e9ef', cursor: '#8ba7ff', selectionBackground: '#354462',
