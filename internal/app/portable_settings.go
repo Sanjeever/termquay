@@ -31,6 +31,12 @@ func validatePortableUI(values map[string]string) error {
 					return errors.New("日志高亮设置无效")
 				}
 			}
+			if raw, ok := settings["uiZoom"]; ok {
+				var zoom float64
+				if err := json.Unmarshal(raw, &zoom); err != nil || !slices.Contains([]float64{1, 1.1, 1.25, 1.5, 1.75, 2}, zoom) {
+					return errors.New("界面缩放设置无效")
+				}
+			}
 		case "shortcuts":
 			var shortcuts map[string]string
 			if err := json.Unmarshal([]byte(value), &shortcuts); err != nil || shortcuts == nil || len(shortcuts) > 32 {
@@ -38,11 +44,12 @@ func validatePortableUI(values map[string]string) error {
 			}
 			seen := map[string]bool{}
 			reserved := regexp.MustCompile(`^Mod\+(Key[ACFVXYZSWQ]|Tab|Arrow\w+)$|^(Alt\+(Tab|F4)|Mod\+Alt\+Tab|Mod\+Shift\+KeyW)$`)
+			assignedInput := map[string]string{"closeTab": "Mod+KeyW", "closeWorkspace": "Mod+Shift+KeyW", "copy": "Mod+KeyC", "paste": "Mod+KeyV", "find": "Mod+KeyF"}
 			for name, shortcut := range shortcuts {
 				if len(name) > 64 || len(shortcut) > 128 {
 					return errors.New("快捷键字段过长")
 				}
-				if shortcut != "" && (seen[shortcut] || reserved.MatchString(shortcut)) {
+				if shortcut != "" && (seen[shortcut] || reserved.MatchString(shortcut) && assignedInput[name] != shortcut) {
 					return errors.New("快捷键重复或占用了系统和输入组件保留组合")
 				}
 				seen[shortcut] = true

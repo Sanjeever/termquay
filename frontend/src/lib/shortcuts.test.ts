@@ -18,9 +18,10 @@ test('平台修饰键和物理键位保持一致', () => {
 });
 test('冲突不能覆盖其他动作和基本输入按键', () => {
   assert.match(shortcutConflict('palette', defaultShortcuts.find, defaultShortcuts), /冲突/);
-  assert.match(shortcutConflict('palette', 'Mod+KeyC', defaultShortcuts), /保留/);
+  assert.match(shortcutConflict('palette', 'Mod+KeyC', defaultShortcuts), /保留|冲突/);
   assert.equal(shortcutConflict('palette', '', defaultShortcuts), '');
   assert.equal(shortcutConflict('palette', defaultShortcuts.palette, defaultShortcuts), '');
+  for (const id of Object.keys(defaultShortcuts) as (keyof typeof defaultShortcuts)[]) assert.equal(shortcutConflict(id, defaultShortcuts[id], defaultShortcuts), '');
 });
 test('旧配置保留自定义键位，新增动作避让已使用键位', () => {
   const values = mergeShortcuts({ palette: defaultShortcuts.newTerminal, find: '' });

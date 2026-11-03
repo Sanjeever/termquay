@@ -26,6 +26,7 @@ func Run(assets fs.FS, appIcons fs.ReadFileFS, build BuildInfo, licenses fs.Read
 		Assets:     application.AssetOptions{Handler: application.AssetFileServerFS(assets)},
 		Mac:        application.MacOptions{ApplicationShouldTerminateAfterLastWindowClosed: true},
 	})
+	installWorkbenchMenu(app)
 	if err := service.initUpdater(app); err != nil {
 		return err
 	}
@@ -37,7 +38,7 @@ func Run(assets fs.FS, appIcons fs.ReadFileFS, build BuildInfo, licenses fs.Read
 		BackgroundColour: application.NewRGB(16, 18, 22), URL: "/",
 		EnableFileDrop: true,
 		Frameless:      runtime.GOOS != "darwin",
-		Mac:            application.MacWindow{TitleBar: application.MacTitleBarHidden},
+		Mac:            application.MacWindow{TitleBar: application.MacTitleBarHidden, Backdrop: application.MacBackdropTranslucent},
 		Windows:        application.WindowsWindow{NonClientRegionSupport: true, WebView2CompositionHosting: true},
 	})
 	window.OnWindowEvent(events.Common.WindowFilesDropped, func(event *application.WindowEvent) {

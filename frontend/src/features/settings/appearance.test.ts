@@ -9,12 +9,14 @@ test('外观设置缺省跟随系统，非法值明确拒绝', () => {
   assert.throws(() => parseAppearance(JSON.stringify({ ...defaultAppearance, theme: 'unknown' })));
   assert.throws(() => parseAppearance(JSON.stringify({ ...defaultAppearance, terminalPalette: '__proto__' })));
   assert.throws(() => parseAppearance(JSON.stringify({ ...defaultAppearance, terminalLogHighlight: 'false' })));
+  assert.throws(() => parseAppearance(JSON.stringify({ ...defaultAppearance, uiZoom: 0 })));
+  assert.throws(() => parseAppearance(JSON.stringify({ ...defaultAppearance, uiZoom: '1' })));
   const settings = { ...defaultAppearance, theme: 'system' as const, terminalPalette: 'light' as const };
   assert.deepEqual(parseAppearance(JSON.stringify(settings)), settings);
 });
 
 test('旧外观设置补全日志高亮偏好，关闭后保留选择', () => {
-  const { terminalLogHighlight, ...legacy } = defaultAppearance;
+  const { terminalLogHighlight, uiZoom, ...legacy } = defaultAppearance;
   assert.deepEqual(parseAppearance(JSON.stringify(legacy)), defaultAppearance);
   const disabled = { ...defaultAppearance, terminalLogHighlight: false };
   assert.deepEqual(parseAppearance(JSON.stringify(disabled)), disabled);

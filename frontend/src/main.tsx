@@ -5,10 +5,12 @@ import App from './App';
 import { AppearanceProvider } from './features/settings/AppearanceProvider';
 import './style.css';
 import appIcon from '../../build/appicon.svg';
+import { System } from '@wailsio/runtime';
 
 const favicon = document.createElement('link');
 favicon.rel = 'icon'; favicon.type = 'image/svg+xml'; favicon.href = appIcon;
 document.head.appendChild(favicon);
+document.documentElement.dataset.platform = System.IsMac() ? 'mac' : 'other';
 
 function WorkbenchApp() {
   const reducedMotion = useReducedMotion();

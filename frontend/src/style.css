@@ -521,6 +521,7 @@ button:active:not(:disabled):not([role=tab]) { filter: brightness(.93); }
 .command-result > svg { color: var(--color-muted); }
 .command-result > span:first-of-type { display: flex; flex-direction: column; gap: 3px; min-width: 0; overflow-wrap: anywhere; }
 .command-result small, .command-kind { color: var(--color-muted); font-size: 11px; }
+.command-result kbd { flex-shrink: 0; margin-left: auto; color: var(--color-muted); font: 11px var(--font-ui); white-space: nowrap; }
 .command-kind { margin-left: auto; white-space: nowrap; }
 @media (max-width: 1100px) {
   .file-dock { position: absolute; top: 0; bottom: 0; left: 0; z-index: 5; border-right: 1px solid var(--color-border); box-shadow: 12px 0 32px #0005; }
@@ -532,6 +533,24 @@ button:active:not(:disabled):not([role=tab]) { filter: brightness(.93); }
 
 @media (prefers-reduced-transparency: reduce) {
   .workbench-header, .select-popover, .app-dialog { background: var(--color-elevated); backdrop-filter: none; }
+}
+:root[data-platform=mac] { background: transparent; }
+:root[data-platform=mac] .connection-groups, :root[data-platform=mac] .settings-sidebar, :root[data-platform=mac] .workbench-status { background: var(--color-material); }
+.connection-catalog, .workspace, .settings-content { background: var(--color-background); }
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-platform=mac] { background: var(--color-background); }
+  :root[data-platform=mac] .connection-groups, :root[data-platform=mac] .settings-sidebar, :root[data-platform=mac] .workbench-status { background: var(--color-surface); }
+}
+@media (max-width: 760px) {
+  .catalog-toolbar { flex-wrap: wrap; }
+  .catalog-toolbar h1 { flex: 1; max-width: none; }
+  .catalog-toolbar > [data-slot=base] { order: 2; flex-basis: 100%; max-width: none; margin-top: 6px; }
+  .catalog-filters { align-items: flex-start; flex-wrap: wrap; }
+  .catalog-actions { flex-wrap: wrap; }
+  .settings-sidebar { width: 160px; }
+  .settings-section, .settings-panel { padding: 20px; }
+  .workspace-toolbar { flex-wrap: wrap; }
+  .session-target { max-width: 45%; }
 }
 @media (prefers-contrast: more) {
   :root { --color-border: #ffffff55; --color-border-strong: #ffffff80; --color-muted: #c2c3ca; }
