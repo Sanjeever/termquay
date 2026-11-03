@@ -32,6 +32,14 @@ type Request struct {
 	IdentityAgent   string `json:"identity_agent,omitempty"`
 	PrivateKeyToken string `json:"private_key_token,omitempty"`
 	JumpID          string `json:"jump_id,omitempty"`
+	AuthID          string `json:"auth_id,omitempty"`
+	MFA             bool   `json:"mfa,omitempty"`
+	challenge       gossh.KeyboardInteractiveChallenge
+}
+
+func WithChallenge(r Request, challenge gossh.KeyboardInteractiveChallenge) Request {
+	r.challenge = challenge
+	return r
 }
 
 type HostKeyError struct {
@@ -92,7 +100,11 @@ func dialClient(ctx context.Context, r Request, connect func(context.Context, st
 	if r.Host == "" || r.Username == "" || r.Port < 1 || r.Port > 65535 || r.Cols < 1 || r.Rows < 1 {
 		return nil, errors.New("SSH 地址、用户名、端口或终端尺寸无效")
 	}
-	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	authTimeout := 20 * time.Second
+	if r.MFA || r.AuthMethod == "keyboard_interactive" {
+		authTimeout = 3 * time.Minute
+	}
+	ctx, cancel := context.WithTimeout(ctx, authTimeout)
 	defer cancel()
 	var auth []gossh.AuthMethod
 	method := r.AuthMethod
@@ -137,8 +149,14 @@ func dialClient(ctx context.Context, r Request, connect func(context.Context, st
 		auth = append(auth, gossh.PublicKeys(signer))
 	} else if method == "password" {
 		auth = append(auth, gossh.Password(r.Password))
-	} else {
+	} else if method != "keyboard_interactive" {
 		return nil, errors.New("SSH 认证方式无效")
+	}
+	if method == "keyboard_interactive" || r.MFA {
+		if r.challenge == nil {
+			return nil, errors.New("交互认证需要从连接窗口发起")
+		}
+		auth = append(auth, gossh.KeyboardInteractive(r.challenge))
 	}
 	config := &gossh.ClientConfig{User: r.Username, Auth: auth,
 		HostKeyAlgorithms: []string{gossh.KeyAlgoED25519, gossh.KeyAlgoECDSA256, gossh.KeyAlgoECDSA384, gossh.KeyAlgoECDSA521, gossh.KeyAlgoRSASHA512, gossh.KeyAlgoRSASHA256},

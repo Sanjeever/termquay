@@ -14,6 +14,7 @@ export interface Connection {
     "auth_method"?: string;
     "identity_agent"?: string;
     "jump_id"?: string;
+    "mfa"?: boolean;
 }
 
 export interface ConnectionPreference {

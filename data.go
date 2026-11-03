@@ -258,7 +258,7 @@ func (a *AppService) SaveConnection(c store.Connection, auth terminal.Request) (
 			break
 		}
 	}
-	if c.AuthMethod == "agent" {
+	if c.AuthMethod == "agent" || c.AuthMethod == "keyboard_interactive" {
 		c.CredentialID = ""
 		auth.Password = ""
 		auth.PrivateKey = ""
@@ -455,7 +455,7 @@ func (a *AppService) savedRequest(id string) (terminal.Request, store.Connection
 		if c.ID != id {
 			continue
 		}
-		r := terminal.Request{Host: c.Host, Port: c.Port, Username: c.Username, Cols: 100, Rows: 30, AuthMethod: c.AuthMethod, IdentityAgent: c.IdentityAgent, JumpID: c.JumpID}
+		r := terminal.Request{Host: c.Host, Port: c.Port, Username: c.Username, Cols: 100, Rows: 30, AuthMethod: c.AuthMethod, IdentityAgent: c.IdentityAgent, JumpID: c.JumpID, MFA: c.MFA}
 		for _, credential := range d.Credentials {
 			if credential.ID != c.CredentialID {
 				continue

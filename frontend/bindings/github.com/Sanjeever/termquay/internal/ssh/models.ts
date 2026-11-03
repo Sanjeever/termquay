@@ -31,4 +31,6 @@ export interface Request {
     "identity_agent"?: string;
     "private_key_token"?: string;
     "jump_id"?: string;
+    "auth_id"?: string;
+    "mfa"?: boolean;
 }

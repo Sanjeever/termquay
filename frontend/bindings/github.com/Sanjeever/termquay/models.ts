@@ -115,6 +115,14 @@ export interface RestorePreview {
     "credentials": number;
 }
 
+export interface SSHChallenge {
+    "id": string;
+    "name": string;
+    "instruction": string;
+    "questions": string[] | null;
+    "echo": boolean[] | null;
+}
+
 export interface SSHImportChoice {
     "id": string;
     "action": string;
@@ -247,4 +255,5 @@ export interface WorkspaceTarget {
     "auth_method"?: string;
     "identity_agent"?: string;
     "jump_id"?: string;
+    "mfa"?: boolean;
 }

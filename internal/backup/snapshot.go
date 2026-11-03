@@ -39,6 +39,11 @@ func Encrypt(d store.Data, deviceID, password string) ([]byte, error) {
 			version = 3
 		}
 	}
+	for _, c := range d.Connections {
+		if c.MFA || c.AuthMethod == "keyboard_interactive" {
+			version = 4
+		}
+	}
 	plain, err := json.Marshal(Snapshot{Version: version, DeviceID: deviceID, CreatedAt: time.Now().UTC(), Data: d})
 	if err != nil {
 		return nil, err
@@ -94,8 +99,15 @@ func Decrypt(encrypted []byte, password string) (Snapshot, error) {
 	if err = decoder.Decode(&extra); err != io.EOF {
 		return snap, errors.New("快照尾部包含额外数据")
 	}
-	if snap.Version != 1 && snap.Version != 2 && snap.Version != 3 {
+	if snap.Version < 1 || snap.Version > 4 {
 		return snap, errors.New("不支持的快照版本")
+	}
+	if snap.Version < 4 {
+		for _, c := range snap.Data.Connections {
+			if c.MFA || c.AuthMethod == "keyboard_interactive" {
+				return snap, errors.New("旧快照不能包含交互认证字段")
+			}
+		}
 	}
 	if snap.Version < 3 {
 		for _, c := range snap.Data.Connections {

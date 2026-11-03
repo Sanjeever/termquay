@@ -25,6 +25,10 @@ import * as store$0 from "./internal/store/models.js";
 // @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
+export function AnswerSSHChallenge(id: string, challengeID: string, answers: string[] | null): $CancellablePromise<void> {
+    return $Call.ByID(3765046143, id, challengeID, answers);
+}
+
 export function BackupWebDAV(options: backup$0.WebDAVOptions, password: string, includeCredentials: boolean): $CancellablePromise<string> {
     return $Call.ByID(1363831413, options, password, includeCredentials);
 }
@@ -145,6 +149,10 @@ export function GetDraftRecoveryState(): $CancellablePromise<$models.DraftRecove
     return $Call.ByID(187173851);
 }
 
+export function GetSSHChallenge(id: string): $CancellablePromise<$models.SSHChallenge | null> {
+    return $Call.ByID(2636270309, id);
+}
+
 export function GetWorkspaceLayout(): $CancellablePromise<$models.WorkspaceLayout> {
     return $Call.ByID(961509693);
 }
@@ -195,6 +203,10 @@ export function OpenSavedSystemRDP(id: string, resolution: string, clipboard: bo
 
 export function OpenSavedTerminal(id: string): $CancellablePromise<$models.OpenResult> {
     return $Call.ByID(2797069557, id);
+}
+
+export function OpenSavedTerminalInteractive(id: string, authID: string): $CancellablePromise<$models.OpenResult> {
+    return $Call.ByID(4115876699, id, authID);
 }
 
 export function OpenSystemRDP(connection: store$0.Connection, auth: ssh$0.Request, resolution: string, clipboard: boolean): $CancellablePromise<void> {

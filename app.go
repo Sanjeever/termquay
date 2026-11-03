@@ -78,6 +78,7 @@ type AppService struct {
 	trustReviews           map[string]TrustReview
 	pendingTrustAt         map[string]time.Time
 	pendingTrustGeneration map[string]uint64
+	sshChallenges          map[string]*sshAuthentication
 }
 
 func NewAppService() *AppService {
@@ -85,6 +86,12 @@ func NewAppService() *AppService {
 }
 
 func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (OpenResult, error) {
+	challenge, release, err := a.beginSSHAuthentication(ctx, r.AuthID)
+	if err != nil {
+		return OpenResult{}, err
+	}
+	defer release()
+	r = terminal.WithChallenge(r, challenge)
 	if err := a.resolvePrivateKey(&r); err != nil {
 		return OpenResult{}, err
 	}
@@ -116,6 +123,7 @@ func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (Open
 			return OpenResult{}, e
 		}
 		jump = &request
+		*jump = terminal.WithChallenge(*jump, challenge)
 	}
 	a.mu.Lock()
 	if targetEpoch != a.trustEpoch[address] || (jump != nil && jumpEpoch != a.trustEpoch[jumpAddress]) {

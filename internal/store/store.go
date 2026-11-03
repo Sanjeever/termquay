@@ -34,6 +34,7 @@ type Connection struct {
 	AuthMethod    string `json:"auth_method,omitempty"`
 	IdentityAgent string `json:"identity_agent,omitempty"`
 	JumpID        string `json:"jump_id,omitempty"`
+	MFA           bool   `json:"mfa,omitempty"`
 }
 
 type Credential struct {
@@ -85,7 +86,7 @@ func (d Data) Validate() error {
 	connections := map[string]bool{}
 	configs := map[string]Connection{}
 	for _, c := range d.Connections {
-		if (c.AuthMethod != "" && c.AuthMethod != "password" && c.AuthMethod != "private_key" && c.AuthMethod != "agent") || (c.Protocol != "ssh" && (c.AuthMethod != "" || c.IdentityAgent != "")) || len(c.IdentityAgent) > 4096 || (c.AuthMethod == "agent" && c.CredentialID != "") {
+		if (c.AuthMethod != "" && c.AuthMethod != "password" && c.AuthMethod != "private_key" && c.AuthMethod != "agent" && c.AuthMethod != "keyboard_interactive") || (c.Protocol != "ssh" && (c.AuthMethod != "" || c.IdentityAgent != "" || c.MFA)) || len(c.IdentityAgent) > 4096 || ((c.AuthMethod == "agent" || c.AuthMethod == "keyboard_interactive") && c.CredentialID != "") {
 			return errors.New("连接认证配置无效")
 		}
 		if c.ID == "" || connections[c.ID] || c.Name == "" || c.Host == "" || c.Port < 1 || c.Port > 65535 || (c.Protocol != "ssh" && c.Protocol != "rdp") {

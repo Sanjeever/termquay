@@ -20,6 +20,7 @@ export type {
     RecoveryDraftSummary,
     RemotePathResult,
     RestorePreview,
+    SSHChallenge,
     SSHImportChoice,
     SSHImportPreview,
     SSHImportRow,
