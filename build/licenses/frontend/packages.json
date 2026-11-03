@@ -1064,7 +1064,9 @@
   },
   {
     "name": "@codemirror/legacy-modes",
-    "versions": ["6.5.1"],
+    "versions": [
+      "6.5.1"
+    ],
     "license": "MIT",
     "homepage": "https://github.com/codemirror/legacy-modes#readme",
     "author": "Marijn Haverbeke"
@@ -1080,9 +1082,11 @@
   },
   {
     "name": "@codemirror/merge",
-    "versions": ["6.12.3"],
+    "versions": [
+      "6.12.3"
+    ],
     "license": "MIT",
-    "homepage": "https://codemirror.net/",
+    "homepage": null,
     "author": "Marijn Haverbeke"
   },
   {
@@ -1982,11 +1986,8 @@
       "0.5.2"
     ],
     "license": "MIT",
-    "homepage": "https://github.com/replit/codemirror-minimap",
-    "author": {
-      "name": "Brady Madden",
-      "email": "brady@repl.it"
-    }
+    "homepage": "https://github.com/replit/codemirror-minimap#readme",
+    "author": "Brady Madden"
   },
   {
     "name": "@wailsio/runtime",
@@ -2008,16 +2009,20 @@
   },
   {
     "name": "@xterm/addon-search",
-    "versions": ["0.15.0"],
+    "versions": [
+      "0.15.0"
+    ],
     "license": "MIT",
-    "homepage": "https://github.com/xtermjs/xterm.js/tree/master/addons/addon-search",
+    "homepage": "https://github.com/xtermjs/xterm.js/tree/master#readme",
     "author": "The xterm.js authors"
   },
   {
     "name": "@xterm/addon-web-links",
-    "versions": ["0.11.0"],
+    "versions": [
+      "0.11.0"
+    ],
     "license": "MIT",
-    "homepage": "https://github.com/xtermjs/xterm.js/tree/master/addons/addon-web-links",
+    "homepage": "https://github.com/xtermjs/xterm.js/tree/master#readme",
     "author": "The xterm.js authors"
   },
   {
@@ -2434,5 +2439,735 @@
     "license": "0BSD",
     "homepage": "https://www.typescriptlang.org/",
     "author": "Microsoft Corp."
+  },
+  {
+    "name": "@types/debug",
+    "versions": [
+      "4.1.13"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/debug",
+    "author": null
+  },
+  {
+    "name": "@types/estree",
+    "versions": [
+      "1.0.10"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/estree",
+    "author": null
+  },
+  {
+    "name": "@types/estree-jsx",
+    "versions": [
+      "1.0.5"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/estree-jsx",
+    "author": null
+  },
+  {
+    "name": "@types/hast",
+    "versions": [
+      "3.0.5"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/hast",
+    "author": null
+  },
+  {
+    "name": "@types/mdast",
+    "versions": [
+      "4.0.4"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/mdast",
+    "author": null
+  },
+  {
+    "name": "@types/ms",
+    "versions": [
+      "2.1.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/ms",
+    "author": null
+  },
+  {
+    "name": "@types/unist",
+    "versions": [
+      "2.0.11",
+      "3.0.3"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/unist",
+    "author": null
+  },
+  {
+    "name": "@ungap/structured-clone",
+    "versions": [
+      "1.4.0"
+    ],
+    "license": "ISC",
+    "homepage": "https://github.com/ungap/structured-clone#readme",
+    "author": "Andrea Giammarchi"
+  },
+  {
+    "name": "bail",
+    "versions": [
+      "2.0.2"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/wooorm/bail#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "ccount",
+    "versions": [
+      "2.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/wooorm/ccount#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "character-entities",
+    "versions": [
+      "2.0.2"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/wooorm/character-entities#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "character-entities-html4",
+    "versions": [
+      "2.1.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/wooorm/character-entities-html4#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "character-entities-legacy",
+    "versions": [
+      "3.0.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/wooorm/character-entities-legacy#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "character-reference-invalid",
+    "versions": [
+      "2.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/wooorm/character-reference-invalid#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "comma-separated-tokens",
+    "versions": [
+      "2.0.3"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/wooorm/comma-separated-tokens#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "debug",
+    "versions": [
+      "4.4.3"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/debug-js/debug#readme",
+    "author": "Josh Junon"
+  },
+  {
+    "name": "decode-named-character-reference",
+    "versions": [
+      "1.3.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/wooorm/decode-named-character-reference#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "dequal",
+    "versions": [
+      "2.0.3"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/lukeed/dequal#readme",
+    "author": "Luke Edwards"
+  },
+  {
+    "name": "devlop",
+    "versions": [
+      "1.1.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/wooorm/devlop#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "estree-util-is-identifier-name",
+    "versions": [
+      "3.0.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/syntax-tree/estree-util-is-identifier-name#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "extend",
+    "versions": [
+      "3.0.2"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/justmoon/node-extend#readme",
+    "author": "Stefan Thomas"
+  },
+  {
+    "name": "hast-util-to-jsx-runtime",
+    "versions": [
+      "2.3.7"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/syntax-tree/hast-util-to-jsx-runtime#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "hast-util-whitespace",
+    "versions": [
+      "3.0.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/syntax-tree/hast-util-whitespace#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "html-url-attributes",
+    "versions": [
+      "3.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/rehypejs/rehype-minify/tree/main#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "inline-style-parser",
+    "versions": [
+      "0.2.9"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/remarkablemark/inline-style-parser#readme",
+    "author": null
+  },
+  {
+    "name": "is-alphabetical",
+    "versions": [
+      "2.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/wooorm/is-alphabetical#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "is-alphanumerical",
+    "versions": [
+      "2.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/wooorm/is-alphanumerical#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "is-decimal",
+    "versions": [
+      "2.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/wooorm/is-decimal#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "is-hexadecimal",
+    "versions": [
+      "2.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/wooorm/is-hexadecimal#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "is-plain-obj",
+    "versions": [
+      "4.1.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/sindresorhus/is-plain-obj#readme",
+    "author": "Sindre Sorhus"
+  },
+  {
+    "name": "longest-streak",
+    "versions": [
+      "3.1.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/wooorm/longest-streak#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "mdast-util-from-markdown",
+    "versions": [
+      "2.1.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/syntax-tree/mdast-util-from-markdown#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "mdast-util-mdx-expression",
+    "versions": [
+      "2.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/syntax-tree/mdast-util-mdx-expression#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "mdast-util-mdx-jsx",
+    "versions": [
+      "3.2.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/syntax-tree/mdast-util-mdx-jsx#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "mdast-util-mdxjs-esm",
+    "versions": [
+      "2.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/syntax-tree/mdast-util-mdxjs-esm#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "mdast-util-phrasing",
+    "versions": [
+      "4.1.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/syntax-tree/mdast-util-phrasing#readme",
+    "author": "Victor Felder"
+  },
+  {
+    "name": "mdast-util-to-hast",
+    "versions": [
+      "13.2.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/syntax-tree/mdast-util-to-hast#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "mdast-util-to-markdown",
+    "versions": [
+      "2.2.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/syntax-tree/mdast-util-to-markdown#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "mdast-util-to-string",
+    "versions": [
+      "4.0.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/syntax-tree/mdast-util-to-string#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "micromark",
+    "versions": [
+      "4.0.3"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/micromark/micromark/tree/main#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "micromark-core-commonmark",
+    "versions": [
+      "2.0.4"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/micromark/micromark/tree/main#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "micromark-factory-destination",
+    "versions": [
+      "2.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/micromark/micromark/tree/main#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "micromark-factory-label",
+    "versions": [
+      "2.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/micromark/micromark/tree/main#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "micromark-factory-space",
+    "versions": [
+      "2.1.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/micromark/micromark/tree/main#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "micromark-factory-title",
+    "versions": [
+      "2.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/micromark/micromark/tree/main#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "micromark-factory-whitespace",
+    "versions": [
+      "2.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/micromark/micromark/tree/main#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "micromark-util-character",
+    "versions": [
+      "2.1.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/micromark/micromark/tree/main#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "micromark-util-chunked",
+    "versions": [
+      "2.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/micromark/micromark/tree/main#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "micromark-util-classify-character",
+    "versions": [
+      "2.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/micromark/micromark/tree/main#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "micromark-util-combine-extensions",
+    "versions": [
+      "2.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/micromark/micromark/tree/main#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "micromark-util-decode-numeric-character-reference",
+    "versions": [
+      "2.0.2"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/micromark/micromark/tree/main#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "micromark-util-decode-string",
+    "versions": [
+      "2.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/micromark/micromark/tree/main#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "micromark-util-edit-map",
+    "versions": [
+      "1.0.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/micromark/micromark/tree/main#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "micromark-util-encode",
+    "versions": [
+      "2.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/micromark/micromark/tree/main#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "micromark-util-html-tag-name",
+    "versions": [
+      "2.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/micromark/micromark/tree/main#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "micromark-util-normalize-identifier",
+    "versions": [
+      "2.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/micromark/micromark/tree/main#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "micromark-util-resolve-all",
+    "versions": [
+      "2.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/micromark/micromark/tree/main#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "micromark-util-sanitize-uri",
+    "versions": [
+      "2.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/micromark/micromark/tree/main#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "micromark-util-subtokenize",
+    "versions": [
+      "2.1.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/micromark/micromark/tree/main#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "micromark-util-symbol",
+    "versions": [
+      "2.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/micromark/micromark/tree/main#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "micromark-util-types",
+    "versions": [
+      "2.0.3"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/micromark/micromark/tree/main#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "ms",
+    "versions": [
+      "2.1.3"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/vercel/ms#readme",
+    "author": null
+  },
+  {
+    "name": "parse-entities",
+    "versions": [
+      "4.0.2"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/wooorm/parse-entities#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "property-information",
+    "versions": [
+      "7.2.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/wooorm/property-information#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "react-markdown",
+    "versions": [
+      "10.1.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/remarkjs/react-markdown#readme",
+    "author": "Espen Hovlandsdal"
+  },
+  {
+    "name": "remark-parse",
+    "versions": [
+      "11.0.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://remark.js.org",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "remark-rehype",
+    "versions": [
+      "11.1.2"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/remarkjs/remark-rehype#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "space-separated-tokens",
+    "versions": [
+      "2.0.2"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/wooorm/space-separated-tokens#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "stringify-entities",
+    "versions": [
+      "4.0.4"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/wooorm/stringify-entities#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "style-to-object",
+    "versions": [
+      "2.0.2"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/remarkablemark/style-to-object#readme",
+    "author": "Mark"
+  },
+  {
+    "name": "trim-lines",
+    "versions": [
+      "3.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/wooorm/trim-lines#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "trough",
+    "versions": [
+      "2.2.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/wooorm/trough#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "unified",
+    "versions": [
+      "11.0.5"
+    ],
+    "license": "MIT",
+    "homepage": "https://unifiedjs.com",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "unist-util-is",
+    "versions": [
+      "6.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/syntax-tree/unist-util-is#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "unist-util-position",
+    "versions": [
+      "5.0.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/syntax-tree/unist-util-position#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "unist-util-stringify-position",
+    "versions": [
+      "4.0.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/syntax-tree/unist-util-stringify-position#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "unist-util-visit",
+    "versions": [
+      "5.2.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/syntax-tree/unist-util-visit#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "unist-util-visit-parents",
+    "versions": [
+      "6.1.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/syntax-tree/unist-util-visit-parents#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "vfile",
+    "versions": [
+      "6.0.3"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/vfile/vfile#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "vfile-message",
+    "versions": [
+      "4.0.3"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/vfile/vfile-message#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "zwitch",
+    "versions": [
+      "2.0.4"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/wooorm/zwitch#readme",
+    "author": "Titus Wormer"
   }
 ]
