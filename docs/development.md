@@ -75,7 +75,7 @@ go test -race ./...
 前端逻辑回归沿用 `node:test`，在支持直接运行 TypeScript 的 Node 环境中执行：
 
 ```sh
-node --test frontend/src/lib/*.test.ts frontend/src/features/connections/catalog.test.ts frontend/src/features/files/*.test.ts frontend/src/features/monitor/history.test.ts frontend/src/features/settings/appearance.test.ts
+node --experimental-strip-types --test frontend/src/lib/*.test.ts frontend/src/features/connections/catalog.test.ts frontend/src/features/files/*.test.ts frontend/src/features/monitor/history.test.ts frontend/src/features/settings/appearance.test.ts frontend/src/features/terminal/*.test.ts
 ```
 
 ### 真实 SSH 与 WebDAV
@@ -120,7 +120,7 @@ RDP 自动化使用隔离 TLS 目标验证桥接、TLS 1.2 与身份策略，没
 
 SSH 支持密码或私钥内容及可选口令；RDP 使用用户名、密码及可选域。首次 SSH 主机或未通过系统 CA 验证的 RDP 证书在独立身份弹窗核对指纹，已知身份变化阻止连接。连接过程可取消。详细策略见 [身份与本地数据](architecture.md#身份凭据与本地数据)。
 
-Windows 的 RDP 编辑与连接窗口可选择“内置客户端”或“系统客户端（mstsc）”，连接菜单也提供系统客户端入口。系统方式通过普通模式 mstsc 复用填写或保存的密码，确认连接后无需重复输入有效凭据；身份与资源重定向确认、认证失败及强制询问密码仍由 Windows 策略处理。TermQuay 不创建内嵌远程桌面。密码通过当前用户 DPAPI 保护的临时配置交接，正常关闭 mstsc 后清理，不写入系统凭据管理器。此方式不向应用报告远端连接状态，也不更新成功连接历史。
+Windows 的 RDP 编辑与连接窗口可选择“内置客户端”或“系统客户端（mstsc）”，连接菜单也提供系统客户端入口。系统方式通过普通模式 mstsc 复用填写或保存的密码，确认连接后无需重复输入有效凭据；身份与资源重定向确认、认证失败及强制询问密码仍由 Windows 策略处理。TermQuay 不创建内嵌远程桌面。密码通过当前用户 DPAPI 保护的临时配置交接，不写入系统凭据管理器；应用仍在运行时，关闭 mstsc 后清理配置，应用提前退出可能遗留临时配置。此方式不向应用报告远端连接状态，也不更新成功连接历史。
 
 SSH 认证可选择 Agent。Unix 默认使用 SSH_AUTH_SOCK，Windows 默认使用 OpenSSH Agent 命名管道，也可填写明确地址；Agent 不可用或没有密钥会报错，不回退密码。私钥可粘贴或通过原生文件选择，文件内容由 Go 读取并按已有凭据规则加密，前端接收短期令牌。新认证字段写入 v2 快照，旧 v1 快照继续可读，未知版本拒绝。
 
@@ -182,7 +182,9 @@ CPU、内存及网络/磁盘设备速率合计提供最近六分钟趋势，最�
 
 默认 `Ctrl/⌘ + Shift + ] / [` 切换工作区（包含连接中心），`Ctrl/⌘ + Alt + \\` 切换 SSH 窗格，`Ctrl/⌘ + Alt + T` 新建终端，`Ctrl/⌘ + Alt + W` 关闭当前终端或文件。文件关闭仍需处理未保存修改；新建仍遵守终端限额。这些动作可在快捷键设置修改，旧配置保留自定义值，新动作避让已有键位；命令搜索和内容标签按钮显示当前键位。系统组合与基本输入组合不可分配，IME、AltGr 和 RDP 远端归属沿用原有规则。
 
-外观设置支持深色、浅色、跟随系统，界面字体、终端与编辑器等宽字体，以及跟随主题或独立深浅终端配色。本机未安装所选字体时使用后备字体，不下载远程字体。设置保存在本机，可复位；主题与字体切换更新现有终端和编辑器，保留会话、文档和撤销记录，差异视图与查找面板同时适配。原生系统标题栏沿用操作系统外观。
+外观设置支持深色、浅色、跟随系统，界面字体、终端与编辑器等宽字体，以及跟随主题、独立深浅、One Dark 和 Tokyo Night 终端配色。本机未安装所选字体时使用后备字体，不下载远程字体。设置保存在本机，可复位；主题与字体切换更新现有终端和编辑器，保留会话、文档和撤销记录，差异视图与查找面板同时适配。原生系统标题栏沿用操作系统外观。
+
+日志级别高亮默认开启，可在外观设置关闭；识别 ERROR/FATAL、WARN/WARNING、INFO、DEBUG/TRACE，保留远端程序已有颜色及选区显示。高亮仅处理普通终端缓冲区的可见区域，并限制扫描范围和装饰数量，隐藏终端及全屏程序的备用缓冲区停止处理。高亮不改写远端输出或 Shell 配置；提示符及输入语法颜色仍由远端 Shell 提供。
 
 终端右上角提供查找、命令片段和操作菜单。查找支持 Enter/Shift+Enter 切换匹配、区分大小写、正则和 Escape 返回终端；显示当前匹配/总数、无匹配与无效正则反馈。高亮最多 1000 项，达到上限时总数显示为下界。固定版本 xterm 搜索插件的计数依赖装饰 API，终端为该用途启用对应 API，输入与消费确认不变。Ctrl/⌘+Shift+F/C/V 分别查找、复制和粘贴。清空显示不发送远端命令，字号可局部调整与复位。Ctrl/⌘+单击打开 HTTP(S) 链接。含换行（包括末尾换行）的粘贴先预览确认，普通单行直接插入，保留终端 bracketed paste。
 
