@@ -125,6 +125,10 @@ export function GetCatalog(): $CancellablePromise<$models.Catalog> {
     return $Call.ByID(12026733);
 }
 
+export function GetConnectionPassword(id: string): $CancellablePromise<string> {
+    return $Call.ByID(3017363119, id);
+}
+
 export function GetConnectionPreferences(): $CancellablePromise<{ [_ in string]?: store$0.ConnectionPreference } | null> {
     return $Call.ByID(3002214768);
 }

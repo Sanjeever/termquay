@@ -411,6 +411,36 @@ func (a *AppService) DeleteConnection(id string) error {
 	return a.store.Replace(d)
 }
 
+func (a *AppService) GetConnectionPassword(id string) (string, error) {
+	a.storeMu.Lock()
+	defer a.storeMu.Unlock()
+	if err := a.openStorage(); err != nil {
+		return "", err
+	}
+	d, err := a.store.Read()
+	if err != nil {
+		return "", err
+	}
+	for _, c := range d.Connections {
+		if c.ID != id {
+			continue
+		}
+		if c.CredentialID == "" {
+			return "", nil
+		}
+		for _, credential := range d.Credentials {
+			if credential.ID == c.CredentialID {
+				if credential.Kind != "password" {
+					return "", errors.New("所选连接未使用密码凭据")
+				}
+				return credential.Secret, nil
+			}
+		}
+		return "", errors.New("连接凭据不存在")
+	}
+	return "", errors.New("连接不存在")
+}
+
 func (a *AppService) savedRequest(id string) (terminal.Request, store.Connection, error) {
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()

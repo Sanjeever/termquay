@@ -44,6 +44,12 @@ func TestCatalogCredentialsAndGroups(t *testing.T) {
 	if strings.Contains(string(raw), "test-credential-not-real") {
 		t.Fatal("目录接口泄露凭据")
 	}
+	if password, err := a.GetConnectionPassword(c.ID); err != nil || password != "test-credential-not-real" {
+		t.Fatal("编辑接口未返回保存的密码")
+	}
+	if _, err := a.GetConnectionPassword("missing"); err == nil {
+		t.Fatal("编辑接口接受不存在的连接")
+	}
 	if err = a.DeleteGroup("parent"); err == nil {
 		t.Fatal("删除仍被引用的分组")
 	}

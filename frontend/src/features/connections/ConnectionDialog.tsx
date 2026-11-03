@@ -1,6 +1,7 @@
 import { useEffect,useRef, useState } from 'react';
 import { Button, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
-import { SaveConnection, ParseQuickConnection, SetRDPResolution, SetConnectionPreference, GetConnectionPreferences, SelectPrivateKey,ReleasePrivateKey } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
+import { SaveConnection, GetConnectionPassword, ParseQuickConnection, SetRDPResolution, SetConnectionPreference, GetConnectionPreferences, SelectPrivateKey,ReleasePrivateKey } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
+import Icon from '../../components/Icon';
 import type { RDPOptions } from '../rdp/RDPView';
 import type {PrivateKeySelection}from'../../../bindings/github.com/Sanjeever/termquay/models';
 import type { Connection, ConnectionPreference, Group } from '../../../bindings/github.com/Sanjeever/termquay/internal/store/models';
@@ -18,7 +19,11 @@ export default function ConnectionDialog({ connection, temporary, groups, connec
   const [privateKey,setPrivateKey]=useState<PrivateKeySelection>();
   const privateKeyRef=useRef(privateKey);privateKeyRef.current=privateKey;
   useEffect(()=>()=>{if(privateKeyRef.current)ReleasePrivateKey(privateKeyRef.current.id);},[]);
-  const [replace, setReplace] = useState(!connection?.credential_id);
+  const [replace, setReplace] = useState(!connection?.credential_id || !connection.auth_method || connection.auth_method === 'password');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(!!connection?.credential_id && (!connection.auth_method || connection.auth_method === 'password'));
+  const originalPassword = useRef('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [stored, setStored] = useState(false);
@@ -32,6 +37,14 @@ export default function ConnectionDialog({ connection, temporary, groups, connec
   const [rdpResolution, setRDPResolution] = useState(rdpOptions?.resolution || 'dynamic');
   const form = useRef<HTMLFormElement>(null);
 
+  useEffect(() => {
+    if (!passwordLoading || !connection) return;
+    let active = true;
+    const request = GetConnectionPassword(connection.id);
+    request.then(value => { if (active) { originalPassword.current = value; setPassword(value); } }).catch(e => { if (active) setError(`读取密码失败：${String(e)}`); }).finally(() => { if (active) setPasswordLoading(false); });
+    return () => { active = false; request.cancel(); originalPassword.current = ''; };
+  }, []);
+
   async function parseAddress() {
     if (!quickAddress.trim() || parsing) return;
     setParsing(true); setError('');
@@ -41,7 +54,7 @@ export default function ConnectionDialog({ connection, temporary, groups, connec
   }
 
   async function submit(mode: 'save' | 'connect' | 'both') {
-    if (saving || busy || !targetReady || !form.current?.reportValidity()) return;
+    if (saving || busy || passwordLoading || !targetReady || !form.current?.reportValidity()) return;
     const data = new FormData(form.current);
     const host = String(data.get('host')).trim();
     const config: Connection = { id: saved?.id || '', name: String(data.get('name') || host).trim(), host, port: Number(data.get('port')), protocol, username: String(data.get('username')), group_id: String(data.get('group') || ''), domain: String(data.get('domain') || ''), credential_id: saved?.credential_id || '',auth_method:protocol==='ssh'?(replace?authKind:saved?.auth_method||''):'',identity_agent:protocol==='ssh'&&authKind==='agent'?String(data.get('identity_agent')||saved?.identity_agent||''):'',jump_id:protocol==='ssh'?String(data.get('jump')||''):'' };
@@ -49,6 +62,7 @@ export default function ConnectionDialog({ connection, temporary, groups, connec
     setError('');
     try {
       if (mode !== 'connect') {
+        if (request.password === originalPassword.current) request.password = '';
         setSaving(true); const result = await SaveConnection(config, request); setSaved(result); setStored(true); onSaved();
         try { const latest = (await GetConnectionPreferences())?.[result.id]; await SetConnectionPreference(result.id, !!latest?.favorite, String(data.get('environment') || '')); if (protocol === 'rdp') await SetRDPResolution(result.id, rdpResolution); }
         catch (e) { setError(`配置已保存，偏好保存失败：${String(e)}`); return; }
@@ -62,6 +76,7 @@ export default function ConnectionDialog({ connection, temporary, groups, connec
     finally { setSaving(false); clearSecrets(); request.password = ''; request.private_key = ''; request.passphrase = ''; }
   }
   function clearSecrets() {
+    setPassword(''); setShowPassword(false); originalPassword.current = '';
     if(privateKeyRef.current){ReleasePrivateKey(privateKeyRef.current.id);setPrivateKey(undefined);}
     for (const name of ['password', 'private_key', 'passphrase']) { const field = form.current?.elements.namedItem(name) as HTMLInputElement | null; if (field) field.value = ''; }
     if (form.current) setCredentialEpoch(value => value + 1);
@@ -76,9 +91,9 @@ export default function ConnectionDialog({ connection, temporary, groups, connec
       </div><Input className="connection-username" key={`user-${parsed?.epoch || 0}`} name="username" label="用户名" labelPlacement="outside" placeholder="用户名" defaultValue={parsed?.value.username ?? saved?.username} isRequired size="sm" isDisabled={busy || saving} autoComplete="off" />
       {protocol === 'rdp' && <Input className="connection-auth" name="domain" label="域（可选）" labelPlacement="outside" placeholder="域" defaultValue={saved?.domain} size="sm" isDisabled={busy || saving} />}
       {saved?.credential_id && !replace ? <div className="saved-credential"><span>已保存凭据</span><Button size="sm" variant="light" isDisabled={busy || saving} onPress={() => setReplace(true)}>更换凭据</Button></div> : <>
-        {saved?.credential_id && <div className="muted">留空沿用已保存凭据</div>}
+        {saved?.credential_id && authKind === 'private_key' && <div className="muted">留空沿用已保存凭据</div>}
         {protocol === 'ssh' && <label className="form-field connection-auth">认证方式<select value={authKind} disabled={busy || saving} onChange={e => {clearSecrets();setAuthKind(e.target.value);}}><option value="password">密码</option><option value="private_key">私钥</option><option value="agent">SSH Agent</option></select></label>}
-        {protocol==='ssh'&&authKind==='agent'?<Input name="identity_agent" label="Agent 地址（可选）" labelPlacement="outside" defaultValue={saved?.identity_agent} isDisabled={busy||saving} size="sm"/>:protocol === 'ssh' && authKind === 'private_key' ? <><label className="form-field">私钥来源<select value={keySource} disabled={busy || saving} onChange={e => { clearSecrets(); setKeySource(e.target.value); }}><option value="file">本机文件</option><option value="paste">粘贴内容</option></select></label>{keySource === 'file' ? <div className="button-row"><Button size="sm" variant="bordered" isDisabled={busy||saving} onPress={async()=>{try{const selection=await SelectPrivateKey();if(selection.id){clearSecrets();setPrivateKey(selection);}}catch(e){setError(String(e));}}}>选择私钥文件</Button>{privateKey&&<span className="file-path">{privateKey.name}</span>}</div> : <label className="form-field">私钥内容<textarea key={`key-${credentialEpoch}`} name="private_key" rows={3} disabled={busy || saving} spellCheck={false} autoComplete="off" /></label>}<Input key={`passphrase-${credentialEpoch}`} name="passphrase" label="私钥口令" labelPlacement="outside" placeholder="可选" type="password" size="sm" autoComplete="off" isDisabled={busy || saving} /></> : <Input key={`password-${credentialEpoch}`} name="password" label="密码" labelPlacement="outside" placeholder="密码" type="password" size="sm" autoComplete="off" isDisabled={busy || saving} />}
+        {protocol==='ssh'&&authKind==='agent'?<Input name="identity_agent" label="Agent 地址（可选）" labelPlacement="outside" defaultValue={saved?.identity_agent} isDisabled={busy||saving} size="sm"/>:protocol === 'ssh' && authKind === 'private_key' ? <><label className="form-field">私钥来源<select value={keySource} disabled={busy || saving} onChange={e => { clearSecrets(); setKeySource(e.target.value); }}><option value="file">本机文件</option><option value="paste">粘贴内容</option></select></label>{keySource === 'file' ? <div className="button-row"><Button size="sm" variant="bordered" isDisabled={busy||saving} onPress={async()=>{try{const selection=await SelectPrivateKey();if(selection.id){clearSecrets();setPrivateKey(selection);}}catch(e){setError(String(e));}}}>选择私钥文件</Button>{privateKey&&<span className="file-path">{privateKey.name}</span>}</div> : <label className="form-field">私钥内容<textarea key={`key-${credentialEpoch}`} name="private_key" rows={3} disabled={busy || saving} spellCheck={false} autoComplete="off" /></label>}<Input key={`passphrase-${credentialEpoch}`} name="passphrase" label="私钥口令" labelPlacement="outside" placeholder="可选" type="password" size="sm" autoComplete="off" isDisabled={busy || saving} /></> : <Input key={`password-${credentialEpoch}`} name="password" label="密码" labelPlacement="outside" placeholder={passwordLoading ? '正在读取…' : '密码'} type={showPassword ? 'text' : 'password'} value={password} onValueChange={setPassword} size="sm" autoComplete="off" isDisabled={busy || saving || passwordLoading} endContent={<button type="button" className="password-toggle" aria-label={showPassword ? '隐藏密码' : '显示密码'} aria-pressed={showPassword} onClick={() => setShowPassword(value => !value)}><Icon name={showPassword ? 'eyeOff' : 'eye'} width="17" /></button>} />}
       </>}
       {!temporary && <details className="connection-options"><summary>名称、分组与环境</summary><div className="connection-options-fields"><Input name="name" label="名称" labelPlacement="outside" placeholder="默认使用主机地址" defaultValue={saved?.name} size="sm" isDisabled={busy || saving} />
       {!temporary && <label className="form-field">分组<select name="group" defaultValue={saved?.group_id || ''} disabled={busy || saving}><option value="">未分组</option>{groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}</select></label>}
