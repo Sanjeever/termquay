@@ -49,7 +49,7 @@ func localShellCommand(kind string) (string, []string, error) {
 			return path, []string{"/D"}, err
 		case "wsl":
 			path, err := exec.LookPath("wsl.exe")
-			return path, nil, err
+			return path, []string{"--cd", "~"}, err
 		default:
 			return "", nil, errors.New("本地 Shell 类型无效")
 		}

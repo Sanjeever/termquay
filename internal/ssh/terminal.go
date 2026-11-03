@@ -369,8 +369,8 @@ func RelayIO(input io.Writer, output io.Reader, done <-chan struct{}, closeEndpo
 		}
 	}()
 	// 等待 xterm.js 解析确认后再读下一帧，避免积压转移到前端解析队列。
+	buf := make([]byte, ChunkSize)
 	for {
-		buf := make([]byte, ChunkSize)
 		n, err := output.Read(buf)
 		if n > 0 {
 			if record != nil {

@@ -7,7 +7,7 @@ import { SearchAddon } from '@xterm/addon-search';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import TerminalSearch, { searchHighlightLimit } from './TerminalSearch';
 import { addLogHighlights } from './logHighlights';
-import { addShellIntegration, shellSetup } from './shellIntegration';
+import { addShellIntegration, shellSetupForHost } from './shellIntegration';
 import SelectControl from '../../components/SelectControl';
 import TmuxDialog from './TmuxDialog';
 import { ExportTerminalBuffer, StartTerminalLog, PauseTerminalLog, GetTerminalLogStatus } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
@@ -21,7 +21,7 @@ import '@xterm/xterm/css/xterm.css';
 
 export type TerminalAction = 'find' | 'copy' | 'paste' | 'selectAll' | 'clear' | 'zoomIn' | 'zoomOut' | 'zoomReset';
 export type TerminalHandle = { ended():boolean; action(action: TerminalAction): void; insert(text: string): boolean };
-const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string; local?: boolean; visible: boolean; fontSize: number; focusOnShow?:boolean; onConnectionChange?():void; onSnippets(): void; onDirectory?(path: string, host: string): void; onFile?(path: string, line: number): void }>(function TerminalView({ id, workspace, local=false, visible, fontSize, focusOnShow=true, onConnectionChange, onSnippets, onDirectory, onFile }, ref) {
+const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string; host?:string; local?: boolean; visible: boolean; fontSize: number; focusOnShow?:boolean; onConnectionChange?():void; onSnippets(): void; onDirectory?(path: string, host: string): void; onFile?(path: string, line: number): void }>(function TerminalView({ id, workspace, host='localhost', local=false, visible, fontSize, focusOnShow=true, onConnectionChange, onSnippets, onDirectory, onFile }, ref) {
   const container = useRef<HTMLDivElement>(null);
   const [error, setError] = useState('');
   const [connected, setConnected] = useState<boolean|null>(null);
@@ -45,6 +45,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
   async function pauseLog() { try { setLog(await PauseTerminalLog(id)); } catch (e) { setError(String(e)); } }
   useEffect(() => { if (!log?.recording || !connected) return; let ended = false; let timer: ReturnType<typeof setTimeout>; async function load() { try { const value = await GetTerminalLogStatus(id); if (!ended) { setLog(value); if (value.error) setError(`日志记录停止：${value.error}`); } } catch (e) { if (!ended) setError(String(e)); } finally { if (!ended) timer = setTimeout(load, 2000); } } timer = setTimeout(load, 2000); return () => { ended = true; clearTimeout(timer); }; }, [id, log?.recording, connected]);
   const [shell, setShell] = useState<'bash' | 'zsh'>('bash');
+  const shellSetup=shellSetupForHost(shell,host);
   const integration = useRef<ReturnType<typeof addShellIntegration>>();
   const callbacks = useRef({ onDirectory, onFile }); callbacks.current = { onDirectory, onFile };
   const shown = useRef(visible); shown.current = visible;
@@ -153,7 +154,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
     {log?.directory && <div className="session-status"><span>{connected && log.recording ? '日志记录中' : '日志已暂停'}</span><button className="session-tool file-path" title={log.directory} onClick={() => { navigator.clipboard.writeText(log.directory).catch(e => setError(String(e))); }}>{log.directory}</button></div>}
     <Modal isOpen={logConfirm} onClose={() => setLogConfirm(false)} className="app-dialog"><ModalContent><ModalHeader>记录终端输出</ModalHeader><ModalBody><p>输出以 ANSI 原始字节保存在本机，可能包含敏感信息。最多保留三段日志，每段 8 MiB，循环覆盖最旧段。</p>{log?.directory && <p className="file-path">{log.directory}</p>}</ModalBody><ModalFooter><Button variant="light" onPress={() => setLogConfirm(false)}>取消</Button><Button color="primary" onPress={async () => { try { const value = await StartTerminalLog(id); if (value.directory) setLog(value); setLogConfirm(false); } catch (e) { setError(String(e)); } }}>开始记录</Button></ModalFooter></ModalContent></Modal>
     <div className="session-status"><span>{connected===null?'连接中':connected ? '已连接' : '已断开'}</span>{cwd && <span className="file-path" title={cwd}>{cwd}</span>}{exitCode && exitCode !== '0' && <span className="error">退出码 {exitCode}</span>}{error && <span role="alert" className="error">{error}</span>}</div>
-    <Modal isOpen={integrationOpen} onClose={() => setIntegrationOpen(false)} className="app-dialog"><ModalContent><ModalHeader>当前 Shell 集成</ModalHeader><ModalBody><label className="form-field">Shell<SelectControl value={shell} onChange={event => setShell(event.target.value as 'bash' | 'zsh')}><option value="bash">Bash 4.4+</option><option value="zsh">Zsh</option></SelectControl></label><p className="muted">在当前 Shell 提示符执行，退出后失效。将设置提示符与命令钩子。</p><pre className="paste-preview">{shellSetup[shell]}</pre></ModalBody><ModalFooter><Button variant="light" onPress={() => setIntegrationOpen(false)}>取消</Button><Button color="primary" onPress={() => { if (insert(shellSetup[shell] + '\n')) setIntegrationOpen(false); }}>插入并预览</Button></ModalFooter></ModalContent></Modal>
+    <Modal isOpen={integrationOpen} onClose={() => setIntegrationOpen(false)} className="app-dialog"><ModalContent><ModalHeader>当前 Shell 集成</ModalHeader><ModalBody><label className="form-field">Shell<SelectControl value={shell} onChange={event => setShell(event.target.value as 'bash' | 'zsh')}><option value="bash">Bash 4.4+</option><option value="zsh">Zsh</option></SelectControl></label><p className="muted">在当前 Shell 提示符执行，退出后失效。将设置提示符与命令钩子。</p><pre className="paste-preview">{shellSetup}</pre></ModalBody><ModalFooter><Button variant="light" onPress={() => setIntegrationOpen(false)}>取消</Button><Button color="primary" onPress={() => { if (insert(shellSetup + '\n')) setIntegrationOpen(false); }}>插入并预览</Button></ModalFooter></ModalContent></Modal>
     <Modal isOpen={paste !== undefined} onClose={() => { setPaste(undefined); terminal.current?.focus(); }} className="app-dialog"><ModalContent><ModalHeader>确认多行粘贴</ModalHeader><ModalBody><p>换行可能立即执行命令，请核对内容。</p><pre className="paste-preview">{paste}</pre></ModalBody><ModalFooter><Button variant="light" onPress={() => { setPaste(undefined); terminal.current?.focus(); }}>取消</Button><Button color="primary" onPress={() => { if (paste !== undefined) terminal.current?.paste(paste); setPaste(undefined); terminal.current?.focus(); }}>粘贴到终端</Button></ModalFooter></ModalContent></Modal>
   </div>;
 });

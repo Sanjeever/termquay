@@ -336,7 +336,7 @@ input[type=checkbox] { accent-color: var(--color-primary); }
 .transfer-panel td { padding: 8px 12px; border-top: 1px solid var(--color-border); }
 .transfer-heading select { font-size: 12px; }
 .transfer-options { display: flex; align-items: center; gap: 12px; margin: 4px 0 8px; color: var(--color-muted); font-size: 11px; }
-.transfer-options input { width: 90px; padding: 3px 6px; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-background); color: var(--color-foreground); }
+.transfer-options input { width: 90px; padding: 3px 6px; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-background); color: var(--color-text); }
 .auth-instruction { white-space: pre-wrap; overflow-wrap: anywhere; }
 .batch-targets { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 6px 16px; max-height: 180px; overflow: auto; }
 .batch-targets label { display: flex; align-items: center; gap: 8px; padding: 6px 0; min-width: 0; }

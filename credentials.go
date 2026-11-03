@@ -81,6 +81,9 @@ func (a *AppService) AssignCredential(connectionIDs []string, credentialID strin
 		data.Connections[i].CredentialID = credentialID
 		if connection.Protocol == "ssh" {
 			data.Connections[i].AuthMethod = kind
+			if kind != "private_key" {
+				data.Connections[i].Certificate = ""
+			}
 		}
 		delete(selected, connection.ID)
 	}

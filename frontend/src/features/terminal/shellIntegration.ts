@@ -20,6 +20,12 @@ fi`,
 fi`,
 };
 
+export function shellSetupForHost(shell: 'bash' | 'zsh', host: string) {
+  const authority = host.includes(':') && !host.startsWith('[') ? `[${host}]` : host;
+  const prompt = ['local code=$?;', 'local __termquay_path="$PWD";', '__termquay_path=${__termquay_path//%/%25};', '__termquay_path=${__termquay_path//#/%23};', '__termquay_path=${__termquay_path//"?"/%3F};'].join(' ');
+  return shellSetup[shell].replace('__termquay_enabled=1', `__termquay_enabled=1\n  __termquay_host=${shellQuote(authority)}`).replace(/"\$HOSTNAME"|"\$HOST"/g, '"$__termquay_host"').replace('"$PWD";', '"$__termquay_path";').replace('local code=$?;', prompt);
+}
+
 export function addShellIntegration(term: Terminal, onDirectory: (path: string, host: string) => void, onExit: (code: string) => void, onFile: (path: string, line: number) => void) {
   const marks: IMarker[] = [];
   let output: IMarker | undefined;
@@ -30,7 +36,7 @@ export function addShellIntegration(term: Terminal, onDirectory: (path: string, 
     return value;
   }
   const cwd = term.parser.registerOscHandler(7, data => {
-    if (data.length > 8192 || term.buffer.active.type !== 'normal') return true;
+    if (data.length > 8192 || /[\x00-\x1f\x7f]/.test(data) || term.buffer.active.type !== 'normal') return true;
     try { const url = new URL(data); const path = decodeURIComponent(url.pathname); if (url.protocol === 'file:' && path.startsWith('/') && !/[\x00-\x1f\x7f]/.test(path)) onDirectory(path, url.hostname); } catch { return true; }
     return true;
   });

@@ -74,8 +74,9 @@ export default function App() {
   const [batchCommandOpen, setBatchCommandOpen] = useState(false);
   const [localShells,setLocalShells]=useState<LocalShell[]>([]);
   const [openingLocal,setOpeningLocal]=useState(false);
+  const localOpening=useRef(false);
   useEffect(()=>{ListLocalShells().then(values=>setLocalShells(values||[])).catch(e=>setPreferenceError(String(e)));},[]);
-  async function openLocalShell(kind:string){if(openingLocal||latestWorkspaces.current.length>=16)return;setOpeningLocal(true);try{const terminal=await OpenLocalTerminal(kind,100,30);if(latestWorkspaces.current.length>=16){await CloseLocalTerminal(terminal.id);throw new Error('打开工作区达到上限（16 个）');}setWorkspaces(previous=>[...previous,{id:terminal.id,sessionID:terminal.id,connectionID:'',name:terminal.name,local:{shell:terminal.name,terminal:createRef<TerminalHandle>()}}]);select(terminal.id);}catch(e){setPreferenceError(String(e));}finally{setOpeningLocal(false);}}
+  async function openLocalShell(kind:string){if(localOpening.current||latestWorkspaces.current.length>=16)return;localOpening.current=true;setOpeningLocal(true);try{const terminal=await OpenLocalTerminal(kind,100,30);if(latestWorkspaces.current.length>=16){await CloseLocalTerminal(terminal.id);throw new Error('打开工作区达到上限（16 个）');}setWorkspaces(previous=>[...previous,{id:terminal.id,sessionID:terminal.id,connectionID:'',name:terminal.name,local:{shell:terminal.name,terminal:createRef<TerminalHandle>()}}]);select(terminal.id);}catch(e){setPreferenceError(String(e));}finally{localOpening.current=false;setOpeningLocal(false);}}
   const [shortcuts, setShortcuts] = useState<Shortcuts>({ ...defaultShortcuts });
   const [shortcutError, setShortcutError] = useState('');
   const current = workspaces.find(w => w.id === active);
@@ -147,11 +148,11 @@ export default function App() {
   function saveShortcuts(values: Shortcuts) { try { localStorage.setItem(shortcutStorageKey, JSON.stringify(values)); setShortcuts(values); setShortcutError(''); window.dispatchEvent(new Event('termquay:portable-changed')); } catch (e) { setShortcutError(String(e)); } }
   useEffect(() => {
     if (!catalog) return;
-    let ended = false; let timer: ReturnType<typeof setTimeout>;
+    let ended = false; let changed=false; let timer: ReturnType<typeof setTimeout>;
     const restored = () => { try { setShortcuts(mergeShortcuts(JSON.parse(localStorage.getItem(shortcutStorageKey) || '{}'))); } catch (e) { setShortcutError(String(e)); } };
-    const save = () => { clearTimeout(timer); timer = setTimeout(() => { try { SavePortableUI(capturePortableUI()).catch(e => { if (!ended) setPreferenceError(`界面设置保存失败：${String(e)}`); }); } catch (e) { setPreferenceError(String(e)); } }, 300); };
+    const save = () => { changed=true;clearTimeout(timer); timer = setTimeout(() => { try { SavePortableUI(capturePortableUI()).catch(e => { if (!ended) setPreferenceError(`界面设置保存失败：${String(e)}`); }); } catch (e) { setPreferenceError(String(e)); } }, 300); };
     window.addEventListener('termquay:portable-restored', restored); window.addEventListener('termquay:portable-changed', save);
-    GetPortableUI().then(async values => { if (ended) return; if (Object.keys(values || {}).length) applyPortableUI(values); else await SavePortableUI(capturePortableUI()); }).catch(e => { if (!ended) setPreferenceError(String(e)); });
+    GetPortableUI().then(async values => { if (ended||changed) return; if (Object.keys(values || {}).length) applyPortableUI(values); else await SavePortableUI(capturePortableUI()); }).catch(e => { if (!ended) setPreferenceError(String(e)); });
     return () => { ended = true; clearTimeout(timer); window.removeEventListener('termquay:portable-restored', restored); window.removeEventListener('termquay:portable-changed', save); };
   }, [catalog?.session_only]);
   useEffect(() => {const off=Events.On('app:close-requested',()=>nativeClose.current());SetFrontendReady().catch(e=>setPreferenceError(`退出协调初始化失败：${String(e)}`));return off;}, []);

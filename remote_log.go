@@ -63,7 +63,7 @@ func (a *AppService) ReadRemoteLog(ctx context.Context, workspace, remote string
 	data = data[:n]
 	result.End = result.Start + int64(n)
 	if result.Start > 0 {
-		for len(data) > 0 && !utf8.RuneStart(data[0]) {
+		for skipped := 0; len(data) > 0 && !utf8.RuneStart(data[0]) && skipped < 3; skipped++ {
 			data = data[1:]
 			result.Start++
 		}
