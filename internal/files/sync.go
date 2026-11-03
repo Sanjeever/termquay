@@ -42,7 +42,7 @@ func SameSyncNode(a, b SyncNode) bool {
 func validSyncRelative(value string) bool {
 	return value != "" && value != "." && fs.ValidPath(value) && !strings.ContainsAny(value, "\\\x00\r\n:") && len(value) <= 4096 && strings.Count(value, "/") < MaxSyncDepth
 }
-func ScanLocalSync(ctx context.Context, root string) (string, map[string]SyncNode, error) {
+func ScanLocalSync(ctx context.Context, root string, exclude ...string) (string, map[string]SyncNode, error) {
 	root, err := filepath.EvalSymlinks(root)
 	if err != nil {
 		return "", nil, err
@@ -76,6 +76,9 @@ func ScanLocalSync(ctx context.Context, root string) (string, map[string]SyncNod
 			entries, readErr := directory.ReadDir(128)
 			for _, entry := range entries {
 				name := path.Join(relative, entry.Name())
+				if ExcludedSyncPath(name, exclude) {
+					continue
+				}
 				pathBytes += len(name)
 				if entry.Name() != path.Base(entry.Name()) || !validSyncRelative(name) || len(nodes) >= MaxSyncEntries || pathBytes > MaxSyncPathBytes {
 					directory.Close()
@@ -103,7 +106,7 @@ func ScanLocalSync(ctx context.Context, root string) (string, map[string]SyncNod
 	}
 	return root, nodes, nil
 }
-func ScanRemoteSync(ctx context.Context, client *sftp.Client, root string) (string, map[string]SyncNode, error) {
+func ScanRemoteSync(ctx context.Context, client *sftp.Client, root string, exclude ...string) (string, map[string]SyncNode, error) {
 	root, err := client.RealPath(root)
 	if err != nil {
 		return "", nil, err
@@ -132,6 +135,9 @@ func ScanRemoteSync(ctx context.Context, client *sftp.Client, root string) (stri
 					continue
 				}
 				name := path.Join(relative, info.Name())
+				if ExcludedSyncPath(name, exclude) {
+					continue
+				}
 				pathBytes += len(name)
 				if info.Name() != path.Base(info.Name()) || !validSyncRelative(name) || len(nodes) >= MaxSyncEntries || pathBytes > MaxSyncPathBytes {
 					directory.Close()

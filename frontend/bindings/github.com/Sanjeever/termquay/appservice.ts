@@ -113,6 +113,10 @@ export function DeleteSnippet(id: string): $CancellablePromise<void> {
     return $Call.ByID(988896974, id);
 }
 
+export function DeleteSyncPreset(connectionID: string, name: string): $CancellablePromise<void> {
+    return $Call.ByID(170157057, connectionID, name);
+}
+
 export function DiscardAndQuit(): $CancellablePromise<void> {
     return $Call.ByID(2297958254);
 }
@@ -151,6 +155,14 @@ export function GetDraftRecoveryState(): $CancellablePromise<$models.DraftRecove
 
 export function GetSSHChallenge(id: string): $CancellablePromise<$models.SSHChallenge | null> {
     return $Call.ByID(2636270309, id);
+}
+
+export function GetSyncPresets(connectionID: string): $CancellablePromise<$models.SyncPreset[] | null> {
+    return $Call.ByID(250109047, connectionID);
+}
+
+export function GetTransferRate(): $CancellablePromise<number> {
+    return $Call.ByID(464069423);
 }
 
 export function GetWorkspaceLayout(): $CancellablePromise<$models.WorkspaceLayout> {
@@ -223,6 +235,10 @@ export function ParseQuickConnection(value: string): $CancellablePromise<store$0
 
 export function PreviewDirectorySync(workspace: string, direction: string, local: string, remote: string): $CancellablePromise<$models.DirectorySyncPreview> {
     return $Call.ByID(2250884002, workspace, direction, local, remote);
+}
+
+export function PreviewDirectorySyncFiltered(workspace: string, direction: string, local: string, remote: string, exclude: string[] | null): $CancellablePromise<$models.DirectorySyncPreview> {
+    return $Call.ByID(548193165, workspace, direction, local, remote, exclude);
 }
 
 export function PreviewRestore(options: backup$0.WebDAVOptions, path: string, password: string): $CancellablePromise<$models.RestorePreview> {
@@ -313,6 +329,10 @@ export function SaveSnippet(value: $models.Snippet): $CancellablePromise<$models
     return $Call.ByID(559352956, value);
 }
 
+export function SaveSyncPreset(preset: $models.SyncPreset): $CancellablePromise<void> {
+    return $Call.ByID(993885503, preset);
+}
+
 export function SaveWorkspaceDrafts(workspace: string, documents: $models.RecoveryDraftInput[] | null): $CancellablePromise<void> {
     return $Call.ByID(3246241316, workspace, documents);
 }
@@ -351,6 +371,10 @@ export function SetRDPClient(id: string, client: string): $CancellablePromise<vo
 
 export function SetRDPResolution(id: string, resolution: string): $CancellablePromise<void> {
     return $Call.ByID(1869345094, id, resolution);
+}
+
+export function SetTransferRate(kibPerSecond: number): $CancellablePromise<void> {
+    return $Call.ByID(2964970131, kibPerSecond);
 }
 
 export function SetWorkspaceDirty(id: string, dirty: boolean): $CancellablePromise<void> {

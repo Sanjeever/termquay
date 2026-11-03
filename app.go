@@ -8,6 +8,7 @@ import (
 	"net"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Sanjeever/termquay/internal/rdp"
@@ -79,6 +80,7 @@ type AppService struct {
 	pendingTrustAt         map[string]time.Time
 	pendingTrustGeneration map[string]uint64
 	sshChallenges          map[string]*sshAuthentication
+	transferRate           atomic.Int64
 }
 
 func NewAppService() *AppService {

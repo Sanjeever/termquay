@@ -22,6 +22,7 @@ type DirectorySyncPreview struct {
 	Local     string            `json:"local"`
 	Remote    string            `json:"remote"`
 	Entries   []files.SyncEntry `json:"entries"`
+	Exclude   []string          `json:"exclude,omitempty"`
 }
 type directorySyncPlan struct {
 	preview        DirectorySyncPreview
@@ -45,6 +46,27 @@ func (a *AppService) PreviewDirectorySync(ctx context.Context, workspace, direct
 	return a.previewDirectorySync(ctx, workspace, direction, local, remote)
 }
 func (a *AppService) previewDirectorySync(ctx context.Context, workspace, direction, local, remote string) (DirectorySyncPreview, error) {
+	return a.previewDirectorySyncFiltered(ctx, workspace, direction, local, remote, nil)
+}
+
+func (a *AppService) PreviewDirectorySyncFiltered(ctx context.Context, workspace, direction, local, remote string, exclude []string) (DirectorySyncPreview, error) {
+	if err := files.ValidateSyncExcludes(exclude); err != nil {
+		return DirectorySyncPreview{}, err
+	}
+	if local == "" {
+		var err error
+		local, err = application.Get().Dialog.OpenFile().SetTitle("选择本地同步目录").CanChooseFiles(false).CanChooseDirectories(true).PromptForSingleSelection()
+		if err != nil || local == "" {
+			return DirectorySyncPreview{}, err
+		}
+	}
+	if !filepath.IsAbs(local) || len(local) > 4096 {
+		return DirectorySyncPreview{}, errors.New("本地同步目录必须是绝对路径")
+	}
+	return a.previewDirectorySyncFiltered(ctx, workspace, direction, local, remote, exclude)
+}
+
+func (a *AppService) previewDirectorySyncFiltered(ctx context.Context, workspace, direction, local, remote string, exclude []string) (DirectorySyncPreview, error) {
 	ctx, cancel := context.WithTimeout(ctx, 45*time.Second)
 	defer cancel()
 	if direction != "upload" && direction != "download" {
@@ -66,7 +88,7 @@ func (a *AppService) previewDirectorySync(ctx context.Context, workspace, direct
 	stopOwner := context.AfterFunc(ownerContext, cancel)
 	defer stopOwner()
 	defer func() { a.mu.Lock(); a.syncOpening--; a.mu.Unlock() }()
-	local, localNodes, err := files.ScanLocalSync(ctx, local)
+	local, localNodes, err := files.ScanLocalSync(ctx, local, exclude...)
 	if err != nil {
 		return DirectorySyncPreview{}, err
 	}
@@ -87,7 +109,7 @@ func (a *AppService) previewDirectorySync(ctx context.Context, workspace, direct
 	defer client.Close()
 	stop := context.AfterFunc(ctx, func() { client.Close() })
 	defer stop()
-	remote, remoteNodes, err := files.ScanRemoteSync(ctx, client, remote)
+	remote, remoteNodes, err := files.ScanRemoteSync(ctx, client, remote, exclude...)
 	if err != nil {
 		return DirectorySyncPreview{}, err
 	}
@@ -96,6 +118,7 @@ func (a *AppService) previewDirectorySync(ctx context.Context, workspace, direct
 		source, target = remoteNodes, localNodes
 	}
 	preview := DirectorySyncPreview{ID: base64.RawURLEncoding.EncodeToString(randomBytes(18)), Direction: direction, Local: local, Remote: remote, Entries: files.CompareSync(source, target)}
+	preview.Exclude = exclude
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.workspaces[workspace] == nil || ctx.Err() != nil {

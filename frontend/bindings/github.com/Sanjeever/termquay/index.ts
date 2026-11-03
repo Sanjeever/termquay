@@ -27,6 +27,7 @@ export type {
     SSHLayout,
     SSHReconnectResult,
     Snippet,
+    SyncPreset,
     Transfer,
     TransferBatch,
     TrustPage,

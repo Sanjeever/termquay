@@ -1,22 +1,30 @@
 import SelectControl from '../../components/SelectControl';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from '@heroui/react';
-import { PreviewDirectorySync, CancelDirectorySyncPreview, ExecuteDirectorySync } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
-import type { DirectorySyncPreview } from '../../../bindings/github.com/Sanjeever/termquay/models';
+import { PreviewDirectorySyncFiltered, CancelDirectorySyncPreview, ExecuteDirectorySync, GetSyncPresets, SaveSyncPreset, DeleteSyncPreset } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
+import type { DirectorySyncPreview, SyncPreset } from '../../../bindings/github.com/Sanjeever/termquay/models';
 
 const states:Record<string,string>={new:'新增',update:'更新',same:'相同',conflict:'冲突 / 不支持'};
-export default function DirectorySyncDialog({id,remote,onClose}:{id:string;remote:string;onClose():void}){
+export default function DirectorySyncDialog({id,remote,connectionID,onClose}:{id:string;remote:string;connectionID:string;onClose():void}){
   const [direction,setDirection]=useState('upload');const [preview,setPreview]=useState<DirectorySyncPreview>();const [selected,setSelected]=useState(new Set<string>());const [busy,setBusy]=useState(false);const [error,setError]=useState('');const [page,setPage]=useState(0);
   const [local,setLocal]=useState('');
-  const pending=useRef<ReturnType<typeof PreviewDirectorySync>>();const disposed=useRef(false);const latest=useRef(preview);latest.current=preview;
+  const [remotePath,setRemotePath]=useState(remote);const [exclude,setExclude]=useState('');const [presetName,setPresetName]=useState('');const [presets,setPresets]=useState<SyncPreset[]>([]);
+  const exclusions=()=>exclude.split('\n').map(value=>value.trim()).filter(Boolean);
+  useEffect(()=>{if(connectionID)GetSyncPresets(connectionID).then(values=>setPresets(values||[])).catch(e=>setError(String(e)));},[connectionID]);
+  const pending=useRef<ReturnType<typeof PreviewDirectorySyncFiltered>>();const disposed=useRef(false);const latest=useRef(preview);latest.current=preview;
   useEffect(()=>()=>{disposed.current=true;pending.current?.cancel();if(latest.current)void CancelDirectorySyncPreview(latest.current.id);},[]);
   const allowed=useMemo(()=>{const blocked=new Set<string>();const changes=new Set<string>();for(const e of preview?.entries||[]){const parents=e.path.split('/');parents.pop();while(parents.length){const parent=parents.join('/');if(e.state==='conflict')blocked.add(parent);if(e.state==='new'||e.state==='update')changes.add(parent);parents.pop();}}return new Set((preview?.entries||[]).filter(e=>e.state!=='conflict'&&(!e.directory||!blocked.has(e.path))&&(e.state==='new'||e.state==='update'||e.directory&&changes.has(e.path))).map(e=>e.path));},[preview]);
   function invalidate(){if(preview)CancelDirectorySyncPreview(preview.id).catch(e=>setError(String(e)));setPreview(undefined);setSelected(new Set());}
-  async function scan(){setBusy(true);setError('');try{if(preview)await CancelDirectorySyncPreview(preview.id);setPreview(undefined);setSelected(new Set());setPage(0);const request=PreviewDirectorySync(id,direction,local.trim(),remote);pending.current=request;const value=await request;if(!disposed.current&&value.id){setPreview(value);setLocal(value.local);}}catch(e){if(!disposed.current)setError(String(e));}finally{pending.current=undefined;if(!disposed.current)setBusy(false);}}
+  async function scan(){setBusy(true);setError('');try{if(preview)await CancelDirectorySyncPreview(preview.id);setPreview(undefined);setSelected(new Set());setPage(0);const request=PreviewDirectorySyncFiltered(id,direction,local.trim(),remotePath,exclusions());pending.current=request;const value=await request;if(!disposed.current&&value.id){setPreview(value);setLocal(value.local);}}catch(e){if(!disposed.current)setError(String(e));}finally{pending.current=undefined;if(!disposed.current)setBusy(false);}}
   return <Modal isOpen onClose={()=>{pending.current?.cancel();onClose();}} className="app-dialog directory-sync-dialog" scrollBehavior="inside"><ModalContent><ModalHeader>目录同步</ModalHeader><ModalBody>
     <label className="form-field">方向<SelectControl value={direction} onChange={e=>{setDirection(e.target.value);invalidate();}} disabled={busy}><option value="upload">本地 → 远端</option><option value="download">远端 → 本地</option></SelectControl></label>
     <label className="form-field">本地目录<input aria-label="本地同步目录" value={local} onChange={e=>{setLocal(e.target.value);invalidate();}} disabled={busy}/></label>
-    <p className="file-path">远端 {preview?.remote||remote}</p>{preview&&<p className="file-path">本地 {preview.local}</p>}
+    <label className="form-field">远端目录<input aria-label="远端同步目录" value={remotePath} onChange={e=>{setRemotePath(e.target.value);invalidate();}} disabled={busy}/></label>
+    <details><summary>排除规则与预设</summary><div className="connection-options-fields">
+      <label className="form-field">排除规则<textarea aria-label="同步排除规则，每行一条" rows={3} placeholder={'.git\nnode_modules\n*.log'} value={exclude} onChange={e=>{setExclude(e.target.value);invalidate();}} disabled={busy}/></label>
+      {!!presets.length&&<label className="form-field">已保存预设<SelectControl aria-label="同步预设" value="" disabled={busy} onChange={e=>{const preset=presets.find(p=>p.name===e.target.value);if(preset){invalidate();setPresetName(preset.name);setLocal(preset.local);setRemotePath(preset.remote);setDirection(preset.direction);setExclude((preset.exclude||[]).join('\n'));}}}><option value="">选择预设</option>{presets.map(p=><option key={p.name}>{p.name}</option>)}</SelectControl></label>}
+      {connectionID&&<><label className="form-field">预设名称<input aria-label="同步预设名称" value={presetName} maxLength={128} disabled={busy} onChange={e=>setPresetName(e.target.value)}/></label><div className="button-row"><Button size="sm" variant="light" isDisabled={busy||!presetName.trim()||!local} onPress={async()=>{setBusy(true);try{await SaveSyncPreset({name:presetName,connection_id:connectionID,local,remote:remotePath,direction,exclude:exclusions()});setPresets(await GetSyncPresets(connectionID)||[]);setError('');}catch(e){setError(String(e));}finally{setBusy(false);}}}>保存预设</Button><Button size="sm" variant="light" isDisabled={busy||!presets.some(p=>p.name===presetName)} onPress={async()=>{setBusy(true);try{await DeleteSyncPreset(connectionID,presetName);setPresets(await GetSyncPresets(connectionID)||[]);setPresetName('');}catch(e){setError(String(e));}finally{setBusy(false);}}}>删除预设</Button></div></>}
+    </div></details>
     <Button size="sm" variant="bordered" isDisabled={busy} onPress={()=>void scan()}>{preview?'重新预览':local.trim()?'预览差异':'选择本地目录并预览'}</Button>
     {busy&&<p role="status">正在扫描…</p>}{error&&<p role="alert" className="error">{error}</p>}
     {preview&&<><div className="button-row"><Button size="sm" variant="light" onPress={()=>setSelected(new Set(allowed))}>全选可同步项</Button><Button size="sm" variant="light" onPress={()=>setSelected(new Set())}>清除选择</Button><span className="muted">{selected.size} / {preview.entries?.length||0}</span></div>

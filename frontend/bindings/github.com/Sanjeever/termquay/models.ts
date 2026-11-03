@@ -29,6 +29,7 @@ export interface DirectorySyncPreview {
     "local": string;
     "remote": string;
     "entries": files$0.SyncEntry[] | null;
+    "exclude"?: string[] | null;
 }
 
 export interface DraftRecoveryState {
@@ -168,6 +169,15 @@ export interface Snippet {
     "name": string;
     "group": string;
     "body": string;
+}
+
+export interface SyncPreset {
+    "name": string;
+    "connection_id": string;
+    "local": string;
+    "remote": string;
+    "direction": string;
+    "exclude": string[] | null;
 }
 
 export interface Transfer {

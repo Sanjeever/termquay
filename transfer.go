@@ -236,11 +236,23 @@ type transferWriter struct {
 	completed int64
 	total     int64
 	report    func(int64, int64)
+	limit     func() int64
 }
 
 func (w *transferWriter) Write(data []byte) (int, error) {
 	if err := w.ctx.Err(); err != nil {
 		return 0, err
+	}
+	if w.limit != nil {
+		if rate := w.limit(); rate > 0 {
+			timer := time.NewTimer(time.Duration(int64(len(data)) * int64(time.Second) / rate))
+			select {
+			case <-timer.C:
+			case <-w.ctx.Done():
+				timer.Stop()
+				return 0, w.ctx.Err()
+			}
+		}
 	}
 	n, err := w.writer.Write(data)
 	w.completed += int64(n)
@@ -367,7 +379,7 @@ func (a *AppService) uploadOperation(id, local, remote string, overwrite bool, e
 				result = errors.Join(result, err)
 			}
 		}()
-		writer := &transferWriter{ctx: ctx, writer: target, report: report, total: info.Size()}
+		writer := &transferWriter{ctx: ctx, writer: target, report: report, total: info.Size(), limit: a.transferRate.Load}
 		if _, err = io.CopyBuffer(writer, source, make([]byte, 64<<10)); err != nil {
 			return err
 		}
@@ -528,7 +540,7 @@ func (a *AppService) downloadOperation(id, remote, local string, overwrite bool,
 				result = errors.Join(result, os.Remove(target.Name()))
 			}
 		}()
-		writer := &transferWriter{ctx: ctx, writer: target, report: report, total: info.Size()}
+		writer := &transferWriter{ctx: ctx, writer: target, report: report, total: info.Size(), limit: a.transferRate.Load}
 		if _, err = io.CopyBuffer(writer, source, make([]byte, 64<<10)); err != nil {
 			return err
 		}
