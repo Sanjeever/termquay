@@ -1,6 +1,6 @@
 # TermQuay · 栈桥
 
-TermQuay 是使用 Go、Wails v3 和 React 构建的开源远程连接工作台，将 SSH 终端、远程文件编辑、Linux 监控和内嵌 RDP 放在统一桌面工作区，支持连接分组与加密 WebDAV 备份。连接数量不设置商业限制。
+TermQuay 是使用 Go、Wails v3 和 React 构建的开源远程连接工作台，将 SSH、本地终端、远程文件编辑、Linux 监控和内嵌 RDP 放在统一桌面工作区，支持连接分组与加密 WebDAV 备份。连接数量不设置商业限制。
 
 支持 macOS、Windows 和 Linux。从 [GitHub Releases](https://github.com/Sanjeever/termquay/releases) 下载对应平台的压缩包；运行前提、候选包验证与发布流程见 [开发说明](docs/development.md#版本与发布)。
 
@@ -18,7 +18,7 @@ TermQuay 是使用 Go、Wails v3 和 React 构建的开源远程连接工作台�
 
 ## 界面预览
 
-以下截图使用演示数据。
+以下截图来自 [演示模式](docs/development.md#设置与演示模式)。
 
 连接中心
 
@@ -42,7 +42,7 @@ SSH 工作区
 wails3 dev
 ```
 
-生产构建和本地打包使用 `wails3 build` 与 `wails3 task package`。平台前提、绑定生成、检查命令和真实服务测试配置见 [开发说明](docs/development.md)。连接保存、身份确认、文件编辑和恢复操作边界见其中的 [使用说明](docs/development.md#使用说明)。
+平台前提、绑定生成、检查命令和真实服务测试配置见 [开发说明](docs/development.md)，生产构建与安装包入口见 [构建与本地打包](docs/development.md#构建与本地打包)。
 
 ## 项目结构与文档
 

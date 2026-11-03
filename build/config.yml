@@ -1,9 +1,9 @@
 # Wails 开发与构建资源配置，操作入口见 docs/development.md。
-# 修改 info 或 fileAssociations 后，用 wails3 task common:update:build-assets 更新资源。
+# 版本通过 scripts/version.mjs 同步；修改其他 info 或 fileAssociations 后，
+# 用 wails3 task common:update:build-assets 更新资源。
 # 生成可能覆盖手工定制，执行前后检查平台资源 diff。
 version: '3'
 
-# 平台资源生成元数据。
 info:
   companyName: "TermQuay"
   productName: "TermQuay"
@@ -13,7 +13,6 @@ info:
   comments: "开源远程连接工作台"
   version: "1.0.1"
 
-# 开发模式。
 dev_mode:
   root_path: .
   log_level: warn

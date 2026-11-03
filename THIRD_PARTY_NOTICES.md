@@ -17,17 +17,19 @@ TermQuay 采用 Apache-2.0。各依赖保留其原有许可证、版权与声明
 - 文件编码转换使用 `golang.org/x/text`，采用 BSD-3-Clause；LICENSE 与 PATENTS 原文保存在 Go 许可目录。
 - 动态转发使用 `github.com/armon/go-socks5`，采用 MIT；SOCKS 协议解析复用该库，许可原文保存在 Go 许可目录。
 - OpenSSH 配置解析使用 `github.com/kevinburke/ssh_config`，采用 MIT；许可原文保存在 Go 许可目录。
-- Iron Remote Desktop 和 RDP 后端采用 `MIT OR Apache-2.0`。已核对 npm 发布来源证明、包摘要及源码标签，对应源码提交为 `e45f68c7e52297ca50d33b44c0ace36c9940fbe6`。WASM 许可目录保存固定源码锁文件、259 项 Rust normal/build 依赖的许可清单和原文、来源证明及 WASM 摘要；清单可能包含未链接的依赖。预构建 JavaScript 使用的 Svelte、UAParser.js、esm-env 和 clsx 材料另保存在该目录。
+- Iron Remote Desktop 和 RDP 后端采用 `MIT OR Apache-2.0`。已核对 npm 发布来源证明、包摘要及源码标签，固定源码提交见 [核对记录](build/licenses/review.json)。[WASM 材料](build/licenses/wasm/) 保存源码锁文件、Rust normal/build 依赖许可清单和原文、来源证明及制品摘要；清单可能包含未链接的依赖。预构建 JavaScript 使用的 Svelte、UAParser.js、esm-env 和 clsx 材料另保存在该目录。
 - `use-composed-ref` 的发布包及对应源码提交均明确声明 MIT，许可目录保存原始包元数据和标准 MIT 条款。上游未提供独立版权行，材料保留这一事实，不推断版权所有者或年份。
 
-许可文件收集覆盖生产依赖树，可能包含未进入最终 bundle 的依赖和模块中的额外声明。本次发行核对覆盖当前 Go 与前端锁定依赖、已识别的预构建 JavaScript 和 WASM；可核验来源与输入摘要见 `build/licenses/review.json`，WASM 详细材料见 `build/licenses/wasm/`。
+许可文件收集覆盖生产依赖树，可能包含未进入最终 bundle 的依赖和模块中的额外声明。发行核对覆盖记录中的 Go 与前端锁定依赖、已识别的预构建 JavaScript 和 WASM；可核验来源与输入摘要见 [核对记录](build/licenses/review.json)。
 
 上述清单与许可副本是收集时的材料，不会随依赖升级自动更新。依赖或 WASM 制品变化时，按锁文件、实际分发产物与上游来源核对清单、许可和待办；保留第三方许可原文，不将本文件的包声明概述当作完整审计结果。
 
 macOS 应用包和其他平台安装包分发时，需随包携带本文件、项目 `LICENSE` 与适用的依赖许可原文。
 
-Windows 与 Linux 主程序内嵌本文件、项目许可和收集的依赖声明，可在“设置 → 关于 → 开源许可”读取。macOS 应用包另保留资源目录副本。新增 Markdown 更新日志展示使用 `react-markdown` 及其生产依赖，材料收集在前端许可目录。Wails 更新组件新增使用 `golang.org/x/mod`，采用 BSD-3-Clause，许可原文位于 Go 许可目录。
+主程序内嵌本文件、项目许可和收集的依赖声明，可在“设置 → 关于 → 开源许可”读取。macOS 应用包另保留资源目录副本。Markdown 更新日志展示使用 `react-markdown` 及其生产依赖，材料收集在前端许可目录。Wails 更新组件使用 `golang.org/x/mod`，采用 BSD-3-Clause，许可原文位于 Go 许可目录。
 
-两项 npm 包的 MIT 声明分别核对 `replit/codemirror-minimap@eb03174ce67e177bb86297c84c0389491350ff21` 和 `Andarist/use-composed-ref@ea2c9d969f2f90a349f4c99338b806423824cea2`。条款文本取自 SPDX 的 MIT 标准文本，采用与上游声明一致的许可，不把作者元数据改写为新版权声明。此前待办将“没有独立 LICENSE 文件”视为缺少许可依据，本次依据发布包和固定源码的明确 SPDX 声明完成收集，并记录该判断。
+上述两项无独立 LICENSE 文件的 npm 包，依据发布包与固定源码中的明确 MIT 声明收集条款。源码提交与 SPDX 文本来源统一记录在 [核对记录](build/licenses/review.json)，不把作者元数据改写为新版权声明。
+
+下方标题是 [发行检查](scripts/release-check.mjs) 的待办入口；标题后留空表示无登记待办，新增事项会阻止标签发布。
 
 ## 发行前待办
