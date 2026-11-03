@@ -26,7 +26,7 @@ export default function SettingsView({ fontSize, onFontSize, onRestore, onClose,
         {section === 'recovery'&&<RecoverySettings recovery={recovery}/>}
         {section === 'trust'&&<TrustSettings/>}
         {section === 'credentials'&&<CredentialSettings onChanged={onRestore}/>}
-        {section === 'about' && <div className="settings-section about-section"><img src={appIcon} alt="栈桥应用图标" width="64" height="64" /><h2>TermQuay · 栈桥</h2><div className="settings-row"><span>版本</span><span className="muted">{packageInfo.version}</span></div><div className="settings-row"><span>许可证</span><span className="muted">Apache License 2.0</span></div></div>}
+        {section === 'about' && <div className="settings-section about-section"><img src={appIcon} alt="TermQuay 应用图标" width="64" height="64" /><h2>TermQuay</h2><div className="settings-row"><span>版本</span><span className="muted">{packageInfo.version}</span></div><div className="settings-row"><span>许可证</span><span className="muted">Apache License 2.0</span></div></div>}
       </div>
     </div>
   </section>;

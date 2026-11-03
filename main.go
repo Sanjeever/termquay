@@ -26,7 +26,7 @@ func main() {
 	}
 	service := NewAppService()
 	app := application.New(application.Options{
-		Name: "TermQuay", Description: "栈桥远程连接工作台",
+		Name: "TermQuay", Description: "TermQuay 远程连接工作台",
 		Icon:       appIcon,
 		ShouldQuit: service.canQuit,
 		Services:   []application.Service{application.NewService(service)},
@@ -37,7 +37,7 @@ func main() {
 	app.HandleStream("workspace", service.handleWorkspace)
 	app.HandleStream("local-terminal", service.handleLocalTerminal)
 	window := app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title: "TermQuay · 栈桥", Width: 1280, Height: 820, MinWidth: 900, MinHeight: 600,
+		Title: "TermQuay", Width: 1280, Height: 820, MinWidth: 900, MinHeight: 600,
 		BackgroundColour: application.NewRGB(16, 18, 22), URL: "/",
 		EnableFileDrop: true,
 	})

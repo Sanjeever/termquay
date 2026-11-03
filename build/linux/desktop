@@ -1,7 +1,7 @@
 [Desktop Entry]
 Version=1.0
 Name=TermQuay
-Comment=栈桥远程连接工作台
+Comment=TermQuay 远程连接工作台
 # The Exec line includes %u to pass the URL to the application
 Exec=/usr/local/bin/termquay %u
 Terminal=false

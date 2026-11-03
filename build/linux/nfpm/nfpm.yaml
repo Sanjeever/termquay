@@ -10,7 +10,7 @@ version: "0.1.0"
 section: "default"
 priority: "extra"
 maintainer: ${GIT_COMMITTER_NAME} <${GIT_COMMITTER_EMAIL}>
-description: "栈桥远程连接工作台"
+description: "TermQuay 远程连接工作台"
 vendor: "My Company"
 homepage: "https://wails.io"
 license: "MIT"
