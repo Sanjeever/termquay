@@ -170,20 +170,30 @@ func dialClient(ctx context.Context, r Request, connect func(context.Context, st
 	address := net.JoinHostPort(r.Host, strconv.Itoa(r.Port))
 	conn, err := connect(ctx, address)
 	if err != nil {
-		return nil, err
+		stage := "TCP 连接"
+		var dns *net.DNSError
+		if errors.As(err, &dns) {
+			stage = "DNS 解析"
+		}
+		return nil, &ConnectionError{Stage: stage, Err: err, Retryable: ctx.Err() == nil}
 	}
 	stop := context.AfterFunc(ctx, func() { conn.Close() })
 	c, chans, reqs, err := gossh.NewClientConn(conn, address, config)
 	if err != nil {
 		stop()
 		conn.Close()
-		return nil, err
+		var identity *HostKeyError
+		if errors.As(err, &identity) {
+			return nil, err
+		}
+		return nil, &ConnectionError{Stage: "SSH 协商与认证", Err: err}
 	}
 	client := gossh.NewClient(c, chans, reqs)
 	if !stop() && ctx.Err() != nil {
 		client.Close()
 		return nil, ctx.Err()
 	}
+	go keepAlive(client)
 	return client, nil
 }
 

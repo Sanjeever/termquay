@@ -257,6 +257,10 @@ export function ReadRemoteFileEncoded(id: string, remote: string, charset: strin
     return $Call.ByID(1025705448, id, remote, charset);
 }
 
+export function ReconnectSavedSSH(id: string): $CancellablePromise<$models.SSHReconnectResult> {
+    return $Call.ByID(2872295492, id);
+}
+
 export function RecordConnectionSuccess(id: string): $CancellablePromise<void> {
     return $Call.ByID(3281072426, id);
 }

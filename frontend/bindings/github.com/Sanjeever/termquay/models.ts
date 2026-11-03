@@ -157,6 +157,12 @@ export interface SSHLayout {
     "focus": boolean;
 }
 
+export interface SSHReconnectResult {
+    "result": OpenResult;
+    "error": string;
+    "retryable": boolean;
+}
+
 export interface Snippet {
     "id": string;
     "name": string;

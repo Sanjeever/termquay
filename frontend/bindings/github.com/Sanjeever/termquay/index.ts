@@ -25,6 +25,7 @@ export type {
     SSHImportPreview,
     SSHImportRow,
     SSHLayout,
+    SSHReconnectResult,
     Snippet,
     Transfer,
     TransferBatch,
