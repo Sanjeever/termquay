@@ -14,5 +14,5 @@ export function catalogConnections(connections: Connection[], groups: Group[], p
     .sort((a, b) => ((scope.sort === 'recent' ? (Date.parse(preferences[b.id]?.last_connected || '') || 0) - (Date.parse(preferences[a.id]?.last_connected || '') || 0)
       : scope.sort === 'address' ? a.host.localeCompare(b.host, undefined, { numeric: true }) || a.port - b.port
       : scope.sort === 'username' ? a.username.localeCompare(b.username, undefined, { numeric: true })
-      : scope.sort === 'protocol' ? a.protocol.localeCompare(b.protocol) : a.name.localeCompare(b.name, 'zh-CN', { numeric: true })) || a.name.localeCompare(b.name, 'zh-CN') || a.id.localeCompare(b.id)) * (scope.descending ? -1 : 1));
+      : scope.sort === 'protocol' ? a.protocol.localeCompare(b.protocol) : a.name.localeCompare(b.name, 'zh-CN', { numeric: true })) || a.name.localeCompare(b.name, 'zh-CN', { numeric: true }) || a.id.localeCompare(b.id)) * (scope.descending ? -1 : 1));
 }

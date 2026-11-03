@@ -113,7 +113,7 @@ button:active:not(:disabled):not([role=tab]) { filter: brightness(.93); }
 .protocol-filters button[aria-pressed=true] { background: var(--color-elevated); color: var(--color-text); box-shadow: var(--shadow-control); }
 .connection-columns, .connection-row { display: grid; grid-template-columns: minmax(0,1fr) 90px 26px; gap: 6px; }
 .connection-name-columns, .connection-name { display: grid; grid-template-columns: var(--catalog-grid); align-items: center; gap: 10px; padding: 0 8px 0 10px; min-width: 0; }
-.connection-columns { align-items: center; min-height: 36px; color: var(--color-muted); border-bottom: 1px solid var(--color-border); font-size: 11px; padding-right: 12px; }
+.connection-columns { position: sticky; top: 0; z-index: 2; align-items: center; min-height: 36px; margin-bottom: 5px; color: var(--color-muted); background: var(--color-background); border-bottom: 1px solid var(--color-border); font-size: 11px; }
 .catalog-column-sort { display: inline-flex; align-items: center; justify-content: flex-start; gap: 5px; min-width: 0; padding: 5px 0; text-align: left; }
 .catalog-column-sort:hover, .catalog-column-sort[aria-pressed=true] { color: var(--color-text); }
 .latency-heading { display: flex; justify-content: flex-end; align-items: center; gap: 5px; border-radius: 3px; }
@@ -127,7 +127,7 @@ button:active:not(:disabled):not([role=tab]) { filter: brightness(.93); }
 .latency-unknown { color: var(--color-muted); }
 .latency-refreshing { animation: latency-spin 1s linear infinite; }
 @keyframes latency-spin { to { transform: rotate(360deg); } }
-.connection-list { flex: 1; min-height: 0; overflow: auto; padding-top: 5px; scrollbar-width: thin; scrollbar-gutter: stable; }
+.connection-list { flex: 1; min-height: 0; overflow: auto; scrollbar-width: thin; scrollbar-gutter: stable; }
 .group-filter, .group-row { display: flex; align-items: center; min-height: 32px; width: 100%; text-align: left; border-radius: 6px; color: var(--color-muted); margin-bottom: 2px; }
 .group-filter { justify-content: space-between; padding: 5px 8px; }
 .group-filter:hover, .group-row:hover { background: var(--color-hover); }
@@ -230,6 +230,7 @@ button:active:not(:disabled):not([role=tab]) { filter: brightness(.93); }
 .file-dock, .monitor-dock { opacity: 1; translate: 0 0; transition: opacity var(--motion-normal) ease, translate var(--motion-panel) var(--ease-out), display var(--motion-panel) allow-discrete; }
 .file-dock[hidden] { opacity: 0; translate: -8px 0; }
 .monitor-dock[hidden] { opacity: 0; translate: 8px 0; }
+.file-dock[hidden], .monitor-dock[hidden] { pointer-events: none; }
 @starting-style {
   .file-dock:not([hidden]) { opacity: 0; translate: -8px 0; }
   .monitor-dock:not([hidden]) { opacity: 0; translate: 8px 0; }
