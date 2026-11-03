@@ -103,6 +103,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
       if (shown.current && container.current?.clientWidth) fit.fit();
       term.write(demoOutput);
       setConnected(true);
+      if(shown.current&&focusRequested.current)term.focus();
       const observer = new ResizeObserver(fitVisible); observer.observe(container.current!);
       return () => { observer.disconnect(); cancelAnimationFrame(fitFrame); requestFit.current = undefined; integration.current?.dispose(); integration.current = undefined; term.dispose(); terminal.current = undefined; search.current = undefined; };
     }

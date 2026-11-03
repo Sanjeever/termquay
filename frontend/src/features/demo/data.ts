@@ -3,12 +3,6 @@ import type { Entry } from '../../../bindings/github.com/Sanjeever/termquay/inte
 import type { Sample } from '../../../bindings/github.com/Sanjeever/termquay/internal/monitor/models';
 import type useConnectionLatency from '../connections/useConnectionLatency';
 
-export type DemoScene = 'connections' | 'terminal' | 'editor';
-export const demoScenes: { id: DemoScene; label: string }[] = [
-  { id: 'connections', label: '演示：连接中心' },
-  { id: 'terminal', label: '演示：SSH 工作区' },
-  { id: 'editor', label: '演示：文件编辑' },
-];
 export const demoTime = Date.UTC(2026, 9, 20, 8, 30);
 export const demoGroups: Group[] = [
   { id: 'demo-production', parent_id: '', name: '生产环境', sort_order: 0 },

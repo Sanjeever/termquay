@@ -2,11 +2,12 @@ import Icon from '../Icon';
 import { useEffect, useRef, useState } from 'react';
 import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from '@heroui/react';
 
-export default function WorkspaceTabs({ items, active, onSelect, onClose, onNew, onRename, onMove, onSearch }: {
+export default function WorkspaceTabs({ items, active, onSelect, onClose, onNew, onRename, onMove, onSearch, disableNew = false }: {
   items: { id: string; name: string; rdp?: unknown; dirty?: boolean }[]; active: string;
   onSelect(id: string, keyboard?: boolean): void; onClose(id: string, keyboard?: boolean): void; onNew(): void;
   onRename(id: string, name: string): void; onMove(id: string, target: string): void;
   onSearch(): void;
+  disableNew?: boolean;
 }) {
   const [renaming, setRenaming] = useState<string>();
   const [name, setName] = useState('');
@@ -14,7 +15,7 @@ export default function WorkspaceTabs({ items, active, onSelect, onClose, onNew,
   useEffect(()=>{list.current?.querySelector('[aria-selected=true]')?.closest('.workspace-tab')?.scrollIntoView({block:'nearest',inline:'nearest'});},[active]);
   function rename(id: string, value: string) { setName(value); setRenaming(id); }
   function finishRename() { if (renaming && name.trim()) onRename(renaming, name.trim()); setRenaming(undefined); }
-  function focusTab(id: string) { requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-workspace-id="${CSS.escape(id)}"] [role=tab]`)?.focus()); }
+  function focusTab(id: string) { requestAnimationFrame(() => list.current?.querySelector<HTMLElement>(`[data-workspace-id="${CSS.escape(id)}"] [role=tab]`)?.focus()); }
   const tabs = [{ id: '', name: '连接中心', rdp: undefined, dirty: false }, ...items];
   return <div className="workspace-tabs" ref={list} role="tablist" aria-label="连接工作区">
     {tabs.map((item, index) => <div className={`workspace-tab ${index === 0 ? 'connection-center-tab' : ''} ${active === item.id ? 'active' : ''}`} key={item.id} data-workspace-id={item.id} draggable={index !== 0 && renaming !== item.id}
@@ -33,7 +34,7 @@ export default function WorkspaceTabs({ items, active, onSelect, onClose, onNew,
         <Icon name={index === 0 ? 'connections' : item.rdp ? 'desktop' : 'terminal'} /><span>{item.name}</span>{item.dirty && <span aria-label="有未保存文件" className="dirty-dot">●</span>}
       </button>}{index !== 0 && <><Dropdown><DropdownTrigger><button className="tab-close" aria-label={`工作区菜单 ${item.name}`}><Icon name="more" width="13" height="13" /></button></DropdownTrigger><DropdownMenu aria-label="工作区操作" onAction={key => { if (key === 'rename') rename(item.id, item.name); if (key === 'left' && index > 1) onMove(item.id, tabs[index - 1].id); if (key === 'right' && index < tabs.length - 1) onMove(item.id, tabs[index + 1].id); }} disabledKeys={[...(index <= 1 ? ['left'] : []), ...(index === tabs.length - 1 ? ['right'] : [])]}><DropdownItem key="rename">临时重命名</DropdownItem><DropdownItem key="left">左移工作区</DropdownItem><DropdownItem key="right">右移工作区</DropdownItem></DropdownMenu></Dropdown><button className="tab-close" aria-label={`关闭工作区 ${item.name}`} onClick={e => onClose(item.id, e.detail === 0)}><Icon name="close" width="13" height="13" /></button></>}
     </div>)}
-    <button className="icon-button" title="新建连接" aria-label="新建连接" onClick={onNew}><Icon name="plus" /></button>
+    <button className="icon-button" title="新建连接" aria-label="新建连接" disabled={disableNew} onClick={onNew}><Icon name="plus" /></button>
     {items.length > 3 && <button className="icon-button" title="已打开工作区" aria-label="已打开工作区" onClick={onSearch}><Icon name="list" /></button>}
   </div>;
 }
