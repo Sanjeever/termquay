@@ -9,11 +9,12 @@ import { ListCredentialReferences, SaveConnectionWithCredential, SelectSSHCertif
 import type { Connection, ConnectionPreference, Group } from '../../../bindings/github.com/Sanjeever/termquay/internal/store/models';
 import type { Request } from '../../../bindings/github.com/Sanjeever/termquay/internal/ssh/models';
 
-export default function ConnectionDialog({ connection, temporary, groups, connections, busy, connectionError, onConnect, onSaved, onClose, onCancel, rdpOptions, preference, systemRDP }: {
+export default function ConnectionDialog({ connection, temporary, groups, connections, busy, connectionError, onConnect, onSaved, onClose, onCancel, rdpOptions, preference, systemRDP, gateways=[] }: {
   connection?: Connection; temporary: boolean; groups: Group[]; busy: boolean; connectionError: string;
   connections:Connection[];
   preference?: ConnectionPreference;
   systemRDP: boolean;
+  gateways?: {id:string;name:string}[];
   onConnect(connection: Connection, auth?: Request, options?: RDPOptions): Promise<boolean>; onSaved(): void; onClose(): void; onCancel(): void; rdpOptions?: RDPOptions;
 }) {
   const [saved, setSaved] = useState(connection);
@@ -47,6 +48,7 @@ export default function ConnectionDialog({ connection, temporary, groups, connec
   const [rdpClipboard, setRDPClipboard] = useState(rdpOptions?.clipboard || false);
   const [rdpResolution, setRDPResolution] = useState(rdpOptions?.resolution || 'dynamic');
   const [rdpClient, setRDPClient] = useState(rdpOptions?.client || preference?.rdp_client || 'internal');
+  const [rdpGateway,setRDPGateway]=useState(rdpOptions?.gateway||'');
   const form = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
@@ -87,8 +89,8 @@ export default function ConnectionDialog({ connection, temporary, groups, connec
         if (mode === 'save') { onClose(); return; }
         clearSecrets();
         request.password = ''; request.private_key = ''; request.passphrase = '';
-        if (await onConnect(result, undefined, {clipboard:rdpClipboard,resolution:rdpResolution,client:rdpClient})) onClose();
-      } else if (await onConnect(config, request, {clipboard:rdpClipboard,resolution:rdpResolution,client:rdpClient})) onClose();
+        if (await onConnect(result, undefined, {clipboard:rdpClipboard,resolution:rdpResolution,client:rdpClient,gateway:rdpClient==='internal'?rdpGateway:''})) onClose();
+      } else if (await onConnect(config, request, {clipboard:rdpClipboard,resolution:rdpResolution,client:rdpClient,gateway:rdpClient==='internal'?rdpGateway:''})) onClose();
     } catch (e) { setError(String(e)); }
     finally { setSaving(false); clearSecrets(); request.password = ''; request.private_key = ''; request.passphrase = ''; }
   }
@@ -108,6 +110,7 @@ export default function ConnectionDialog({ connection, temporary, groups, connec
       </div><Input className="connection-username" key={`user-${parsed?.epoch || 0}`} name="username" label="用户名" labelPlacement="outside" placeholder="用户名" defaultValue={parsed?.value.username ?? saved?.username} isRequired size="sm" isDisabled={busy || saving} autoComplete="off" />
       {protocol === 'rdp' && <Input className="connection-auth" name="domain" label="域（可选）" labelPlacement="outside" placeholder="域" defaultValue={saved?.domain} size="sm" isDisabled={busy || saving} />}
       {protocol === 'rdp' && <label className="form-field">连接方式<SelectControl value={rdpClient} disabled={busy || saving} onChange={e => setRDPClient(e.target.value)}><option value="internal">内置客户端</option><option value="system" disabled={!systemRDP}>系统客户端（mstsc）</option></SelectControl></label>}
+      {protocol==='rdp'&&rdpClient==='internal'&&<label className="form-field">连接路径<SelectControl value={rdpGateway} disabled={busy||saving} onChange={event=>setRDPGateway(event.target.value)}><option value="">直连</option>{gateways.map(gateway=><option key={gateway.id} value={gateway.id}>经 SSH · {gateway.name}</option>)}</SelectControl></label>}
       {referenceID ? <p className="muted">复用所选{authKind==='private_key'?'私钥':'密码'}凭据</p> : saved?.credential_id && !replace ? <div className="saved-credential"><span>已保存凭据</span><Button size="sm" variant="light" isDisabled={busy || saving} onPress={() => setReplace(true)}>更换凭据</Button></div> : authKind === 'keyboard_interactive' && protocol === 'ssh' ? <label className="form-field">认证方式<SelectControl value={authKind} disabled={busy || saving} onChange={event => { clearSecrets(); setAuthKind(event.target.value); }}><option value="password">密码</option><option value="private_key">私钥</option><option value="agent">SSH Agent</option><option value="keyboard_interactive">交互认证 / 验证码</option></SelectControl></label> : <>
         {saved?.credential_id && authKind === 'private_key' && <div className="muted">留空沿用已保存凭据</div>}
         {protocol === 'ssh' && <label className="form-field connection-auth">认证方式<SelectControl value={authKind} disabled={busy || saving} onChange={e => {clearSecrets();setAuthKind(e.target.value);}}><option value="password">密码</option><option value="private_key">私钥</option><option value="agent">SSH Agent</option><option value="keyboard_interactive">交互认证 / 验证码</option></SelectControl></label>}

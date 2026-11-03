@@ -85,6 +85,10 @@ export function CloseWorkspace(id: string): $CancellablePromise<void> {
     return $Call.ByID(993782487, id);
 }
 
+export function CompareDirectorySyncFile(id: string, relative: string): $CancellablePromise<$models.SyncContentComparison> {
+    return $Call.ByID(2576960481, id, relative);
+}
+
 export function ConfirmRestore(id: string): $CancellablePromise<void> {
     return $Call.ByID(4268329992, id);
 }
@@ -281,8 +285,16 @@ export function OpenRDP(host: string, port: number): $CancellablePromise<rdp$0.G
     return $Call.ByID(1856620084, host, port);
 }
 
+export function OpenRDPRoute(host: string, port: number, gateway: string): $CancellablePromise<rdp$0.Grant> {
+    return $Call.ByID(1888563641, host, port, gateway);
+}
+
 export function OpenSavedRDP(id: string): $CancellablePromise<$models.RDPLaunch> {
     return $Call.ByID(3012084069, id);
+}
+
+export function OpenSavedRDPRoute(id: string, gateway: string): $CancellablePromise<$models.RDPLaunch> {
+    return $Call.ByID(3235006878, id, gateway);
 }
 
 export function OpenSavedSystemRDP(id: string, resolution: string, clipboard: boolean): $CancellablePromise<void> {
@@ -339,6 +351,10 @@ export function PreviewSSHImport(text: string): $CancellablePromise<$models.SSHI
 
 export function ProbeRDP(host: string, port: number): $CancellablePromise<$models.RDPProbe> {
     return $Call.ByID(3045768502, host, port);
+}
+
+export function ProbeRDPRoute(host: string, port: number, gateway: string): $CancellablePromise<$models.RDPProbe> {
+    return $Call.ByID(2648107663, host, port, gateway);
 }
 
 export function ProbeTrustReview(key: string): $CancellablePromise<$models.TrustReview> {
@@ -547,6 +563,10 @@ export function TrustHost(host: string, port: number, fingerprint: string): $Can
 
 export function TrustRDPCertificate(host: string, port: number, fingerprint: string): $CancellablePromise<void> {
     return $Call.ByID(3202247973, host, port, fingerprint);
+}
+
+export function TrustRDPCertificateRoute(host: string, port: number, fingerprint: string, gateway: string): $CancellablePromise<void> {
+    return $Call.ByID(4175734110, host, port, fingerprint, gateway);
 }
 
 export function TrustSSHHost(host: string, port: number, fingerprint: string, via: string): $CancellablePromise<void> {

@@ -214,6 +214,12 @@ export interface Snippet {
     "body": string;
 }
 
+export interface SyncContentComparison {
+    "path": string;
+    "equal": boolean;
+    "state": string;
+}
+
 export interface SyncPreset {
     "name": string;
     "connection_id": string;

@@ -25,6 +25,10 @@ type RDPLaunch struct {
 }
 
 func (a *AppService) OpenSavedRDP(id string) (RDPLaunch, error) {
+	return a.OpenSavedRDPRoute(id, "")
+}
+
+func (a *AppService) OpenSavedRDPRoute(id, gateway string) (RDPLaunch, error) {
 	r, c, err := a.savedRequest(id)
 	if err != nil {
 		return RDPLaunch{}, err
@@ -35,7 +39,7 @@ func (a *AppService) OpenSavedRDP(id string) (RDPLaunch, error) {
 	if r.PrivateKey != "" {
 		return RDPLaunch{}, errors.New("RDP 无法使用 SSH 私钥，请保存密码凭据")
 	}
-	grant, err := a.OpenRDP(r.Host, r.Port)
+	grant, err := a.OpenRDPRoute(r.Host, r.Port, gateway)
 	if err != nil {
 		return RDPLaunch{}, err
 	}
@@ -43,8 +47,15 @@ func (a *AppService) OpenSavedRDP(id string) (RDPLaunch, error) {
 }
 
 func (a *AppService) ProbeRDP(ctx context.Context, host string, port int) (RDPProbe, error) {
-	target := rdp.Target{Host: host, Port: port}
-	address := "rdp:" + target.Address()
+	return a.ProbeRDPRoute(ctx, host, port, "")
+}
+
+func (a *AppService) ProbeRDPRoute(ctx context.Context, host string, port int, gateway string) (RDPProbe, error) {
+	target, err := a.rdpRouteTarget(host, port, gateway)
+	if err != nil {
+		return RDPProbe{}, err
+	}
+	address := rdpTrustAddress(target)
 	a.mu.Lock()
 	generation := a.trustEpoch[address]
 	a.mu.Unlock()
@@ -96,7 +107,15 @@ func (a *AppService) ProbeRDP(ctx context.Context, host string, port int) (RDPPr
 }
 
 func (a *AppService) TrustRDPCertificate(host string, port int, fingerprint string) error {
-	address := "rdp:" + (rdp.Target{Host: host, Port: port}).Address()
+	return a.TrustRDPCertificateRoute(host, port, fingerprint, "")
+}
+
+func (a *AppService) TrustRDPCertificateRoute(host string, port int, fingerprint, gateway string) error {
+	target, err := a.rdpRouteTarget(host, port, gateway)
+	if err != nil {
+		return err
+	}
+	address := rdpTrustAddress(target)
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if !a.pendingTrustValidLocked(address, fingerprint) || a.trusted[address] != "" {
@@ -125,6 +144,14 @@ func rdpOrigins() []string {
 }
 
 func (a *AppService) OpenRDP(host string, port int) (rdp.Grant, error) {
+	return a.OpenRDPRoute(host, port, "")
+}
+
+func (a *AppService) OpenRDPRoute(host string, port int, gateway string) (rdp.Grant, error) {
+	target, err := a.rdpRouteTarget(host, port, gateway)
+	if err != nil {
+		return rdp.Grant{}, err
+	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.closed {
@@ -143,8 +170,7 @@ func (a *AppService) OpenRDP(host string, port int) (rdp.Grant, error) {
 		}
 		a.rdp = b
 	}
-	target := rdp.Target{Host: host, Port: port}
-	target.Fingerprint = a.trusted["rdp:"+target.Address()]
+	target.Fingerprint = a.trusted[rdpTrustAddress(target)]
 	return a.rdp.Create(target)
 }
 

@@ -45,8 +45,14 @@ func parseTrust(key, fp string) (TrustRecord, error) {
 	}
 	if strings.HasPrefix(value, "via:") {
 		r.Via, value, _ = strings.Cut(strings.TrimPrefix(value, "via:"), ":")
-		if r.Protocol != "ssh" || r.Via == "" {
+		if r.Via == "" {
 			return r, errors.New("跳板信任无效")
+		}
+		if r.Protocol == "rdp" {
+			value, err := base64.RawURLEncoding.DecodeString(r.Via)
+			if err != nil || len(value) != 32 {
+				return r, errors.New("RDP 跳板信任无效")
+			}
 		}
 	}
 	host, port, err := net.SplitHostPort(value)
@@ -62,7 +68,7 @@ func parseTrust(key, fp string) (TrustRecord, error) {
 }
 func trustCacheKey(r TrustRecord) string {
 	if r.Protocol == "rdp" {
-		return "rdp:" + net.JoinHostPort(r.Host, strconv.Itoa(r.Port))
+		return rdpTrustAddress(rdp.Target{Host: r.Host, Port: r.Port, Scope: r.Via})
 	}
 	return sshTrustKey(r.Host, r.Port, r.Via)
 }
@@ -149,7 +155,12 @@ func (a *AppService) RevokeTrust(key string) error {
 }
 func (a *AppService) probeTrust(ctx context.Context, r TrustRecord, expected string) (string, error) {
 	if r.Protocol == "rdp" {
-		fp, err := rdp.Probe(ctx, rdp.Target{Host: r.Host, Port: r.Port, Fingerprint: expected})
+		target, err := a.rdpScopedTarget(r.Host, r.Port, r.Via)
+		if err != nil {
+			return "", err
+		}
+		target.Fingerprint = expected
+		fp, err := rdp.Probe(ctx, target)
 		if err != nil {
 			var cert *rdp.CertificateError
 			if expected == "" && errors.As(err, &cert) {

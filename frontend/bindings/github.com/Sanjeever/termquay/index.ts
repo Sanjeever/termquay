@@ -33,6 +33,7 @@ export type {
     SSHLayout,
     SSHReconnectResult,
     Snippet,
+    SyncContentComparison,
     SyncPreset,
     TmuxSession,
     Transfer,

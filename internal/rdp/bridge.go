@@ -48,6 +48,13 @@ type Target struct {
 	Host        string `json:"host"`
 	Port        int    `json:"port"`
 	Fingerprint string `json:"fingerprint"`
+	Scope       string `json:"scope,omitempty"`
+	dial        func(context.Context, string) (net.Conn, error)
+}
+
+func WithDialer(target Target, dial func(context.Context, string) (net.Conn, error)) Target {
+	target.dial = dial
+	return target
 }
 
 func (t Target) Address() string { return net.JoinHostPort(t.Host, strconv.Itoa(t.Port)) }
@@ -311,7 +318,13 @@ func negotiate(ctx context.Context, target Target, request []byte) (*tls.Conn, [
 	if err := target.validate(); err != nil {
 		return nil, nil, err
 	}
-	conn, err := (&net.Dialer{Timeout: 10 * time.Second}).DialContext(ctx, "tcp", target.Address())
+	var conn net.Conn
+	var err error
+	if target.dial != nil {
+		conn, err = target.dial(ctx, target.Address())
+	} else {
+		conn, err = (&net.Dialer{Timeout: 10 * time.Second}).DialContext(ctx, "tcp", target.Address())
+	}
 	if err != nil {
 		return nil, nil, err
 	}

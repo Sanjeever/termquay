@@ -5,12 +5,17 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net"
 	"sync"
 
 	"github.com/pkg/sftp"
 	directorysftp "github.com/pkg/sftp/v2"
 	gossh "golang.org/x/crypto/ssh"
 )
+
+func (t *Terminal) DialAddress(ctx context.Context, address string) (net.Conn, error) {
+	return t.client.DialContext(ctx, "tcp", address)
+}
 
 func (t *Terminal) DirectoryClient(ctx context.Context) (*directorysftp.Client, error) {
 	return directorysftp.NewClient(ctx, t.client, directorysftp.WithMaxInflight(4), directorysftp.WithMaxDataLength(32<<10), directorysftp.WithMaxPacketLength(1<<20))

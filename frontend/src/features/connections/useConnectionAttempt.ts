@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { OpenTerminal, OpenSavedTerminalInteractive, GetSSHChallenge, AnswerSSHChallenge, ProbeRDP, TrustSSHHost, TrustRDPCertificate, OpenRDP, OpenSavedRDP, OpenSystemRDP, OpenSavedSystemRDP, CloseWorkspace, CloseRDP } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
+import { OpenTerminal, OpenSavedTerminalInteractive, GetSSHChallenge, AnswerSSHChallenge, ProbeRDPRoute, TrustSSHHost, TrustRDPCertificateRoute, OpenRDPRoute, OpenSavedRDPRoute, OpenSystemRDP, OpenSavedSystemRDP, CloseWorkspace, CloseRDP } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
 import type { SSHChallenge } from '../../../bindings/github.com/Sanjeever/termquay/models';
 import { ReconnectSavedSSH } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
 import type { Connection } from '../../../bindings/github.com/Sanjeever/termquay/internal/store/models';
@@ -57,6 +57,7 @@ export default function useConnectionAttempt(onSSH: (id: string, connection: Con
         }
         onSSH(result.id, connection, reuse); owned = '';
       } else if (options?.client === 'system') {
+        if(options.gateway)throw new Error('系统 RDP 客户端不能使用应用内 SSH 跳板');
         const operation = auth ? OpenSystemRDP(connection, auth, options.resolution, options.clipboard) : OpenSavedSystemRDP(connection.id, options.resolution, options.clipboard);
         attempt.operation = operation;
         await operation;
@@ -64,18 +65,18 @@ export default function useConnectionAttempt(onSSH: (id: string, connection: Con
         rdpWorkspace = beginRDP(connection, reuse, options);
         setWorkspaceID(rdpWorkspace);
         attempt.workspaceID = rdpWorkspace;
-        const probeOperation = ProbeRDP(connection.host, connection.port); attempt.operation = probeOperation;
+        const probeOperation = ProbeRDPRoute(connection.host, connection.port, options?.gateway||''); attempt.operation = probeOperation;
         const probe = await probeOperation; check();
         if (probe.trust_required) {
           if (!await ask(probe.fingerprint, probe.reason)) { attempt.cancelled = true; throw new Error('连接已取消'); }
-          check(); await TrustRDPCertificate(connection.host, connection.port, probe.fingerprint); check();
+          check(); await TrustRDPCertificateRoute(connection.host, connection.port, probe.fingerprint, options?.gateway||''); check();
         }
         let grant: Grant; let username: string; let password: string; let domain: string;
         if (auth) {
-          const operation = OpenRDP(connection.host, connection.port); attempt.operation = operation;
+          const operation = OpenRDPRoute(connection.host, connection.port, options?.gateway||''); attempt.operation = operation;
           grant = await operation; username = auth.username; password = auth.password; domain = connection.domain || '';
         } else {
-          const operation = OpenSavedRDP(connection.id); attempt.operation = operation;
+          const operation = OpenSavedRDPRoute(connection.id, options?.gateway||''); attempt.operation = operation;
           const launch = await operation; grant = launch.grant; username = launch.username; password = launch.password; domain = launch.domain; launch.password = '';
         }
         owned = grant.id; check(); attempt.operation = { cancel: () => cancelRDP(rdpWorkspace) };
