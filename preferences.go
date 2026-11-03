@@ -160,6 +160,31 @@ func (a *AppService) GetDirectoryBookmarks(id string) ([]string, error) {
 	}
 	return p[id].Bookmarks, nil
 }
+
+func (a *AppService) SetRDPClient(id, client string) error {
+	if client != "internal" && client != "system" {
+		return errors.New("RDP 连接方式无效")
+	}
+	a.storeMu.Lock()
+	defer a.storeMu.Unlock()
+	preferences, err := a.connectionPreferences()
+	if err != nil {
+		return err
+	}
+	data, err := a.store.Read()
+	if err != nil {
+		return err
+	}
+	for _, connection := range data.Connections {
+		if connection.ID == id && connection.Protocol == "rdp" {
+			preference := preferences[id]
+			preference.RDPClient = client
+			preferences[id] = preference
+			return a.store.SetConnectionPreferences(preferences)
+		}
+	}
+	return errors.New("RDP 连接不存在")
+}
 func (a *AppService) SetDirectoryBookmarks(id string, bookmarks []string) error {
 	if len(bookmarks) > 32 {
 		return errors.New("目录书签达到上限（32 个）")

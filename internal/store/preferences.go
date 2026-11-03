@@ -10,6 +10,7 @@ type ConnectionPreference struct {
 	Favorite       bool       `json:"favorite"`
 	Environment    string     `json:"environment"`
 	RDPResolution  string     `json:"rdp_resolution,omitempty"`
+	RDPClient      string     `json:"rdp_client,omitempty"`
 	Bookmarks      []string   `json:"bookmarks,omitempty"`
 	PrivateKeyPath string     `json:"private_key_path,omitempty"`
 	LastConnected  *time.Time `json:"last_connected,omitempty"`

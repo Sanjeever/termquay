@@ -185,8 +185,16 @@ export function OpenSavedRDP(id: string): $CancellablePromise<$models.RDPLaunch>
     return $Call.ByID(3012084069, id);
 }
 
+export function OpenSavedSystemRDP(id: string, resolution: string, clipboard: boolean): $CancellablePromise<void> {
+    return $Call.ByID(1550829842, id, resolution, clipboard);
+}
+
 export function OpenSavedTerminal(id: string): $CancellablePromise<$models.OpenResult> {
     return $Call.ByID(2797069557, id);
+}
+
+export function OpenSystemRDP(connection: store$0.Connection, auth: ssh$0.Request, resolution: string, clipboard: boolean): $CancellablePromise<void> {
+    return $Call.ByID(1268410487, connection, auth, resolution, clipboard);
 }
 
 export function OpenTerminal(r: ssh$0.Request): $CancellablePromise<$models.OpenResult> {
@@ -313,6 +321,10 @@ export function SetFrontendReady(): $CancellablePromise<void> {
     return $Call.ByID(3243083785);
 }
 
+export function SetRDPClient(id: string, client: string): $CancellablePromise<void> {
+    return $Call.ByID(3805181083, id, client);
+}
+
 export function SetRDPResolution(id: string, resolution: string): $CancellablePromise<void> {
     return $Call.ByID(1869345094, id, resolution);
 }
@@ -343,6 +355,10 @@ export function StartUploads(id: string, directory: string, overwrite: boolean):
 
 export function SubscribeMonitor(id: string): $CancellablePromise<void> {
     return $Call.ByID(3400708712, id);
+}
+
+export function SystemRDPAvailable(): $CancellablePromise<boolean> {
+    return $Call.ByID(3360685294);
 }
 
 export function TestWebDAV(options: backup$0.WebDAVOptions): $CancellablePromise<void> {

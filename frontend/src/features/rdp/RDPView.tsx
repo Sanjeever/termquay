@@ -6,7 +6,7 @@ import type { IronError, UserInteraction } from '@devolutions/iron-remote-deskto
 import { CloseRDP } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
 import type { Grant } from '../../../bindings/github.com/Sanjeever/termquay/internal/rdp/models';
 
-export type RDPOptions = { clipboard: boolean; resolution: string };
+export type RDPOptions = { clipboard: boolean; resolution: string; client?: string };
 export type RDPHandle = { connect(username: string, password: string, domain: string): Promise<void>; cancel(): void; focus(): void; options(): RDPOptions };
 let initialization: Promise<typeof import('@devolutions/iron-remote-desktop-rdp')> | undefined;
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { OpenTerminal, OpenSavedTerminal, ProbeRDP, TrustSSHHost, TrustRDPCertificate, OpenRDP, OpenSavedRDP, CloseWorkspace, CloseRDP } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
+import { OpenTerminal, OpenSavedTerminal, ProbeRDP, TrustSSHHost, TrustRDPCertificate, OpenRDP, OpenSavedRDP, OpenSystemRDP, OpenSavedSystemRDP, CloseWorkspace, CloseRDP } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
 import type { Connection } from '../../../bindings/github.com/Sanjeever/termquay/internal/store/models';
 import type { Request } from '../../../bindings/github.com/Sanjeever/termquay/internal/ssh/models';
 import type { Grant } from '../../../bindings/github.com/Sanjeever/termquay/internal/rdp/models';
@@ -39,6 +39,10 @@ export default function useConnectionAttempt(onSSH: (id: string, connection: Con
           operation = open(); attempt.operation = operation; result = await operation; owned = result.id; check();
         }
         onSSH(result.id, connection, reuse); owned = '';
+      } else if (options?.client === 'system') {
+        const operation = auth ? OpenSystemRDP(connection, auth, options.resolution, options.clipboard) : OpenSavedSystemRDP(connection.id, options.resolution, options.clipboard);
+        attempt.operation = operation;
+        await operation;
       } else {
         rdpWorkspace = beginRDP(connection, reuse, options);
         setWorkspaceID(rdpWorkspace);
