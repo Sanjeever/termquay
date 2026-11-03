@@ -40,6 +40,9 @@ func main() {
 		Title: "TermQuay", Width: 1280, Height: 820, MinWidth: 900, MinHeight: 600,
 		BackgroundColour: application.NewRGB(16, 18, 22), URL: "/",
 		EnableFileDrop: true,
+		Frameless:      runtime.GOOS != "darwin",
+		Mac:            application.MacWindow{TitleBar: application.MacTitleBarHidden},
+		Windows:        application.WindowsWindow{NonClientRegionSupport: true, WebView2CompositionHosting: true},
 	})
 	window.OnWindowEvent(events.Common.WindowFilesDropped, func(event *application.WindowEvent) {
 		details := event.Context().DropTargetDetails()

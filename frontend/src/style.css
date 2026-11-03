@@ -31,7 +31,22 @@ textarea { width: 100%; resize: vertical; font-family: var(--font-mono); }
 input[type=checkbox] { accent-color: var(--color-primary); }
 .app-shell { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
 .workbench-header { display: flex; min-height: 42px; height: 42px; background: var(--color-surface); border-bottom: 1px solid var(--color-border); }
+.titlebar-brand { display: flex; align-items: center; gap: 8px; flex-shrink: 0; padding: 0 12px; font-size: 12px; font-weight: 600; user-select: none; --wails-draggable: drag; --wails-non-client-region: caption; }
+.titlebar-brand > * { pointer-events: none; }
+.titlebar-drag { min-width: 48px; flex: 0 0 48px; --wails-draggable: drag; --wails-non-client-region: caption; }
+.mac-titlebar { padding-left: 78px; }
+.mac-titlebar.fullscreen-titlebar { padding-left: 0; }
+.inactive-titlebar .titlebar-brand, .inactive-titlebar .window-controls { color: var(--color-muted); }
+.window-controls { display: flex; flex-shrink: 0; align-self: stretch; --wails-draggable: no-drag; }
+.window-controls button { display: grid; place-items: center; width: 46px; height: 100%; border-radius: 0; }
+.window-controls button:hover { background: var(--color-hover); }
+.window-controls button.window-close:hover { background: #c42b1c; color: #fff; }
+.window-controls svg { fill: none; stroke: currentColor; stroke-width: 1; pointer-events: none; }
+.window-minimise { --wails-non-client-region: minimize; }
+.window-maximise { --wails-non-client-region: maximize; }
+.window-close { --wails-non-client-region: close; }
 .workbench-tools { display: flex; align-items: center; padding: 0 8px; gap: 4px; border-left: 1px solid var(--color-border); }
+.workbench-tools, .workspace-tabs { --wails-draggable: no-drag; }
 .workspace-tabs { display: flex; flex: 1; min-width: 0; align-items: center; overflow: auto; scrollbar-width: thin; }
 .workspace-tabs > .icon-button { margin: 0 4px; }
 .workspace-tab { display: flex; align-self: stretch; align-items: center; border-right: 1px solid var(--color-border); color: var(--color-muted); flex-shrink: 0; max-width: 260px; }
