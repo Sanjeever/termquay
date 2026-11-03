@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { ReadDirectory } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
-import type { Directory } from '../../../bindings/github.com/Sanjeever/termquay/internal/files/models';
+import type { Directory, Entry } from '../../../bindings/github.com/Sanjeever/termquay/internal/files/models';
 import { directoryAncestors, inDirectory, maxExpandedDirectories, type TreeDirectory } from './fileTree';
 
 type Read = { workspace: string; path: string; promise: Promise<Directory>; resolve(value: Directory): void; reject(error: unknown): void; request?: ReturnType<typeof ReadDirectory> };
 
-export default function useFileTree(id: string, visible: boolean) {
+export default function useFileTree(id: string, visible: boolean, demoDirectories?: Record<string, Entry[]>) {
   const [nodes, setNodes] = useState<Record<string, TreeDirectory>>({});
   const [expanded, setExpanded] = useState(new Set(['/']));
   const nodeState = useRef(nodes); nodeState.current = nodes;
@@ -33,7 +33,9 @@ export default function useFileTree(id: string, visible: boolean) {
       const operation = queue.current.shift()!;
       if (reads.current.get(operation.path) !== operation) continue;
       running.current++;
-      const request = ReadDirectory(operation.workspace, operation.path); operation.request = request;
+      let request: Promise<Directory>;
+      if(demoDirectories) { const entries=demoDirectories[operation.path];request=entries ? Promise.resolve({path:operation.path,entries}) : Promise.reject(new Error('演示目录不存在')); }
+      else { const remote=ReadDirectory(operation.workspace, operation.path);operation.request=remote;request=remote; }
       request.then(value => {
         if (reads.current.get(operation.path) !== operation) return;
         const directories = new Set((value.entries || []).filter(entry => entry.directory).map(entry => entry.path));

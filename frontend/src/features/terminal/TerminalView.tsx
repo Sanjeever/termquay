@@ -21,7 +21,7 @@ import '@xterm/xterm/css/xterm.css';
 
 export type TerminalAction = 'find' | 'copy' | 'paste' | 'selectAll' | 'clear' | 'zoomIn' | 'zoomOut' | 'zoomReset';
 export type TerminalHandle = { ended():boolean; action(action: TerminalAction): void; insert(text: string): boolean };
-const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string; host?:string; local?: boolean; visible: boolean; fontSize: number; focusOnShow?:boolean; onConnectionChange?():void; onSnippets(): void; onDirectory?(path: string, host: string): void; onFile?(path: string, line: number): void }>(function TerminalView({ id, workspace, host='localhost', local=false, visible, fontSize, focusOnShow=true, onConnectionChange, onSnippets, onDirectory, onFile }, ref) {
+const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string; host?:string; local?: boolean; visible: boolean; fontSize: number; demoOutput?: string; focusOnShow?:boolean; onConnectionChange?():void; onSnippets(): void; onDirectory?(path: string, host: string): void; onFile?(path: string, line: number): void }>(function TerminalView({ id, workspace, host='localhost', local=false, visible, fontSize, demoOutput, focusOnShow=true, onConnectionChange, onSnippets, onDirectory, onFile }, ref) {
   const container = useRef<HTMLDivElement>(null);
   const [error, setError] = useState('');
   const [connected, setConnected] = useState<boolean|null>(null);
@@ -53,6 +53,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
   const inputStream=useRef<ReturnType<typeof Stream>>();
   const stateCallback=useRef(onConnectionChange);stateCallback.current=onConnectionChange;
   function insert(text: string):boolean {
+    if (demoOutput !== undefined) { setError('演示终端不执行命令'); return false; }
     const size=new TextEncoder().encode(text).length;
     if (size > 256 * 1024 - 16) { setError('粘贴内容超过输入队列上限（256 KiB）'); return false; }
     const stream=inputStream.current;if(!stream||stream.readyState!==stream.OPEN){setError('终端已断开');return false;}
@@ -64,7 +65,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
     const term = terminal.current; if (!term) return;
     if (name === 'find') setSearchOpen(true);
     if (name === 'copy') navigator.clipboard.writeText(term.getSelection()).catch(e => setError(String(e)));
-    if (name === 'paste') navigator.clipboard.readText().then(insert).catch(e => setError(String(e)));
+    if (name === 'paste' && demoOutput === undefined) navigator.clipboard.readText().then(insert).catch(e => setError(String(e)));
     if (name === 'selectAll') term.selectAll();
     if (name === 'clear') term.clear();
     if (name === 'zoomIn') setZoom(v => Math.min(36 - fontSize, v + 1));
@@ -76,13 +77,13 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
   useEffect(() => {
     const term = new Terminal({
       fontFamily: monoFonts[appearance.monoFont],
-      fontSize, lineHeight: 1.3, scrollback: 5000, cursorBlink: true,
+      fontSize, lineHeight: 1.3, scrollback: 5000, cursorBlink: demoOutput === undefined, disableStdin: demoOutput !== undefined,
       allowProposedApi: true, theme: colors,
     });
     const fit = new FitAddon(); term.loadAddon(fit); term.open(container.current!);
     const finder = new SearchAddon({highlightLimit:searchHighlightLimit}); term.loadAddon(finder); search.current = finder;
     term.loadAddon(new WebLinksAddon((event, uri) => {
-      if (!(event.ctrlKey || event.metaKey)) return;
+      if (demoOutput !== undefined || !(event.ctrlKey || event.metaKey)) return;
       const url = new URL(uri); if (url.protocol === 'http:' || url.protocol === 'https:') Browser.OpenURL(url).catch(e => setError(String(e)));
     }));
     terminal.current = term;
@@ -98,6 +99,13 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
       });
     };
     requestFit.current = fitVisible;
+    if (demoOutput !== undefined) {
+      if (shown.current && container.current?.clientWidth) fit.fit();
+      term.write(demoOutput);
+      setConnected(true);
+      const observer = new ResizeObserver(fitVisible); observer.observe(container.current!);
+      return () => { observer.disconnect(); cancelAnimationFrame(fitFrame); requestFit.current = undefined; integration.current?.dispose(); integration.current = undefined; term.dispose(); terminal.current = undefined; search.current = undefined; };
+    }
     const stream = Stream(local ? 'local-terminal' : 'terminal');
     inputStream.current=stream;
     let disposed = false;
@@ -130,7 +138,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
       if (data.id === id) fail(data.error);
     });
     return () => { disposed = true; integration.current?.dispose(); integration.current = undefined; observer.disconnect(); cancelAnimationFrame(fitFrame); requestFit.current = undefined; unsubscribe(); input.dispose(); resize.dispose(); stream.close(); term.dispose(); terminal.current = undefined; search.current = undefined; inputStream.current=undefined; (local ? CloseLocalTerminal(id) : CloseTerminal(id)).catch(() => {}); };
-  }, [id]);
+  }, [id, demoOutput]);
   useEffect(() => { if (terminal.current) terminal.current.options.theme = terminalTheme(appearance.terminalPalette, dark); }, [id, dark, appearance.terminalPalette]);
   useEffect(() => { if (terminal.current && visible && appearance.terminalLogHighlight) return addLogHighlights(terminal.current, terminalTheme(appearance.terminalPalette, dark)).dispose; }, [id, visible, appearance.terminalLogHighlight, appearance.terminalPalette, dark]);
   useEffect(() => { if (terminal.current && visible && keyword) return addLogHighlights(terminal.current, terminalTheme(appearance.terminalPalette, dark), keyword).dispose; }, [id, visible, keyword, appearance.terminalPalette, dark]);
@@ -139,8 +147,8 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
   useLayoutEffect(() => { if (visible) { requestFit.current?.(); if (focusRequested.current&&!document.activeElement?.closest('[role=tablist]')) terminal.current?.focus(); } }, [id, visible]);
   function closeSearch() { setSearchOpen(false); search.current?.clearDecorations(); terminal.current?.focus(); }
   return <div className="terminal-view" onPasteCapture={e => { if (!(e.target as HTMLElement).closest('.xterm')) return; e.preventDefault(); e.stopPropagation(); insert(e.clipboardData.getData('text/plain')); }}>
-    <div className="terminal-tools"><button className="icon-button" aria-label="命令片段" title="命令片段" onClick={onSnippets}><Icon name="list" width="14" /></button><button className="icon-button" aria-label="终端查找" title="终端查找" onClick={() => action('find')}><Icon name="search" width="14" /></button>
-      <Dropdown><DropdownTrigger><button className="icon-button" aria-label="终端操作" title="终端操作"><Icon name="more" width="14" /></button></DropdownTrigger><DropdownMenu aria-label="终端操作" onAction={key => { if (key === 'keyword') setKeywordOpen(value => !value); else if (key === 'export') void exportBuffer(); else if (key === 'log') { if (log?.recording) void pauseLog(); else setLogConfirm(true); } else if (key === 'tmux') setTmuxOpen(true); else if (key === 'integration') setIntegrationOpen(true); else if (key === 'previousCommand') integration.current?.previous(); else if (key === 'commandOutput') integration.current?.selectOutput(); else action(key as TerminalAction); }}>
+    <div className="terminal-tools"><button className="icon-button" aria-label="命令片段" title="命令片段" disabled={demoOutput !== undefined} onClick={onSnippets}><Icon name="list" width="14" /></button><button className="icon-button" aria-label="终端查找" title="终端查找" onClick={() => action('find')}><Icon name="search" width="14" /></button>
+      <Dropdown><DropdownTrigger><button className="icon-button" aria-label="终端操作" title="终端操作"><Icon name="more" width="14" /></button></DropdownTrigger><DropdownMenu aria-label="终端操作" disabledKeys={demoOutput !== undefined ? ['paste','export','log','tmux','integration'] : []} onAction={key => { if(demoOutput !== undefined && ['paste','export','log','tmux','integration'].includes(String(key)))return; if (key === 'keyword') setKeywordOpen(value => !value); else if (key === 'export') void exportBuffer(); else if (key === 'log') { if (log?.recording) void pauseLog(); else setLogConfirm(true); } else if (key === 'tmux') setTmuxOpen(true); else if (key === 'integration') setIntegrationOpen(true); else if (key === 'previousCommand') integration.current?.previous(); else if (key === 'commandOutput') integration.current?.selectOutput(); else action(key as TerminalAction); }}>
         <DropdownItem key="copy">复制</DropdownItem><DropdownItem key="paste">粘贴</DropdownItem><DropdownItem key="selectAll">全选</DropdownItem><DropdownItem key="find">查找</DropdownItem><DropdownItem key="clear">清空显示</DropdownItem><DropdownItem key="zoomIn">放大字号</DropdownItem><DropdownItem key="zoomOut">缩小字号</DropdownItem><DropdownItem key="zoomReset">复位字号</DropdownItem>
         <DropdownItem key="previousCommand">跳到上一条命令</DropdownItem><DropdownItem key="commandOutput">选择上次命令输出</DropdownItem><DropdownItem key="integration" isDisabled={!connected}>启用当前 Shell 集成…</DropdownItem>
         <DropdownItem key="tmux" className={local?'hidden':''} isDisabled={local||!connected}>tmux 会话…</DropdownItem>

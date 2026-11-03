@@ -11,24 +11,24 @@ import { createHistory, historyPoints, recordSample } from './history';
 function bytes(value: number | null | undefined) { if (value == null) return '—'; if (value >= 1024 ** 3) return `${(value / 1024 ** 3).toFixed(1)} GiB`; if (value >= 1024 ** 2) return `${(value / 1024 ** 2).toFixed(1)} MiB`; return `${(value / 1024).toFixed(1)} KiB`; }
 function rate(value: number | null) { return value == null ? '—' : `${bytes(value)}/s`; }
 
-export default function MonitorPanel({ id, visible, onClose }: { id: string; visible: boolean; onClose(): void }) {
+export default function MonitorPanel({ id, visible, onClose, demoSamples }: { id: string; visible: boolean; onClose(): void; demoSamples?: Sample[] }) {
   const [sample, setSample] = useState<Sample>();
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
   const [now, setNow] = useState(Date.now());
-  const [width, setWidth] = useState(Number(localStorage.getItem('termquay.layout.monitor-width')) || 260);
+  const [width, setWidth] = useState(demoSamples ? 260 : Number(localStorage.getItem('termquay.layout.monitor-width')) || 260);
   const operations = useRef(Promise.resolve());
   const history = useRef(createHistory());
-  useEffect(() => { history.current = createHistory(); setSample(undefined); }, [id]);
-  useEffect(() => { localStorage.setItem('termquay.layout.monitor-width', String(width)); }, [width]);
+  useEffect(() => { history.current = createHistory(); if(demoSamples) { for(const sample of demoSamples)recordSample(history.current,sample,Date.parse(sample.time)); const latest=demoSamples[demoSamples.length-1];setSample(latest);if(latest)setNow(Date.parse(latest.time)); } else setSample(undefined); }, [id, demoSamples]);
+  useEffect(() => { if(!demoSamples)localStorage.setItem('termquay.layout.monitor-width', String(width)); }, [width, demoSamples]);
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || demoSamples) return;
     let disposed = false; setSample(undefined); setError(''); setNow(Date.now());
     const off = Events.On('monitor:sample', event => { const update = event.data as { id: string; sample: Sample | null; error: string }; if (update.id !== id || disposed) return; recordSample(history.current, update.sample, update.sample ? new Date(update.sample.time).getTime() : Date.now()); setSample(update.sample || undefined); setError(update.error); setNow(Date.now()); });
     operations.current = operations.current.then(async () => { if (!disposed) await SubscribeMonitor(id); }).catch(e => { if (!disposed) setError(String(e)); });
     const timer = window.setInterval(() => setNow(Date.now()), 3000);
     return () => { disposed = true; off(); clearInterval(timer); operations.current = operations.current.then(() => UnsubscribeMonitor(id)).catch(e => { if (!disposed) setError(String(e)); }); };
-  }, [id, visible, retry]);
+  }, [id, visible, retry, demoSamples]);
   const stale = sample && now - new Date(sample.time).getTime() > 10000;
   const points = historyPoints(history.current);
   return <div className="monitor-dock" hidden={!visible} style={{ width }}><ResizeHandle label="监控面板宽度" value={width} min={220} max={380} onChange={setWidth} reverse /><aside className="monitor-panel" aria-label="服务器监控">

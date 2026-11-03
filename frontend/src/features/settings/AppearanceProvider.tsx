@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useLayoutEffect, useState, type R
 import { appearanceKey, defaultAppearance, monoFonts, parseAppearance, uiFonts, type Appearance } from './appearance';
 import { Window } from '@wailsio/runtime';
 
-const AppearanceContext = createContext<{ appearance: Appearance; dark: boolean; error: string; update(value: Appearance): void } | undefined>(undefined);
+const AppearanceContext = createContext<{ appearance: Appearance; dark: boolean; error: string; update(value: Appearance): void; beginPreview(): void; endPreview(): void } | undefined>(undefined);
 
 export function AppearanceProvider({ children }: { children: ReactNode }) {
   const [initial] = useState(() => {
@@ -10,11 +10,13 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
     catch (error) { return { appearance: { ...defaultAppearance }, error: String(error) }; }
   });
   const [appearance, setAppearance] = useState(initial.appearance);
+  const [preview, setPreview] = useState<Appearance>();
+  const current = preview ?? appearance;
   const [error, setError] = useState(initial.error);
   const [systemDark, setSystemDark] = useState(() => matchMedia('(prefers-color-scheme: dark)').matches);
   useEffect(() => { const restore = () => { try { setAppearance(parseAppearance(localStorage.getItem(appearanceKey))); setError(''); } catch (e) { setError(String(e)); } }; window.addEventListener('termquay:portable-restored', restore); return () => window.removeEventListener('termquay:portable-restored', restore); }, []);
-  const dark = appearance.theme === 'system' ? systemDark : appearance.theme === 'dark';
-  useEffect(() => { Window.SetZoom(appearance.uiZoom).catch(error => setError(`界面缩放失败：${String(error)}`)); }, [appearance.uiZoom]);
+  const dark = current.theme === 'system' ? systemDark : current.theme === 'dark';
+  useEffect(() => { Window.SetZoom(current.uiZoom).catch(error => setError(`界面缩放失败：${String(error)}`)); }, [current.uiZoom]);
   useEffect(() => {
     const media = matchMedia('(prefers-color-scheme: dark)');
     const changed = () => setSystemDark(media.matches);
@@ -24,14 +26,15 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
   useLayoutEffect(() => {
     const root = document.documentElement;
     root.classList.toggle('dark', dark); root.classList.toggle('light', !dark);
-    root.style.setProperty('--font-ui', uiFonts[appearance.uiFont]);
-    root.style.setProperty('--font-mono', monoFonts[appearance.monoFont]);
-  }, [appearance, dark]);
+    root.style.setProperty('--font-ui', uiFonts[current.uiFont]);
+    root.style.setProperty('--font-mono', monoFonts[current.monoFont]);
+  }, [current, dark]);
   function update(value: Appearance) {
+    if (preview) { setPreview(value); return; }
     try { localStorage.setItem(appearanceKey, JSON.stringify(value)); setAppearance(value); setError(''); window.dispatchEvent(new Event('termquay:portable-changed')); }
     catch (error) { setError(String(error)); }
   }
-  return <AppearanceContext.Provider value={{ appearance, dark, error, update }}>{children}</AppearanceContext.Provider>;
+  return <AppearanceContext.Provider value={{ appearance: current, dark, error, update, beginPreview: () => setPreview({ ...appearance }), endPreview: () => setPreview(undefined) }}>{children}</AppearanceContext.Provider>;
 }
 
 export function useAppearance() {
