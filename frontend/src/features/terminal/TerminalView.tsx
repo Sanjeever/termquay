@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
 import { Stream, Events, Browser } from '@wailsio/runtime';
 import { Button, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from '@heroui/react';
 import { Terminal } from '@xterm/xterm';
@@ -21,7 +21,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; 
   const terminal = useRef<Terminal>();
   const { appearance, dark } = useAppearance();
   const colors = terminalTheme(appearance.terminalPalette, dark);
-  const fitAddon = useRef<FitAddon>();
+  const requestFit = useRef<() => void>();
   const search = useRef<SearchAddon>();
   const [searchOpen, setSearchOpen] = useState(false);
   const [paste, setPaste] = useState<string>();
@@ -63,8 +63,18 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; 
       if (!(event.ctrlKey || event.metaKey)) return;
       const url = new URL(uri); if (url.protocol === 'http:' || url.protocol === 'https:') Browser.OpenURL(url).catch(e => setError(String(e)));
     }));
-    terminal.current = term; fitAddon.current = fit;
-    const fitVisible = () => { if (container.current && container.current.clientWidth > 0 && container.current.clientHeight > 0) fit.fit(); };
+    terminal.current = term;
+    let fitFrame = 0;
+    const fitVisible = () => {
+      if (fitFrame) return;
+      fitFrame = requestAnimationFrame(() => {
+        fitFrame = 0;
+        if (!shown.current || !container.current?.clientWidth || !container.current.clientHeight) return;
+        const size = fit.proposeDimensions();
+        if (size && (size.cols !== term.cols || size.rows !== term.rows)) fit.fit();
+      });
+    };
+    requestFit.current = fitVisible;
     const stream = Stream('terminal');
     inputStream.current=stream;
     let disposed = false;
@@ -96,10 +106,12 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; 
       const data = event.data as { id: string; error: string };
       if (data.id === id) fail(data.error);
     });
-    return () => { disposed = true; observer.disconnect(); unsubscribe(); input.dispose(); resize.dispose(); stream.close(); term.dispose(); terminal.current = undefined; fitAddon.current = undefined; search.current = undefined; inputStream.current=undefined; CloseTerminal(id).catch(() => {}); };
+    return () => { disposed = true; observer.disconnect(); cancelAnimationFrame(fitFrame); requestFit.current = undefined; unsubscribe(); input.dispose(); resize.dispose(); stream.close(); term.dispose(); terminal.current = undefined; search.current = undefined; inputStream.current=undefined; CloseTerminal(id).catch(() => {}); };
   }, [id]);
-  useEffect(() => { const term = terminal.current; if (!term) return; term.options.theme = terminalTheme(appearance.terminalPalette, dark); term.options.fontFamily = monoFonts[appearance.monoFont]; if (visible && container.current?.clientWidth && container.current.clientHeight) fitAddon.current?.fit(); }, [dark, appearance.terminalPalette, appearance.monoFont, visible]);
-  useEffect(() => { if (!terminal.current) return; terminal.current.options.fontSize = Math.max(9, Math.min(36, fontSize + zoom)); if (visible && container.current?.clientWidth && container.current.clientHeight) { fitAddon.current?.fit(); if (focusRequested.current&&!document.activeElement?.closest('[role=tablist]')) terminal.current.focus(); } }, [visible, fontSize, zoom]);
+  useEffect(() => { if (terminal.current) terminal.current.options.theme = terminalTheme(appearance.terminalPalette, dark); }, [id, dark, appearance.terminalPalette]);
+  useEffect(() => { const term = terminal.current; if (!term) return; const family = monoFonts[appearance.monoFont]; if (term.options.fontFamily !== family) { term.options.fontFamily = family; requestFit.current?.(); } }, [id, appearance.monoFont]);
+  useEffect(() => { const term = terminal.current; if (!term) return; const size = Math.max(9, Math.min(36, fontSize + zoom)); if (term.options.fontSize !== size) { term.options.fontSize = size; requestFit.current?.(); } }, [id, fontSize, zoom]);
+  useLayoutEffect(() => { if (visible) { requestFit.current?.(); if (focusRequested.current&&!document.activeElement?.closest('[role=tablist]')) terminal.current?.focus(); } }, [id, visible]);
   function closeSearch() { setSearchOpen(false); search.current?.clearDecorations(); terminal.current?.focus(); }
   return <div className="terminal-view" onPasteCapture={e => { if (!(e.target as HTMLElement).closest('.xterm')) return; e.preventDefault(); e.stopPropagation(); insert(e.clipboardData.getData('text/plain')); }}>
     <div className="terminal-tools"><button className="session-tool" onClick={onSnippets}>命令片段</button><button className="icon-button" aria-label="终端查找" onClick={() => action('find')}><Icon name="search" width="14" /></button>
