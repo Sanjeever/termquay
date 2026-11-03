@@ -10,14 +10,18 @@ import (
 )
 
 func ProbeIdentity(ctx context.Context, host string, port int, jump *Request) (string, error) {
+	return ProbeRequestIdentity(ctx, Request{Host: host, Port: port}, jump)
+}
+
+func ProbeRequestIdentity(ctx context.Context, request Request, jump *Request) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
-	address := net.JoinHostPort(host, strconv.Itoa(port))
+	address := net.JoinHostPort(request.Host, strconv.Itoa(request.Port))
 	var conn net.Conn
 	var err error
 	if jump != nil {
 		gateway, e := dialClient(ctx, *jump, func(ctx context.Context, addr string) (net.Conn, error) {
-			return (&net.Dialer{Timeout: 15 * time.Second}).DialContext(ctx, "tcp", addr)
+			return connectDirect(ctx, *jump, addr)
 		})
 		if e != nil {
 			return "", e
@@ -25,7 +29,7 @@ func ProbeIdentity(ctx context.Context, host string, port int, jump *Request) (s
 		defer gateway.Close()
 		conn, err = gateway.DialContext(ctx, "tcp", address)
 	} else {
-		conn, err = (&net.Dialer{Timeout: 15 * time.Second}).DialContext(ctx, "tcp", address)
+		conn, err = connectDirect(ctx, request, address)
 	}
 	if err != nil {
 		return "", err

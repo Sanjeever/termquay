@@ -42,6 +42,8 @@ export interface Request {
     "jump_id"?: string;
     "auth_id"?: string;
     "mfa"?: boolean;
+    "certificate"?: string;
+    "proxy_address"?: string;
 }
 
 export interface TerminalLogStatus {

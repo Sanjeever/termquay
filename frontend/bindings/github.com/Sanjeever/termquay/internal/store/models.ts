@@ -15,6 +15,8 @@ export interface Connection {
     "identity_agent"?: string;
     "jump_id"?: string;
     "mfa"?: boolean;
+    "certificate"?: string;
+    "proxy_address"?: string;
 }
 
 export interface ConnectionPreference {

@@ -173,7 +173,26 @@ func (a *AppService) probeTrust(ctx context.Context, r TrustRecord, expected str
 		}
 		jump = &request
 	}
-	return terminal.ProbeIdentity(ctx, r.Host, r.Port, jump)
+	request := terminal.Request{Host: r.Host, Port: r.Port}
+	if jump == nil {
+		catalog, err := a.GetCatalog()
+		if err != nil {
+			return "", err
+		}
+		routes := map[string]bool{}
+		for _, connection := range catalog.Connections {
+			if connection.Protocol == "ssh" && connection.Host == r.Host && connection.Port == r.Port && connection.JumpID == "" {
+				routes[connection.ProxyAddress] = true
+			}
+		}
+		if len(routes) > 1 {
+			return "", errors.New("此主机有多个连接代理路径，请先明确使用的连接配置")
+		}
+		for address := range routes {
+			request.ProxyAddress = address
+		}
+	}
+	return terminal.ProbeRequestIdentity(ctx, request, jump)
 }
 func (a *AppService) ProbeTrustReview(ctx context.Context, key string) (TrustReview, error) {
 	r, err := parseTrust(key, "")

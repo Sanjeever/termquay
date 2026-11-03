@@ -441,6 +441,10 @@ export function SelectPrivateKey(): $CancellablePromise<$models.PrivateKeySelect
     return $Call.ByID(4126206456);
 }
 
+export function SelectSSHCertificate(): $CancellablePromise<string> {
+    return $Call.ByID(2608287391);
+}
+
 export function SelectSSHImport(): $CancellablePromise<$models.SSHImportPreview> {
     return $Call.ByID(2651136709);
 }

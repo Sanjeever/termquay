@@ -320,4 +320,5 @@ export interface WorkspaceTarget {
     "identity_agent"?: string;
     "jump_id"?: string;
     "mfa"?: boolean;
+    "proxy_address"?: string;
 }

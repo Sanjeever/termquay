@@ -34,11 +34,17 @@ type Request struct {
 	JumpID          string `json:"jump_id,omitempty"`
 	AuthID          string `json:"auth_id,omitempty"`
 	MFA             bool   `json:"mfa,omitempty"`
+	Certificate     string `json:"certificate,omitempty"`
+	ProxyAddress    string `json:"proxy_address,omitempty"`
 	challenge       gossh.KeyboardInteractiveChallenge
 }
 
 func WithChallenge(r Request, challenge gossh.KeyboardInteractiveChallenge) Request {
-	r.challenge = challenge
+	if challenge != nil {
+		r.challenge = func(_ string, instruction string, questions []string, echo []bool) ([]string, error) {
+			return challenge(r.Username+"@"+net.JoinHostPort(r.Host, strconv.Itoa(r.Port)), instruction, questions, echo)
+		}
+	}
 	return r
 }
 
@@ -75,7 +81,7 @@ func Dial(ctx context.Context, r Request) (*Terminal, error) {
 		return nil, errors.New("跳板请求必须由工作区解析")
 	}
 	client, err := dialClient(ctx, r, func(ctx context.Context, address string) (net.Conn, error) {
-		return (&net.Dialer{Timeout: 15 * time.Second}).DialContext(ctx, "tcp", address)
+		return connectDirect(ctx, r, address)
 	})
 	if err != nil {
 		return nil, err
@@ -149,6 +155,24 @@ func dialClient(ctx context.Context, r Request, connect func(context.Context, st
 		if err != nil {
 			return nil, fmt.Errorf("私钥解析失败: %w", err)
 		}
+		if r.Certificate != "" {
+			key, _, _, rest, err := gossh.ParseAuthorizedKey([]byte(r.Certificate))
+			if err != nil || len(rest) != 0 {
+				return nil, errors.New("SSH 用户证书格式无效")
+			}
+			certificate, ok := key.(*gossh.Certificate)
+			if !ok || certificate.CertType != gossh.UserCert {
+				return nil, errors.New("需要 SSH 用户证书")
+			}
+			now := uint64(time.Now().Unix())
+			if now < certificate.ValidAfter || now >= certificate.ValidBefore {
+				return nil, errors.New("SSH 用户证书已过期或尚未生效")
+			}
+			signer, err = gossh.NewCertSigner(certificate, signer)
+			if err != nil {
+				return nil, fmt.Errorf("SSH 用户证书与私钥不匹配：%w", err)
+			}
+		}
 		auth = append(auth, gossh.PublicKeys(signer))
 	} else if method == "password" {
 		auth = append(auth, gossh.Password(r.Password))
@@ -174,6 +198,9 @@ func dialClient(ctx context.Context, r Request, connect func(context.Context, st
 	conn, err := connect(ctx, address)
 	if err != nil {
 		stage := "TCP 连接"
+		if r.ProxyAddress != "" {
+			stage = "SOCKS5 代理连接"
+		}
 		var dns *net.DNSError
 		if errors.As(err, &dns) {
 			stage = "DNS 解析"

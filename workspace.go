@@ -18,6 +18,7 @@ type WorkspaceTarget struct {
 	IdentityAgent string `json:"identity_agent,omitempty"`
 	JumpID        string `json:"jump_id,omitempty"`
 	MFA           bool   `json:"mfa,omitempty"`
+	ProxyAddress  string `json:"proxy_address,omitempty"`
 }
 type WorkspaceTabLayout struct {
 	Kind string `json:"kind"`
@@ -51,7 +52,7 @@ type WorkspaceLayout struct {
 }
 
 func (layout WorkspaceLayout) validate() error {
-	if layout.Version < 1 || layout.Version > 4 {
+	if layout.Version < 1 || layout.Version > 6 {
 		return errors.New("工作布局版本不受支持")
 	}
 	if len(layout.Entries) > 16 {
@@ -64,6 +65,9 @@ func (layout WorkspaceLayout) validate() error {
 		}
 		seen[entry.ID] = true
 		t := entry.Target
+		if len(t.ProxyAddress) > 1024 || (t.ProxyAddress != "" && (layout.Version < 6 || t.Protocol != "ssh" || t.JumpID != "")) {
+			return errors.New("布局代理配置无效")
+		}
 		if layout.Version < 3 && t.JumpID != "" {
 			return errors.New("旧布局版本不能包含跳板字段")
 		}

@@ -52,6 +52,11 @@ func EncryptWithSettings(d store.Data, deviceID, password string, settings map[s
 	if len(settings) > 0 {
 		version = 5
 	}
+	for _, c := range d.Connections {
+		if c.Certificate != "" || c.ProxyAddress != "" {
+			version = 6
+		}
+	}
 	if err := validateSettings(settings); err != nil {
 		return nil, err
 	}
@@ -110,11 +115,18 @@ func Decrypt(encrypted []byte, password string) (Snapshot, error) {
 	if err = decoder.Decode(&extra); err != io.EOF {
 		return snap, errors.New("快照尾部包含额外数据")
 	}
-	if snap.Version < 1 || snap.Version > 5 {
+	if snap.Version < 1 || snap.Version > 6 {
 		return snap, errors.New("不支持的快照版本")
 	}
 	if snap.Version < 5 && len(snap.Settings) > 0 {
 		return snap, errors.New("旧快照不能包含可迁移设置")
+	}
+	if snap.Version < 6 {
+		for _, c := range snap.Data.Connections {
+			if c.Certificate != "" || c.ProxyAddress != "" {
+				return snap, errors.New("旧快照不能包含用户证书或代理字段")
+			}
+		}
 	}
 	if err := validateSettings(snap.Settings); err != nil {
 		return snap, err

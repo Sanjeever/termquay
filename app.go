@@ -98,6 +98,9 @@ func NewAppService() *AppService {
 }
 
 func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (OpenResult, error) {
+	if r.ProxyAddress != "" && r.JumpID != "" {
+		return OpenResult{}, errors.New("目标不能同时配置跳板与连接代理，请在首个跳板配置代理")
+	}
 	challenge, release, err := a.beginSSHAuthentication(ctx, r.AuthID)
 	if err != nil {
 		return OpenResult{}, err

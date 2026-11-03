@@ -35,6 +35,8 @@ type Connection struct {
 	IdentityAgent string `json:"identity_agent,omitempty"`
 	JumpID        string `json:"jump_id,omitempty"`
 	MFA           bool   `json:"mfa,omitempty"`
+	Certificate   string `json:"certificate,omitempty"`
+	ProxyAddress  string `json:"proxy_address,omitempty"`
 }
 
 type Credential struct {
@@ -86,6 +88,9 @@ func (d Data) Validate() error {
 	connections := map[string]bool{}
 	configs := map[string]Connection{}
 	for _, c := range d.Connections {
+		if len(c.Certificate) > 64<<10 || (c.Certificate != "" && (c.Protocol != "ssh" || c.AuthMethod != "private_key")) || len(c.ProxyAddress) > 1024 || (c.ProxyAddress != "" && (c.Protocol != "ssh" || c.JumpID != "")) {
+			return errors.New("用户证书或 SOCKS5 代理配置无效；代理与跳板不能同时设置")
+		}
 		if (c.AuthMethod != "" && c.AuthMethod != "password" && c.AuthMethod != "private_key" && c.AuthMethod != "agent" && c.AuthMethod != "keyboard_interactive") || (c.Protocol != "ssh" && (c.AuthMethod != "" || c.IdentityAgent != "" || c.MFA)) || len(c.IdentityAgent) > 4096 || ((c.AuthMethod == "agent" || c.AuthMethod == "keyboard_interactive") && c.CredentialID != "") {
 			return errors.New("连接认证配置无效")
 		}

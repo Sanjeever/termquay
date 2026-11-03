@@ -499,7 +499,7 @@ func (a *AppService) savedRequest(id string) (terminal.Request, store.Connection
 		if c.ID != id {
 			continue
 		}
-		r := terminal.Request{Host: c.Host, Port: c.Port, Username: c.Username, Cols: 100, Rows: 30, AuthMethod: c.AuthMethod, IdentityAgent: c.IdentityAgent, JumpID: c.JumpID, MFA: c.MFA}
+		r := terminal.Request{Host: c.Host, Port: c.Port, Username: c.Username, Cols: 100, Rows: 30, AuthMethod: c.AuthMethod, IdentityAgent: c.IdentityAgent, JumpID: c.JumpID, MFA: c.MFA, Certificate: c.Certificate, ProxyAddress: c.ProxyAddress}
 		for _, credential := range d.Credentials {
 			if credential.ID != c.CredentialID {
 				continue
