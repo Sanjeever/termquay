@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@heroui/react';
 import { Events } from '@wailsio/runtime';
-import { SubscribeMonitor, UnsubscribeMonitor } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
+import { SubscribeMonitor, UnsubscribeMonitor } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { Sample } from '../../../bindings/github.com/Sanjeever/termquay/internal/monitor/models';
 import ResizeHandle from '../../components/layout/ResizeHandle';
 import Icon from '../../components/Icon';

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Events } from '@wailsio/runtime';
-import { CancelTransfer, ClearTransfer, ClearFinishedTransfers, ListTransfers, RetryTransfer, ResumeTransfer, DiscardTransferResume } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
-import type { Transfer } from '../../../bindings/github.com/Sanjeever/termquay/models';
+import { CancelTransfer, ClearTransfer, ClearFinishedTransfers, ListTransfers, RetryTransfer, ResumeTransfer, DiscardTransferResume } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
+import type { Transfer } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 
 export default function useTransfers() {
   const [transfers, setTransfers] = useState<Record<string, Transfer>>({});

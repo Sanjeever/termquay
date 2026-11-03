@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
-import { ReadRemoteLog } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
-import type { RemoteLogSlice } from '../../../bindings/github.com/Sanjeever/termquay/models';
+import { ReadRemoteLog } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
+import type { RemoteLogSlice } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 
 export default function RemoteLogDialog({ workspace, path, visible, onClose }: { workspace: string; path: string; visible: boolean; onClose(): void }) {
   const [slice, setSlice] = useState<RemoteLogSlice>();

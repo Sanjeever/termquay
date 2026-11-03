@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Button, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
 import { Stream } from '@wailsio/runtime';
-import { ReadRemoteFile, ReadRemoteFileEncoded, DownloadFileDraft, SaveRemoteFile, CreateTerminal, CloseTerminal, WorkspaceRecoveryDrafts, CloseWorkspace, RegisterWorkspaceView, ReleaseWorkspaceView, SetWorkspaceDirty } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
+import { ReadRemoteFile, ReadRemoteFileEncoded, DownloadFileDraft, SaveRemoteFile, CreateTerminal, CloseTerminal, WorkspaceRecoveryDrafts, CloseWorkspace, RegisterWorkspaceView, ReleaseWorkspaceView, SetWorkspaceDirty } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import SelectControl from '../../components/SelectControl';
 import { documentFormat, formatKey, editorEncodings } from './editorFormat';
 import type { Document, Entry } from '../../../bindings/github.com/Sanjeever/termquay/internal/files/models';
@@ -12,7 +12,7 @@ import MonitorPanel from '../monitor/MonitorPanel';
 import Icon from '../../components/Icon';
 import ResizeHandle from '../../components/layout/ResizeHandle';
 import FileConflictView from './FileConflictView';
-import type { RecoveryDraftInput, SSHLayout } from '../../../bindings/github.com/Sanjeever/termquay/models';
+import type { RecoveryDraftInput, SSHLayout } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import WorkspacePanes from './WorkspacePanes';
 import TunnelPanel from '../tunnels/TunnelPanel';
 import PaneTabs from './PaneTabs';

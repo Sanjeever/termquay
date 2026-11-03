@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Events, Window } from '@wailsio/runtime';
-import { MeasureConnectionLatency } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
-import type { ConnectionLatency } from '../../../bindings/github.com/Sanjeever/termquay/models';
+import { MeasureConnectionLatency } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
+import type { ConnectionLatency } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import type { Connection } from '../../../bindings/github.com/Sanjeever/termquay/internal/store/models';
 
 type Measurement = { key: string; result?: ConnectionLatency; checkedAt?: number; refreshing: boolean };

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Browser } from '@wailsio/runtime';
 import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Progress, Switch } from '@heroui/react';
 import Markdown from 'react-markdown';
-import { GetLicenseFiles, GetLicenseText } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
+import { GetLicenseFiles, GetLicenseText } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import SelectControl from '../../components/SelectControl';
 import type useUpdates from './useUpdates';
 import appIcon from '../../../../build/appicon.svg';

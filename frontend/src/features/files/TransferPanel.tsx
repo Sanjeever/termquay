@@ -3,7 +3,7 @@ import type useTransfers from './useTransfers';
 import Icon from '../../components/Icon';
 import ResizeHandle from '../../components/layout/ResizeHandle';
 import { useEffect, useState } from 'react';
-import { GetTransferRate, SetTransferRate } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
+import { GetTransferRate, SetTransferRate } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import { Button, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from '@heroui/react';
 
 const states: Record<string, string> = { queued:'等待中',running: '传输中', done: '已完成', cancelled: '已取消', failed: '失败',skipped:'已跳过' };

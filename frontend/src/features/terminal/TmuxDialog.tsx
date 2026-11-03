@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
-import { ListTmuxSessions } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
-import type { TmuxSession } from '../../../bindings/github.com/Sanjeever/termquay/models';
+import { ListTmuxSessions } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
+import type { TmuxSession } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import { shellQuote } from './shellIntegration';
 
 export default function TmuxDialog({ workspace, onInsert, onClose }: { workspace: string; onInsert(command: string): boolean; onClose(): void }) {

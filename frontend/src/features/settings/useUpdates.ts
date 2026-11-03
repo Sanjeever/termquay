@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Events } from '@wailsio/runtime';
-import { CancelUpdate, CheckUpdate, DownloadUpdate, GetUpdateStatus, SetUpdateCheck, StartUpdates } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
-import type { UpdateStatus } from '../../../bindings/github.com/Sanjeever/termquay/models';
+import { CancelUpdate, CheckUpdate, DownloadUpdate, GetUpdateStatus, SetUpdateCheck, StartUpdates } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
+import type { UpdateStatus } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 
 export default function useUpdates(ready: boolean) {
   const [status, setStatus] = useState<UpdateStatus>();

@@ -1,13 +1,13 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { Button, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Modal, ModalBody, ModalContent, ModalHeader, ModalFooter, Tooltip } from '@heroui/react';
 import { Events } from '@wailsio/runtime';
-import { GetDirectoryBookmarks, SetDirectoryBookmarks, CreateRemoteDirectory, RenameRemotePath, DeleteRemotePath, StartUploads, StartDownload, StartDownloads, MoveRemotePaths, DeleteRemotePaths } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
-import type { UploadDropResult } from '../../../bindings/github.com/Sanjeever/termquay/models';
+import { GetDirectoryBookmarks, SetDirectoryBookmarks, CreateRemoteDirectory, RenameRemotePath, DeleteRemotePath, StartUploads, StartDownload, StartDownloads, MoveRemotePaths, DeleteRemotePaths } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
+import type { UploadDropResult } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import type { Entry } from '../../../bindings/github.com/Sanjeever/termquay/internal/files/models';
 import Icon from '../../components/Icon';
 import DirectorySyncDialog from './DirectorySyncDialog';
 import { selectItems } from '../../lib/selection';
-import type { RemotePathResult } from '../../../bindings/github.com/Sanjeever/termquay/models';
+import type { RemotePathResult } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import useFileTree from './useFileTree';
 import { entryMetadata, fileTreeRows, inDirectory } from './fileTree';
 import FileIcon from './FileIcon';

@@ -1,4 +1,4 @@
-import{useEffect,useRef,useState}from'react';import{GetWorkspaceLayout,SaveWorkspaceLayout}from'../../../bindings/github.com/Sanjeever/termquay/appservice';import type{WorkspaceLayout}from'../../../bindings/github.com/Sanjeever/termquay/models';
+import{useEffect,useRef,useState}from'react';import{GetWorkspaceLayout,SaveWorkspaceLayout}from'../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';import type{WorkspaceLayout}from'../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 export default function useWorkspaceRestore(){
  const[startup,setStartup]=useState<WorkspaceLayout>();const[error,setError]=useState('');const ready=useRef(false);const activated=useRef(false);const pending=useRef<WorkspaceLayout>();const running=useRef<Promise<void>>();const timer=useRef<ReturnType<typeof setTimeout>>();const last=useRef('');const failure=useRef('');
  useEffect(()=>{let ended=false;GetWorkspaceLayout().then(value=>{if(ended)return;ready.current=true;setStartup(value);failure.current='';setError('');}).catch(e=>{if(!ended){failure.current=String(e);setError(String(e));}});return()=>{ended=true;clearTimeout(timer.current);};},[]);

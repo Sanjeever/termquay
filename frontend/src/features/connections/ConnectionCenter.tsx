@@ -1,14 +1,14 @@
 import SelectControl from '../../components/SelectControl';
 import { useRef, useState } from 'react';
 import { Button, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Input, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from '@heroui/react';
-import { DeleteConnection, DuplicateConnection, SetConnectionPreference, ClearRecentConnections, SaveGroup, DeleteGroup, MoveConnectionsToGroup, MoveGroup } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
+import { DeleteConnection, DuplicateConnection, SetConnectionPreference, ClearRecentConnections, SaveGroup, DeleteGroup, MoveConnectionsToGroup, MoveGroup } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { Connection, ConnectionPreference, Group } from '../../../bindings/github.com/Sanjeever/termquay/internal/store/models';
 import Icon from '../../components/Icon';
 import ImportConnectionsDialog from './ImportConnectionsDialog';
 import { catalogConnections, type CatalogSort } from './catalog';
 import { selectItems } from '../../lib/selection';
 import CredentialAssignDialog from './CredentialAssignDialog';
-import type { LocalShell } from '../../../bindings/github.com/Sanjeever/termquay/models';
+import type { LocalShell } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import useConnectionLatency from './useConnectionLatency';
 import ConnectionLatency from './ConnectionLatency';
 

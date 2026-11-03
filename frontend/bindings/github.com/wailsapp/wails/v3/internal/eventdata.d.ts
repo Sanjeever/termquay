@@ -7,14 +7,14 @@ import type { Events } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import type * as main$0 from "../../../../Sanjeever/termquay/models.js";
+import type * as app$0 from "../../../../Sanjeever/termquay/internal/app/models.js";
 
 declare module "@wailsio/runtime" {
     namespace Events {
         interface CustomEvents {
-            "files:upload-result": main$0.UploadDropResult;
-            "monitor:sample": main$0.MonitorEvent;
-            "transfer:changed": main$0.Transfer;
+            "files:upload-result": app$0.UploadDropResult;
+            "monitor:sample": app$0.MonitorEvent;
+            "transfer:changed": app$0.Transfer;
         }
     }
 }

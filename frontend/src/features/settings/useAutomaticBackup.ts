@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { GetAutomaticBackupStatus } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
-import type { AutomaticBackupStatus } from '../../../bindings/github.com/Sanjeever/termquay/models';
+import { GetAutomaticBackupStatus } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
+import type { AutomaticBackupStatus } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 
 export default function useAutomaticBackup(ready: boolean) {
   const [status, setStatus] = useState<AutomaticBackupStatus>();

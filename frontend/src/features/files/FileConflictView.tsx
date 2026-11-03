@@ -4,7 +4,7 @@ import { MergeView } from '@codemirror/merge';
 import { Compartment, EditorState } from '@codemirror/state';
 import { EditorView, keymap, lineNumbers } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
-import { ReadRemoteFileEncoded } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
+import { ReadRemoteFileEncoded } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { Document } from '../../../bindings/github.com/Sanjeever/termquay/internal/files/models';
 import { useAppearance } from '../settings/AppearanceProvider';
 import { editorTheme } from './editorTheme';

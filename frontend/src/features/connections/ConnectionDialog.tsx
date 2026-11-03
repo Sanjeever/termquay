@@ -1,11 +1,11 @@
 import SelectControl from '../../components/SelectControl';
 import { useEffect,useRef, useState } from 'react';
 import { Button, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
-import { SaveConnection, GetConnectionPassword, ParseQuickConnection, SetRDPResolution, SetRDPClient, SetConnectionPreference, GetConnectionPreferences, SelectPrivateKey,ReleasePrivateKey } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
+import { SaveConnection, GetConnectionPassword, ParseQuickConnection, SetRDPResolution, SetRDPClient, SetConnectionPreference, GetConnectionPreferences, SelectPrivateKey,ReleasePrivateKey } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import Icon from '../../components/Icon';
 import type { RDPOptions } from '../rdp/RDPView';
-import type {PrivateKeySelection, CredentialReference}from'../../../bindings/github.com/Sanjeever/termquay/models';
-import { ListCredentialReferences, SaveConnectionWithCredential, SelectSSHCertificate } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
+import type {PrivateKeySelection, CredentialReference}from'../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
+import { ListCredentialReferences, SaveConnectionWithCredential, SelectSSHCertificate } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { Connection, ConnectionPreference, Group } from '../../../bindings/github.com/Sanjeever/termquay/internal/store/models';
 import type { Request } from '../../../bindings/github.com/Sanjeever/termquay/internal/ssh/models';
 

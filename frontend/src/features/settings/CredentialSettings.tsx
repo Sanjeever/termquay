@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Button, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
-import { ListCredentialReferences, UpdateCredential } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
-import type { CredentialReference } from '../../../bindings/github.com/Sanjeever/termquay/models';
+import { ListCredentialReferences, UpdateCredential } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
+import type { CredentialReference } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import type { Request } from '../../../bindings/github.com/Sanjeever/termquay/internal/ssh/models';
 
 export default function CredentialSettings({ onChanged }: { onChanged(): void }) {

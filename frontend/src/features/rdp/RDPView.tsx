@@ -3,7 +3,7 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState }
 import { Button, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from '@heroui/react';
 import { Events } from '@wailsio/runtime';
 import type { IronError, UserInteraction } from '@devolutions/iron-remote-desktop';
-import { CloseRDP } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
+import { CloseRDP } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { Grant } from '../../../bindings/github.com/Sanjeever/termquay/internal/rdp/models';
 
 export type RDPOptions = { clipboard: boolean; resolution: string; client?: string; gateway?: string };

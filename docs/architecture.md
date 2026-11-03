@@ -96,7 +96,7 @@ WebDAV 使用追加式快照，不覆盖或自动清理历史。备份目录由�
 
 完整恢复替换连接与凭据集合，即便快照未携带凭据；选择性导入将所选连接及依赖的跳板、分组与凭据重新分配 ID 后作为独立副本追加，避免改写已有连接的引用。快照可显式携带并恢复命令片段、外观与快捷键，片段使用目标设备主密钥重新加密，与连接在同一事务提交；预览后相关设置改变时拒绝提交。WebDAV 登录配置、路径偏好、草稿、主机与证书信任保留。私钥内容是否携带由用户选择，引用本机路径不代表内容已备份。上传失败不撤销本地修改；自动备份须串行、合并等待任务，不能由监控或进度更新触发循环，不做无界重试。
 
-快照根据所含能力选择格式版本，旧格式继续按其字段契约验证，未知版本拒绝。版本选择与读取约束以 [快照模型和校验](../internal/backup/snapshot.go) 为准；本机布局与加密草稿分别由 [workspace.go](../workspace.go) 和 [workspace_state.go](../workspace_state.go) 定义。修改这些定义须考虑现有数据库、快照和已生成接口的兼容性，不能把独立格式的版本号混为一套。
+快照根据所含能力选择格式版本，旧格式继续按其字段契约验证，未知版本拒绝。版本选择与读取约束以 [快照模型和校验](../internal/backup/snapshot.go) 为准；本机布局与加密草稿分别由 [workspace.go](../internal/app/workspace.go) 和 [workspace_state.go](../internal/app/workspace_state.go) 定义。修改这些定义须考虑现有数据库、快照和已生成接口的兼容性，不能把独立格式的版本号混为一套。
 
 ## 发布与应用更新
 
@@ -108,18 +108,18 @@ WebDAV 使用追加式快照，不覆盖或自动清理历史。备份目录由�
 
 ## 按概念定位代码
 
-下表用于按任务选择上下文，不枚举方法或要求目录固定。移动入口时维护链接即可。
+下表用于按任务选择上下文，不枚举方法或要求目录固定。应用层实现及对应测试位于 `internal/app`；根目录保留程序入口与资源嵌入。移动入口时维护链接即可。
 
 | 概念 | 实现入口 | 验证入口 |
 | --- | --- | --- |
-| 工作区、布局与退出 | [app.go](../app.go)、[lifecycle.go](../lifecycle.go)、[workspace.go](../workspace.go)、[App.tsx](../frontend/src/App.tsx)、[工作台布局](../frontend/src/components/layout) | `lifecycle_test.go`、`workspace_test.go`、`workspace_state_test.go`、原生关闭与重载验证 |
-| 版本发布与应用更新 | [version.go](../version.go)、[update.go](../update.go)、[internal/update](../internal/update)、[发布工作流](../.github/workflows/release.yml)、[版本工具](../scripts/version.mjs) | `internal/update/provider_test.go`、`scripts/version.test.mjs`、原生替换与重启验收 |
+| 工作区、布局与退出 | [app.go](../internal/app/app.go)、[lifecycle.go](../internal/app/lifecycle.go)、[workspace.go](../internal/app/workspace.go)、[App.tsx](../frontend/src/App.tsx)、[工作台布局](../frontend/src/components/layout) | `lifecycle_test.go`、`workspace_test.go`、`workspace_state_test.go`、原生关闭与重载验证 |
+| 版本发布与应用更新 | [assets.go](../assets.go)、[version.go](../internal/app/version.go)、[update.go](../internal/app/update.go)、[internal/update](../internal/update)、[发布工作流](../.github/workflows/release.yml)、[版本工具](../scripts/version.mjs) | `internal/update/provider_test.go`、`scripts/version.test.mjs`、原生替换与重启验收 |
 | SSH、PTY 与消费确认 | [internal/ssh](../internal/ssh)、[TerminalView](../frontend/src/features/terminal/TerminalView.tsx) | `internal/ssh/terminal_test.go` |
-| 本地 Shell 与 PTY | [local_terminal.go](../local_terminal.go)、[TerminalView](../frontend/src/features/terminal/TerminalView.tsx) | 各平台原生进程、输入与关闭验证 |
-| 目录延迟探测 | [latency.go](../latency.go)、[internal/ssh/latency.go](../internal/ssh/latency.go)、[前端调度](../frontend/src/features/connections/useConnectionLatency.ts) | 尚无专门自动化回归；需验证真实代理与跳板路径、取消及并发边界 |
-| 文件、草稿与传输 | [internal/files](../internal/files)、[files.go](../files.go)、[transfer.go](../transfer.go)、[前端文件工作区](../frontend/src/features/files) | `internal/files/service_test.go`、`transfer_test.go`、原生传输流程 |
-| Linux 监控 | [internal/monitor](../internal/monitor)、[monitor.go](../monitor.go) | `internal/monitor/sample_test.go` |
-| RDP、证书与授权 | [internal/rdp](../internal/rdp)、[rdp.go](../rdp.go)、[RDPView](../frontend/src/features/rdp/RDPView.tsx) | `internal/rdp/bridge_test.go`、真实 RDP 与原生 WebView |
-| 存储、凭据与信任 | [internal/store](../internal/store)、[data.go](../data.go)、[credentials.go](../credentials.go)、[trust.go](../trust.go)、[连接界面](../frontend/src/features/connections) | `data_test.go`、`credentials_test.go`、`trust_test.go` |
-| 配置预览导入 | [import.go](../import.go)、[import_putty_windows.go](../import_putty_windows.go) | `import_test.go` |
-| 快照与恢复 | [internal/backup](../internal/backup)、[data.go](../data.go)、[BackupSettings](../frontend/src/features/settings/BackupSettings.tsx) | `internal/backup/*_test.go`、`data_test.go` |
+| 本地 Shell 与 PTY | [local_terminal.go](../internal/app/local_terminal.go)、[TerminalView](../frontend/src/features/terminal/TerminalView.tsx) | 各平台原生进程、输入与关闭验证 |
+| 目录延迟探测 | [latency.go](../internal/app/latency.go)、[internal/ssh/latency.go](../internal/ssh/latency.go)、[前端调度](../frontend/src/features/connections/useConnectionLatency.ts) | 尚无专门自动化回归；需验证真实代理与跳板路径、取消及并发边界 |
+| 文件、草稿与传输 | [internal/files](../internal/files)、[files.go](../internal/app/files.go)、[transfer.go](../internal/app/transfer.go)、[前端文件工作区](../frontend/src/features/files) | `internal/files/service_test.go`、`transfer_test.go`、原生传输流程 |
+| Linux 监控 | [internal/monitor](../internal/monitor)、[monitor.go](../internal/app/monitor.go) | `internal/monitor/sample_test.go` |
+| RDP、证书与授权 | [internal/rdp](../internal/rdp)、[rdp.go](../internal/app/rdp.go)、[RDPView](../frontend/src/features/rdp/RDPView.tsx) | `internal/rdp/bridge_test.go`、真实 RDP 与原生 WebView |
+| 存储、凭据与信任 | [internal/store](../internal/store)、[data.go](../internal/app/data.go)、[credentials.go](../internal/app/credentials.go)、[trust.go](../internal/app/trust.go)、[连接界面](../frontend/src/features/connections) | `data_test.go`、`credentials_test.go`、`trust_test.go` |
+| 配置预览导入 | [import.go](../internal/app/import.go)、[import_putty_windows.go](../internal/app/import_putty_windows.go) | `import_test.go` |
+| 快照与恢复 | [internal/backup](../internal/backup)、[data.go](../internal/app/data.go)、[BackupSettings](../frontend/src/features/settings/BackupSettings.tsx) | `internal/backup/*_test.go`、`data_test.go` |

@@ -46,8 +46,9 @@ wails3 dev
 
 | 入口 | 职责 |
 | --- | --- |
-| 根目录 Go 文件 | 桌面入口、服务绑定、工作区与跨模块生命周期协调 |
-| `internal/` | SSH、远端文件、监控、RDP、存储和备份 |
+| `main.go`、`assets.go` | 程序入口、资源嵌入与构建信息 |
+| `internal/app/` | 桌面启动、服务绑定、工作区与跨模块生命周期协调 |
+| `internal/` 其余子包 | SSH、远端文件、监控、RDP、存储和备份 |
 | `frontend/src/` | React 工作区、终端、编辑器与设置界面 |
 | `frontend/bindings/` | 从 Go 生成的前端接口，避免手工维护重复定义 |
 | `Taskfile.yml`、`build/` | 开发、原生构建与打包资源 |

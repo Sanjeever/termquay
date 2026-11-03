@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { OpenTerminal, OpenSavedTerminalInteractive, GetSSHChallenge, AnswerSSHChallenge, ProbeRDPRoute, TrustSSHHost, TrustRDPCertificateRoute, OpenRDPRoute, OpenSavedRDPRoute, OpenSystemRDP, OpenSavedSystemRDP, CloseWorkspace, CloseRDP } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
-import type { SSHChallenge } from '../../../bindings/github.com/Sanjeever/termquay/models';
-import { ReconnectSavedSSH } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
+import { OpenTerminal, OpenSavedTerminalInteractive, GetSSHChallenge, AnswerSSHChallenge, ProbeRDPRoute, TrustSSHHost, TrustRDPCertificateRoute, OpenRDPRoute, OpenSavedRDPRoute, OpenSystemRDP, OpenSavedSystemRDP, CloseWorkspace, CloseRDP } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
+import type { SSHChallenge } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
+import { ReconnectSavedSSH } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { Connection } from '../../../bindings/github.com/Sanjeever/termquay/internal/store/models';
 import type { Request } from '../../../bindings/github.com/Sanjeever/termquay/internal/ssh/models';
 import type { Grant } from '../../../bindings/github.com/Sanjeever/termquay/internal/rdp/models';

@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
 import SelectControl from '../../components/SelectControl';
-import { RunRemoteCommand } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
+import { RunRemoteCommand } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { CommandResult } from '../../../bindings/github.com/Sanjeever/termquay/internal/ssh/models';
-import type { Snippet } from '../../../bindings/github.com/Sanjeever/termquay/models';
+import type { Snippet } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import { expandSnippet, snippetParameters } from '../../lib/snippets';
 
 type Target = { id: string; name: string; address: string };

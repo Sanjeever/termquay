@@ -1,9 +1,9 @@
 import SelectControl from '../../components/SelectControl';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from '@heroui/react';
-import { PreviewDirectorySyncFiltered, CancelDirectorySyncPreview, ExecuteDirectorySync, GetSyncPresets, SaveSyncPreset, DeleteSyncPreset } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
-import type { DirectorySyncPreview, SyncPreset } from '../../../bindings/github.com/Sanjeever/termquay/models';
-import { CompareDirectorySyncFile } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
+import { PreviewDirectorySyncFiltered, CancelDirectorySyncPreview, ExecuteDirectorySync, GetSyncPresets, SaveSyncPreset, DeleteSyncPreset } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
+import type { DirectorySyncPreview, SyncPreset } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
+import { CompareDirectorySyncFile } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 
 const states:Record<string,string>={new:'新增',update:'更新',same:'相同',conflict:'冲突 / 不支持'};
 export default function DirectorySyncDialog({id,remote,connectionID,onClose}:{id:string;remote:string;connectionID:string;onClose():void}){

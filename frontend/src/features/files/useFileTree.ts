@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ReadDirectory } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
+import { ReadDirectory } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { Directory } from '../../../bindings/github.com/Sanjeever/termquay/internal/files/models';
 import { directoryAncestors, inDirectory, maxExpandedDirectories, type TreeDirectory } from './fileTree';
 

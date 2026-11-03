@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Button, Input } from '@heroui/react';
-import { BackupWebDAVWithSelection, ConfirmRestoreSelection, ExportLocalSnapshot, PreviewLocalRestore, SavePortableUI, GetPortableUI, GetCatalog, ListSnapshots, PreviewRestore, TestWebDAV } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
+import { BackupWebDAVWithSelection, ConfirmRestoreSelection, ExportLocalSnapshot, PreviewLocalRestore, SavePortableUI, GetPortableUI, GetCatalog, ListSnapshots, PreviewRestore, TestWebDAV } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { RemoteSnapshot, WebDAVOptions } from '../../../bindings/github.com/Sanjeever/termquay/internal/backup/models';
-import type { BackupSelection, RestorePreview } from '../../../bindings/github.com/Sanjeever/termquay/models';
+import type { BackupSelection, RestorePreview } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import type { Connection } from '../../../bindings/github.com/Sanjeever/termquay/internal/store/models';
 import { applyPortableUI, capturePortableUI } from './portable';
-import { EnableAutomaticBackup, DisableAutomaticBackup } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
+import { EnableAutomaticBackup, DisableAutomaticBackup } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type useAutomaticBackup from './useAutomaticBackup';
 
 export default function BackupSettings({ onRestore, automaticBackup }: { onRestore(): void; automaticBackup: ReturnType<typeof useAutomaticBackup> }) {

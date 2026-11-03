@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
-import type { SSHChallenge } from '../../../bindings/github.com/Sanjeever/termquay/models';
+import type { SSHChallenge } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 
 export default function SSHChallengeDialog({ challenge, target, onAnswer, onCancel }: { challenge: SSHChallenge; target: string; onAnswer(answers: string[]): Promise<void>; onCancel(): void }) {
   const [answers, setAnswers] = useState<string[]>((challenge.questions || []).map(() => ''));

@@ -1,4 +1,4 @@
-import{useEffect,useState}from'react';import{Button,Modal,ModalContent,ModalHeader,ModalBody,ModalFooter}from'@heroui/react';import{ReadRecoveryDraft}from'../../../bindings/github.com/Sanjeever/termquay/appservice';import type{RecoveryDraft}from'../../../bindings/github.com/Sanjeever/termquay/models';import type useDraftRecovery from'../workspaces/useDraftRecovery';
+import{useEffect,useState}from'react';import{Button,Modal,ModalContent,ModalHeader,ModalBody,ModalFooter}from'@heroui/react';import{ReadRecoveryDraft}from'../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';import type{RecoveryDraft}from'../../../bindings/github.com/Sanjeever/termquay/internal/app/models';import type useDraftRecovery from'../workspaces/useDraftRecovery';
 export default function RecoverySettings({recovery}:{recovery:ReturnType<typeof useDraftRecovery>}){
  const[action,setAction]=useState<'disable'|'clear'>();const[view,setView]=useState<RecoveryDraft>();const[error,setError]=useState('');const[busy,setBusy]=useState(false);
  useEffect(()=>{void recovery.refresh();},[]);

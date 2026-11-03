@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
 import SelectControl from '../../components/SelectControl';
-import { AssignCredential, ListCredentialReferences } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
-import type { CredentialReference } from '../../../bindings/github.com/Sanjeever/termquay/models';
+import { AssignCredential, ListCredentialReferences } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
+import type { CredentialReference } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import type { Connection } from '../../../bindings/github.com/Sanjeever/termquay/internal/store/models';
 
 export default function CredentialAssignDialog({ connections, onChanged, onClose }: { connections: Connection[]; onChanged(): void; onClose(): void }) {

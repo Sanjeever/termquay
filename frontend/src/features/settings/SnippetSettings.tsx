@@ -1,7 +1,7 @@
 import{useEffect,useState}from'react';
 import{Button,Modal,ModalContent,ModalHeader,ModalBody,ModalFooter}from'@heroui/react';
-import{ListSnippets,SaveSnippet,DeleteSnippet}from'../../../bindings/github.com/Sanjeever/termquay/appservice';
-import type{Snippet}from'../../../bindings/github.com/Sanjeever/termquay/models';
+import{ListSnippets,SaveSnippet,DeleteSnippet}from'../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
+import type{Snippet}from'../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 export default function SnippetSettings(){
  const[items,setItems]=useState<Snippet[]>([]);const[query,setQuery]=useState('');const[editing,setEditing]=useState<Snippet>();const[deleting,setDeleting]=useState<Snippet>();const[error,setError]=useState('');const[busy,setBusy]=useState(false);
  async function load(){try{setItems(await ListSnippets()||[]);setError('');}catch(e){setError(String(e));}}

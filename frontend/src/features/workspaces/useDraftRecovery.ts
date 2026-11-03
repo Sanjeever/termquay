@@ -1,6 +1,6 @@
 import{useEffect,useRef,useState}from'react';
-import{GetDraftRecoveryState,SetDraftRecoveryEnabled,SaveRecoveryDrafts,ClearRecoveryDrafts}from'../../../bindings/github.com/Sanjeever/termquay/appservice';
-import type{DraftRecoveryState,RecoveryDraftInput,WorkspaceDraftUpdate}from'../../../bindings/github.com/Sanjeever/termquay/models';
+import{GetDraftRecoveryState,SetDraftRecoveryEnabled,SaveRecoveryDrafts,ClearRecoveryDrafts}from'../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
+import type{DraftRecoveryState,RecoveryDraftInput,WorkspaceDraftUpdate}from'../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 
 export default function useDraftRecovery(){
  const names=useRef(new Map<string,string>());
