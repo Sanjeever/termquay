@@ -129,6 +129,10 @@ export function DeleteTunnelPreset(connectionID: string, name: string): $Cancell
     return $Call.ByID(2743023056, connectionID, name);
 }
 
+export function DisableAutomaticBackup(): $CancellablePromise<void> {
+    return $Call.ByID(1732186447);
+}
+
 export function DiscardAndQuit(): $CancellablePromise<void> {
     return $Call.ByID(2297958254);
 }
@@ -141,12 +145,20 @@ export function DuplicateConnection(id: string, includeCredentials: boolean): $C
     return $Call.ByID(3599925595, id, includeCredentials);
 }
 
+export function EnableAutomaticBackup(options: backup$0.WebDAVOptions, password: string, selection: $models.BackupSelection): $CancellablePromise<void> {
+    return $Call.ByID(475933030, options, password, selection);
+}
+
 export function ExecuteDirectorySync(id: string, selected: string[] | null): $CancellablePromise<$models.Transfer> {
     return $Call.ByID(874543015, id, selected);
 }
 
 export function ExportLocalSnapshot(password: string, selection: $models.BackupSelection): $CancellablePromise<string> {
     return $Call.ByID(3977343299, password, selection);
+}
+
+export function GetAutomaticBackupStatus(): $CancellablePromise<$models.AutomaticBackupStatus> {
+    return $Call.ByID(2389407421);
 }
 
 export function GetCatalog(): $CancellablePromise<$models.Catalog> {

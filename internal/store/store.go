@@ -118,9 +118,12 @@ func (d Data) Validate() error {
 }
 
 type Store struct {
-	db   *sql.DB
-	aead cipher.AEAD
+	db      *sql.DB
+	aead    cipher.AEAD
+	changed func()
 }
+
+func (s *Store) SetChangeListener(changed func()) { s.changed = changed }
 
 func Open(dir string, key []byte) (*Store, error) {
 	block, err := aes.NewCipher(key)
@@ -292,5 +295,11 @@ func (s *Store) ReplaceWithSettings(d Data, settings map[string]string) error {
 			return err
 		}
 	}
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	if s.changed != nil {
+		s.changed()
+	}
+	return nil
 }

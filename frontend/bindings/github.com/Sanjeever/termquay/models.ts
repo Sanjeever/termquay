@@ -17,6 +17,15 @@ import * as ssh$0 from "./internal/ssh/models.js";
 // @ts-ignore: Unused imports
 import * as store$0 from "./internal/store/models.js";
 
+export interface AutomaticBackupStatus {
+    "enabled": boolean;
+    "running": boolean;
+    "pending": boolean;
+    "url": string;
+    "last_success": string;
+    "error": string;
+}
+
 export interface BackupSelection {
     "connection_ids": string[] | null;
     "credentials": boolean;

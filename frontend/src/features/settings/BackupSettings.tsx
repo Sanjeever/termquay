@@ -5,8 +5,10 @@ import type { RemoteSnapshot, WebDAVOptions } from '../../../bindings/github.com
 import type { BackupSelection, RestorePreview } from '../../../bindings/github.com/Sanjeever/termquay/models';
 import type { Connection } from '../../../bindings/github.com/Sanjeever/termquay/internal/store/models';
 import { applyPortableUI, capturePortableUI } from './portable';
+import { EnableAutomaticBackup, DisableAutomaticBackup } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
+import type useAutomaticBackup from './useAutomaticBackup';
 
-export default function BackupSettings({ onRestore }: { onRestore(): void }) {
+export default function BackupSettings({ onRestore, automaticBackup }: { onRestore(): void; automaticBackup: ReturnType<typeof useAutomaticBackup> }) {
   const [snapshots, setSnapshots] = useState<RemoteSnapshot[]>([]);
   const [preview, setPreview] = useState<RestorePreview>();
   const [error, setError] = useState('');
@@ -27,9 +29,11 @@ export default function BackupSettings({ onRestore }: { onRestore(): void }) {
     setError(''); setResult(''); setBusy(true);
     try {
       const selection: BackupSelection = { connection_ids: allConnections ? [] : connectionIDs, credentials: data.get('credentials') === 'on', snippets: data.get('snippets') === 'on', settings: data.get('settings') === 'on' };
-      if (['backup', 'local-export'].includes(action)) { if (!allConnections && !connectionIDs.length) throw new Error('请选择要备份的连接'); if (selection.settings) await SavePortableUI(capturePortableUI()); }
+      if (['backup', 'local-export', 'automatic-enable'].includes(action)) { if (!allConnections && !connectionIDs.length) throw new Error('请选择要备份的连接'); if (selection.settings) await SavePortableUI(capturePortableUI()); }
       switch (action) {
         case 'test': await TestWebDAV(options); setResult('WebDAV 连接正常'); break;
+        case 'automatic-enable': await EnableAutomaticBackup(options, String(data.get('recovery')), selection); await automaticBackup.refresh(); break;
+        case 'automatic-disable': await DisableAutomaticBackup(); await automaticBackup.refresh(); break;
         case 'list': setSnapshots(await ListSnapshots(options)??[]); setLoaded(true); break;
         case 'backup': {
           const remote = await BackupWebDAVWithSelection(options, String(data.get('recovery')), selection);
@@ -59,6 +63,7 @@ export default function BackupSettings({ onRestore }: { onRestore(): void }) {
       <details><summary>选择备份连接</summary><label className="checkbox-label"><input type="checkbox" checked={allConnections} onChange={event => setAllConnections(event.target.checked)} disabled={busy}/>全部连接</label>{!allConnections && <><input aria-label="筛选备份连接" placeholder="搜索连接" value={search} onChange={event => setSearch(event.target.value)}/><div className="backup-connection-list">{connections.filter(c => `${c.name} ${c.host}`.toLowerCase().includes(search.toLowerCase())).slice(0,200).map(c => <label className="checkbox-label" key={c.id}><input type="checkbox" disabled={busy} checked={connectionIDs.includes(c.id)} onChange={event => setConnectionIDs(previous => event.target.checked ? [...previous,c.id] : previous.filter(id => id !== c.id))}/>{c.name}<small className="muted">{c.host}</small></label>)}</div><p className="muted">已选 {connectionIDs.length} 项，跳板及所属分组随连接导出</p></>}</details>
       <div className="button-row"><Button size="sm" variant="bordered" isDisabled={busy} onPress={event => void run((event.target as HTMLElement).closest('form')!, 'local-export')}>导出加密文件</Button><Button size="sm" variant="light" isDisabled={busy} onPress={event => void run((event.target as HTMLElement).closest('form')!, 'local-preview')}>从文件预览恢复</Button></div>
       <div className="button-row">{[['test', '测试连接'], ['list', '读取快照'], ['backup', '创建快照']].map(([action, label]) => <Button key={action} size="sm" isDisabled={busy} onPress={(event) => { const form = (event.target as HTMLElement).closest('form')!; if (form.reportValidity()) void run(form, action); }}>{label}</Button>)}</div>
+      <div className="automatic-backup"><div className="button-row"><span>{automaticBackup.status?.running ? '自动备份进行中' : automaticBackup.status?.pending ? '自动备份等待中' : automaticBackup.status?.enabled ? '自动备份已开启' : '自动备份已关闭'}</span><Button size="sm" variant="light" isDisabled={busy || !allConnections} onPress={event => { const form = (event.target as HTMLElement).closest('form')!; if (form.reportValidity()) void run(form, 'automatic-enable'); }}>{automaticBackup.status?.enabled ? '更新自动备份配置' : '启用自动备份'}</Button>{automaticBackup.status?.enabled && <Button size="sm" variant="light" isDisabled={busy} onPress={event => void run((event.target as HTMLElement).closest('form')!, 'automatic-disable')}>关闭</Button>}</div>{automaticBackup.status?.url && automaticBackup.status.enabled && <p className="file-path">{automaticBackup.status.url}</p>}{automaticBackup.status?.last_success && <p className="muted">最近成功 {new Date(automaticBackup.status.last_success).toLocaleString()}</p>}{(automaticBackup.error || automaticBackup.status?.error) && <p role="alert" className="error">{automaticBackup.error || automaticBackup.status?.error}</p>}<p className="muted">启用后加密保存 WebDAV 凭据与独立备份密码。连接、片段或界面设置变化后合并备份，失败保留状态，等待下次修改或重新启用。</p></div>
       {result && <p role="status" className="operation-result">{result}</p>}
       {error && <p role="alert" className="error">{error}</p>}
       <h3>远端快照</h3>{loaded && snapshots.length === 0 && <p className="muted">暂无快照</p>}

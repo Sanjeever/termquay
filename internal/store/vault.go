@@ -56,6 +56,9 @@ func (s *Store) Setting(id string) (string, error) {
 }
 func (s *Store) SetSetting(id, value string) error {
 	_, err := s.db.Exec("INSERT INTO settings (id,data) VALUES (?,?) ON CONFLICT (id) DO UPDATE SET data = excluded.data", id, value)
+	if err == nil && s.changed != nil && (id == "snippets" || id == "portable_ui") {
+		s.changed()
+	}
 	return err
 }
 

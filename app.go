@@ -82,6 +82,14 @@ type AppService struct {
 	sshChallenges          map[string]*sshAuthentication
 	transferRate           atomic.Int64
 	commandSlots           chan struct{}
+	automaticMu            sync.Mutex
+	automaticConfig        *automaticBackupConfig
+	automaticStatus        AutomaticBackupStatus
+	automaticLoaded        bool
+	automaticSignal        chan struct{}
+	automaticStop          context.CancelFunc
+	automaticTaskCancel    context.CancelFunc
+	automaticDone          chan struct{}
 }
 
 func NewAppService() *AppService {
@@ -463,6 +471,7 @@ func (a *AppService) ServiceShutdown() error {
 		ids = append(ids, id)
 	}
 	a.mu.Unlock()
+	a.stopAutomaticBackup()
 	for _, id := range ids {
 		a.CloseWorkspace(id)
 	}

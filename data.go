@@ -53,6 +53,9 @@ func (a *AppService) openStorage() error {
 		return err
 	}
 	a.store, err = store.OpenVault(filepath.Join(dir, "TermQuay"))
+	if err == nil {
+		a.store.SetChangeListener(a.queueAutomaticBackup)
+	}
 	return err
 }
 
@@ -72,6 +75,7 @@ func (a *AppService) UseSessionStorage() error {
 		return err
 	}
 	a.sessionDir = dir
+	a.store.SetChangeListener(a.queueAutomaticBackup)
 	return nil
 }
 
