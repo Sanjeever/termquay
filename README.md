@@ -18,6 +18,8 @@ TermQuay 是使用 Go、Wails v3 和 React 构建的开源远程连接工作台�
 
 ## 界面预览
 
+以下截图使用演示数据。
+
 连接中心
 
 ![连接中心，支持分组、协议筛选与延迟探测](docs/images/screenshots/connection-center.png)
