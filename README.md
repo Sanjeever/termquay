@@ -2,7 +2,7 @@
 
 TermQuay 是使用 Go、Wails v3 和 React 构建的开源远程连接工作台，将 SSH 终端、远程文件编辑、Linux 监控和内嵌 RDP 放在统一桌面工作区，支持连接分组与加密 WebDAV 备份。连接数量不设置商业限制。
 
-项目处于开发阶段，目标平台为 macOS、Windows 和 Linux，尚未提供稳定安装包。
+项目正在准备 v1.0.0，目标平台为 macOS、Windows 和 Linux，尚未公开稳定安装包。发布后可从 [GitHub Releases](https://github.com/Sanjeever/termquay/releases) 下载对应平台的压缩包；运行前提、候选包验证与发布流程见 [开发说明](docs/development.md#版本与发布)。
 
 ## 当前能力
 
@@ -51,6 +51,7 @@ wails3 dev
 | `frontend/src/` | React 工作区、终端、编辑器与设置界面 |
 | `frontend/bindings/` | 从 Go 生成的前端接口，避免手工维护重复定义 |
 | `Taskfile.yml`、`build/` | 开发、原生构建与打包资源 |
+| `.github/workflows/`、`scripts/` | 持续集成、版本同步与发布 |
 | [架构约束与设计理由](docs/architecture.md) | 设计意图、职责边界、数据与安全契约，附代码定位入口 |
 | [开发说明](docs/development.md) | 环境、运行、使用、验证与打包 |
 | [Agent 开发约定](AGENTS.md) | 工作边界、事实来源和语义变更后的文档影响分析 |

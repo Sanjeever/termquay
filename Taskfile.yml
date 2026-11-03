@@ -3,6 +3,7 @@ version: '3'
 vars:
   APP_NAME: "termquay"
   BIN_DIR: "bin"
+  RELEASE_LDFLAGS: '{{.TERMQUAY_RELEASE_LDFLAGS | default ""}}'
   PACKAGE_MANAGER: '{{.PACKAGE_MANAGER | default "pnpm"}}'
   VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
   # 默认按宿主系统选择平台任务，交叉构建通过 GOOS 覆盖。

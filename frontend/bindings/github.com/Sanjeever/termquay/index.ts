@@ -9,6 +9,7 @@ export {
 export type {
     AutomaticBackupStatus,
     BackupSelection,
+    BuildInfo,
     Catalog,
     ConnectionLatency,
     CredentialReference,
@@ -44,6 +45,7 @@ export type {
     TrustReview,
     Tunnel,
     TunnelPreset,
+    UpdateStatus,
     UploadDropResult,
     WorkspaceDraftUpdate,
     WorkspaceLayout,

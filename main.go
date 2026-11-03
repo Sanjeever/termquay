@@ -33,6 +33,9 @@ func main() {
 		Assets:     application.AssetOptions{Handler: application.AssetFileServerFS(assets)},
 		Mac:        application.MacOptions{ApplicationShouldTerminateAfterLastWindowClosed: true},
 	})
+	if err := service.initUpdater(app); err != nil {
+		log.Fatal(err)
+	}
 	app.HandleStream("terminal", service.handleTerminal)
 	app.HandleStream("workspace", service.handleWorkspace)
 	app.HandleStream("local-terminal", service.handleLocalTerminal)

@@ -10,10 +10,10 @@ import AppearanceSettings from './AppearanceSettings';
 import type useDraftRecovery from '../workspaces/useDraftRecovery';
 import type { Shortcuts } from '../../lib/shortcuts';
 import type useAutomaticBackup from './useAutomaticBackup';
-import packageInfo from '../../../package.json';
-import appIcon from '../../../../build/appicon.svg';
+import AboutSettings from './AboutSettings';
+import type useUpdates from './useUpdates';
 
-export default function SettingsView({ fontSize, onFontSize, onRestore, onClose, shortcuts, onShortcuts, shortcutError, recovery, automaticBackup, initialSection='appearance' }: { fontSize: number; onFontSize(value: number): void; onRestore(): void; onClose(): void; shortcuts: Shortcuts; onShortcuts(value: Shortcuts): void; shortcutError: string; recovery:ReturnType<typeof useDraftRecovery>; automaticBackup: ReturnType<typeof useAutomaticBackup>; initialSection?:string }) {
+export default function SettingsView({ fontSize, onFontSize, onRestore, onClose, shortcuts, onShortcuts, shortcutError, recovery, automaticBackup, updates, onRestart, activeWorkspaces, activeTransfers, initialSection='appearance' }: { fontSize: number; onFontSize(value: number): void; onRestore(): void; onClose(): void; shortcuts: Shortcuts; onShortcuts(value: Shortcuts): void; shortcutError: string; recovery:ReturnType<typeof useDraftRecovery>; automaticBackup: ReturnType<typeof useAutomaticBackup>; updates:ReturnType<typeof useUpdates>; onRestart():void; activeWorkspaces:number; activeTransfers:number; initialSection?:string }) {
   const [section, setSection] = useState(initialSection);
   return <section className="settings-view" aria-label="设置">
     <div className="settings-header"><h1>设置</h1><Button size="sm" variant="light" onPress={onClose}>返回工作区</Button></div>
@@ -26,7 +26,7 @@ export default function SettingsView({ fontSize, onFontSize, onRestore, onClose,
         {section === 'recovery'&&<RecoverySettings recovery={recovery}/>}
         {section === 'trust'&&<TrustSettings/>}
         {section === 'credentials'&&<CredentialSettings onChanged={onRestore}/>}
-        {section === 'about' && <div className="settings-section about-section"><img src={appIcon} alt="TermQuay 应用图标" width="64" height="64" /><h2>TermQuay</h2><div className="settings-row"><span>版本</span><span className="muted">{packageInfo.version}</span></div><div className="settings-row"><span>许可证</span><span className="muted">Apache License 2.0</span></div></div>}
+        {section === 'about' && <AboutSettings updates={updates} onRestart={onRestart} activeWorkspaces={activeWorkspaces} activeTransfers={activeTransfers}/>}
       </div>
     </div>
   </section>;

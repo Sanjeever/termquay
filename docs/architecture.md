@@ -32,6 +32,8 @@ RDP 图形队列与 WASM 内存也属于资源边界，其上界需要持续真�
 
 ## 身份、凭据与本地数据
 
+版本发布、应用更新和本地数据格式相互独立。应用更新保留既定产品标识、系统密钥库标识和数据目录，不重置配置，也不承诺活动会话跨重启恢复。
+
 本地业务数据使用 SQLite，凭据字段采用 AEAD 加密，随机主密钥由系统密钥库保护。连接名称、地址等元数据不是整库加密。主密钥不写入数据库，数据库版本独立于应用版本；未知未来版本必须报错，不能作为空库覆盖。
 
 系统密钥库不可用时必须明确处理，不能退回明文持久化。当前提供会话存储，数据库位于临时目录，凭据仍加密，随机密钥留在进程内，正常退出时清理；会话模式不提供重启恢复保证。密码解锁是可另行实现的路径，当前没有该入口。
@@ -96,6 +98,14 @@ WebDAV 使用追加式快照，不覆盖或自动清理历史。备份目录由�
 
 快照根据所含能力选择格式版本，旧格式继续按其字段契约验证，未知版本拒绝。版本选择与读取约束以 [快照模型和校验](../internal/backup/snapshot.go) 为准；本机布局与加密草稿分别由 [workspace.go](../workspace.go) 和 [workspace_state.go](../workspace_state.go) 定义。修改这些定义须考虑现有数据库、快照和已生成接口的兼容性，不能把独立格式的版本号混为一套。
 
+## 发布与应用更新
+
+发布版本以 `frontend/package.json` 为源，平台资源由版本工具同步；数据库、备份和布局使用独立格式版本。更新日志以 `docs/releases/<version>.md` 为源，与版本资源一并提交，原样进入 GitHub Release 正文，再由应用展示。正式标签须指向已进入 `main` 且完成检查的提交，全部目标附件齐备后才公开 Release；公开版本不覆盖。
+
+更新下载、校验、解包与程序替换复用锁定版本的 Wails updater，TermQuay 负责正式渠道、确定性附件选择、强制摘要校验、用户确认与退出协调。只接受本项目匹配当前平台的正式版本；缺少摘要或校验失败必须阻止安装。摘要保障制品完整性，签名认证单独判断，不能把二者混同。
+
+检查和下载串行，后台调度与手动操作共享单任务状态，关闭取消任务并等待退出。开发构建不自动检查或安装；正式构建仅在用户确认后下载和重启。重启之前处理未保存文件及本地状态，不提前交接替换辅助进程。普通退出清理本次下载暂存，已交接辅助进程的暂存由框架管理，不能在父进程关闭时删除。更新保留应用身份与本地数据路径；程序替换恢复不等于数据迁移回滚。
+
 ## 按概念定位代码
 
 下表用于按任务选择上下文，不枚举方法或要求目录固定。移动入口时维护链接即可。
@@ -103,6 +113,7 @@ WebDAV 使用追加式快照，不覆盖或自动清理历史。备份目录由�
 | 概念 | 实现入口 | 验证入口 |
 | --- | --- | --- |
 | 工作区、布局与退出 | [app.go](../app.go)、[lifecycle.go](../lifecycle.go)、[workspace.go](../workspace.go)、[App.tsx](../frontend/src/App.tsx)、[工作台布局](../frontend/src/components/layout) | `lifecycle_test.go`、`workspace_test.go`、`workspace_state_test.go`、原生关闭与重载验证 |
+| 版本发布与应用更新 | [version.go](../version.go)、[update.go](../update.go)、[internal/update](../internal/update)、[发布工作流](../.github/workflows/release.yml)、[版本工具](../scripts/version.mjs) | `internal/update/provider_test.go`、`scripts/version.test.mjs`、原生替换与重启验收 |
 | SSH、PTY 与消费确认 | [internal/ssh](../internal/ssh)、[TerminalView](../frontend/src/features/terminal/TerminalView.tsx) | `internal/ssh/terminal_test.go` |
 | 本地 Shell 与 PTY | [local_terminal.go](../local_terminal.go)、[TerminalView](../frontend/src/features/terminal/TerminalView.tsx) | 各平台原生进程、输入与关闭验证 |
 | 目录延迟探测 | [latency.go](../latency.go)、[internal/ssh/latency.go](../internal/ssh/latency.go)、[前端调度](../frontend/src/features/connections/useConnectionLatency.ts) | 尚无专门自动化回归；需验证真实代理与跳板路径、取消及并发边界 |

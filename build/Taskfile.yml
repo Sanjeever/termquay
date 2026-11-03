@@ -54,7 +54,7 @@ tasks:
       - sh: pnpm --version
         msg: "pnpm not found"
     cmds:
-      - pnpm install
+      - pnpm install --frozen-lockfile
 
   install:frontend:deps:yarn:
     dir: frontend
@@ -80,8 +80,15 @@ tasks:
     run: once
     dir: frontend
     sources:
-      - "**/*"
-      - exclude: node_modules/**/*
+      - src/**/*
+      - bindings/**/*
+      - public/**/*
+      - package.json
+      - pnpm-lock.yaml
+      - vite.config.ts
+      - tsconfig.json
+      - index.html
+      - ../build/appicon.svg
     generates:
       - dist/**/*
     deps:
@@ -179,10 +186,9 @@ tasks:
     deps:
       - task: go:mod:tidy
     sources:
-      - "**/*.[jt]s"
-      - exclude: frontend/**/*
       - frontend/bindings/**/*  # Rerun when switching between dev/production mode causes changes in output
-      - "**/*.go"
+      - "*.go"
+      - internal/**/*.go
       - go.mod
       - go.sum
     generates:

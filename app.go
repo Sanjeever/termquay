@@ -16,6 +16,7 @@ import (
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 	"github.com/Sanjeever/termquay/internal/store"
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/updater"
 	"os"
 )
 
@@ -96,6 +97,18 @@ type AppService struct {
 	locals                 map[string]*localTerminal
 	localOpening           int
 	latencyProbes          map[string]*latencyProbe
+	updateMu               sync.Mutex
+	updateEngine           *updater.Updater
+	updateStatus           UpdateStatus
+	updateContext          context.Context
+	updateStop             context.CancelFunc
+	updateCancel           context.CancelFunc
+	updateWorkers          sync.WaitGroup
+	updateWake             chan struct{}
+	updateStarted          bool
+	updateStopped          bool
+	updateBusy             bool
+	updateRestarting       bool
 }
 
 func NewAppService() *AppService {
@@ -463,6 +476,7 @@ func (a *AppService) handleTerminal(c *application.StreamConn) {
 }
 
 func (a *AppService) ServiceShutdown() (result error) {
+	result = errors.Join(result, a.stopUpdates())
 	defer func() { result = errors.Join(result, a.cleanupLocalTransferResumes()) }()
 	a.mu.Lock()
 	a.closed = true
@@ -497,13 +511,13 @@ func (a *AppService) ServiceShutdown() (result error) {
 	defer a.storeMu.Unlock()
 	if a.store != nil {
 		if err := a.store.Close(); err != nil {
-			return err
+			return errors.Join(result, err)
 		}
 	}
 	if a.sessionDir != "" {
-		return os.RemoveAll(a.sessionDir)
+		return errors.Join(result, os.RemoveAll(a.sessionDir))
 	}
-	return nil
+	return result
 }
 
 func randomBytes(n int) []byte {

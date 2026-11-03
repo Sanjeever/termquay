@@ -33,6 +33,12 @@ export interface BackupSelection {
     "settings": boolean;
 }
 
+export interface BuildInfo {
+    "version": string;
+    "commit": string;
+    "development": boolean;
+}
+
 export interface Catalog {
     "groups": store$0.Group[] | null;
     "connections": store$0.Connection[] | null;
@@ -297,6 +303,20 @@ export interface TunnelPreset {
     "connection_id": string;
     "spec": ssh$0.ForwardSpec;
     "auto_start": boolean;
+}
+
+export interface UpdateStatus {
+    "build": BuildInfo;
+    "state": string;
+    "enabled": boolean;
+    "busy": boolean;
+    "version": string;
+    "notes": string;
+    "url": string;
+    "checked_at": string;
+    "downloaded": number;
+    "total": number;
+    "error": string;
 }
 
 export interface UploadDropResult {

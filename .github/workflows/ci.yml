@@ -1,0 +1,54 @@
+name: 持续集成
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, macos-14, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '26'
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: 安装 Linux 原生依赖
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libxkbcommon-dev
+      - run: pnpm --dir frontend install --frozen-lockfile
+      - run: pnpm --dir frontend test
+      - run: pnpm --dir frontend build
+      - name: 测试 Go
+        run: go test ./...
+      - name: 检查竞态
+        if: runner.os == 'Linux'
+        run: go test -race ./...
+      - name: 安装匹配版本的 Wails CLI
+        run: |
+          mkdir -p .tools
+          GOBIN="$PWD/.tools" go install "github.com/wailsapp/wails/v3/cmd/wails3@$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v3)"
+          echo "$PWD/.tools" >> "$GITHUB_PATH"
+      - name: 原生构建
+        run: wails3 build
+      - name: 检查依赖和生成绑定一致性
+        run: git diff --exit-code -- go.mod go.sum frontend/bindings

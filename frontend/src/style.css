@@ -417,6 +417,19 @@ input[type=checkbox] { accent-color: var(--color-primary); }
 .settings-section { max-width: 760px; padding: 28px; }
 .settings-section h2 { font-size: 16px; font-weight: 500; margin-bottom: 24px; }
 .about-section > img { margin-bottom: 20px; }
+.update-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0 12px; }
+.update-progress { margin: 12px 0; }
+.update-checked { margin-top: 12px; font-size: 12px; }
+.update-indicator { position: absolute; right: 2px; top: 2px; width: 6px; height: 6px; border-radius: 50%; background: var(--color-primary); }
+.release-notes { overflow-wrap: anywhere; font-size: 13px; line-height: 1.7; }
+.release-notes > * + * { margin-top: 12px; }
+.release-notes :is(h1,h2,h3,h4,h5,h6) { font-size: 14px; font-weight: 600; }
+.release-notes ul { list-style: disc; padding-left: 20px; }
+.release-notes ol { list-style: decimal; padding-left: 20px; }
+.release-notes a { color: var(--color-primary); text-decoration: underline; }
+.release-notes pre { overflow: auto; }
+.license-view { display: grid; gap: 12px; margin-top: 20px; }
+.license-view pre { max-height: 400px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-height: 1.6; }
 .settings-row { display: flex; align-items: center; justify-content: space-between; padding: 16px 0; border-bottom: 1px solid var(--color-border); gap: 16px; }
 .settings-row output { width: 40px; text-align: right; font-variant-numeric: tabular-nums; }
 .settings-row input[type=range] { accent-color: var(--color-primary); width: 140px; }

@@ -10,14 +10,14 @@
     <Installer
         Path="termquay"
         Arguments=""
-        InstallLocation="C:\Program Files\My Company\TermQuay">
+        InstallLocation="C:\Program Files\TermQuay">
     </Installer>
     <PackageInformation
         PackageName="TermQuay"
         PackageDisplayName="TermQuay"
-        PublisherName="CN=My Company"
-        PublisherDisplayName="My Company"
-        Version="0.1.0.0"
+        PublisherName="CN=TermQuay"
+        PublisherDisplayName="TermQuay"
+        Version="1.0.0.0"
         PackageDescription="TermQuay 远程连接工作台">
         <Capabilities>
             <Capability Name="runFullTrust" />
@@ -42,7 +42,7 @@
         <Properties>
             <Framework>false</Framework>
             <DisplayName>TermQuay</DisplayName>
-            <PublisherDisplayName>My Company</PublisherDisplayName>
+            <PublisherDisplayName>TermQuay</PublisherDisplayName>
             <Description>TermQuay 远程连接工作台</Description>
             <Logo>Assets\AppIcon.png</Logo>
         </Properties>

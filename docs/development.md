@@ -16,6 +16,7 @@
 | 热重载、产品元数据与资源生成 | [build/config.yml](../build/config.yml) |
 | 通用绑定与前端构建 | [build/Taskfile.yml](../build/Taskfile.yml) |
 | 平台构建、包格式和签名参数 | [macOS](../build/darwin/Taskfile.yml)、[Windows](../build/windows/Taskfile.yml)、[Linux](../build/linux/Taskfile.yml) 的任务定义 |
+| 版本校验、日常检查与标签发布 | [版本工具](../scripts/version.mjs)、[CI](../.github/workflows/ci.yml)、[发布工作流](../.github/workflows/release.yml) |
 
 Taskfile 保留 Wails 模板任务。出现 server、Docker 或 iOS 任务不表示产品支持相应部署形态；当前交付范围是桌面应用。自定义开发端口使用 `WAILS_VITE_PORT`；[RDP 服务](../rdp.go) 根据 Wails 注入的 `FRONTEND_DEVSERVER_URL` 生成精确回环来源白名单，回归见 [rdp_test.go](../rdp_test.go)。自定义启动方式也须保持该地址与实际开发服务器一致，不得放开为任意来源。
 
@@ -70,12 +71,12 @@ go test -race ./...
 
 两条命令分别覆盖内部模块和含桌面服务的全部包，无需每次都运行。`-race` 需要当前平台支持的 race 工具链与 C 编译器；缺失时明确记录未完成竞态检查，普通测试通过不能替代它。纯文档修改检查内容、链接和 diff。
 
-当前自动化主要是 Go 测试；前端 `check` 和 `build` 分别提供类型检查与构建验证，没有前端行为测试脚本。测试名称及实际覆盖以仓库测试为准。带凭据的真实服务测试可能在普通测试命令中执行；缺少配置时会跳过，必须区分通过与跳过。
+当前自动化主要是 Go 测试；前端 `check` 和 `build` 分别提供类型检查与构建验证，`test` 覆盖前端逻辑与发布工具，不包含原生 WebView 或组件交互验收。测试名称及实际覆盖以仓库测试为准。带凭据的真实服务测试可能在普通测试命令中执行；缺少配置时会跳过，必须区分通过与跳过。
 
 前端逻辑回归沿用 `node:test`，在支持直接运行 TypeScript 的 Node 环境中执行：
 
 ```sh
-node --experimental-strip-types --test frontend/src/lib/*.test.ts frontend/src/features/connections/catalog.test.ts frontend/src/features/files/*.test.ts frontend/src/features/monitor/history.test.ts frontend/src/features/settings/appearance.test.ts frontend/src/features/terminal/*.test.ts
+pnpm --dir frontend test
 ```
 
 ### 真实 SSH 与 WebDAV
@@ -277,4 +278,54 @@ wails3 task package
 
 应用图标以 [build/appicon.svg](../build/appicon.svg) 为唯一矢量源稿。使用 SVG 渲染工具导出 `build/appicon.png`（1024px）、Linux 的 `build/linux/icon-128.png` 和 DMG 的 `build/darwin/dmg-file-icon.png`。macOS 单独使用 `build/darwin/appicon.png`：将通用 PNG 等比缩放至 880px，居中置于 1024px 透明画布，四边各留 72px，避免 Dock 主体比其他应用显著偏大。随后运行 `wails3 task common:generate:icons`，分别由通用和 macOS PNG 生成 ICO/ICNS；将生成的 `icons.icns` 同步到 `dmg-file-icon.icns`。运行时同样按平台选择 PNG。Windows 构建由 syso 嵌入 ICO，macOS app 包与 DMG 卷引用 ICNS，Linux 包的 hicolor 路径使用对应 128px PNG。修改资源后需重新构建并启动原生程序检查系统入口，文件生成不能替代任务栏、Dock 或启动器验收。
 
-当前打包入口不代表正式发行就绪。分发前补齐目标系统原生验证、签名分发所需资源和 [依赖许可审计](../THIRD_PARTY_NOTICES.md)，按平台核对声明材料随包携带情况；macOS 应用包已有复制入口，其他平台仍需核对。推送、Release 和签名分发需相应授权。
+当前打包入口不代表正式发行就绪。分发前补齐目标系统原生验证、签名分发所需资源和 [依赖许可审计](../THIRD_PARTY_NOTICES.md)。程序内嵌项目许可及收集的依赖材料，“设置 → 关于 → 开源许可”可读取；macOS 应用包另复制资源目录。推送、Release 和签名分发需相应授权。
+
+## 版本与发布
+
+程序版本以 `frontend/package.json` 为源，`scripts/version.mjs` 同步产品配置、Windows 文件资源与清单、macOS 正式/开发 plist、NSIS 和 Linux 包版本。Windows 清单和 MSIX 按四段格式派生版本。数据库、备份及布局格式版本独立维护。修改其他产品元数据仍按构建资源流程处理，不能通过重新生成资源覆盖手工定制。
+
+每次 bump 前先编写 `docs/releases/<version>.md`。首版介绍实际交付能力、运行前提和已知限制；后续版本按上个标签以来的用户可见变化整理简体中文日志，有内容才保留对应分组。版本资源与日志放在同一个提交，不另维护重复更新日志。
+
+```sh
+pnpm --dir frontend bump 1.0.0
+node scripts/version.mjs check v1.0.0
+```
+
+工具只接受正式三段数字版本，先检查非空日志及资源结构，再写入版本文件；不会自动提交或打标签。`check` 拒绝标签、资源版本或日志不一致。相关回归包含在 `pnpm --dir frontend test`。
+
+持续集成在 PR 和 `main` 上运行逻辑测试、前端构建、Go 测试及原生构建，Linux 另检查竞态。发布使用锁文件，Wails CLI 版本从 `go.mod` 读取。构建任务扫描根目录与 `internal` Go 源码、前端源码和生成绑定，避免递归扫描 pnpm 的依赖链接；新增源码目录或 Wails include 资源时同步任务输入。
+
+发布前，先在已进入 `main` 的候选提交上手动运行“发布桌面应用”工作流。手动运行执行相同正式构建，上传三平台附件及 `SHA256SUMS` 到 `release-bundle` artifact，不创建 Release。平台、架构和附件命名以工作流为准；压缩包内必须只有一个顶层程序或 `.app`，与 [更新 provider](../internal/update/provider.go) 的选择及框架解包约定一致。候选包同样带正式构建标记，启动后会查询当前公开稳定版本。
+
+验收候选包的启动、系统集成、核心连接、退出保护及旧程序升级到候选版本的链路。下载失败、取消、摘要不符、不可写目录和替换失败需要覆盖。测试替身和 CI 原生构建不能替代实际桌面运行；某个平台尚未验收时保留缺口，不能据构建成功宣称全面可用。
+
+获发布授权、完成验收并解决第三方声明的“发行前待办”后，在已检查且已进入 `main` 的提交创建版本标签，再推送：
+
+```sh
+git tag -a v1.0.0 -m "发布 v1.0.0"
+git push origin main
+git push origin v1.0.0
+```
+
+标签发布检查版本、日志、提交属于 `main` 及发行审计状态，三平台全部构建成功后合并附件并生成校验文件，先创建草稿、附齐文件，再公开并标记 Latest。Release 正文原样读取仓库日志，应用更新窗口复用该正文。工作流允许继续同版本未公开草稿，拒绝覆盖公开版本；修复通过新版本交付。当前发行审计尚有待办，`node scripts/release-check.mjs` 会明确拒绝正式发布，不能将其失败视为已完成发行验收。
+
+正式构建通过 `TERMQUAY_RELEASE_LDFLAGS` 注入发布标记与提交号，具体值见工作流。普通本地生产构建仍显示开发版，不检查或安装更新。Windows 压缩包当前未配置 Authenticode 分发签名；macOS 未配置证书时明确记录 ad-hoc 状态。配置以下 GitHub Secrets 后，macOS 工作流执行 Developer ID 签名、公证和票据附加：`MACOS_CERTIFICATE`、`MACOS_CERTIFICATE_PASSWORD`、`MACOS_SIGNING_IDENTITY`、`APPLE_ID`、`APPLE_TEAM_ID`、`APPLE_APP_PASSWORD`。证书使用 Base64 编码的 p12，凭据不得进入仓库或日志。
+
+前端生产依赖变更后，可使用 pnpm 导出元数据，再通过收集工具更新许可副本。输出文件放在临时目录，以下示例中的路径需替换为当前系统的临时路径：
+
+```sh
+pnpm --dir frontend licenses list --prod --json > <临时文件>
+node scripts/licenses.mjs <临时文件>
+```
+
+工具移除本机安装路径，复制包内许可原文，并列出缺少材料的依赖。收集成功不等于审计完成；Go 模块、预构建 WASM 来源及第三方声明仍需按最终制品核对。依赖变化后同步现有收集清单。
+
+### 应用检查与安装更新
+
+“设置 → 关于”展示程序版本、构建提交、自动检查开关、更新状态、发布页面和开源许可。正式构建在界面就绪并读取设置后延迟检查，应用运行中定期检查；调度间隔、超时与单任务约束见 [update.go](../update.go)。设置立即保存于本机，不进入便携界面备份；会话存储模式仍不保证跨重启保存。网络请求使用 Go 默认网络配置及其支持的环境代理，不借用 SSH 连接的 SOCKS5 或跳板。
+
+发现更新时在设置入口标记，不自动弹窗、下载或重启。点击新版本查看 Markdown 日志，确认后下载，可取消。新版本必须来自本项目稳定 Release，附件版本、平台、架构及 SHA-256 记录均须匹配。摘要校验不等于代码签名或独立发布者认证。
+
+下载完成后显式选择“重启并更新”，确认活动工作区与传输中断，再处理未保存文件和本地持久化。取消退出后继续使用当前应用；持久化失败必须处理或明确忽略，之后才启动更新辅助进程。安装位置及其父目录必须可写，系统安装包管理的路径应通过相应安装器或手动安装更新。框架负责替换和替换失败的恢复，实际各平台替换、恢复与重启仍需候选包验收；程序恢复不代表数据库迁移回滚。
+
+本次 Windows 隔离程序验证完成了框架辅助进程的实际替换、新程序启动和启动失败后的旧程序恢复，未启动 TermQuay 工作台或访问真实用户配置。这属于更新组件的本地集成，不能替代真实工作台保存、关闭和重启验收。锁定的 Wails 版本在 Windows 上可能因辅助进程仍占用旧程序而留下 `<程序名>.old.<时间戳>` 备份；本次观察到该残留，应用不扫描删除用户安装目录中的历史文件。后续应核对框架修复或提供有明确归属的清理机制。

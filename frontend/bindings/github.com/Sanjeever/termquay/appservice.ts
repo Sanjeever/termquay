@@ -49,6 +49,14 @@ export function CancelTransfer(id: string): $CancellablePromise<void> {
     return $Call.ByID(3298982059, id);
 }
 
+export function CancelUpdate(): $CancellablePromise<void> {
+    return $Call.ByID(41377273);
+}
+
+export function CheckUpdate(): $CancellablePromise<void> {
+    return $Call.ByID(3935949939);
+}
+
 export function ClearFinishedTransfers(): $CancellablePromise<string[] | null> {
     return $Call.ByID(1200200375);
 }
@@ -157,6 +165,10 @@ export function DownloadFileDraft(document: files$0.Document): $CancellablePromi
     return $Call.ByID(935735919, document);
 }
 
+export function DownloadUpdate(): $CancellablePromise<void> {
+    return $Call.ByID(1964267315);
+}
+
 export function DuplicateConnection(id: string, includeCredentials: boolean): $CancellablePromise<store$0.Connection> {
     return $Call.ByID(3599925595, id, includeCredentials);
 }
@@ -205,6 +217,14 @@ export function GetDraftRecoveryState(): $CancellablePromise<$models.DraftRecove
     return $Call.ByID(187173851);
 }
 
+export function GetLicenseFiles(): $CancellablePromise<string[] | null> {
+    return $Call.ByID(3063439652);
+}
+
+export function GetLicenseText(name: string): $CancellablePromise<string> {
+    return $Call.ByID(859631162, name);
+}
+
 export function GetPortableUI(): $CancellablePromise<{ [_ in string]?: string } | null> {
     return $Call.ByID(714107935);
 }
@@ -227,6 +247,10 @@ export function GetTransferRate(): $CancellablePromise<number> {
 
 export function GetTunnelPresets(connectionID: string): $CancellablePromise<$models.TunnelPreset[] | null> {
     return $Call.ByID(3290836756, connectionID);
+}
+
+export function GetUpdateStatus(): $CancellablePromise<$models.UpdateStatus> {
+    return $Call.ByID(3305052825);
 }
 
 export function GetWorkspaceLayout(): $CancellablePromise<$models.WorkspaceLayout> {
@@ -421,6 +445,10 @@ export function ResizeTerminal(id: string, cols: number, rows: number): $Cancell
     return $Call.ByID(253488878, id, cols, rows);
 }
 
+export function RestartForUpdate(): $CancellablePromise<void> {
+    return $Call.ByID(581934153);
+}
+
 export function ResumeTransfer(id: string, workspace: string): $CancellablePromise<$models.Transfer> {
     return $Call.ByID(907302374, id, workspace);
 }
@@ -521,6 +549,10 @@ export function SetTransferRate(kibPerSecond: number): $CancellablePromise<void>
     return $Call.ByID(2964970131, kibPerSecond);
 }
 
+export function SetUpdateCheck(enabled: boolean): $CancellablePromise<void> {
+    return $Call.ByID(1790142725, enabled);
+}
+
 export function SetWorkspaceDirty(id: string, dirty: boolean): $CancellablePromise<void> {
     return $Call.ByID(2313705545, id, dirty);
 }
@@ -539,6 +571,10 @@ export function StartTerminalLog(id: string): $CancellablePromise<ssh$0.Terminal
 
 export function StartTunnel(workspace: string, spec: ssh$0.ForwardSpec): $CancellablePromise<$models.Tunnel> {
     return $Call.ByID(2597161884, workspace, spec);
+}
+
+export function StartUpdates(): $CancellablePromise<void> {
+    return $Call.ByID(3102745192);
 }
 
 export function StartUpload(id: string, directory: string): $CancellablePromise<$models.Transfer> {

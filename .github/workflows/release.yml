@@ -1,0 +1,199 @@
+name: 发布桌面应用
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '26'
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: pnpm --dir frontend install --frozen-lockfile
+      - name: 校验版本与主分支
+        id: version
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+          version=$(node -p "require('./frontend/package.json').version")
+          tag="v$version"
+          if [ "$EVENT" = push ]; then tag="$GITHUB_REF_NAME"; fi
+          node scripts/version.mjs check "$tag"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - run: pnpm --dir frontend test
+      - name: 核对发行前待办
+        if: github.event_name == 'push'
+        run: node scripts/release-check.mjs
+  build:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2022
+            name: windows_amd64
+          - os: macos-14
+            name: darwin_universal
+          - os: ubuntu-24.04
+            name: linux_amd64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '26'
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: 安装 Linux 原生依赖
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libxkbcommon-dev
+      - run: pnpm --dir frontend install --frozen-lockfile
+      - run: pnpm --dir frontend build
+      - run: go test ./...
+      - name: 安装匹配版本的 Wails CLI
+        run: |
+          mkdir -p .tools
+          GOBIN="$PWD/.tools" go install "github.com/wailsapp/wails/v3/cmd/wails3@$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v3)"
+          echo "$PWD/.tools" >> "$GITHUB_PATH"
+      - name: 正式构建
+        env:
+          TERMQUAY_RELEASE_LDFLAGS: -X main.releaseBuild=true -X main.buildCommit=${{ github.sha }}
+        run: |
+          if [ "$RUNNER_OS" = macOS ]; then
+            wails3 task darwin:package:universal
+          else
+            wails3 build ARCH=amd64
+          fi
+          git diff --exit-code -- go.mod go.sum frontend/bindings
+      - name: macOS 签名与公证
+        if: runner.os == 'macOS'
+        env:
+          CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          if [ -z "$CERTIFICATE" ]; then
+            echo 'macOS 包使用 ad-hoc 签名，未执行 Developer ID 签名与公证。' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          test -n "$CERTIFICATE_PASSWORD" && test -n "$SIGNING_IDENTITY" && test -n "$APPLE_ID" && test -n "$APPLE_TEAM_ID" && test -n "$APPLE_APP_PASSWORD"
+          printf '%s' "$CERTIFICATE" | base64 -D > "$RUNNER_TEMP/termquay-certificate.p12"
+          security create-keychain -p "$CERTIFICATE_PASSWORD" "$RUNNER_TEMP/termquay-release.keychain"
+          security set-keychain-settings -lut 21600 "$RUNNER_TEMP/termquay-release.keychain"
+          security unlock-keychain -p "$CERTIFICATE_PASSWORD" "$RUNNER_TEMP/termquay-release.keychain"
+          security import "$RUNNER_TEMP/termquay-certificate.p12" -k "$RUNNER_TEMP/termquay-release.keychain" -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$CERTIFICATE_PASSWORD" "$RUNNER_TEMP/termquay-release.keychain"
+          security list-keychains -d user -s "$RUNNER_TEMP/termquay-release.keychain"
+          codesign --force --options runtime --timestamp --sign "$SIGNING_IDENTITY" bin/termquay.app/Contents/MacOS/termquay
+          codesign --force --options runtime --timestamp --sign "$SIGNING_IDENTITY" bin/termquay.app
+          ditto -c -k --keepParent bin/termquay.app "$RUNNER_TEMP/termquay-notarize.zip"
+          xcrun notarytool submit "$RUNNER_TEMP/termquay-notarize.zip" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
+          xcrun stapler staple bin/termquay.app
+          codesign --verify --deep --strict bin/termquay.app
+          echo 'macOS 包已完成 Developer ID 签名、公证与票据附加。' >> "$GITHUB_STEP_SUMMARY"
+      - name: 清理签名资源
+        if: always() && runner.os == 'macOS'
+        run: |
+          if [ -f "$RUNNER_TEMP/termquay-release.keychain-db" ]; then security delete-keychain "$RUNNER_TEMP/termquay-release.keychain"; fi
+          rm -f "$RUNNER_TEMP/termquay-certificate.p12" "$RUNNER_TEMP/termquay-notarize.zip"
+      - name: 打包
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          PLATFORM: ${{ matrix.name }}
+        run: |
+          mkdir -p release
+          name="termquay_${VERSION}_${PLATFORM}"
+          if [ "$RUNNER_OS" = Windows ]; then
+            powershell -NoProfile -Command "Compress-Archive -LiteralPath bin/termquay.exe -DestinationPath release/$name.zip"
+          elif [ "$RUNNER_OS" = macOS ]; then
+            ditto -c -k --keepParent bin/termquay.app "release/$name.zip"
+          else
+            tar -czf "release/$name.tar.gz" -C bin termquay
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: platform-${{ matrix.name }}
+          path: release/*
+          if-no-files-found: error
+          overwrite: true
+  assemble:
+    needs: [prepare, build]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v5
+        with:
+          pattern: platform-*
+          path: release
+          merge-multiple: true
+      - name: 核对附件并生成校验文件
+        working-directory: release
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          test "$(find . -maxdepth 1 -type f | wc -l)" -eq 3
+          files=("termquay_${VERSION}_windows_amd64.zip" "termquay_${VERSION}_darwin_universal.zip" "termquay_${VERSION}_linux_amd64.tar.gz")
+          for file in "${files[@]}"; do test -s "$file"; done
+          sha256sum "${files[@]}" > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-bundle
+          path: release/*
+          if-no-files-found: error
+          overwrite: true
+  publish:
+    if: github.event_name == 'push'
+    needs: [prepare, assemble]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v5
+        with:
+          name: release-bundle
+          path: release
+      - name: 发布完整 Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          tag="v$VERSION"
+          if draft=$(gh release view "$tag" --json isDraft --jq .isDraft); then
+            test "$draft" = true || { echo '该版本已经公开，请发布新版本。'; exit 1; }
+          else
+            gh release create "$tag" --verify-tag --draft --title "$tag" --notes-file "docs/releases/$VERSION.md"
+          fi
+          gh release upload "$tag" release/* --clobber
+          gh release edit "$tag" --notes-file "docs/releases/$VERSION.md" --draft=false --latest
