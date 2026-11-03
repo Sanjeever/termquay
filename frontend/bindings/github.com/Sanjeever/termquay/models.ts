@@ -115,6 +115,14 @@ export interface RecoveryDraftSummary {
     "updated_at": string;
 }
 
+export interface RemoteLogSlice {
+    "content": string;
+    "start": number;
+    "end": number;
+    "size": number;
+    "reset": boolean;
+}
+
 export interface RemotePathResult {
     "path": string;
     "target": string;

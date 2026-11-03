@@ -204,6 +204,8 @@ input[type=checkbox] { accent-color: var(--color-primary); }
 .conflict-editors .cm-mergeView { height: 100%; }
 .conflict-editors .cm-mergeViewEditors { height: 100%; }
 .app-dialog.directory-sync-dialog { max-width: min(900px,calc(100vw - 24px)); }
+.app-dialog.remote-log-dialog { max-width: min(1100px,calc(100vw - 24px)); }
+.remote-log-content { height: min(55vh,600px); min-height: 180px; overflow: auto; white-space: pre; font: 12px/1.6 var(--font-mono); background: var(--color-background); border: 1px solid var(--color-border); border-radius: 5px; padding: 10px; tab-size: 4; }
 .sync-preview { width: 100%; font-size: 12px; border-collapse: collapse; }
 .sync-preview th,.sync-preview td { text-align: left; padding: 6px; border-bottom: 1px solid var(--color-border); }
 .sync-preview .file-path { max-width: 350px; }

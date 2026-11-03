@@ -20,6 +20,7 @@ export type {
     RecoveryDraft,
     RecoveryDraftInput,
     RecoveryDraftSummary,
+    RemoteLogSlice,
     RemotePathResult,
     RestorePreview,
     SSHChallenge,

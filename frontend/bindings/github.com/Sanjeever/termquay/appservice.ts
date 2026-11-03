@@ -333,6 +333,10 @@ export function ReadRemoteFileEncoded(id: string, remote: string, charset: strin
     return $Call.ByID(1025705448, id, remote, charset);
 }
 
+export function ReadRemoteLog(workspace: string, remote: string, offset: number, backward: boolean): $CancellablePromise<$models.RemoteLogSlice> {
+    return $Call.ByID(2582890458, workspace, remote, offset, backward);
+}
+
 export function ReconnectSavedSSH(id: string): $CancellablePromise<$models.SSHReconnectResult> {
     return $Call.ByID(2872295492, id);
 }
