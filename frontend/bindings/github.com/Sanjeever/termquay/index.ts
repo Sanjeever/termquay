@@ -10,6 +10,7 @@ export type {
     AutomaticBackupStatus,
     BackupSelection,
     Catalog,
+    CredentialReference,
     DirectorySyncPreview,
     DraftRecoveryState,
     MonitorEvent,

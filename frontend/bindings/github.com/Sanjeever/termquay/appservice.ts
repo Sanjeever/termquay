@@ -29,6 +29,10 @@ export function AnswerSSHChallenge(id: string, challengeID: string, answers: str
     return $Call.ByID(3765046143, id, challengeID, answers);
 }
 
+export function AssignCredential(connectionIDs: string[] | null, credentialID: string): $CancellablePromise<void> {
+    return $Call.ByID(1680855018, connectionIDs, credentialID);
+}
+
 export function BackupWebDAV(options: backup$0.WebDAVOptions, password: string, includeCredentials: boolean): $CancellablePromise<string> {
     return $Call.ByID(1363831413, options, password, includeCredentials);
 }
@@ -221,6 +225,10 @@ export function GetWorkspaceLayout(): $CancellablePromise<$models.WorkspaceLayou
     return $Call.ByID(961509693);
 }
 
+export function ListCredentialReferences(): $CancellablePromise<$models.CredentialReference[] | null> {
+    return $Call.ByID(1241246961);
+}
+
 export function ListSnapshots(options: backup$0.WebDAVOptions): $CancellablePromise<backup$0.RemoteSnapshot[] | null> {
     return $Call.ByID(2845134187, options);
 }
@@ -389,6 +397,10 @@ export function SaveConnection(c: store$0.Connection, auth: ssh$0.Request): $Can
     return $Call.ByID(1507388431, c, auth);
 }
 
+export function SaveConnectionWithCredential(c: store$0.Connection, auth: ssh$0.Request, referenceID: string): $CancellablePromise<store$0.Connection> {
+    return $Call.ByID(4216139870, c, auth, referenceID);
+}
+
 export function SaveGroup(g: store$0.Group): $CancellablePromise<void> {
     return $Call.ByID(2264337214, g);
 }
@@ -515,6 +527,10 @@ export function TrustSSHHost(host: string, port: number, fingerprint: string, vi
 
 export function UnsubscribeMonitor(id: string): $CancellablePromise<void> {
     return $Call.ByID(4106085263, id);
+}
+
+export function UpdateCredential(id: string, auth: ssh$0.Request, expectedConnections: string[] | null): $CancellablePromise<void> {
+    return $Call.ByID(38254298, id, auth, expectedConnections);
 }
 
 export function UseSessionStorage(): $CancellablePromise<void> {

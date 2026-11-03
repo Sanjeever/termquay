@@ -39,6 +39,13 @@ export interface Catalog {
     "session_only": boolean;
 }
 
+export interface CredentialReference {
+    "id": string;
+    "kind": string;
+    "connection_ids": string[] | null;
+    "names": string[] | null;
+}
+
 export interface DirectorySyncPreview {
     "id": string;
     "direction": string;

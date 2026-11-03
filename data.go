@@ -242,6 +242,10 @@ func (a *AppService) MoveGroup(id, parentID, beforeID string) error {
 }
 
 func (a *AppService) SaveConnection(c store.Connection, auth terminal.Request) (store.Connection, error) {
+	return a.SaveConnectionWithCredential(c, auth, "")
+}
+
+func (a *AppService) SaveConnectionWithCredential(c store.Connection, auth terminal.Request, referenceID string) (store.Connection, error) {
 	if err := a.resolvePrivateKey(&auth); err != nil {
 		return store.Connection{}, err
 	}
@@ -266,6 +270,29 @@ func (a *AppService) SaveConnection(c store.Connection, auth terminal.Request) (
 			break
 		}
 	}
+	if referenceID != "" {
+		if auth.Password != "" || auth.PrivateKey != "" {
+			return store.Connection{}, errors.New("复用凭据时不能同时填写新秘密")
+		}
+		found := false
+		for _, credential := range d.Credentials {
+			if credential.ID == referenceID {
+				if c.Protocol == "rdp" && credential.Kind != "password" {
+					return store.Connection{}, errors.New("RDP 需要密码凭据")
+				}
+				c.CredentialID = referenceID
+				if c.Protocol == "ssh" {
+					c.AuthMethod = credential.Kind
+				}
+				oldMethod = c.AuthMethod
+				found = true
+				break
+			}
+		}
+		if !found {
+			return store.Connection{}, errors.New("引用凭据已失效")
+		}
+	}
 	if c.AuthMethod == "agent" || c.AuthMethod == "keyboard_interactive" {
 		c.CredentialID = ""
 		auth.Password = ""
@@ -275,6 +302,15 @@ func (a *AppService) SaveConnection(c store.Connection, auth terminal.Request) (
 		c.AuthMethod = oldMethod
 	}
 	if auth.Password != "" || auth.PrivateKey != "" {
+		references := 0
+		for _, old := range d.Connections {
+			if old.CredentialID == c.CredentialID {
+				references++
+			}
+		}
+		if references > 1 {
+			c.CredentialID = ""
+		}
 		if c.CredentialID == "" {
 			c.CredentialID = base64.RawURLEncoding.EncodeToString(randomBytes(16))
 		}

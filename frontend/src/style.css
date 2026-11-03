@@ -342,6 +342,10 @@ input[type=checkbox] { accent-color: var(--color-primary); }
 .command-source { font-family: var(--font-mono); }
 .backup-connection-list { display: grid; gap: 6px; max-height: 220px; overflow: auto; margin: 10px 0; }
 .backup-connection-list label { min-width: 0; overflow-wrap: anywhere; }
+.credential-list { display: grid; gap: 0; }
+.credential-list > li { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; border-bottom: 1px solid var(--color-border); padding: 14px 0; }
+.credential-list strong,.credential-list span { display: block; font-size: 12px; font-weight: 400; }
+.credential-list details { margin-top: 6px; font-size: 12px; }
 .command-results details { border-top: 1px solid var(--color-border); padding: 10px 0; }
 .command-results summary { cursor: pointer; display: flex; justify-content: space-between; gap: 12px; font-size: 12px; }
 .command-results pre { max-height: 280px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-mono); font-size: 12px; margin-top: 8px; }
