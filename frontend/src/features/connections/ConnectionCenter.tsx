@@ -9,13 +9,17 @@ import { catalogConnections, type CatalogSort } from './catalog';
 import { selectItems } from '../../lib/selection';
 import CredentialAssignDialog from './CredentialAssignDialog';
 import type { LocalShell } from '../../../bindings/github.com/Sanjeever/termquay/models';
+import useConnectionLatency from './useConnectionLatency';
+import ConnectionLatency from './ConnectionLatency';
 
-export default function ConnectionCenter({ connections, groups, preferences, sessions, onOpen, onEdit, onNew, onReload, busy, loading, loadError, systemRDP, shells, onLocal }: {
+export default function ConnectionCenter({ connections, groups, preferences, sessions, onOpen, onEdit, onNew, onReload, busy, loading, loadError, systemRDP, shells, onLocal, active }: {
   connections: Connection[]; groups: Group[]; onOpen(c: Connection, another?: boolean, client?: string): void; onEdit(c: Connection): void; onNew(temporary: boolean): void; onReload(): void; busy: boolean;
   preferences: Record<string, ConnectionPreference | undefined>; sessions: Record<string,string[]>;
   loading: boolean; loadError: string; systemRDP: boolean;
   shells: LocalShell[]; onLocal(kind:string):void;
+  active: boolean;
 }) {
+  const latency = useConnectionLatency(connections, active && !loading && !loadError);
   const [search, setSearch] = useState('');
   const [protocol, setProtocol] = useState('all');
   const [view, setView] = useState('all');
@@ -71,7 +75,8 @@ export default function ConnectionCenter({ connections, groups, preferences, ses
       {selectedConnection && <Button size="sm" variant="light" aria-pressed={!!preferences[selectedConnection.id]?.favorite} onPress={() => void preference(selectedConnection.id, !preferences[selectedConnection.id]?.favorite, preferences[selectedConnection.id]?.environment || '')}>{preferences[selectedConnection.id]?.favorite ? '取消收藏' : '收藏'}</Button>}
     <div className="catalog-batch" hidden={selectedIDs.length<2}><label><input type="checkbox" aria-label="选择全部可见连接" checked={!!visible.length&&selectedIDs.length===visible.length} onChange={e=>setSelection(e.target.checked?visible.map(c=>c.id):[])} />已选 {selectedIDs.length} 项</label><Button size="sm" variant="light" isDisabled={working} onPress={()=>setMoveOpen(true)}>移动分组</Button><Button size="sm" variant="light" isDisabled={working||selectedIDs.length>256} onPress={()=>setCredentialTargets(connections.filter(connection=>selectedIDs.includes(connection.id)))}>复用凭据</Button><Button size="sm" variant="light" onPress={()=>setSelection([])}>取消选择</Button></div>
     </div>
-    <div className="connection-columns" aria-hidden="true"><span /><span>名称</span><span>地址</span><span className="connection-user">用户名</span><span>协议</span></div>
+    <div className="connection-columns"><span /><span>名称</span><span>地址</span><span className="connection-user">用户名</span><span>协议</span><button className="latency-heading" aria-label="刷新全部已保存连接的延迟" title="刷新全部已保存连接的 TCP 建连耗时" aria-busy={latency.refreshing || undefined} onClick={() => latency.refresh()}><Icon name="refresh" width="12" height="12" className={latency.refreshing ? 'latency-refreshing' : undefined} />延迟</button></div>
+    {latency.error && <p role="alert" className="error">{latency.error}</p>}
     {error && <p role="alert" className="error">{error}</p>}
     <div className="connection-list" aria-label="已保存连接" ref={list}>{visible.map((c, index) => <div key={c.id} draggable={!working} onDragStart={e=>{e.dataTransfer.setData('application/x-termquay-connections',JSON.stringify(selectedIDs.includes(c.id)?selectedIDs:[c.id]));e.dataTransfer.effectAllowed='move';}} className={`connection-row ${selectedIDs.includes(c.id) ? 'selected' : ''}`} onContextMenu={e => { e.preventDefault(); if(!selectedIDs.includes(c.id))pick(c.id); setMenu(c.id); }}>
       <button className="connection-name" aria-pressed={selectedIDs.includes(c.id)} tabIndex={visible.some(c=>c.id===selected) ? selected === c.id ? 0 : -1 : index === 0 ? 0 : -1} onClick={e => pick(c.id,e.ctrlKey||e.metaKey,e.shiftKey)} onDoubleClick={() => !busy && onOpen(c)} onKeyDown={e => {
@@ -84,6 +89,7 @@ export default function ConnectionCenter({ connections, groups, preferences, ses
         if (e.key === 'F2' && !busy) { e.preventDefault(); onEdit(c); }
         if (e.key === 'Delete') { e.preventDefault(); setError(''); setDeleting({ id: c.id, name: c.name }); }
       }} title={`${c.username}@${c.host}:${c.port}`}><Icon name={c.protocol === 'rdp' ? 'desktop' : 'terminal'} width="16" /><strong>{preferences[c.id]?.favorite && <span aria-label="已收藏">★ </span>}{c.name}{preferences[c.id]?.environment && <em className={`connection-environment ${preferences[c.id]?.environment}`}>{({production:'生产',staging:'预发布',development:'开发'} as Record<string,string>)[preferences[c.id]?.environment || '']}</em>}</strong><span>{c.host}:{c.port}</span><span className="connection-user">{c.username}</span><small>{c.protocol.toUpperCase()}{sessions[c.id]?.length ? <span className="connection-session-state">{[...new Set(sessions[c.id])].map(state=>`${state} ${sessions[c.id].filter(s=>s===state).length}`).join(' / ')}</span> : null}</small></button>
+      <ConnectionLatency name={c.name} measurement={latency.measurements[c.id]} onRefresh={() => latency.refresh(c.id)} />
       <Dropdown isOpen={menu === c.id} onOpenChange={open => setMenu(open ? c.id : '')}><DropdownTrigger><button className="icon-button row-menu" aria-label={`连接 ${c.name} 操作`} onFocus={() => setSelected(c.id)}><Icon name="more" /></button></DropdownTrigger><DropdownMenu aria-label={`连接 ${c.name} 操作`} disabledKeys={busy ? ['open', 'another', 'edit', 'duplicate'] : []} onAction={key => { if (key === 'open') onOpen(c); if (key === 'another') onOpen(c, true); if (key === 'system') onOpen(c, true, 'system'); if (key === 'edit') onEdit(c); if (key === 'duplicate') { setError(''); setIncludeCredentials(false); setDuplicating(c); } if (key === 'delete') { setError(''); setDeleting({ id: c.id, name: c.name }); } }}><DropdownItem key="open">连接 / 定位工作区</DropdownItem><DropdownItem key="another">新建另一工作区</DropdownItem><DropdownItem key="system" className={c.protocol === 'rdp' ? '' : 'hidden'} isDisabled={busy || !systemRDP || c.protocol !== 'rdp'}>使用系统客户端</DropdownItem><DropdownItem key="edit">编辑连接</DropdownItem><DropdownItem key="duplicate">复制配置</DropdownItem><DropdownItem key="delete" color="danger">删除连接</DropdownItem></DropdownMenu></Dropdown>
     </div>)}</div>
     {loading ? <p className="sidebar-empty" role="status">正在读取连接…</p> : loadError ? <div className="sidebar-empty"><p className="error">连接读取失败</p><Button size="sm" variant="light" onPress={onReload}>重试</Button></div> : visible.length === 0 && <div className="sidebar-empty"><span>{search || group || protocol !== 'all' ? '没有匹配连接' : view === 'favorite' ? '暂无收藏' : view === 'recent' ? '暂无最近连接记录' : '尚无连接'}</span></div>}
