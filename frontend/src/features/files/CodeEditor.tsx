@@ -71,22 +71,20 @@ export default function CodeEditor({ path, content, format, visible, saving, dir
   function updateFormat(value: Partial<EditorFormat>) { const editor = view.current; if (editor) { const next = { ...editor.state.field(formatState), ...value }; if (JSON.stringify(next) === JSON.stringify(editor.state.field(formatState))) return; editor.dispatch({ effects: changeFormat.of(next), annotations: Transaction.userEvent.of('input.format') }); editor.focus(); } }
   function preference(key: string, value: string, apply: () => void) { try { localStorage.setItem(key, value); apply(); setError(''); } catch (e) { setError(String(e)); } }
   function action(label: string, name: Parameters<typeof Icon>[0]['name'], run: () => void, disabled = false) { return <Tooltip content={label}><button type="button" className="icon-button" aria-label={label} disabled={disabled} onClick={run}><Icon name={name} width="16" /></button></Tooltip>; }
+  const mod = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl+';
   return <>
     <div className="editor-toolbar" aria-label="文件编辑工具栏">
-      {action('撤销 · Ctrl+Z', 'undo', () => { if (view.current) undo(view.current); }, !historyState.undo)}
-      {action('重做 · Ctrl+Shift+Z', 'redo', () => { if (view.current) redo(view.current); }, !historyState.redo)}
+      {action(`撤销 · ${mod}Z`, 'undo', () => { if (view.current) undo(view.current); }, !historyState.undo)}
+      {action(`重做 · ${mod}Shift+Z`, 'redo', () => { if (view.current) redo(view.current); }, !historyState.redo)}
       <span className="editor-toolbar-divider" />
       {action('重新加载', 'refresh', () => onReload(format.encoding), saving)}
-      {action(saving ? '正在保存' : '保存 · Ctrl+S', 'save', onSave, saving || !dirty)}
+      {action(saving ? '正在保存' : `保存 · ${mod}S`, 'save', onSave, saving || !dirty)}
       {action('下载当前内容', 'download', onDownload)}
-      {action('搜索 · Ctrl+F', 'search', () => { if (view.current) openSearchPanel(view.current); })}
-      <span className="editor-toolbar-divider" />
-      {action('缩小字体', 'minus', () => preference('termquay.editor.font-size', String(fontSize - 1), () => setFontSize(fontSize - 1)), fontSize <= 10)}
-      {action('放大字体', 'plus', () => preference('termquay.editor.font-size', String(fontSize + 1), () => setFontSize(fontSize + 1)), fontSize >= 24)}
+      {action(`搜索 · ${mod}F`, 'search', () => { if (view.current) openSearchPanel(view.current); })}
       <span className="editor-toolbar-divider" />
       {['LF', 'CRLF'].map(value => <button key={value} className="editor-format-button" aria-label={`使用 ${value} 换行符`} aria-pressed={format.line_ending === value} disabled={saving} onClick={() => updateFormat({ line_ending: value })}>{value}</button>)}
       <Dropdown><DropdownTrigger><button className="editor-encoding" aria-label="文件编码" disabled={saving}>{format.encoding}{format.bom && format.encoding === 'UTF-8' ? ' BOM' : ''}<Icon name="chevron" width="11" style={{ transform: 'rotate(90deg)' }} /></button></DropdownTrigger><DropdownMenu aria-label="文件编码操作" onAction={key => { const [mode, encoding] = String(key).split(':'); if (mode === 'open') onReload(encoding); else updateFormat({ encoding, bom: encoding === 'UTF-8' && format.bom }); }}><DropdownSection title="以编码重新打开" showDivider>{editorEncodings.map(([value, label]) => <DropdownItem key={`open:${value}`}>{label}</DropdownItem>)}</DropdownSection><DropdownSection title="以编码保存">{editorEncodings.map(([value, label]) => <DropdownItem key={`save:${value}`}>{label}</DropdownItem>)}</DropdownSection></DropdownMenu></Dropdown>
-      <Dropdown><DropdownTrigger><button className="icon-button" aria-label="编辑器视图选项"><Icon name="more" width="16" /></button></DropdownTrigger><DropdownMenu aria-label="编辑器视图选项" closeOnSelect={false} onAction={key => { if (key === 'minimap') preference('termquay.editor.minimap', String(!minimap), () => setMinimap(!minimap)); else setWrap(!wrap); }}><DropdownItem key="minimap" endContent={minimap ? '✓' : null}>代码缩略图</DropdownItem><DropdownItem key="wrap" endContent={wrap ? '✓' : null}>自动换行</DropdownItem></DropdownMenu></Dropdown>
+      <Dropdown><DropdownTrigger><button className="icon-button" aria-label="编辑器视图选项" title="编辑器视图选项"><Icon name="more" width="16" /></button></DropdownTrigger><DropdownMenu aria-label="编辑器视图选项" closeOnSelect={false} disabledKeys={[...(fontSize>=24?['zoomIn']:[]),...(fontSize<=10?['zoomOut']:[])]} onAction={key => { if (key === 'minimap') preference('termquay.editor.minimap', String(!minimap), () => setMinimap(!minimap));else if(key==='wrap')setWrap(!wrap);else{const size=key==='zoomIn'?fontSize+1:fontSize-1;preference('termquay.editor.font-size',String(size),()=>setFontSize(size));} }}><DropdownItem key="minimap" endContent={minimap ? '✓' : null}>代码缩略图</DropdownItem><DropdownItem key="wrap" endContent={wrap ? '✓' : null} showDivider>自动换行</DropdownItem><DropdownItem key="zoomIn">放大字体</DropdownItem><DropdownItem key="zoomOut">缩小字体</DropdownItem></DropdownMenu></Dropdown>
     </div>
     {format.line_ending === 'mixed' && <p className="editor-format-warning">混合换行符，请选择 LF 或 CRLF 后编辑</p>}
     {error && <p className="error" role="alert">{error}</p>}

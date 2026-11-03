@@ -216,33 +216,48 @@ button:active:not(:disabled):not([role=tab]) { filter: brightness(.93); }
 .saved-credential { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--color-muted); }
 .fingerprint { padding: 12px; font: 12px/1.6 var(--font-mono); background: var(--color-background); border-radius: 6px; overflow-wrap: anywhere; }
 .ssh-workspace { display: flex; flex-direction: column; height: 100%; min-width: 0; min-height: 0; }
-.workspace-toolbar { display: flex; align-items: center; gap: 6px; height: 36px; flex-shrink: 0; padding: 0 10px; border-bottom: 1px solid var(--color-border); background: var(--color-surface); }
+.workspace-toolbar { display: flex; align-items: center; gap: 4px; min-height: 38px; flex-shrink: 0; padding: 3px 10px; border-bottom: 1px solid var(--color-border); background: var(--color-background); }
 .session-target { min-width: 80px; max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 12px var(--font-mono); margin-right: auto; }
 .session-state { font-size: 11px; color: var(--color-muted); white-space: nowrap; }
 .workspace-toolbar > button, .workspace-toolbar > span:not(.session-target) { flex-shrink: 0; }
-.session-tool { display: flex; gap: 6px; align-items: center; padding: 5px 9px; border-radius: 4px; color: var(--color-muted); font-size: 12px; }
+.session-tool { display: flex; gap: 6px; align-items: center; padding: 5px 9px; border-radius: 6px; color: var(--color-muted); font-size: 12px; }
 .session-tool:hover, .session-tool[aria-pressed=true] { color: var(--color-text); background: var(--color-hover); }
 .focus-toggle { margin-left: auto; }
 .ssh-panels { flex: 1; min-height: 0; min-width: 0; display: flex; position: relative; }
+.panel-scrim { position: absolute; inset: 0; z-index: 4; background: #00000018; cursor: default; animation: selection-in var(--motion-normal) ease; }
 .file-dock { flex-shrink: 0; min-height: 0; overflow: hidden; background: var(--color-surface); }
+.file-dock, .monitor-dock { opacity: 1; translate: 0 0; transition: opacity var(--motion-normal) ease, translate var(--motion-panel) var(--ease-out), display var(--motion-panel) allow-discrete; }
+.file-dock[hidden] { opacity: 0; translate: -8px 0; }
+.monitor-dock[hidden] { opacity: 0; translate: 8px 0; }
+@starting-style {
+  .file-dock:not([hidden]) { opacity: 0; translate: -8px 0; }
+  .monitor-dock:not([hidden]) { opacity: 0; translate: 8px 0; }
+}
+@keyframes selection-in { from { opacity: 0; } to { opacity: 1; } }
+.settings-content > * { animation: selection-in var(--motion-normal) ease; }
 .ssh-center { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .workspace-panes { display: grid; flex: 1; min-height: 0; min-width: 0; grid-template-rows: minmax(0,1fr); }
 .workspace-pane-separator { grid-column: 2; grid-row: 1 / -1; display: flex; }
 .workspace-pane-separator > .panel-separator { height: 100%; }
-.workspace-panes > .focused-pane { box-shadow: inset 0 1px var(--color-primary); }
+.workspace-panes > .focused-pane { box-shadow: none; }
 .inner-tabs { display: flex; flex-shrink: 0; height: 36px; overflow-x: auto; border-bottom: 1px solid var(--color-border); background: var(--color-background); }
 .pane-tabs { min-width: 0; }
 .pane-tabs > div { min-width: 0; flex-shrink: 0; max-width: 260px; }
-.inner-tabs > div { display: flex; white-space: nowrap; align-items: center; }
+.inner-tabs > div { position: relative; display: flex; white-space: nowrap; align-items: center; }
 .inner-tabs > div > [role=tab] { max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
 .inner-tabs > div > button:last-child { flex-shrink: 0; padding: 7px; }
 .inner-tabs button { font-size: 12px; color: var(--color-muted); padding: 7px 12px; }
-.inner-tabs .selected { box-shadow: inset 0 -1px var(--color-primary); background: var(--color-surface); }
+.inner-tabs .selected { background: var(--color-selection-muted); }
+.inner-tabs > .selected::after { content: ''; position: absolute; bottom: 0; left: 10px; right: 10px; height: 2px; border-radius: 2px; background: var(--color-muted); animation: selection-in var(--motion-fast) ease; }
+.inner-tabs.focused-pane > .selected::after { background: var(--color-primary); }
+.pane-tab-close { opacity: 0; }
+.inner-tabs > div:hover .pane-tab-close, .inner-tabs > div:focus-within .pane-tab-close, .inner-tabs > .selected .pane-tab-close { opacity: 1; }
 .inner-tabs .selected button { color: var(--color-text); }
 .terminal-tab, .editor-tab { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; }
-.terminal-view { height: 100%; display: flex; flex-direction: column; min-height: 0; padding: 10px 8px 0 12px; }
+.terminal-view { height: 100%; display: flex; flex-direction: column; min-height: 0; padding: 4px 8px 0 12px; }
 .terminal-canvas { flex: 1; min-height: 0; }
-.terminal-tools { display: flex; justify-content: flex-end; height: 26px; flex-shrink: 0; }
+.terminal-tools { display: flex; justify-content: flex-end; gap: 2px; height: 26px; flex-shrink: 0; }
+.terminal-tools .icon-button { width: 26px; height: 24px; }
 .terminal-search { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 4px; flex-shrink: 0; }
 .terminal-search > input { min-width: 80px; flex: 1; }
 .terminal-search label { display: flex; align-items: center; gap: 4px; font-size: 12px; }
@@ -280,7 +295,7 @@ button:active:not(:disabled):not([role=tab]) { filter: brightness(.93); }
 .sync-preview th,.sync-preview td { text-align: left; padding: 6px; border-bottom: 1px solid var(--color-border); }
 .sync-preview .file-path { max-width: 350px; }
 .session-status { display: flex; align-items: center; gap: 14px; flex-shrink: 0; min-height: 25px; color: var(--color-muted); font-size: 11px; padding: 4px 8px; }
-.file-panel { display: flex; flex-direction: column; height: 100%; min-height: 0; padding: 0 8px 8px; container-type: inline-size; }
+.file-panel { display: flex; flex-direction: column; height: 100%; min-height: 0; padding: 0 8px 8px; container-type: inline-size; background: var(--color-surface); }
 .file-panel > :not(.file-tree) { flex-shrink: 0; }
 .file-panel > .file-tree { flex: 1; min-height: 0; overflow: auto; scrollbar-width: thin; }
 .file-panel > .file-results { flex-shrink: 1; }
@@ -292,7 +307,8 @@ button:active:not(:disabled):not([role=tab]) { filter: brightness(.93); }
 .file-heading .icon-button { width: 26px; height: 28px; }
 .file-metadata { display: none; color: var(--color-muted); font-size: 11px; white-space: nowrap; }
 @container (min-width: 340px) { .file-metadata { display: inline-block; max-width: 90px; overflow: hidden; text-overflow: ellipsis; } }
-.path-bar { display: flex; align-items: center; border: 1px solid var(--color-border); border-radius: 4px; min-height: 32px; padding-left: 6px; }
+.path-bar { display: flex; align-items: center; border: 1px solid transparent; border-radius: 5px; min-height: 30px; padding-left: 6px; background: var(--color-selection-muted); }
+.path-bar:focus-within { border-color: var(--color-primary); }
 .breadcrumbs { display: flex; gap: 2px; flex: 1; overflow: auto; white-space: nowrap; font: 11px var(--font-mono); }
 .breadcrumbs button:hover { color: var(--color-primary); }
 .breadcrumbs span { padding: 0 3px; color: var(--color-muted); }
@@ -446,7 +462,9 @@ button:active:not(:disabled):not([role=tab]) { filter: brightness(.93); }
 .rdp-toolbar > button:last-child { margin-left: auto; }
 .rdp-options { position: relative; font-size: 12px; }
 .rdp-options > summary { padding: 6px 8px; cursor: pointer; color: var(--color-muted); }
-.rdp-options-panel { position: absolute; z-index: 6; top: 100%; left: 0; width: 260px; display: grid; gap: 10px; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-elevated); }
+.rdp-options-panel { width: 300px; display: grid; gap: 14px; padding: 16px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-menu); background: var(--color-elevated); color: var(--color-text); box-shadow: var(--shadow-floating); }
+.rdp-options-panel > label, .rdp-clipboard-option { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12px; }
+.rdp-options-panel .select-control { width: 160px; }
 .rdp-options-panel > label { justify-content: space-between; }
 .monitor-panel .sidebar-heading { height: 36px; }
 .monitor-panel .sidebar-heading h2 { font-size: 12px; }
