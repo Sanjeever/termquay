@@ -192,6 +192,8 @@ input[type=checkbox] { accent-color: var(--color-primary); }
 .restored-workspace li { padding: 4px 0; color: var(--color-muted); font-size: 12px; }
 .tunnel-panel { padding: 8px 12px; max-height: 40vh; overflow: auto; border-bottom: 1px solid var(--color-border); }
 .tunnel-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; font-size: 11px; }
+.tunnel-presets { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; font-size: 12px; }
+.tunnel-presets > input { max-width: 160px; padding: 5px 8px; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-background); }
 .tunnel-form > label:not(.checkbox-label) { display: flex; flex-direction: column; gap: 3px; max-width: 150px; }
 .tunnel-form input,.tunnel-form select { padding: 4px 6px; background: var(--color-background); border: 1px solid var(--color-border); border-radius: 4px; min-width: 0; }
 .tunnel-row { display: flex; gap: 12px; align-items: center; justify-content: space-between; margin-top: 8px; font-size: 12px; }

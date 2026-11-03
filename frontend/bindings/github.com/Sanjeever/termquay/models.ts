@@ -235,6 +235,13 @@ export interface Tunnel {
     "info": ssh$0.ForwardInfo;
 }
 
+export interface TunnelPreset {
+    "name": string;
+    "connection_id": string;
+    "spec": ssh$0.ForwardSpec;
+    "auto_start": boolean;
+}
+
 export interface UploadDropResult {
     "workspace": string;
     "result": TransferBatch;

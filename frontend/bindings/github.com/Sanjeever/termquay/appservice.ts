@@ -117,6 +117,10 @@ export function DeleteSyncPreset(connectionID: string, name: string): $Cancellab
     return $Call.ByID(170157057, connectionID, name);
 }
 
+export function DeleteTunnelPreset(connectionID: string, name: string): $CancellablePromise<void> {
+    return $Call.ByID(2743023056, connectionID, name);
+}
+
 export function DiscardAndQuit(): $CancellablePromise<void> {
     return $Call.ByID(2297958254);
 }
@@ -163,6 +167,10 @@ export function GetSyncPresets(connectionID: string): $CancellablePromise<$model
 
 export function GetTransferRate(): $CancellablePromise<number> {
     return $Call.ByID(464069423);
+}
+
+export function GetTunnelPresets(connectionID: string): $CancellablePromise<$models.TunnelPreset[] | null> {
+    return $Call.ByID(3290836756, connectionID);
 }
 
 export function GetWorkspaceLayout(): $CancellablePromise<$models.WorkspaceLayout> {
@@ -339,6 +347,10 @@ export function SaveSnippet(value: $models.Snippet): $CancellablePromise<$models
 
 export function SaveSyncPreset(preset: $models.SyncPreset): $CancellablePromise<void> {
     return $Call.ByID(993885503, preset);
+}
+
+export function SaveTunnelPreset(preset: $models.TunnelPreset): $CancellablePromise<void> {
+    return $Call.ByID(3129766714, preset);
 }
 
 export function SaveWorkspaceDrafts(workspace: string, documents: $models.RecoveryDraftInput[] | null): $CancellablePromise<void> {

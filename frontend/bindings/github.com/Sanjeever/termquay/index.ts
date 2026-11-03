@@ -35,6 +35,7 @@ export type {
     TrustRecord,
     TrustReview,
     Tunnel,
+    TunnelPreset,
     UploadDropResult,
     WorkspaceDraftUpdate,
     WorkspaceLayout,
