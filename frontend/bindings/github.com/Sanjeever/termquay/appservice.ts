@@ -65,6 +65,10 @@ export function ClearTransfer(id: string): $CancellablePromise<void> {
     return $Call.ByID(237303640, id);
 }
 
+export function CloseLocalTerminal(id: string): $CancellablePromise<void> {
+    return $Call.ByID(1364964201, id);
+}
+
 export function CloseRDP(id: string): $CancellablePromise<void> {
     return $Call.ByID(419661336, id);
 }
@@ -229,6 +233,10 @@ export function ListCredentialReferences(): $CancellablePromise<$models.Credenti
     return $Call.ByID(1241246961);
 }
 
+export function ListLocalShells(): $CancellablePromise<$models.LocalShell[] | null> {
+    return $Call.ByID(3362418830);
+}
+
 export function ListSnapshots(options: backup$0.WebDAVOptions): $CancellablePromise<backup$0.RemoteSnapshot[] | null> {
     return $Call.ByID(2845134187, options);
 }
@@ -263,6 +271,10 @@ export function MoveGroup(id: string, parentID: string, beforeID: string): $Canc
 
 export function MoveRemotePaths(id: string, paths: string[] | null, directory: string): $CancellablePromise<$models.RemotePathResult[] | null> {
     return $Call.ByID(53028431, id, paths, directory);
+}
+
+export function OpenLocalTerminal(kind: string, cols: number, rows: number): $CancellablePromise<$models.LocalTerminal> {
+    return $Call.ByID(1685781149, kind, cols, rows);
 }
 
 export function OpenRDP(host: string, port: number): $CancellablePromise<rdp$0.Grant> {
@@ -379,6 +391,10 @@ export function ReleaseWorkspaceView(id: string): $CancellablePromise<void> {
 
 export function RenameRemotePath(id: string, oldPath: string, newPath: string): $CancellablePromise<void> {
     return $Call.ByID(3004310961, id, oldPath, newPath);
+}
+
+export function ResizeLocalTerminal(id: string, cols: number, rows: number): $CancellablePromise<void> {
+    return $Call.ByID(1420264641, id, cols, rows);
 }
 
 export function ResizeTerminal(id: string, cols: number, rows: number): $CancellablePromise<void> {

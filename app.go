@@ -92,6 +92,8 @@ type AppService struct {
 	automaticStop          context.CancelFunc
 	automaticTaskCancel    context.CancelFunc
 	automaticDone          chan struct{}
+	locals                 map[string]*localTerminal
+	localOpening           int
 }
 
 func NewAppService() *AppService {
@@ -459,6 +461,10 @@ func (a *AppService) ServiceShutdown() (result error) {
 	defer func() { result = errors.Join(result, a.cleanupLocalTransferResumes()) }()
 	a.mu.Lock()
 	a.closed = true
+	localIDs := []string{}
+	for id := range a.locals {
+		localIDs = append(localIDs, id)
+	}
 	for id, key := range a.privateKeys {
 		key.timer.Stop()
 		clear(key.data)
@@ -470,6 +476,9 @@ func (a *AppService) ServiceShutdown() (result error) {
 	}
 	a.mu.Unlock()
 	a.stopAutomaticBackup()
+	for _, id := range localIDs {
+		a.CloseLocalTerminal(id)
+	}
 	for _, id := range ids {
 		a.CloseWorkspace(id)
 	}

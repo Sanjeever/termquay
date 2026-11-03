@@ -13,6 +13,8 @@ export type {
     CredentialReference,
     DirectorySyncPreview,
     DraftRecoveryState,
+    LocalShell,
+    LocalTerminal,
     MonitorEvent,
     OpenResult,
     PrivateKeySelection,

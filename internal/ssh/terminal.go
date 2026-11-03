@@ -319,11 +319,15 @@ type Stream interface {
 }
 
 func Relay(t *Terminal, s Stream) error {
-	defer t.Close()
+	return RelayIO(t.Input, t.Output, t.Done, t.Close, t.WaitError, t.recordOutput, s)
+}
+
+func RelayIO(input io.Writer, output io.Reader, done <-chan struct{}, closeEndpoint func(), waitError func() error, record func([]byte), s Stream) error {
+	defer closeEndpoint()
 	defer s.Close()
 	ctx, cancel := context.WithCancel(s.Context())
 	defer cancel()
-	stop := context.AfterFunc(ctx, t.Close)
+	stop := context.AfterFunc(ctx, closeEndpoint)
 	defer stop()
 	acks := make(chan uint32, 1)
 	received := make(chan error, 1)
@@ -341,7 +345,7 @@ func Relay(t *Terminal, s Stream) error {
 			}
 			switch frame[0] {
 			case 0:
-				if _, err = t.Input.Write(frame[1:]); err != nil {
+				if _, err = input.Write(frame[1:]); err != nil {
 					received <- err
 					return
 				}
@@ -367,9 +371,11 @@ func Relay(t *Terminal, s Stream) error {
 	// 等待 xterm.js 解析确认后再读下一帧，避免积压转移到前端解析队列。
 	for {
 		buf := make([]byte, ChunkSize)
-		n, err := t.Output.Read(buf)
+		n, err := output.Read(buf)
 		if n > 0 {
-			t.recordOutput(buf[:n])
+			if record != nil {
+				record(buf[:n])
+			}
 			if sendErr := s.Send(buf[:n]); sendErr != nil {
 				return sendErr
 			}
@@ -387,8 +393,8 @@ func Relay(t *Terminal, s Stream) error {
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				select {
-				case <-t.Done:
-					return t.WaitError()
+				case <-done:
+					return waitError()
 				case <-ctx.Done():
 					return ctx.Err()
 				}

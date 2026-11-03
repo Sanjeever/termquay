@@ -13,6 +13,7 @@ TermQuay 采用 Apache-2.0。各依赖保留其原有许可证、版权与声明
 - Shell、INI、TOML 与 nginx 配置高亮使用 `@codemirror/legacy-modes` 6.5.1，采用 MIT，复用 CodeMirror 的流式语言接口；许可原文保存在前端许可目录。
 - 有界目录扫描使用 `github.com/pkg/sftp/v2` 2.0.0-alpha2 的分页目录 API，采用 BSD-2-Clause，许可原文保存在 Go 许可目录。该预发布模块限定用于扫描；文件传输继续使用已验证的 v1 模块，升级前需复核分页、取消与资源释放。
 - Windows SSH Agent 命名管道使用 `github.com/Microsoft/go-winio` 0.6.2，采用 MIT；许可原文保存在 Go 许可目录。
+- 本地终端使用 `github.com/aymanbagabas/go-pty` 0.2.3（MIT），复用 Windows ConPTY 与 Unix PTY；其 `github.com/creack/pty` 1.1.24（MIT）和 `github.com/u-root/u-root` 0.16.0（BSD-3-Clause）许可原文保存在 Go 许可目录。新增依赖未升级已有协议库。
 - 文件编码转换使用 `golang.org/x/text` 0.42.0，采用 BSD-3-Clause；LICENSE 与 PATENTS 原文保存在 Go 许可目录。
 - 动态转发使用 `github.com/armon/go-socks5`，采用 MIT；SOCKS 协议解析复用该库，许可原文保存在 Go 许可目录。
 - OpenSSH 配置解析使用 `github.com/kevinburke/ssh_config` 1.6.0，采用 MIT；Include 由应用限定在用户明确选中文件范围，许可原文保存在 Go 许可目录。

@@ -61,6 +61,16 @@ export interface DraftRecoveryState {
     "drafts": RecoveryDraftSummary[] | null;
 }
 
+export interface LocalShell {
+    "id": string;
+    "name": string;
+}
+
+export interface LocalTerminal {
+    "id": string;
+    "name": string;
+}
+
 export interface MonitorEvent {
     "id": string;
     "sample": monitor$0.Sample | null;
