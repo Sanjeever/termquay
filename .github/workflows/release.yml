@@ -78,11 +78,24 @@ jobs:
       - run: pnpm --dir frontend build
       - run: go test ./...
       - name: 安装匹配版本的 Wails CLI
+        if: runner.os != 'Windows'
         run: |
           mkdir -p .tools
           GOBIN="$PWD/.tools" go install "github.com/wailsapp/wails/v3/cmd/wails3@$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v3)"
           echo "$PWD/.tools" >> "$GITHUB_PATH"
+      - name: 安装 Windows Wails CLI
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $env:GOBIN = Join-Path $env:GITHUB_WORKSPACE '.tools'
+          New-Item -ItemType Directory -Force -Path $env:GOBIN | Out-Null
+          $wailsVersion = go list -m -f '{{.Version}}' github.com/wailsapp/wails/v3
+          go install "github.com/wailsapp/wails/v3/cmd/wails3@$wailsVersion"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Add-Content -LiteralPath $env:GITHUB_PATH -Value $env:GOBIN
       - name: 正式构建
+        if: runner.os != 'Windows'
         env:
           TERMQUAY_RELEASE_LDFLAGS: -X main.releaseBuild=true -X main.buildCommit=${{ github.sha }}
         run: |
@@ -91,7 +104,14 @@ jobs:
           else
             wails3 build ARCH=amd64
           fi
-          git diff --exit-code -- go.mod go.sum frontend/bindings
+      - name: Windows 正式构建
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          TERMQUAY_RELEASE_LDFLAGS: -X main.releaseBuild=true -X main.buildCommit=${{ github.sha }}
+        run: wails3 build ARCH=amd64
+      - name: 检查依赖和生成绑定一致性
+        run: git diff --exit-code -- go.mod go.sum frontend/bindings
       - name: macOS 签名与公证
         if: runner.os == 'macOS'
         env:
