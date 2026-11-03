@@ -1,0 +1,29 @@
+import { Children, isValidElement, useLayoutEffect, useRef, useState, type ReactElement, type SelectHTMLAttributes } from 'react';
+import { Select, SelectItem } from '@heroui/react';
+
+export default function SelectControl({ children, value, defaultValue, onChange, className, id, title, ...props }: Omit<SelectHTMLAttributes<HTMLSelectElement>, 'multiple' | 'size'>) {
+  const options = Children.toArray(children).filter(isValidElement) as ReactElement<{ value?: string; children: string; disabled?: boolean }>[];
+  const [selected, setSelected] = useState(String(defaultValue ?? options[0]?.props.value ?? ''));
+  const native = useRef<HTMLSelectElement>(null);
+  const [portal, setPortal] = useState<HTMLElement>();
+  const [label, setLabel] = useState(props['aria-label'] || title || '选择');
+  useLayoutEffect(() => {
+    setPortal(native.current?.closest<HTMLElement>('[role=dialog], details') || document.body);
+    if (props['aria-label'] || title) return;
+    const parent = native.current?.closest('label');
+    const text = parent ? Array.from(parent.childNodes).filter(node => node.nodeType === Node.TEXT_NODE).map(node => node.textContent).join('').trim() : id ? document.querySelector(`label[for="${CSS.escape(id)}"]`)?.textContent : '';
+    if (text) setLabel(text);
+  }, []);
+  const current = String(value ?? selected);
+  return <>
+    <select {...props} ref={native} hidden aria-hidden="true" tabIndex={-1} value={current} onChange={event => { setSelected(event.target.value); onChange?.(event); }}>{children}</select>
+    <Select id={id} title={title} aria-label={label} popoverProps={{ portalContainer: portal }} className={`select-control ${className || ''}`} classNames={{ trigger: 'select-trigger', value: 'select-value', popoverContent: 'select-popover', listbox: 'select-options' }} size="sm" variant="bordered" isDisabled={props.disabled} disallowEmptySelection selectedKeys={[current || '__empty__']} onSelectionChange={keys => {
+      const key = Array.from(keys)[0];
+      if (key === undefined || !native.current) return;
+      native.current.value = key === '__empty__' ? '' : String(key);
+      native.current.dispatchEvent(new Event('change', { bubbles: true }));
+    }}>
+      {options.map(option => <SelectItem key={option.props.value || '__empty__'} textValue={option.props.children} isDisabled={option.props.disabled}>{option.props.children}</SelectItem>)}
+    </Select>
+  </>;
+}

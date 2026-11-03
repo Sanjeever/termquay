@@ -1,3 +1,4 @@
+import SelectControl from '../../components/SelectControl';
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Button, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from '@heroui/react';
 import { Events } from '@wailsio/runtime';
@@ -146,10 +147,10 @@ const RDPView = forwardRef<RDPHandle, { grant?: Grant; target: string; environme
     {fullscreen && toolbarCollapsed && <button className="rdp-toolbar-reveal" aria-label="显示远程桌面工具栏" onClick={() => { setToolbarCollapsed(false); requestAnimationFrame(() => view.current?.querySelector<HTMLElement>('.rdp-toolbar button')?.focus()); }}>显示工具栏</button>}
     <div className="rdp-toolbar" hidden={status !== '已连接' || !grant || (fullscreen && toolbarCollapsed)}>
       <Dropdown><DropdownTrigger><Button size="sm" variant="light" isDisabled={status !== '已连接'}>组合键</Button></DropdownTrigger><DropdownMenu aria-label="远端组合键" onAction={key => { if (key === 'secure') ui.current?.ctrlAltDel(); else ui.current?.metaKey(); focusDesktop(); }}><DropdownItem key="secure">Ctrl + Alt + Del</DropdownItem><DropdownItem key="windows">Windows 键</DropdownItem></DropdownMenu></Dropdown>
-      <label>本地缩放<select aria-label="本地缩放" value={scale} onChange={e => setScale(e.target.value as 'fit'|'real')}><option value="fit">适合窗口</option><option value="real">实际像素</option></select></label>
+      <label>本地缩放<SelectControl aria-label="本地缩放" value={scale} onChange={e => setScale(e.target.value as 'fit'|'real')}><option value="fit">适合窗口</option><option value="real">实际像素</option></SelectControl></label>
       <details className="rdp-options" onBlurCapture={e=>{if(e.relatedTarget instanceof Node&&!e.currentTarget.contains(e.relatedTarget))e.currentTarget.open=false;}} onKeyDown={e=>{if(e.key==='Escape'&&!e.nativeEvent.isComposing){e.preventDefault();e.currentTarget.open=false;e.currentTarget.querySelector('summary')?.focus();}}}><summary>桌面选项</summary><div className="rdp-options-panel">
-      <label>应用快捷键<select aria-label="RDP 应用快捷键归属" title="操作系统截获的组合键仍由系统处理" value={keyboardTarget} onChange={e => { setKeyboardTarget(e.target.value as 'local'|'remote'); focusDesktop(); }}><option value="local">本机优先</option><option value="remote">发送远端</option></select></label>
-      <label>远端分辨率<select aria-label="远程分辨率" disabled={status!=='已连接'} value={resolution} onChange={async e => { const value=e.target.value; try { await onResolution(value); setResolution(value); } catch(e) { setError(detail(e)); } }}><option value="dynamic">适应窗口</option><option value="1280x800">1280 × 800</option><option value="1920x1080">1920 × 1080</option></select></label>
+      <label>应用快捷键<SelectControl aria-label="RDP 应用快捷键归属" title="操作系统截获的组合键仍由系统处理" value={keyboardTarget} onChange={e => { setKeyboardTarget(e.target.value as 'local'|'remote'); focusDesktop(); }}><option value="local">本机优先</option><option value="remote">发送远端</option></SelectControl></label>
+      <label>远端分辨率<SelectControl aria-label="远程分辨率" disabled={status!=='已连接'} value={resolution} onChange={async e => { const value=e.target.value; try { await onResolution(value); setResolution(value); } catch(e) { setError(detail(e)); } }}><option value="dynamic">适应窗口</option><option value="1280x800">1280 × 800</option><option value="1920x1080">1920 × 1080</option></SelectControl></label>
       <label><input type="checkbox" checked={clipboard} onChange={e => setClipboard(e.target.checked)} />文本剪贴板</label>
       {clipboard !== activeClipboard && <Button size="sm" variant="bordered" isDisabled={busy} onPress={onRetry}>应用并重新连接</Button>}
       </div></details>

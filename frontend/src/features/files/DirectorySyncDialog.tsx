@@ -1,3 +1,4 @@
+import SelectControl from '../../components/SelectControl';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from '@heroui/react';
 import { PreviewDirectorySync, CancelDirectorySyncPreview, ExecuteDirectorySync } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
@@ -13,7 +14,7 @@ export default function DirectorySyncDialog({id,remote,onClose}:{id:string;remot
   function invalidate(){if(preview)CancelDirectorySyncPreview(preview.id).catch(e=>setError(String(e)));setPreview(undefined);setSelected(new Set());}
   async function scan(){setBusy(true);setError('');try{if(preview)await CancelDirectorySyncPreview(preview.id);setPreview(undefined);setSelected(new Set());setPage(0);const request=PreviewDirectorySync(id,direction,local.trim(),remote);pending.current=request;const value=await request;if(!disposed.current&&value.id){setPreview(value);setLocal(value.local);}}catch(e){if(!disposed.current)setError(String(e));}finally{pending.current=undefined;if(!disposed.current)setBusy(false);}}
   return <Modal isOpen onClose={()=>{pending.current?.cancel();onClose();}} className="app-dialog directory-sync-dialog" scrollBehavior="inside"><ModalContent><ModalHeader>目录同步</ModalHeader><ModalBody>
-    <label className="form-field">方向<select value={direction} onChange={e=>{setDirection(e.target.value);invalidate();}} disabled={busy}><option value="upload">本地 → 远端</option><option value="download">远端 → 本地</option></select></label>
+    <label className="form-field">方向<SelectControl value={direction} onChange={e=>{setDirection(e.target.value);invalidate();}} disabled={busy}><option value="upload">本地 → 远端</option><option value="download">远端 → 本地</option></SelectControl></label>
     <label className="form-field">本地目录<input aria-label="本地同步目录" value={local} onChange={e=>{setLocal(e.target.value);invalidate();}} disabled={busy}/></label>
     <p className="file-path">远端 {preview?.remote||remote}</p>{preview&&<p className="file-path">本地 {preview.local}</p>}
     <Button size="sm" variant="bordered" isDisabled={busy} onPress={()=>void scan()}>{preview?'重新预览':local.trim()?'预览差异':'选择本地目录并预览'}</Button>
