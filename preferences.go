@@ -129,7 +129,7 @@ func (a *AppService) ClearRecentConnections() error {
 }
 
 func (a *AppService) SetRDPResolution(id, resolution string) error {
-	if resolution != "dynamic" && resolution != "1280x800" && resolution != "1920x1080" {
+	if resolution != "dynamic" && resolution != "1280x800" && resolution != "1920x1080" && resolution != "multimon" {
 		return errors.New("远程分辨率无效")
 	}
 	a.storeMu.Lock()

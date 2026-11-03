@@ -29,7 +29,7 @@ func (a *AppService) OpenSystemRDP(connection store.Connection, auth terminal.Re
 			return errors.New("RDP 配置含无效字符")
 		}
 	}
-	if resolution != "dynamic" && resolution != "1280x800" && resolution != "1920x1080" {
+	if resolution != "dynamic" && resolution != "1280x800" && resolution != "1920x1080" && resolution != "multimon" {
 		return errors.New("远程分辨率无效")
 	}
 	if auth.PrivateKey != "" {

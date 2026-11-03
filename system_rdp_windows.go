@@ -64,7 +64,9 @@ func launchSystemRDP(connection store.Connection, password, resolution string, c
 		}
 		lines = append(lines, "password 51:b:"+protected)
 	}
-	if resolution != "dynamic" {
+	if resolution == "multimon" {
+		lines = append(lines, "use multimon:i:1", "screen mode id:i:2")
+	} else if resolution != "dynamic" {
 		dimensions := strings.Split(resolution, "x")
 		lines = append(lines, "desktopwidth:i:"+dimensions[0], "desktopheight:i:"+dimensions[1])
 	} else {
