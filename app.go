@@ -81,6 +81,7 @@ type AppService struct {
 	pendingTrustGeneration map[string]uint64
 	sshChallenges          map[string]*sshAuthentication
 	transferRate           atomic.Int64
+	commandSlots           chan struct{}
 }
 
 func NewAppService() *AppService {

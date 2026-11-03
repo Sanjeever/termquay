@@ -177,6 +177,10 @@ export function ListSnippets(): $CancellablePromise<$models.Snippet[] | null> {
     return $Call.ByID(907386644);
 }
 
+export function ListTmuxSessions(workspace: string): $CancellablePromise<$models.TmuxSession[] | null> {
+    return $Call.ByID(1748653441, workspace);
+}
+
 export function ListTransfers(): $CancellablePromise<$models.Transfer[] | null> {
     return $Call.ByID(2832107770);
 }
@@ -307,6 +311,10 @@ export function RetryTransfer(id: string, newName: string, overwrite: boolean): 
 
 export function RevokeTrust(key: string): $CancellablePromise<void> {
     return $Call.ByID(3099451666, key);
+}
+
+export function RunRemoteCommand(workspace: string, script: string, timeoutSeconds: number): $CancellablePromise<ssh$0.CommandResult> {
+    return $Call.ByID(237571134, workspace, script, timeoutSeconds);
 }
 
 export function SaveConnection(c: store$0.Connection, auth: ssh$0.Request): $CancellablePromise<store$0.Connection> {

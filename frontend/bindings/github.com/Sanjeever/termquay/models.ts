@@ -180,6 +180,12 @@ export interface SyncPreset {
     "exclude": string[] | null;
 }
 
+export interface TmuxSession {
+    "id": string;
+    "name": string;
+    "attached": boolean;
+}
+
 export interface Transfer {
     "id": string;
     "workspace": string;

@@ -9,6 +9,7 @@ import TerminalSearch, { searchHighlightLimit } from './TerminalSearch';
 import { addLogHighlights } from './logHighlights';
 import { addShellIntegration, shellSetup } from './shellIntegration';
 import SelectControl from '../../components/SelectControl';
+import TmuxDialog from './TmuxDialog';
 import Icon from '../../components/Icon';
 import { useAppearance } from '../settings/AppearanceProvider';
 import { monoFonts, terminalTheme } from '../settings/appearance';
@@ -17,7 +18,7 @@ import '@xterm/xterm/css/xterm.css';
 
 export type TerminalAction = 'find' | 'copy' | 'paste' | 'selectAll' | 'clear' | 'zoomIn' | 'zoomOut' | 'zoomReset';
 export type TerminalHandle = { ended():boolean; action(action: TerminalAction): void; insert(text: string): boolean };
-const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; fontSize: number; focusOnShow?:boolean; onConnectionChange?():void; onSnippets(): void; onDirectory?(path: string, host: string): void; onFile?(path: string, line: number): void }>(function TerminalView({ id, visible, fontSize, focusOnShow=true, onConnectionChange, onSnippets, onDirectory, onFile }, ref) {
+const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string; visible: boolean; fontSize: number; focusOnShow?:boolean; onConnectionChange?():void; onSnippets(): void; onDirectory?(path: string, host: string): void; onFile?(path: string, line: number): void }>(function TerminalView({ id, workspace, visible, fontSize, focusOnShow=true, onConnectionChange, onSnippets, onDirectory, onFile }, ref) {
   const container = useRef<HTMLDivElement>(null);
   const [error, setError] = useState('');
   const [connected, setConnected] = useState<boolean|null>(null);
@@ -32,6 +33,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; 
   const [cwd, setCwd] = useState('');
   const [exitCode, setExitCode] = useState('');
   const [integrationOpen, setIntegrationOpen] = useState(false);
+  const [tmuxOpen, setTmuxOpen] = useState(false);
   const [shell, setShell] = useState<'bash' | 'zsh'>('bash');
   const integration = useRef<ReturnType<typeof addShellIntegration>>();
   const callbacks = useRef({ onDirectory, onFile }); callbacks.current = { onDirectory, onFile };
@@ -126,12 +128,14 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; 
   function closeSearch() { setSearchOpen(false); search.current?.clearDecorations(); terminal.current?.focus(); }
   return <div className="terminal-view" onPasteCapture={e => { if (!(e.target as HTMLElement).closest('.xterm')) return; e.preventDefault(); e.stopPropagation(); insert(e.clipboardData.getData('text/plain')); }}>
     <div className="terminal-tools"><button className="session-tool" onClick={onSnippets}>命令片段</button><button className="icon-button" aria-label="终端查找" onClick={() => action('find')}><Icon name="search" width="14" /></button>
-      <Dropdown><DropdownTrigger><button className="icon-button" aria-label="终端操作"><Icon name="more" width="14" /></button></DropdownTrigger><DropdownMenu aria-label="终端操作" onAction={key => { if (key === 'integration') setIntegrationOpen(true); else if (key === 'previousCommand') integration.current?.previous(); else if (key === 'commandOutput') integration.current?.selectOutput(); else action(key as TerminalAction); }}>
+      <Dropdown><DropdownTrigger><button className="icon-button" aria-label="终端操作"><Icon name="more" width="14" /></button></DropdownTrigger><DropdownMenu aria-label="终端操作" onAction={key => { if (key === 'tmux') setTmuxOpen(true); else if (key === 'integration') setIntegrationOpen(true); else if (key === 'previousCommand') integration.current?.previous(); else if (key === 'commandOutput') integration.current?.selectOutput(); else action(key as TerminalAction); }}>
         <DropdownItem key="copy">复制</DropdownItem><DropdownItem key="paste">粘贴</DropdownItem><DropdownItem key="selectAll">全选</DropdownItem><DropdownItem key="find">查找</DropdownItem><DropdownItem key="clear">清空显示</DropdownItem><DropdownItem key="zoomIn">放大字号</DropdownItem><DropdownItem key="zoomOut">缩小字号</DropdownItem><DropdownItem key="zoomReset">复位字号</DropdownItem>
         <DropdownItem key="previousCommand">跳到上一条命令</DropdownItem><DropdownItem key="commandOutput">选择上次命令输出</DropdownItem><DropdownItem key="integration" isDisabled={!connected}>启用当前 Shell 集成…</DropdownItem>
+        <DropdownItem key="tmux" isDisabled={!connected}>tmux 会话…</DropdownItem>
       </DropdownMenu></Dropdown>
     </div>
     {searchOpen && search.current && <TerminalSearch addon={search.current} onClose={closeSearch} />}
+    {tmuxOpen && <TmuxDialog workspace={workspace} onInsert={insert} onClose={() => setTmuxOpen(false)} />}
     <div className="terminal-canvas" ref={container} style={{ background: colors.background }} />
     <div className="session-status"><span>{connected===null?'连接中':connected ? '已连接' : '已断开'}</span>{cwd && <span className="file-path" title={cwd}>{cwd}</span>}{exitCode && exitCode !== '0' && <span className="error">退出码 {exitCode}</span>}{error && <span role="alert" className="error">{error}</span>}</div>
     <Modal isOpen={integrationOpen} onClose={() => setIntegrationOpen(false)} className="app-dialog"><ModalContent><ModalHeader>当前 Shell 集成</ModalHeader><ModalBody><label className="form-field">Shell<SelectControl value={shell} onChange={event => setShell(event.target.value as 'bash' | 'zsh')}><option value="bash">Bash 4.4+</option><option value="zsh">Zsh</option></SelectControl></label><p className="muted">在当前 Shell 提示符执行，退出后失效。将设置提示符与命令钩子。</p><pre className="paste-preview">{shellSetup[shell]}</pre></ModalBody><ModalFooter><Button variant="light" onPress={() => setIntegrationOpen(false)}>取消</Button><Button color="primary" onPress={() => { if (insert(shellSetup[shell] + '\n')) setIntegrationOpen(false); }}>插入并预览</Button></ModalFooter></ModalContent></Modal>

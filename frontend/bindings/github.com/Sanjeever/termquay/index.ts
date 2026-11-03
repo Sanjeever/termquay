@@ -28,6 +28,7 @@ export type {
     SSHReconnectResult,
     Snippet,
     SyncPreset,
+    TmuxSession,
     Transfer,
     TransferBatch,
     TrustPage,
