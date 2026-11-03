@@ -7,6 +7,7 @@ export {
 };
 
 export type {
+    BackupSelection,
     Catalog,
     DirectorySyncPreview,
     DraftRecoveryState,

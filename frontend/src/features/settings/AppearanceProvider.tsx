@@ -11,6 +11,7 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
   const [appearance, setAppearance] = useState(initial.appearance);
   const [error, setError] = useState(initial.error);
   const [systemDark, setSystemDark] = useState(() => matchMedia('(prefers-color-scheme: dark)').matches);
+  useEffect(() => { const restore = () => { try { setAppearance(parseAppearance(localStorage.getItem(appearanceKey))); setError(''); } catch (e) { setError(String(e)); } }; window.addEventListener('termquay:portable-restored', restore); return () => window.removeEventListener('termquay:portable-restored', restore); }, []);
   const dark = appearance.theme === 'system' ? systemDark : appearance.theme === 'dark';
   useEffect(() => {
     const media = matchMedia('(prefers-color-scheme: dark)');
@@ -25,7 +26,7 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
     root.style.setProperty('--font-mono', monoFonts[appearance.monoFont]);
   }, [appearance, dark]);
   function update(value: Appearance) {
-    try { localStorage.setItem(appearanceKey, JSON.stringify(value)); setAppearance(value); setError(''); }
+    try { localStorage.setItem(appearanceKey, JSON.stringify(value)); setAppearance(value); setError(''); window.dispatchEvent(new Event('termquay:portable-changed')); }
     catch (error) { setError(String(error)); }
   }
   return <AppearanceContext.Provider value={{ appearance, dark, error, update }}>{children}</AppearanceContext.Provider>;

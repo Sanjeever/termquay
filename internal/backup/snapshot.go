@@ -15,13 +15,18 @@ import (
 const MaxSnapshot = 16 << 20
 
 type Snapshot struct {
-	Version   int        `json:"version"`
-	DeviceID  string     `json:"device_id"`
-	CreatedAt time.Time  `json:"created_at"`
-	Data      store.Data `json:"data"`
+	Version   int               `json:"version"`
+	DeviceID  string            `json:"device_id"`
+	CreatedAt time.Time         `json:"created_at"`
+	Data      store.Data        `json:"data"`
+	Settings  map[string]string `json:"settings,omitempty"`
 }
 
 func Encrypt(d store.Data, deviceID, password string) ([]byte, error) {
+	return EncryptWithSettings(d, deviceID, password, nil)
+}
+
+func EncryptWithSettings(d store.Data, deviceID, password string, settings map[string]string) ([]byte, error) {
 	if err := d.Validate(); err != nil {
 		return nil, err
 	}
@@ -44,7 +49,13 @@ func Encrypt(d store.Data, deviceID, password string) ([]byte, error) {
 			version = 4
 		}
 	}
-	plain, err := json.Marshal(Snapshot{Version: version, DeviceID: deviceID, CreatedAt: time.Now().UTC(), Data: d})
+	if len(settings) > 0 {
+		version = 5
+	}
+	if err := validateSettings(settings); err != nil {
+		return nil, err
+	}
+	plain, err := json.Marshal(Snapshot{Version: version, DeviceID: deviceID, CreatedAt: time.Now().UTC(), Data: d, Settings: settings})
 	if err != nil {
 		return nil, err
 	}
@@ -99,8 +110,14 @@ func Decrypt(encrypted []byte, password string) (Snapshot, error) {
 	if err = decoder.Decode(&extra); err != io.EOF {
 		return snap, errors.New("快照尾部包含额外数据")
 	}
-	if snap.Version < 1 || snap.Version > 4 {
+	if snap.Version < 1 || snap.Version > 5 {
 		return snap, errors.New("不支持的快照版本")
+	}
+	if snap.Version < 5 && len(snap.Settings) > 0 {
+		return snap, errors.New("旧快照不能包含可迁移设置")
+	}
+	if err := validateSettings(snap.Settings); err != nil {
+		return snap, err
 	}
 	if snap.Version < 4 {
 		for _, c := range snap.Data.Connections {
@@ -127,4 +144,13 @@ func Decrypt(encrypted []byte, password string) (Snapshot, error) {
 		return snap, errors.New("快照元数据不完整")
 	}
 	return snap, snap.Data.Validate()
+}
+
+func validateSettings(settings map[string]string) error {
+	for key, value := range settings {
+		if (key != "snippets" && key != "appearance" && key != "shortcuts") || len(value) > 1<<20 || !json.Valid([]byte(value)) {
+			return errors.New("快照设置类型、大小或 JSON 无效")
+		}
+	}
+	return nil
 }

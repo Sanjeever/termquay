@@ -24,20 +24,24 @@ type Catalog struct {
 }
 
 type RestorePreview struct {
-	ID          string    `json:"id"`
-	DeviceID    string    `json:"device_id"`
-	CreatedAt   time.Time `json:"created_at"`
-	Added       []string  `json:"added"`
-	Updated     []string  `json:"updated"`
-	Removed     []string  `json:"removed"`
-	Credentials int       `json:"credentials"`
+	ID          string             `json:"id"`
+	DeviceID    string             `json:"device_id"`
+	CreatedAt   time.Time          `json:"created_at"`
+	Added       []string           `json:"added"`
+	Updated     []string           `json:"updated"`
+	Removed     []string           `json:"removed"`
+	Credentials int                `json:"credentials"`
+	Connections []store.Connection `json:"connections"`
+	Settings    []string           `json:"settings"`
 }
 
 type pendingRestore struct {
-	id      string
-	data    store.Data
-	base    store.Data
-	expires time.Time
+	id           string
+	data         store.Data
+	base         store.Data
+	expires      time.Time
+	settings     map[string]string
+	settingsBase map[string]string
 }
 
 func (a *AppService) openStorage() error {
@@ -517,33 +521,68 @@ func (a *AppService) OpenSavedTerminal(ctx context.Context, id string) (OpenResu
 }
 
 func (a *AppService) BackupWebDAV(ctx context.Context, options backup.WebDAVOptions, password string, includeCredentials bool) (string, error) {
+	return a.BackupWebDAVWithSelection(ctx, options, password, BackupSelection{Credentials: includeCredentials})
+}
+
+func (a *AppService) BackupWebDAVWithSelection(ctx context.Context, options backup.WebDAVOptions, password string, selection BackupSelection) (string, error) {
 	a.backupMu.Lock()
 	defer a.backupMu.Unlock()
-	a.storeMu.Lock()
-	if err := a.openStorage(); err != nil {
-		a.storeMu.Unlock()
-		return "", err
-	}
-	d, err := a.store.Read()
-	device, deviceErr := a.deviceID()
-	a.storeMu.Unlock()
+	encrypted, device, err := a.createSnapshot(password, selection)
 	if err != nil {
 		return "", err
 	}
-	if deviceErr != nil {
-		return "", deviceErr
+	return options.Append(ctx, device, encrypted)
+}
+
+func (a *AppService) createSnapshot(password string, selection BackupSelection) ([]byte, string, error) {
+	a.storeMu.Lock()
+	defer a.storeMu.Unlock()
+	if err := a.openStorage(); err != nil {
+		return nil, "", err
 	}
-	if !includeCredentials {
+	d, err := a.store.Read()
+	device, deviceErr := a.deviceID()
+	if err != nil {
+		return nil, "", err
+	}
+	if deviceErr != nil {
+		return nil, "", deviceErr
+	}
+	if len(selection.ConnectionIDs) > 0 {
+		d, err = selectSnapshotData(d, selection.ConnectionIDs)
+		if err != nil {
+			return nil, "", err
+		}
+	}
+	if !selection.Credentials {
 		d.Credentials = []store.Credential{}
 		for i := range d.Connections {
 			d.Connections[i].CredentialID = ""
 		}
 	}
-	encrypted, err := backup.Encrypt(d, device, password)
-	if err != nil {
-		return "", err
+	settings := map[string]string{}
+	if selection.Snippets {
+		values, err := a.snippets()
+		if err != nil {
+			return nil, "", err
+		}
+		encoded, err := json.Marshal(values)
+		if err != nil {
+			return nil, "", err
+		}
+		settings["snippets"] = string(encoded)
 	}
-	return options.Append(ctx, device, encrypted)
+	if selection.Settings {
+		ui, err := a.portableUI()
+		if err != nil {
+			return nil, "", err
+		}
+		for key, value := range ui {
+			settings[key] = value
+		}
+	}
+	encrypted, err := backup.EncryptWithSettings(d, device, password, settings)
+	return encrypted, device, err
 }
 
 func (a *AppService) deviceID() (string, error) {
@@ -577,9 +616,13 @@ func (a *AppService) PreviewRestore(ctx context.Context, options backup.WebDAVOp
 	if err != nil {
 		return RestorePreview{}, err
 	}
+	return a.prepareRestore(snap)
+}
+
+func (a *AppService) prepareRestore(snap backup.Snapshot) (RestorePreview, error) {
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
-	if err = a.openStorage(); err != nil {
+	if err := a.openStorage(); err != nil {
 		return RestorePreview{}, err
 	}
 	current, err := a.store.Read()
@@ -588,6 +631,15 @@ func (a *AppService) PreviewRestore(ctx context.Context, options backup.WebDAVOp
 	}
 	id := base64.RawURLEncoding.EncodeToString(randomBytes(24))
 	p := RestorePreview{ID: id, DeviceID: snap.DeviceID, CreatedAt: snap.CreatedAt, Added: []string{}, Updated: []string{}, Removed: []string{}, Credentials: len(snap.Data.Credentials)}
+	p.Connections = snap.Data.Connections
+	settings, base, err := a.restoreSettings(snap.Settings)
+	if err != nil {
+		return RestorePreview{}, err
+	}
+	for key := range snap.Settings {
+		p.Settings = append(p.Settings, key)
+	}
+	sort.Strings(p.Settings)
 	old := map[string]store.Connection{}
 	for _, c := range current.Connections {
 		old[c.ID] = c
@@ -604,11 +656,15 @@ func (a *AppService) PreviewRestore(ctx context.Context, options backup.WebDAVOp
 	for _, c := range old {
 		p.Removed = append(p.Removed, c.Name)
 	}
-	a.preview = &pendingRestore{id: id, data: snap.Data, base: current, expires: time.Now().Add(5 * time.Minute)}
+	a.preview = &pendingRestore{id: id, data: snap.Data, base: current, expires: time.Now().Add(5 * time.Minute), settings: settings, settingsBase: base}
 	return p, nil
 }
 
 func (a *AppService) ConfirmRestore(id string) error {
+	return a.ConfirmRestoreSelection(id, nil, true, true)
+}
+
+func (a *AppService) ConfirmRestoreSelection(id string, connectionIDs []string, replace, restoreSettings bool) error {
 	a.backupMu.Lock()
 	defer a.backupMu.Unlock()
 	if a.preview == nil || a.preview.id != id || time.Now().After(a.preview.expires) {
@@ -626,7 +682,28 @@ func (a *AppService) ConfirmRestore(id string) error {
 	if !reflect.DeepEqual(current, a.preview.base) {
 		return errors.New("本地连接在预览后发生变化，请重新预览")
 	}
-	if err := a.store.Replace(a.preview.data); err != nil {
+	data := a.preview.data
+	settings := map[string]string{}
+	if restoreSettings {
+		for key, expected := range a.preview.settingsBase {
+			value, err := a.store.Setting(key)
+			if err != nil {
+				return err
+			}
+			if value != expected {
+				return errors.New("本机设置在预览后发生变化，请重新预览")
+			}
+		}
+		settings = a.preview.settings
+	}
+	if !replace {
+		selected, err := selectSnapshotData(data, connectionIDs)
+		if err != nil {
+			return err
+		}
+		data = mergeSnapshotCopies(current, selected)
+	}
+	if err := a.store.ReplaceWithSettings(data, settings); err != nil {
 		return err
 	}
 	a.preview = nil

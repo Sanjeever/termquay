@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button, Input } from '@heroui/react';
-import { BackupWebDAV, ConfirmRestore, ListSnapshots, PreviewRestore, TestWebDAV } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
+import { BackupWebDAVWithSelection, ConfirmRestoreSelection, ExportLocalSnapshot, PreviewLocalRestore, SavePortableUI, GetPortableUI, GetCatalog, ListSnapshots, PreviewRestore, TestWebDAV } from '../../../bindings/github.com/Sanjeever/termquay/appservice';
 import type { RemoteSnapshot, WebDAVOptions } from '../../../bindings/github.com/Sanjeever/termquay/internal/backup/models';
-import type { RestorePreview } from '../../../bindings/github.com/Sanjeever/termquay/models';
+import type { BackupSelection, RestorePreview } from '../../../bindings/github.com/Sanjeever/termquay/models';
+import type { Connection } from '../../../bindings/github.com/Sanjeever/termquay/internal/store/models';
+import { applyPortableUI, capturePortableUI } from './portable';
 
 export default function BackupSettings({ onRestore }: { onRestore(): void }) {
   const [snapshots, setSnapshots] = useState<RemoteSnapshot[]>([]);
@@ -11,21 +13,32 @@ export default function BackupSettings({ onRestore }: { onRestore(): void }) {
   const [result, setResult] = useState('');
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [connections, setConnections] = useState<Connection[]>([]);
+  const [allConnections, setAllConnections] = useState(true);
+  const [connectionIDs, setConnectionIDs] = useState<string[]>([]);
+  const [restoreIDs, setRestoreIDs] = useState<string[]>([]);
+  const [restoreSettings, setRestoreSettings] = useState(true);
+  const [search, setSearch] = useState('');
+  useEffect(() => { GetCatalog().then(value => setConnections(value.connections || [])).catch(e => setError(String(e))); }, []);
 
   async function run(form: HTMLFormElement, action: string, path = '') {
     const data = new FormData(form);
     const options: WebDAVOptions = { url: String(data.get('url')), username: String(data.get('username')), password: String(data.get('password')), directory: String(data.get('directory')) };
     setError(''); setResult(''); setBusy(true);
     try {
+      const selection: BackupSelection = { connection_ids: allConnections ? [] : connectionIDs, credentials: data.get('credentials') === 'on', snippets: data.get('snippets') === 'on', settings: data.get('settings') === 'on' };
+      if (['backup', 'local-export'].includes(action)) { if (!allConnections && !connectionIDs.length) throw new Error('请选择要备份的连接'); if (selection.settings) await SavePortableUI(capturePortableUI()); }
       switch (action) {
         case 'test': await TestWebDAV(options); setResult('WebDAV 连接正常'); break;
         case 'list': setSnapshots(await ListSnapshots(options)??[]); setLoaded(true); break;
         case 'backup': {
-          const remote = await BackupWebDAV(options, String(data.get('recovery')), data.get('credentials') === 'on');
+          const remote = await BackupWebDAVWithSelection(options, String(data.get('recovery')), selection);
           setResult(`快照已保存：${remote}`); setSnapshots(await ListSnapshots(options)??[]); setLoaded(true); break;
         }
-        case 'preview': setPreview(await PreviewRestore(options, path, String(data.get('recovery')))); break;
-        case 'restore': await ConfirmRestore(preview!.id); setPreview(undefined); setResult('恢复完成'); onRestore(); break;
+        case 'local-export': { const filename = await ExportLocalSnapshot(String(data.get('recovery')), selection); if (filename) setResult(`快照已导出：${filename}`); break; }
+        case 'preview': setRestoreIDs([]); setPreview(await PreviewRestore(options, path, String(data.get('recovery')))); break;
+        case 'local-preview': { const value = await PreviewLocalRestore(String(data.get('recovery'))); setRestoreIDs([]); setPreview(value.id ? value : undefined); break; }
+        case 'restore': case 'import': await ConfirmRestoreSelection(preview!.id, restoreIDs, action === 'restore', restoreSettings); setPreview(undefined); setResult(action === 'restore' ? '恢复完成' : '所选连接已导入为独立副本'); if (restoreSettings) applyPortableUI(await GetPortableUI()); onRestore(); break;
       }
     } catch (e) { setError(String(e)); }
     finally { setBusy(false); options.password = ''; }
@@ -42,6 +55,9 @@ export default function BackupSettings({ onRestore }: { onRestore(): void }) {
       <h3>快照</h3>
       <Input name="recovery" label="独立备份密码" labelPlacement="outside" placeholder="独立备份密码" type="password" size="sm" autoComplete="off" isDisabled={busy} />
       <label className="checkbox-label"><input type="checkbox" name="credentials" /> 携带连接密码与私钥内容</label>
+      <label className="checkbox-label"><input type="checkbox" name="snippets" defaultChecked />命令片段</label><label className="checkbox-label"><input type="checkbox" name="settings" defaultChecked />外观与快捷键</label>
+      <details><summary>选择备份连接</summary><label className="checkbox-label"><input type="checkbox" checked={allConnections} onChange={event => setAllConnections(event.target.checked)} disabled={busy}/>全部连接</label>{!allConnections && <><input aria-label="筛选备份连接" placeholder="搜索连接" value={search} onChange={event => setSearch(event.target.value)}/><div className="backup-connection-list">{connections.filter(c => `${c.name} ${c.host}`.toLowerCase().includes(search.toLowerCase())).slice(0,200).map(c => <label className="checkbox-label" key={c.id}><input type="checkbox" disabled={busy} checked={connectionIDs.includes(c.id)} onChange={event => setConnectionIDs(previous => event.target.checked ? [...previous,c.id] : previous.filter(id => id !== c.id))}/>{c.name}<small className="muted">{c.host}</small></label>)}</div><p className="muted">已选 {connectionIDs.length} 项，跳板及所属分组随连接导出</p></>}</details>
+      <div className="button-row"><Button size="sm" variant="bordered" isDisabled={busy} onPress={event => void run((event.target as HTMLElement).closest('form')!, 'local-export')}>导出加密文件</Button><Button size="sm" variant="light" isDisabled={busy} onPress={event => void run((event.target as HTMLElement).closest('form')!, 'local-preview')}>从文件预览恢复</Button></div>
       <div className="button-row">{[['test', '测试连接'], ['list', '读取快照'], ['backup', '创建快照']].map(([action, label]) => <Button key={action} size="sm" isDisabled={busy} onPress={(event) => { const form = (event.target as HTMLElement).closest('form')!; if (form.reportValidity()) void run(form, action); }}>{label}</Button>)}</div>
       {result && <p role="status" className="operation-result">{result}</p>}
       {error && <p role="alert" className="error">{error}</p>}
@@ -50,9 +66,11 @@ export default function BackupSettings({ onRestore }: { onRestore(): void }) {
       {preview && <div className="restore-preview">
         <h3>恢复预览</h3><p>{preview.device_id} · {new Date(preview.created_at).toLocaleString()}</p>
         <p>凭据 {preview.credentials} 项</p>
+        {!!preview.settings?.length && <label className="checkbox-label"><input type="checkbox" checked={restoreSettings} disabled={busy} onChange={event => setRestoreSettings(event.target.checked)}/>恢复 {preview.settings.map(key => ({snippets:'命令片段',appearance:'外观',shortcuts:'快捷键'} as Record<string,string>)[key] || key).join('、')}</label>}
         {([['新增', preview.added], ['更新', preview.updated], ['移除', preview.removed]] as const).map(([title, names]) => <div key={title}><strong>{title} {names?.length??0}</strong>{names?.map((name, i) => <div key={i}>{name}</div>)}</div>)}
-        <p>确认后替换当前连接、分组与连接凭据，保留本机设置和信任记录。</p>
-        <div className="button-row"><Button size="sm" color="danger" isDisabled={busy} onPress={(e) => void run((e.target as HTMLElement).closest('form')!, 'restore')}>确认恢复</Button><Button size="sm" variant="light" onPress={() => setPreview(undefined)}>取消</Button></div>
+        <details><summary>选择导入连接 · {restoreIDs.length} 项</summary><div className="backup-connection-list">{(preview.connections || []).map(connection => <label className="checkbox-label" key={connection.id}><input type="checkbox" checked={restoreIDs.includes(connection.id)} disabled={busy} onChange={event => setRestoreIDs(previous => event.target.checked ? [...previous,connection.id] : previous.filter(id => id !== connection.id))}/>{connection.name}<small className="muted">{connection.host}</small></label>)}</div></details>
+        <p>替换全部会覆盖当前连接、分组与凭据。导入所选会创建独立副本，包含依赖的跳板；信任记录保留。</p>
+        <div className="button-row"><Button size="sm" color="primary" isDisabled={busy || !restoreIDs.length} onPress={event => void run((event.target as HTMLElement).closest('form')!, 'import')}>导入所选连接</Button><Button size="sm" color="danger" variant="light" isDisabled={busy} onPress={(e) => void run((e.target as HTMLElement).closest('form')!, 'restore')}>替换全部</Button><Button size="sm" variant="light" onPress={() => setPreview(undefined)}>取消</Button></div>
       </div>}
     </form>
   </section>;

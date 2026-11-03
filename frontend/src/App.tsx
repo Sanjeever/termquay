@@ -19,6 +19,8 @@ import ConnectionDialog from './features/connections/ConnectionDialog';
 import HostTrustDialog from './features/connections/HostTrustDialog';
 import SSHChallengeDialog from './features/connections/SSHChallengeDialog';
 import BatchCommandDialog from './features/terminal/BatchCommandDialog';
+import { GetPortableUI, SavePortableUI } from '../bindings/github.com/Sanjeever/termquay/appservice';
+import { applyPortableUI, capturePortableUI } from './features/settings/portable';
 import useConnectionAttempt from './features/connections/useConnectionAttempt';
 import Icon from './components/Icon';
 import CommandPalette, { type WorkbenchCommand } from './components/CommandPalette';
@@ -131,7 +133,16 @@ export default function App() {
       setShortcuts(values);
     } catch (e) { setShortcutError(String(e)); }
   }, []);
-  function saveShortcuts(values: Shortcuts) { try { localStorage.setItem(shortcutStorageKey, JSON.stringify(values)); setShortcuts(values); setShortcutError(''); } catch (e) { setShortcutError(String(e)); } }
+  function saveShortcuts(values: Shortcuts) { try { localStorage.setItem(shortcutStorageKey, JSON.stringify(values)); setShortcuts(values); setShortcutError(''); window.dispatchEvent(new Event('termquay:portable-changed')); } catch (e) { setShortcutError(String(e)); } }
+  useEffect(() => {
+    if (!catalog) return;
+    let ended = false; let timer: ReturnType<typeof setTimeout>;
+    const restored = () => { try { setShortcuts(mergeShortcuts(JSON.parse(localStorage.getItem(shortcutStorageKey) || '{}'))); } catch (e) { setShortcutError(String(e)); } };
+    const save = () => { clearTimeout(timer); timer = setTimeout(() => { try { SavePortableUI(capturePortableUI()).catch(e => { if (!ended) setPreferenceError(`界面设置保存失败：${String(e)}`); }); } catch (e) { setPreferenceError(String(e)); } }, 300); };
+    window.addEventListener('termquay:portable-restored', restored); window.addEventListener('termquay:portable-changed', save);
+    GetPortableUI().then(async values => { if (ended) return; if (Object.keys(values || {}).length) applyPortableUI(values); else await SavePortableUI(capturePortableUI()); }).catch(e => { if (!ended) setPreferenceError(String(e)); });
+    return () => { ended = true; clearTimeout(timer); window.removeEventListener('termquay:portable-restored', restored); window.removeEventListener('termquay:portable-changed', save); };
+  }, [catalog?.session_only]);
   useEffect(() => {const off=Events.On('app:close-requested',()=>nativeClose.current());SetFrontendReady().catch(e=>setPreferenceError(`退出协调初始化失败：${String(e)}`));return off;}, []);
   useEffect(() => { localStorage.setItem('termquay.layout.transfer-height', String(transferHeight)); }, [transferHeight]);
   useEffect(() => { localStorage.setItem('termquay.terminal.font-size', String(fontSize)); }, [fontSize]);

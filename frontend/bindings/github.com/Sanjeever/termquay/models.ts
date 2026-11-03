@@ -17,6 +17,13 @@ import * as ssh$0 from "./internal/ssh/models.js";
 // @ts-ignore: Unused imports
 import * as store$0 from "./internal/store/models.js";
 
+export interface BackupSelection {
+    "connection_ids": string[] | null;
+    "credentials": boolean;
+    "snippets": boolean;
+    "settings": boolean;
+}
+
 export interface Catalog {
     "groups": store$0.Group[] | null;
     "connections": store$0.Connection[] | null;
@@ -114,6 +121,8 @@ export interface RestorePreview {
     "updated": string[] | null;
     "removed": string[] | null;
     "credentials": number;
+    "connections": store$0.Connection[] | null;
+    "settings": string[] | null;
 }
 
 export interface SSHChallenge {

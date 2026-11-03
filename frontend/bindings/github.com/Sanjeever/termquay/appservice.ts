@@ -33,6 +33,10 @@ export function BackupWebDAV(options: backup$0.WebDAVOptions, password: string, 
     return $Call.ByID(1363831413, options, password, includeCredentials);
 }
 
+export function BackupWebDAVWithSelection(options: backup$0.WebDAVOptions, password: string, selection: $models.BackupSelection): $CancellablePromise<string> {
+    return $Call.ByID(4234434817, options, password, selection);
+}
+
 export function CancelDirectorySyncPreview(id: string): $CancellablePromise<void> {
     return $Call.ByID(3108394696, id);
 }
@@ -75,6 +79,10 @@ export function CloseWorkspace(id: string): $CancellablePromise<void> {
 
 export function ConfirmRestore(id: string): $CancellablePromise<void> {
     return $Call.ByID(4268329992, id);
+}
+
+export function ConfirmRestoreSelection(id: string, connectionIDs: string[] | null, replace: boolean, restoreSettings: boolean): $CancellablePromise<void> {
+    return $Call.ByID(627879622, id, connectionIDs, replace, restoreSettings);
 }
 
 export function ConfirmSSHImport(id: string, choices: $models.SSHImportChoice[] | null): $CancellablePromise<void> {
@@ -137,6 +145,10 @@ export function ExecuteDirectorySync(id: string, selected: string[] | null): $Ca
     return $Call.ByID(874543015, id, selected);
 }
 
+export function ExportLocalSnapshot(password: string, selection: $models.BackupSelection): $CancellablePromise<string> {
+    return $Call.ByID(3977343299, password, selection);
+}
+
 export function GetCatalog(): $CancellablePromise<$models.Catalog> {
     return $Call.ByID(12026733);
 }
@@ -155,6 +167,10 @@ export function GetDirectoryBookmarks(id: string): $CancellablePromise<string[] 
 
 export function GetDraftRecoveryState(): $CancellablePromise<$models.DraftRecoveryState> {
     return $Call.ByID(187173851);
+}
+
+export function GetPortableUI(): $CancellablePromise<{ [_ in string]?: string } | null> {
+    return $Call.ByID(714107935);
 }
 
 export function GetSSHChallenge(id: string): $CancellablePromise<$models.SSHChallenge | null> {
@@ -253,6 +269,10 @@ export function PreviewDirectorySyncFiltered(workspace: string, direction: strin
     return $Call.ByID(548193165, workspace, direction, local, remote, exclude);
 }
 
+export function PreviewLocalRestore(password: string): $CancellablePromise<$models.RestorePreview> {
+    return $Call.ByID(4167755769, password);
+}
+
 export function PreviewRestore(options: backup$0.WebDAVOptions, path: string, password: string): $CancellablePromise<$models.RestorePreview> {
     return $Call.ByID(1296130900, options, path, password);
 }
@@ -331,6 +351,10 @@ export function SaveConnection(c: store$0.Connection, auth: ssh$0.Request): $Can
 
 export function SaveGroup(g: store$0.Group): $CancellablePromise<void> {
     return $Call.ByID(2264337214, g);
+}
+
+export function SavePortableUI(values: { [_ in string]?: string } | null): $CancellablePromise<void> {
+    return $Call.ByID(2458676954, values);
 }
 
 export function SaveRecoveryDrafts(updates: $models.WorkspaceDraftUpdate[] | null): $CancellablePromise<void> {

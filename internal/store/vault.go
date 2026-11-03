@@ -60,12 +60,20 @@ func (s *Store) SetSetting(id, value string) error {
 }
 
 func (s *Store) SetSecretSetting(id, value string) error {
-	nonce := make([]byte, s.aead.NonceSize())
-	if _, err := rand.Read(nonce); err != nil {
+	encoded, err := s.SealSetting(id, value)
+	if err != nil {
 		return err
 	}
+	return s.SetSetting(id, encoded)
+}
+
+func (s *Store) SealSetting(id, value string) (string, error) {
+	nonce := make([]byte, s.aead.NonceSize())
+	if _, err := rand.Read(nonce); err != nil {
+		return "", err
+	}
 	ciphertext := s.aead.Seal(nonce, nonce, []byte(value), []byte("setting:"+id))
-	return s.SetSetting(id, base64.StdEncoding.EncodeToString(ciphertext))
+	return base64.StdEncoding.EncodeToString(ciphertext), nil
 }
 
 func (s *Store) SecretSetting(id string) (string, error) {

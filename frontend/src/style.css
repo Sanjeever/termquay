@@ -338,6 +338,8 @@ input[type=checkbox] { accent-color: var(--color-primary); }
 .batch-targets label { display: flex; align-items: center; gap: 8px; padding: 6px 0; min-width: 0; }
 .batch-targets small { display: block; overflow-wrap: anywhere; font-size: 11px; }
 .command-source { font-family: var(--font-mono); }
+.backup-connection-list { display: grid; gap: 6px; max-height: 220px; overflow: auto; margin: 10px 0; }
+.backup-connection-list label { min-width: 0; overflow-wrap: anywhere; }
 .command-results details { border-top: 1px solid var(--color-border); padding: 10px 0; }
 .command-results summary { cursor: pointer; display: flex; justify-content: space-between; gap: 12px; font-size: 12px; }
 .command-results pre { max-height: 280px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-mono); font-size: 12px; margin-top: 8px; }
