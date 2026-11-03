@@ -104,7 +104,7 @@ func launchSystemRDP(connection store.Connection, password, resolution string, c
 		os.Remove(directory)
 		return err
 	}
-	command := exec.Command(client, filename, "/public")
+	command := exec.Command(client, filename)
 	if err = command.Start(); err != nil {
 		return errors.Join(fmt.Errorf("启动系统 RDP 客户端失败: %w", err), cleanup())
 	}
