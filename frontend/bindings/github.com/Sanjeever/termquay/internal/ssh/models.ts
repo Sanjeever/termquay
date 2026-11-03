@@ -43,3 +43,9 @@ export interface Request {
     "auth_id"?: string;
     "mfa"?: boolean;
 }
+
+export interface TerminalLogStatus {
+    "directory": string;
+    "recording": boolean;
+    "error": string;
+}

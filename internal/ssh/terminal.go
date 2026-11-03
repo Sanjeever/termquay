@@ -64,6 +64,9 @@ type Terminal struct {
 	Done            chan struct{}
 	mu              sync.Mutex
 	waitErr         error
+	logMu           sync.Mutex
+	log             *terminalLog
+	logClosed       bool
 	connectionOwner bool
 }
 
@@ -251,6 +254,7 @@ func (t *Terminal) Close() {
 		t.Output.Close()
 		t.writer.Close()
 		t.session.Close()
+		t.closeLog()
 		if t.connectionOwner {
 			t.client.Close()
 			if t.jump != nil {
@@ -337,6 +341,7 @@ func Relay(t *Terminal, s Stream) error {
 		buf := make([]byte, ChunkSize)
 		n, err := t.Output.Read(buf)
 		if n > 0 {
+			t.recordOutput(buf[:n])
 			if sendErr := s.Send(buf[:n]); sendErr != nil {
 				return sendErr
 			}

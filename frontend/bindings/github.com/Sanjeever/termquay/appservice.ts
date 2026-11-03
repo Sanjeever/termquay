@@ -153,8 +153,16 @@ export function ExecuteDirectorySync(id: string, selected: string[] | null): $Ca
     return $Call.ByID(874543015, id, selected);
 }
 
+export function ExportDiagnostics(): $CancellablePromise<void> {
+    return $Call.ByID(407729836);
+}
+
 export function ExportLocalSnapshot(password: string, selection: $models.BackupSelection): $CancellablePromise<string> {
     return $Call.ByID(3977343299, password, selection);
+}
+
+export function ExportTerminalBuffer(content: string): $CancellablePromise<void> {
+    return $Call.ByID(4095826954, content);
 }
 
 export function GetAutomaticBackupStatus(): $CancellablePromise<$models.AutomaticBackupStatus> {
@@ -191,6 +199,10 @@ export function GetSSHChallenge(id: string): $CancellablePromise<$models.SSHChal
 
 export function GetSyncPresets(connectionID: string): $CancellablePromise<$models.SyncPreset[] | null> {
     return $Call.ByID(250109047, connectionID);
+}
+
+export function GetTerminalLogStatus(id: string): $CancellablePromise<ssh$0.TerminalLogStatus> {
+    return $Call.ByID(821172854, id);
 }
 
 export function GetTransferRate(): $CancellablePromise<number> {
@@ -271,6 +283,10 @@ export function OpenTerminal(r: ssh$0.Request): $CancellablePromise<$models.Open
 
 export function ParseQuickConnection(value: string): $CancellablePromise<store$0.Connection> {
     return $Call.ByID(419808756, value);
+}
+
+export function PauseTerminalLog(id: string): $CancellablePromise<ssh$0.TerminalLogStatus> {
+    return $Call.ByID(3041629598, id);
 }
 
 export function PreviewDirectorySync(workspace: string, direction: string, local: string, remote: string): $CancellablePromise<$models.DirectorySyncPreview> {
@@ -443,6 +459,10 @@ export function StartDownload(id: string, remote: string): $CancellablePromise<$
 
 export function StartDownloads(id: string, remotes: string[] | null, overwrite: boolean): $CancellablePromise<$models.TransferBatch> {
     return $Call.ByID(2439962339, id, remotes, overwrite);
+}
+
+export function StartTerminalLog(id: string): $CancellablePromise<ssh$0.TerminalLogStatus> {
+    return $Call.ByID(1646716224, id);
 }
 
 export function StartTunnel(workspace: string, spec: ssh$0.ForwardSpec): $CancellablePromise<$models.Tunnel> {

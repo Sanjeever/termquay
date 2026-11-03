@@ -5,5 +5,6 @@ export type {
     CommandResult,
     ForwardInfo,
     ForwardSpec,
-    Request
+    Request,
+    TerminalLogStatus
 } from "./models.js";

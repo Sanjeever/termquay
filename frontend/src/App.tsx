@@ -22,6 +22,7 @@ import BatchCommandDialog from './features/terminal/BatchCommandDialog';
 import { GetPortableUI, SavePortableUI } from '../bindings/github.com/Sanjeever/termquay/appservice';
 import { applyPortableUI, capturePortableUI } from './features/settings/portable';
 import useAutomaticBackup from './features/settings/useAutomaticBackup';
+import { ExportDiagnostics } from '../bindings/github.com/Sanjeever/termquay/appservice';
 import useConnectionAttempt from './features/connections/useConnectionAttempt';
 import Icon from './components/Icon';
 import CommandPalette, { type WorkbenchCommand } from './components/CommandPalette';
@@ -227,6 +228,7 @@ export default function App() {
     ...(current?.ssh ? shortcutDefinitions.filter(d=>d.scope==='workspace').map(d=>({id:d.id,label:d.label,detail:shortcutLabel(shortcuts[d.id]),kind:'command' as const,run:()=>current.ssh?.current?.workspaceAction(d.id)})) : []),
     { id: 'transfers', label: '查看传输任务', kind: 'command', run: () => setTransfersOpen(true) },
     { id: 'batch-command', label: '多主机执行命令', kind: 'command', run: () => setBatchCommandOpen(true) },
+    { id: 'diagnostics', label: '导出脱敏诊断信息', kind: 'command', run: () => { ExportDiagnostics().catch(e => setPreferenceError(String(e))); } },
     { id: 'settings', label: '打开设置', kind: 'command', run: () => setSettings(true) },
     ...(workspaceRestore.startup?.entries?.length?[{id:'restore-layout',label:'恢复上次工作布局',kind:'command' as const,run:()=>setRestoreDialog(workspaceRestore.startup)}]:[]),
     ...(current?.ssh?.current?.insertionTarget()?snippets.map(snippet=>({id:`snippet-${snippet.id}`,label:`插入片段 ${snippet.name}`,detail:snippet.group,kind:'command' as const,run:()=>{const target=current.ssh?.current?.insertionTarget();if(target)setSnippetInsert({snippet,workspace:current.id,terminal:target});}})):[]),
