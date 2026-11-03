@@ -313,6 +313,10 @@ export function PreviewLocalRestore(password: string): $CancellablePromise<$mode
     return $Call.ByID(4167755769, password);
 }
 
+export function PreviewPuTTYImport(): $CancellablePromise<$models.SSHImportPreview> {
+    return $Call.ByID(2306311225);
+}
+
 export function PreviewRestore(options: backup$0.WebDAVOptions, path: string, password: string): $CancellablePromise<$models.RestorePreview> {
     return $Call.ByID(1296130900, options, path, password);
 }
@@ -327,6 +331,10 @@ export function ProbeRDP(host: string, port: number): $CancellablePromise<$model
 
 export function ProbeTrustReview(key: string): $CancellablePromise<$models.TrustReview> {
     return $Call.ByID(1552533302, key);
+}
+
+export function PuTTYImportAvailable(): $CancellablePromise<boolean> {
+    return $Call.ByID(2984177768);
 }
 
 export function ReadDirectory(id: string, remote: string): $CancellablePromise<files$0.Directory> {
