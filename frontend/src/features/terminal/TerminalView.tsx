@@ -7,6 +7,8 @@ import { SearchAddon } from '@xterm/addon-search';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import TerminalSearch, { searchHighlightLimit } from './TerminalSearch';
 import { addLogHighlights } from './logHighlights';
+import { addShellIntegration, shellSetup } from './shellIntegration';
+import SelectControl from '../../components/SelectControl';
 import Icon from '../../components/Icon';
 import { useAppearance } from '../settings/AppearanceProvider';
 import { monoFonts, terminalTheme } from '../settings/appearance';
@@ -15,7 +17,7 @@ import '@xterm/xterm/css/xterm.css';
 
 export type TerminalAction = 'find' | 'copy' | 'paste' | 'selectAll' | 'clear' | 'zoomIn' | 'zoomOut' | 'zoomReset';
 export type TerminalHandle = { ended():boolean; action(action: TerminalAction): void; insert(text: string): boolean };
-const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; fontSize: number; focusOnShow?:boolean; onConnectionChange?():void; onSnippets(): void }>(function TerminalView({ id, visible, fontSize, focusOnShow=true, onConnectionChange, onSnippets }, ref) {
+const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; fontSize: number; focusOnShow?:boolean; onConnectionChange?():void; onSnippets(): void; onDirectory?(path: string, host: string): void; onFile?(path: string, line: number): void }>(function TerminalView({ id, visible, fontSize, focusOnShow=true, onConnectionChange, onSnippets, onDirectory, onFile }, ref) {
   const container = useRef<HTMLDivElement>(null);
   const [error, setError] = useState('');
   const [connected, setConnected] = useState<boolean|null>(null);
@@ -27,6 +29,12 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; 
   const [searchOpen, setSearchOpen] = useState(false);
   const [paste, setPaste] = useState<string>();
   const [zoom, setZoom] = useState(0);
+  const [cwd, setCwd] = useState('');
+  const [exitCode, setExitCode] = useState('');
+  const [integrationOpen, setIntegrationOpen] = useState(false);
+  const [shell, setShell] = useState<'bash' | 'zsh'>('bash');
+  const integration = useRef<ReturnType<typeof addShellIntegration>>();
+  const callbacks = useRef({ onDirectory, onFile }); callbacks.current = { onDirectory, onFile };
   const shown = useRef(visible); shown.current = visible;
   const focusRequested=useRef(focusOnShow);focusRequested.current=focusOnShow;
   const inputStream=useRef<ReturnType<typeof Stream>>();
@@ -65,6 +73,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; 
       const url = new URL(uri); if (url.protocol === 'http:' || url.protocol === 'https:') Browser.OpenURL(url).catch(e => setError(String(e)));
     }));
     terminal.current = term;
+    integration.current = addShellIntegration(term, (path, host) => { setCwd(path); callbacks.current.onDirectory?.(path, host); }, setExitCode, (path, line) => callbacks.current.onFile?.(path, line));
     let fitFrame = 0;
     const fitVisible = () => {
       if (fitFrame) return;
@@ -107,7 +116,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; 
       const data = event.data as { id: string; error: string };
       if (data.id === id) fail(data.error);
     });
-    return () => { disposed = true; observer.disconnect(); cancelAnimationFrame(fitFrame); requestFit.current = undefined; unsubscribe(); input.dispose(); resize.dispose(); stream.close(); term.dispose(); terminal.current = undefined; search.current = undefined; inputStream.current=undefined; CloseTerminal(id).catch(() => {}); };
+    return () => { disposed = true; integration.current?.dispose(); integration.current = undefined; observer.disconnect(); cancelAnimationFrame(fitFrame); requestFit.current = undefined; unsubscribe(); input.dispose(); resize.dispose(); stream.close(); term.dispose(); terminal.current = undefined; search.current = undefined; inputStream.current=undefined; CloseTerminal(id).catch(() => {}); };
   }, [id]);
   useEffect(() => { if (terminal.current) terminal.current.options.theme = terminalTheme(appearance.terminalPalette, dark); }, [id, dark, appearance.terminalPalette]);
   useEffect(() => { if (terminal.current && visible && appearance.terminalLogHighlight) return addLogHighlights(terminal.current, terminalTheme(appearance.terminalPalette, dark)).dispose; }, [id, visible, appearance.terminalLogHighlight, appearance.terminalPalette, dark]);
@@ -117,13 +126,15 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; visible: boolean; 
   function closeSearch() { setSearchOpen(false); search.current?.clearDecorations(); terminal.current?.focus(); }
   return <div className="terminal-view" onPasteCapture={e => { if (!(e.target as HTMLElement).closest('.xterm')) return; e.preventDefault(); e.stopPropagation(); insert(e.clipboardData.getData('text/plain')); }}>
     <div className="terminal-tools"><button className="session-tool" onClick={onSnippets}>命令片段</button><button className="icon-button" aria-label="终端查找" onClick={() => action('find')}><Icon name="search" width="14" /></button>
-      <Dropdown><DropdownTrigger><button className="icon-button" aria-label="终端操作"><Icon name="more" width="14" /></button></DropdownTrigger><DropdownMenu aria-label="终端操作" onAction={key => action(key as TerminalAction)}>
+      <Dropdown><DropdownTrigger><button className="icon-button" aria-label="终端操作"><Icon name="more" width="14" /></button></DropdownTrigger><DropdownMenu aria-label="终端操作" onAction={key => { if (key === 'integration') setIntegrationOpen(true); else if (key === 'previousCommand') integration.current?.previous(); else if (key === 'commandOutput') integration.current?.selectOutput(); else action(key as TerminalAction); }}>
         <DropdownItem key="copy">复制</DropdownItem><DropdownItem key="paste">粘贴</DropdownItem><DropdownItem key="selectAll">全选</DropdownItem><DropdownItem key="find">查找</DropdownItem><DropdownItem key="clear">清空显示</DropdownItem><DropdownItem key="zoomIn">放大字号</DropdownItem><DropdownItem key="zoomOut">缩小字号</DropdownItem><DropdownItem key="zoomReset">复位字号</DropdownItem>
+        <DropdownItem key="previousCommand">跳到上一条命令</DropdownItem><DropdownItem key="commandOutput">选择上次命令输出</DropdownItem><DropdownItem key="integration" isDisabled={!connected}>启用当前 Shell 集成…</DropdownItem>
       </DropdownMenu></Dropdown>
     </div>
     {searchOpen && search.current && <TerminalSearch addon={search.current} onClose={closeSearch} />}
     <div className="terminal-canvas" ref={container} style={{ background: colors.background }} />
-    <div className="session-status"><span>{connected===null?'连接中':connected ? '已连接' : '已断开'}</span>{error && <span role="alert" className="error">{error}</span>}</div>
+    <div className="session-status"><span>{connected===null?'连接中':connected ? '已连接' : '已断开'}</span>{cwd && <span className="file-path" title={cwd}>{cwd}</span>}{exitCode && exitCode !== '0' && <span className="error">退出码 {exitCode}</span>}{error && <span role="alert" className="error">{error}</span>}</div>
+    <Modal isOpen={integrationOpen} onClose={() => setIntegrationOpen(false)} className="app-dialog"><ModalContent><ModalHeader>当前 Shell 集成</ModalHeader><ModalBody><label className="form-field">Shell<SelectControl value={shell} onChange={event => setShell(event.target.value as 'bash' | 'zsh')}><option value="bash">Bash 4.4+</option><option value="zsh">Zsh</option></SelectControl></label><p className="muted">在当前 Shell 提示符执行，退出后失效。将设置提示符与命令钩子。</p><pre className="paste-preview">{shellSetup[shell]}</pre></ModalBody><ModalFooter><Button variant="light" onPress={() => setIntegrationOpen(false)}>取消</Button><Button color="primary" onPress={() => { if (insert(shellSetup[shell] + '\n')) setIntegrationOpen(false); }}>插入并预览</Button></ModalFooter></ModalContent></Modal>
     <Modal isOpen={paste !== undefined} onClose={() => { setPaste(undefined); terminal.current?.focus(); }} className="app-dialog"><ModalContent><ModalHeader>确认多行粘贴</ModalHeader><ModalBody><p>换行可能立即执行命令，请核对内容。</p><pre className="paste-preview">{paste}</pre></ModalBody><ModalFooter><Button variant="light" onPress={() => { setPaste(undefined); terminal.current?.focus(); }}>取消</Button><Button color="primary" onPress={() => { if (paste !== undefined) terminal.current?.paste(paste); setPaste(undefined); terminal.current?.focus(); }}>粘贴到终端</Button></ModalFooter></ModalContent></Modal>
   </div>;
 });

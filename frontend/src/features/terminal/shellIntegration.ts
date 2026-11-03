@@ -1,0 +1,58 @@
+import type { IMarker, Terminal } from '@xterm/xterm';
+
+export function shellQuote(value: string) { return "'" + value.replace(/'/g, "'\\''") + "'"; }
+
+export const shellSetup = {
+  bash: `if [ -n "$BASH_VERSION" ] && [ -z "\${__termquay_enabled-}" ]; then
+  __termquay_enabled=1
+  __termquay_prompt() { local code=$?; printf '\\033]133;D;%s\\007\\033]7;file://%s%s\\007\\033]133;A\\007' "$code" "$HOSTNAME" "$PWD"; }
+  if declare -p PROMPT_COMMAND 2>/dev/null | grep -q 'declare -a'; then PROMPT_COMMAND=(__termquay_prompt "\${PROMPT_COMMAND[@]}"); else PROMPT_COMMAND="__termquay_prompt\${PROMPT_COMMAND:+; $PROMPT_COMMAND}"; fi
+  PS0=$'\\e]133;C\\a'"$PS0"
+  PS1="$PS1"$'\\[\\e]133;B\\a\\]'
+fi`,
+  zsh: `if [ -n "$ZSH_VERSION" ] && [ -z "\${__termquay_enabled-}" ]; then
+  __termquay_enabled=1
+  __termquay_prompt() { local code=$?; printf '\\033]133;D;%s\\007\\033]7;file://%s%s\\007\\033]133;A\\007' "$code" "$HOST" "$PWD"; }
+  __termquay_preexec() { printf '\\033]133;C\\007'; }
+  precmd_functions=(__termquay_prompt \${precmd_functions[@]})
+  preexec_functions+=(__termquay_preexec)
+  PS1="$PS1"$'%{\\e]133;B\\a%}'
+fi`,
+};
+
+export function addShellIntegration(term: Terminal, onDirectory: (path: string, host: string) => void, onExit: (code: string) => void, onFile: (path: string, line: number) => void) {
+  const marks: IMarker[] = [];
+  let output: IMarker | undefined;
+  let completed: { start: IMarker; end: IMarker } | undefined;
+  function marker() {
+    const value = term.registerMarker(0);
+    if (value) { marks.push(value); if (marks.length > 128) marks.shift()?.dispose(); }
+    return value;
+  }
+  const cwd = term.parser.registerOscHandler(7, data => {
+    if (data.length > 8192 || term.buffer.active.type !== 'normal') return true;
+    try { const url = new URL(data); const path = decodeURIComponent(url.pathname); if (url.protocol === 'file:' && path.startsWith('/') && !/[\x00-\x1f\x7f]/.test(path)) onDirectory(path, url.hostname); } catch { return true; }
+    return true;
+  });
+  const command = term.parser.registerOscHandler(133, data => {
+    if (term.buffer.active.type !== 'normal') return true;
+    const [kind, status] = data.split(';', 2);
+    if (kind === 'A') marker();
+    if (kind === 'C') output = marker();
+    if (kind === 'D') { const end = marker(); if (output && end) completed = { start: output, end }; output = undefined; if (/^\d{1,3}$/.test(status || '')) onExit(status); }
+    return true;
+  });
+  const files = term.registerLinkProvider({ provideLinks(y, callback) {
+    const line = term.buffer.active.getLine(y - 1);
+    if (!line || term.buffer.active.type !== 'normal') { callback(undefined); return; }
+    const text = line.translateToString(true);
+    const cellColumn = (offset: number) => { let consumed = 0; for (let x = 0; x < line.length; x++) { const cell = line.getCell(x); if (!cell?.getWidth()) continue; if (consumed >= offset) return x + 1; consumed += cell.getChars().length || 1; } return line.length + 1; };
+    const matches = Array.from(text.matchAll(/(?:^|[\s("'])((?:\/[^\s:"'<>|()]+)+):(\d+)(?::\d+)?/g)).slice(0, 32);
+    callback(matches.map(match => { const start = match.index! + match[0].indexOf(match[1]); return { text: match[1], range: { start: { x: cellColumn(start), y }, end: { x: cellColumn(start + match[1].length + match[2].length + 1) - 1, y } }, activate(event: MouseEvent) { if (event.ctrlKey || event.metaKey) onFile(match[1], Number(match[2])); } }; }));
+  } });
+  return {
+    previous() { const before = term.buffer.active.viewportY; const mark = marks.filter(m => !m.isDisposed && m.line < before).slice(-1)[0]; if (mark) term.scrollToLine(mark.line); },
+    selectOutput() { if (completed && !completed.start.isDisposed && !completed.end.isDisposed) term.selectLines(completed.start.line, Math.max(completed.start.line, completed.end.line - 1)); },
+    dispose() { cwd.dispose(); command.dispose(); files.dispose(); marks.forEach(m => m.dispose()); },
+  };
+}

@@ -17,6 +17,7 @@ import WorkspacePanes from './WorkspacePanes';
 import TunnelPanel from '../tunnels/TunnelPanel';
 import PaneTabs from './PaneTabs';
 import { shortcutLabel, type Shortcuts } from '../../lib/shortcuts';
+import { shellQuote } from '../terminal/shellIntegration';
 
 type Draft = Document & { saved: string; savedFormat?: string; reloadEpoch?: number; error: string; saving: boolean; needsReview?: boolean; recovery?:boolean };
 function isDirty(draft: Draft) { return !!draft.recovery || draft.content !== draft.saved || !!draft.savedFormat && formatKey(draft) !== draft.savedFormat; }
@@ -44,6 +45,10 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   const restoreApplied=useRef(!initialLayout);
   const terminalOwners=useRef(new Map([[sessionID,sessionID]]));
   const [directory,setDirectory]=useState(initialLayout?.directory||'');
+  const [followDirectory, setFollowDirectory] = useState(false);
+  const [directoryRequest, setDirectoryRequest] = useState<{ path: string; sequence: number }>();
+  const [fileJump, setFileJump] = useState<{ path: string; line: number; sequence: number }>();
+  const terminalDirectories = useRef(new Map<string, string>());
   const [preparing, setPreparing] = useState(false);
   const [tunnelsOpen,setTunnelsOpen]=useState(false);
   const [closing, setClosing] = useState('');
@@ -81,6 +86,20 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   const paneFor=(path:string)=>split&&secondary.includes(path)?1:0;
   const paneSelected=selection.map((path,pane)=>tabIDs.includes(path)&&paneFor(path)===pane?path:tabIDs.find(t=>paneFor(t)===pane)||'');
   const active=paneSelected[activePane];
+  useEffect(() => { const path = terminalDirectories.current.get(active); if (followDirectory && path) setDirectoryRequest({ path, sequence: Date.now() }); }, [active, followDirectory]);
+  function terminalDirectory(terminal: string, path: string, host: string) {
+    const targetHost = target.slice(target.indexOf('@') + 1, target.lastIndexOf(':')).replace(/^\[|\]$/g, '').toLowerCase();
+    if (host && host.toLowerCase() !== targetHost) return;
+    terminalDirectories.current.set(terminal, path);
+    if (followDirectory && terminal === active) setDirectoryRequest({ path, sequence: Date.now() });
+  }
+  function locateInTerminal(path: string) {
+    const terminal = terminals.includes(active) ? active : terminals.find(value => terminalOwners.current.get(value) === sessionID && !terminalHandles.current.get(value)?.ended());
+    if (!terminal) { setError('请先打开可输入的终端'); return; }
+    setActive(terminal); terminalHandles.current.get(terminal)?.insert(`cd -- ${shellQuote(path)}`);
+    requestAnimationFrame(() => focusTab(terminal));
+  }
+  async function openTerminalFile(path: string, line: number) { try { setFileJump({ path, line, sequence: Date.now() }); await openPath(path); } catch (e) { setError(String(e)); } }
   useEffect(()=>{if(!paneSelected[activePane]&&paneSelected[1-activePane])setActivePane(1-activePane);},[paneSelected[0],paneSelected[1],activePane]);
   function setActive(path:string){const pane=paneFor(path);setActivePane(pane);setSelection(prev=>pane===0?[path,prev[1]]:[prev[0],path]);}
   function shown(path:string){return path===paneSelected[paneFor(path)]&&(!maximized||paneFor(path)===activePane);}
@@ -190,7 +209,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
     <div className="workspace-toolbar" aria-label="SSH 工作区工具"><span className="session-target" title={target}>{target}</span>{environment && <span className={`connection-environment ${environment}`}>{({production:'生产',staging:'预发布',development:'开发'} as Record<string,string>)[environment]}</span>}<span className="session-state">{state}</span><button ref={filesToggle} className="session-tool" aria-pressed={filesShown} onClick={toggleFiles}><Icon name="files" width="15" />文件</button><button ref={monitorToggle} className="session-tool" aria-pressed={monitorShown} onClick={toggleMonitor}><Icon name="monitor" width="15" />监控</button><button className="session-tool" aria-pressed={tunnelsOpen} onClick={()=>setTunnelsOpen(v=>!v)}>端口转发</button>{state === '已断开' && <Button size="sm" variant="light" isDisabled={busy||preparing} onPress={onReconnect}>重新连接</Button>}<Dropdown><DropdownTrigger><Button size="sm" variant="light">窗格</Button></DropdownTrigger><DropdownMenu aria-label="窗格操作" disabledKeys={[...(creating||terminals.length>=16?['new']:[]),...(!active?['move']:[]),...(!split?['maximize','merge']:[])]} onAction={key=>{if(key==='new')void newTerminal(1);if(key==='move')moveActive();if(key==='maximize')setMaximized(v=>!v);if(key==='merge'){setSplit(false);setSecondary([]);setSelection([active||paneSelected[0],'']);setActivePane(0);setMaximized(false);}}}><DropdownItem key="new">新建终端到右侧</DropdownItem><DropdownItem key="move">移动当前标签到另一窗格</DropdownItem><DropdownItem key="maximize">{maximized?'恢复双窗格':'最大化当前窗格'}</DropdownItem><DropdownItem key="merge">合并窗格</DropdownItem></DropdownMenu></Dropdown><Dropdown><DropdownTrigger><button className="icon-button" aria-label="SSH 会话操作"><Icon name="more" width="15" /></button></DropdownTrigger><DropdownMenu aria-label="SSH 会话操作" disabledKeys={busy || preparing ? ['reconnect'] : []} onAction={() => onReconnect()}><DropdownItem key="reconnect">重新连接</DropdownItem></DropdownMenu></Dropdown><button className="icon-button focus-toggle" aria-label="专注模式" title="专注模式" aria-pressed={focus} onClick={() => setFocus(!focus)}><Icon name="focus" width="16" /></button></div>
     <div hidden={!tunnelsOpen}><TunnelPanel id={sessionID} visible={visible&&tunnelsOpen}/></div>
     <div className="ssh-panels">
-    <div className="file-dock" hidden={!filesShown} style={{ width: filesWidth }}><FileBrowser id={sessionID} connectionID={connectionID} initialDirectory={initialLayout?.directory} onDirectory={setDirectory} visible={visible && filesShown} onOpen={open} onClose={() => { toggleFiles(); filesToggle.current?.focus(); }} /></div>
+    <div className="file-dock" hidden={!filesShown} style={{ width: filesWidth }}><FileBrowser id={sessionID} connectionID={connectionID} initialDirectory={initialLayout?.directory} onDirectory={setDirectory} directoryRequest={directoryRequest} followDirectory={followDirectory} onFollowDirectory={() => setFollowDirectory(value => !value)} onTerminalDirectory={locateInTerminal} visible={visible && filesShown} onOpen={open} onClose={() => { toggleFiles(); filesToggle.current?.focus(); }} /></div>
     {filesShown && !narrow && <ResizeHandle label="文件面板宽度" value={filesWidth} min={200} max={420} onChange={setFilesWidth} />}
     <div className="ssh-center" ref={center}>
       {error && <div className="connection-feedback error" role="alert">{error}</div>}
@@ -199,11 +218,11 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
       {!tabIDs.length && <div className="workspace-empty">从标签栏新建终端或打开文件</div>}
       <WorkspacePanes split={split} maximized={maximized} ratio={ratio} onRatio={setRatio}>
       {[0, 1].map(pane => <PaneTabs key={`pane-${pane}`} pane={pane} newShortcut={shortcutLabel(shortcuts.newTerminal)} closeShortcut={shortcutLabel(shortcuts.closeContent)} items={tabs.filter(t => paneFor(t.id) === pane)} selected={paneSelected[pane]} focused={pane === activePane} hidden={(!split && pane === 1) || (maximized && pane !== activePane)} column={maximized || pane === 0 ? 1 : 3} creating={creating || restoring || terminals.length >= 16} onSelect={activate} onClose={closeTab} onNew={() => void newTerminal(pane)} />)}
-      {terminals.map(terminal => <div className={`terminal-tab ${activePane===paneFor(terminal)?'focused-pane':''}`} data-tab-id={terminal} hidden={!shown(terminal)} style={{gridColumn:maximized?1:paneFor(terminal)===0?1:3,gridRow:2}} onFocusCapture={()=>setActivePane(paneFor(terminal))} key={terminal}><TerminalView ref={handle => { if (handle) terminalHandles.current.set(terminal, handle); else terminalHandles.current.delete(terminal); }} id={terminal} onSnippets={()=>{setActive(terminal);onSnippets();}} onConnectionChange={()=>changeCallback.current()} visible={visible && shown(terminal)} focusOnShow={activePane===paneFor(terminal)} fontSize={fontSize} /></div>)}
+      {terminals.map(terminal => <div className={`terminal-tab ${activePane===paneFor(terminal)?'focused-pane':''}`} data-tab-id={terminal} hidden={!shown(terminal)} style={{gridColumn:maximized?1:paneFor(terminal)===0?1:3,gridRow:2}} onFocusCapture={()=>setActivePane(paneFor(terminal))} key={terminal}><TerminalView ref={handle => { if (handle) terminalHandles.current.set(terminal, handle); else terminalHandles.current.delete(terminal); }} id={terminal} onDirectory={(path, host) => terminalDirectory(terminal, path, host)} onFile={openTerminalFile} onSnippets={()=>{setActive(terminal);onSnippets();}} onConnectionChange={()=>changeCallback.current()} visible={visible && shown(terminal)} focusOnShow={activePane===paneFor(terminal)} fontSize={fontSize} /></div>)}
       {fileOrder.filter(path=>!drafts.some(d=>d.path===path)).map(path=><div key={path} className="editor-tab pending-file" data-tab-id={path} hidden={!shown(path)} style={{gridColumn:maximized?1:paneFor(path)===0?1:3,gridRow:2}}><p className="file-path">{path}</p>{pendingErrors[path]&&<p role="alert" className="error">{pendingErrors[path]}</p>}<SelectControl aria-label="以指定编码打开文件" value="" disabled={restoring} onChange={e=>{if(e.target.value)void openPath(path,e.target.value).catch(()=>{});}}><option value="" disabled>以编码打开…</option>{editorEncodings.map(([value,label])=><option key={value} value={value}>{label}</option>)}</SelectControl></div>)}
       {drafts.map(d => <div key={d.path} className={`editor-tab ${activePane===paneFor(d.path)?'focused-pane':''}`} data-tab-id={d.path} hidden={!shown(d.path)} style={{gridColumn:maximized?1:paneFor(d.path)===0?1:3,gridRow:2}} onFocusCapture={()=>setActivePane(paneFor(d.path))}>
         {d.error && <div className="file-save-error"><p role="alert" className="error">{d.error}</p><div className="button-row"><Button size="sm" variant="light" isDisabled={d.saving} onPress={()=>setConflict(d.path)}>对比与合并</Button><Button size="sm" variant="light" onPress={() => setRereading(d.path)}>重新读取</Button><Button size="sm" variant="light" onPress={() => { navigator.clipboard.writeText(d.content).catch(e => setError(String(e))); }}>复制草稿</Button></div></div>}
-        <CodeEditor path={d.path} content={d.content} format={documentFormat(d)} saving={d.saving} dirty={isDirty(d)} reloadEpoch={d.reloadEpoch} visible={visible && shown(d.path)} focusOnShow={activePane===paneFor(d.path)} onChange={(value,format) => updateDrafts(prev => prev.map(item => item.path === d.path ? { ...item, ...format, content: value } : item))} onSave={() => void save(d.path)} onReload={encoding=>requestReload(d.path,encoding)} onDownload={()=>void DownloadFileDraft({...d,...documentFormat(d)}).catch(e=>updateDrafts(prev=>prev.map(item=>item.path===d.path?{...item,error:String(e)}:item)))} />
+        <CodeEditor path={d.path} jumpTo={fileJump?.path === d.path ? fileJump : undefined} content={d.content} format={documentFormat(d)} saving={d.saving} dirty={isDirty(d)} reloadEpoch={d.reloadEpoch} visible={visible && shown(d.path)} focusOnShow={activePane===paneFor(d.path)} onChange={(value,format) => updateDrafts(prev => prev.map(item => item.path === d.path ? { ...item, ...format, content: value } : item))} onSave={() => void save(d.path)} onReload={encoding=>requestReload(d.path,encoding)} onDownload={()=>void DownloadFileDraft({...d,...documentFormat(d)}).catch(e=>updateDrafts(prev=>prev.map(item=>item.path===d.path?{...item,error:String(e)}:item)))} />
       </div>)}
       </WorkspacePanes>
     </div>
