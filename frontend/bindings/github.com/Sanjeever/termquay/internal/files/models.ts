@@ -22,6 +22,9 @@ export interface Entry {
     "modified": number;
     "uid"?: number | null;
     "gid"?: number | null;
+    "link_target"?: string;
+    "link_resolved"?: string;
+    "link_error"?: string;
 }
 
 export interface SyncEntry {

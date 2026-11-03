@@ -29,3 +29,13 @@ test('元数据保留零 UID、毫秒时间与准确字节数', () => {
   assert.match(data['大小'], /2.0 KiB/);
   assert.equal(data['修改时间'], new Date(1700000000000).toLocaleString());
 });
+
+test('目录链接按目录展开，元数据显示原始目标和真实路径', () => {
+  const link = { ...entry('/alias', true), symlink: true, link_target: 'root', link_resolved: '/root' };
+  const rows = fileTreeRows({ '/': { entries: [link], loading: false, error: '' }, '/alias': { entries: [entry('/alias/file')], loading: false, error: '' } }, new Set(['/', '/alias']), options);
+  assert.deepEqual(rows.map(row => row.entry.path), ['/alias', '/alias/file']);
+  const metadata = Object.fromEntries(entryMetadata(link));
+  assert.equal(metadata['链接指向'], 'root');
+  assert.equal(metadata['实际路径'], '/root');
+  assert.equal(metadata['目标类型'], '目录');
+});

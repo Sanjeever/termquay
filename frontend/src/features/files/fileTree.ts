@@ -31,6 +31,7 @@ export function entryMetadata(entry: Entry) {
   return [
     ['路径', entry.path],
     ['类型', entry.symlink ? '符号链接' : entry.directory ? '目录' : entry.mode.startsWith('-') ? '普通文件' : '特殊文件'],
+    ...(entry.symlink ? [['链接指向', entry.link_target || '—'], ['实际路径', entry.link_resolved || '—'], ['目标类型', entry.link_error ? entry.link_error : entry.directory ? '目录' : '文件']] : []),
     ['大小', size],
     ['修改时间', new Date(entry.modified).toLocaleString()],
     ['权限', entry.mode],

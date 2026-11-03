@@ -45,7 +45,12 @@ func TestSG1Files(t *testing.T) {
 			return
 		}
 		for _, entry := range entries {
-			if err = client.Remove(path.Join(dir, entry.Name())); err != nil {
+			if entry.IsDir() {
+				err = client.RemoveDirectory(path.Join(dir, entry.Name()))
+			} else {
+				err = client.Remove(path.Join(dir, entry.Name()))
+			}
+			if err != nil {
 				t.Error(err)
 			}
 		}
@@ -125,8 +130,41 @@ func TestSG1Files(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, entry := range entries.Entries {
+		if entry.Path == link && (entry.LinkTarget != remote || entry.LinkResolved != remote || entry.Directory || entry.LinkError != "") {
+			t.Fatal("文件链接目标元数据不一致")
+		}
 		if entry.Path == remote && (entry.UID == nil || entry.GID == nil || *entry.UID != afterOwnership.UID || *entry.GID != afterOwnership.GID || entry.Mode != current.Mode().String() || entry.Modified != current.ModTime().UnixMilli()) {
 			t.Fatal("目录元数据与服务端文件属性不一致")
+		}
+	}
+	alias := path.Join(dir, "alias")
+	if err = client.Symlink(".", alias); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = List(ctx, client, alias); err == nil {
+		t.Fatal("允许循环展开指向祖先的目录链接")
+	}
+	target := path.Join(dir, "target")
+	if err = client.Mkdir(target); err != nil {
+		t.Fatal(err)
+	}
+	child, err := client.Create(path.Join(target, "child.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	child.Close()
+	defer client.Remove(path.Join(target, "child.txt"))
+	linked := path.Join(dir, "linked-target")
+	if err = client.Symlink("target", linked); err != nil {
+		t.Fatal(err)
+	}
+	listing, err := List(ctx, client, linked)
+	if err != nil || listing.Path != linked || len(listing.Entries) != 1 {
+		t.Fatal("目录链接未保留树节点路径")
+	}
+	for _, entry := range listing.Entries {
+		if path.Dir(entry.Path) != linked {
+			t.Fatal("目录链接子项偏离逻辑路径")
 		}
 	}
 	t.Log("真实 SFTP 浏览、保存、权限、冲突与符号链接检查通过")

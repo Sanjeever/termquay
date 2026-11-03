@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"sort"
+	"sync"
 	"unicode/utf8"
 
 	"github.com/pkg/sftp"
@@ -19,15 +20,18 @@ import (
 const MaxEditSize = 2 << 20
 
 type Entry struct {
-	Name      string  `json:"name"`
-	Path      string  `json:"path"`
-	Size      int64   `json:"size"`
-	Directory bool    `json:"directory"`
-	Symlink   bool    `json:"symlink"`
-	Mode      string  `json:"mode"`
-	Modified  int64   `json:"modified"`
-	UID       *uint32 `json:"uid,omitempty"`
-	GID       *uint32 `json:"gid,omitempty"`
+	Name         string  `json:"name"`
+	Path         string  `json:"path"`
+	Size         int64   `json:"size"`
+	Directory    bool    `json:"directory"`
+	Symlink      bool    `json:"symlink"`
+	Mode         string  `json:"mode"`
+	Modified     int64   `json:"modified"`
+	UID          *uint32 `json:"uid,omitempty"`
+	GID          *uint32 `json:"gid,omitempty"`
+	LinkTarget   string  `json:"link_target,omitempty"`
+	LinkResolved string  `json:"link_resolved,omitempty"`
+	LinkError    string  `json:"link_error,omitempty"`
 }
 type Document struct {
 	Path     string `json:"path"`
@@ -52,12 +56,30 @@ func List(ctx context.Context, client *sftp.Client, remote string) (Directory, e
 	if err != nil {
 		return Directory{}, err
 	}
-	remote = canonical
+	if !path.IsAbs(remote) {
+		remote = canonical
+	}
+	remote = path.Clean(remote)
+	if canonical != remote {
+		for ancestor := path.Dir(remote); ; ancestor = path.Dir(ancestor) {
+			resolved, err := client.RealPath(ancestor)
+			if err != nil {
+				return Directory{}, err
+			}
+			if resolved == canonical {
+				return Directory{}, errors.New("符号链接指向祖先目录，已阻止循环展开")
+			}
+			if ancestor == "/" {
+				break
+			}
+		}
+	}
 	infos, err := client.ReadDirContext(ctx, remote)
 	if err != nil {
 		return Directory{}, err
 	}
 	result := make([]Entry, 0, len(infos))
+	var links []int
 	for _, info := range infos {
 		entry := Entry{Name: info.Name(), Path: path.Join(remote, info.Name()), Size: info.Size(), Directory: info.IsDir(), Symlink: info.Mode()&os.ModeSymlink != 0, Mode: info.Mode().String(), Modified: info.ModTime().UnixMilli()}
 		if stat, ok := info.Sys().(*sftp.FileStat); ok {
@@ -65,7 +87,43 @@ func List(ctx context.Context, client *sftp.Client, remote string) (Directory, e
 			entry.GID = &stat.GID
 		}
 		result = append(result, entry)
+		if entry.Symlink {
+			links = append(links, len(result)-1)
+		}
 	}
+	var workers sync.WaitGroup
+	jobs := make(chan int)
+	for range min(4, len(links)) {
+		workers.Go(func() {
+			for index := range jobs {
+				entry := &result[index]
+				var err error
+				entry.LinkTarget, err = client.ReadLink(entry.Path)
+				if err == nil {
+					var target os.FileInfo
+					target, err = client.Stat(entry.Path)
+					if err == nil {
+						entry.Directory = target.IsDir()
+						entry.LinkResolved, err = client.RealPath(entry.Path)
+					}
+				}
+				if err != nil {
+					entry.LinkError = err.Error()
+				}
+			}
+		})
+	}
+	for _, index := range links {
+		select {
+		case jobs <- index:
+		case <-ctx.Done():
+			close(jobs)
+			workers.Wait()
+			return Directory{}, ctx.Err()
+		}
+	}
+	close(jobs)
+	workers.Wait()
 	sort.Slice(result, func(i, j int) bool {
 		if result[i].Directory != result[j].Directory {
 			return result[i].Directory
