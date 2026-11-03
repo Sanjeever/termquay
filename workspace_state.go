@@ -19,11 +19,17 @@ type RecoveryDraft struct {
 	WorkspaceName string    `json:"workspace_name,omitempty"`
 	Path          string    `json:"path"`
 	Content       string    `json:"content"`
+	Encoding      string    `json:"encoding,omitempty"`
+	LineEnding    string    `json:"line_ending,omitempty"`
+	BOM           bool      `json:"bom,omitempty"`
 	UpdatedAt     time.Time `json:"updated_at"`
 }
 type RecoveryDraftInput struct {
-	Path    string `json:"path"`
-	Content string `json:"content"`
+	Path       string `json:"path"`
+	Content    string `json:"content"`
+	Encoding   string `json:"encoding,omitempty"`
+	LineEnding string `json:"line_ending,omitempty"`
+	BOM        bool   `json:"bom,omitempty"`
 }
 type RecoveryDraftSummary struct {
 	Workspace     string    `json:"workspace"`
@@ -65,7 +71,7 @@ func (a *AppService) recoveryData() (recoveryData, error) {
 	if err = decoder.Decode(&result); err != nil {
 		return result, err
 	}
-	if result.Version != 1 {
+	if result.Version != 1 && result.Version != 2 {
 		return result, errors.New("本地草稿版本不受支持")
 	}
 	next := result.Drafts[:0]
@@ -83,6 +89,7 @@ func (a *AppService) recoveryData() (recoveryData, error) {
 	return result, nil
 }
 func (a *AppService) writeRecoveryData(value recoveryData) error {
+	value.Version = 2
 	if len(value.Drafts) > maxRecoveryDocuments {
 		return errors.New("本地草稿超过 64 个文档上限")
 	}
@@ -192,7 +199,7 @@ func (a *AppService) SaveRecoveryDrafts(updates []WorkspaceDraftUpdate) error {
 	now := time.Now().UTC()
 	for _, update := range updates {
 		for _, d := range update.Documents {
-			next = append(next, RecoveryDraft{Workspace: update.Workspace, WorkspaceName: update.Name, Path: d.Path, Content: d.Content, UpdatedAt: now})
+			next = append(next, RecoveryDraft{Workspace: update.Workspace, WorkspaceName: update.Name, Path: d.Path, Content: d.Content, Encoding: d.Encoding, LineEnding: d.LineEnding, BOM: d.BOM, UpdatedAt: now})
 		}
 	}
 	value.Drafts = next

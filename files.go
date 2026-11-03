@@ -9,6 +9,7 @@ import (
 	"github.com/Sanjeever/termquay/internal/files"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 	"github.com/pkg/sftp"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 func (a *AppService) terminal(id string) (*terminal.Terminal, error) {
@@ -50,12 +51,28 @@ func (a *AppService) ReadDirectory(ctx context.Context, id, remote string) (file
 	return files.List(ctx, c, remote)
 }
 func (a *AppService) ReadRemoteFile(ctx context.Context, id, remote string) (files.Document, error) {
+	return a.ReadRemoteFileEncoded(ctx, id, remote, "UTF-8")
+}
+
+func (a *AppService) ReadRemoteFileEncoded(ctx context.Context, id, remote, charset string) (files.Document, error) {
 	c, close, err := a.fileClient(ctx, id)
 	if err != nil {
 		return files.Document{}, err
 	}
 	defer close()
-	return files.Read(c, remote)
+	return files.ReadEncoded(c, remote, charset)
+}
+
+func (a *AppService) DownloadFileDraft(document files.Document) error {
+	data, err := files.EncodeDocument(document)
+	if err != nil {
+		return err
+	}
+	filename, err := application.Get().Dialog.SaveFile().SetMessage("下载当前文件草稿").SetFilename(path.Base(document.Path)).PromptForSingleSelection()
+	if err != nil || filename == "" {
+		return err
+	}
+	return os.WriteFile(filename, data, 0600)
 }
 func (a *AppService) SaveRemoteFile(ctx context.Context, id string, document files.Document) (files.Document, error) {
 	c, close, err := a.fileClient(ctx, id)

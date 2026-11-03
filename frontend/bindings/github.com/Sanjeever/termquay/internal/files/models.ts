@@ -10,6 +10,9 @@ export interface Document {
     "path": string;
     "content": string;
     "revision": string;
+    "encoding"?: string;
+    "line_ending"?: string;
+    "bom"?: boolean;
 }
 
 export interface Entry {

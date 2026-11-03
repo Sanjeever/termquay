@@ -98,6 +98,8 @@ go test -race -v ./internal/backup -run TestRealWebDAV
 
 RDP 自动化使用隔离 TLS 目标验证桥接、TLS 1.2 与身份策略，没有真实 Windows 桌面自动测试入口。真实画面、输入、剪贴板、多会话和各原生 WebView 必须另外验收。当前 TLS 版本边界及原因见 [内嵌 RDP](architecture.md#内嵌-rdp)。
 
+`TestSavedConnectionFileEditing` 可通过 `TERMQUAY_TEST_SAVED_CONNECTION` 选择本机已保存的 SSH 连接，并通过 `TERMQUAY_TEST_HOST_FINGERPRINT` 指定已核对指纹。测试由 Go 从现有密钥库读取凭据，不需要把密码放入命令行；在独立 `/tmp/termquay-editor-*` 目录验证多编码、CRLF、BOM、保存冲突与目录链接，并清理目录。
+
 ## 使用说明
 
 ### 连接与工作区

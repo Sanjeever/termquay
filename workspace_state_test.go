@@ -20,9 +20,13 @@ func TestDraftRecoveryEncryptedAndWorkspaceScoped(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, id := range []string{"one", "two"} {
-		if err := a.SaveWorkspaceDrafts(id, []RecoveryDraftInput{{Path: "/test.txt", Content: "recovery-placeholder"}}); err != nil {
+		if err := a.SaveWorkspaceDrafts(id, []RecoveryDraftInput{{Path: "/test.txt", Content: "recovery-placeholder", Encoding: "GB18030", LineEnding: "CRLF"}}); err != nil {
 			t.Fatal(err)
 		}
+	}
+	draft, err := a.ReadRecoveryDraft("one", "/test.txt")
+	if err != nil || draft.Encoding != "GB18030" || draft.LineEnding != "CRLF" {
+		t.Fatal("草稿恢复丢失编码或换行符")
 	}
 	raw, err := a.store.Setting("workspace_drafts")
 	if err != nil || strings.Contains(raw, "recovery-placeholder") {
@@ -58,7 +62,7 @@ func TestDraftRecoveryLimitsExpiryAndFutureVersion(t *testing.T) {
 	if err != nil || len(state.Drafts) != 0 {
 		t.Fatal("过期草稿未清理")
 	}
-	if err = a.store.SetSecretSetting("workspace_drafts", `{"version":2,"enabled":true,"drafts":[]}`); err != nil {
+	if err = a.store.SetSecretSetting("workspace_drafts", `{"version":3,"enabled":true,"drafts":[]}`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = a.GetDraftRecoveryState(); err == nil {

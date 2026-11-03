@@ -1,7 +1,6 @@
 package files
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -12,7 +11,6 @@ import (
 	"path"
 	"sort"
 	"sync"
-	"unicode/utf8"
 
 	"github.com/pkg/sftp"
 )
@@ -34,9 +32,12 @@ type Entry struct {
 	LinkError    string  `json:"link_error,omitempty"`
 }
 type Document struct {
-	Path     string `json:"path"`
-	Content  string `json:"content"`
-	Revision string `json:"revision"`
+	Path       string `json:"path"`
+	Content    string `json:"content"`
+	Revision   string `json:"revision"`
+	Encoding   string `json:"encoding,omitempty"`
+	LineEnding string `json:"line_ending,omitempty"`
+	BOM        bool   `json:"bom,omitempty"`
 }
 
 type Directory struct {
@@ -134,44 +135,59 @@ func List(ctx context.Context, client *sftp.Client, remote string) (Directory, e
 }
 
 func Read(client *sftp.Client, remote string) (Document, error) {
-	info, err := client.Lstat(remote)
+	return ReadEncoded(client, remote, "UTF-8")
+}
+
+func ReadEncoded(client *sftp.Client, remote, charset string) (Document, error) {
+	document, data, err := readRaw(client, remote)
 	if err != nil {
 		return Document{}, err
 	}
+	document.Content, document.Encoding, document.BOM, err = DecodeText(data, charset)
+	if err != nil {
+		return Document{}, err
+	}
+	document.LineEnding = LineEnding(document.Content)
+	return document, nil
+}
+
+func readRaw(client *sftp.Client, remote string) (Document, []byte, error) {
+	info, err := client.Lstat(remote)
+	if err != nil {
+		return Document{}, nil, err
+	}
 	if !info.Mode().IsRegular() {
-		return Document{}, errors.New("编辑器支持普通文件，符号链接需使用实际目标路径")
+		return Document{}, nil, errors.New("编辑器支持普通文件，符号链接需使用实际目标路径")
 	}
 	if info.Size() > MaxEditSize {
-		return Document{}, errors.New("在线编辑文件不能超过 2 MiB，请下载后编辑")
+		return Document{}, nil, errors.New("在线编辑文件不能超过 2 MiB，请下载后编辑")
 	}
 	f, err := client.Open(remote)
 	if err != nil {
-		return Document{}, err
+		return Document{}, nil, err
 	}
 	defer f.Close()
 	data, err := io.ReadAll(io.LimitReader(f, MaxEditSize+1))
 	if err != nil {
-		return Document{}, err
+		return Document{}, nil, err
 	}
 	if len(data) > MaxEditSize {
-		return Document{}, errors.New("文件超过在线编辑限制")
-	}
-	if !utf8.Valid(data) || bytes.IndexByte(data, 0) >= 0 {
-		return Document{}, errors.New("文件不是可编辑的 UTF-8 文本")
+		return Document{}, nil, errors.New("文件超过在线编辑限制")
 	}
 	sum := sha256.Sum256(data)
 	attributes, ok := info.Sys().(*sftp.FileStat)
 	if !ok {
-		return Document{}, errors.New("服务端未提供可识别的文件属性")
+		return Document{}, nil, errors.New("服务端未提供可识别的文件属性")
 	}
-	return Document{Path: remote, Content: string(data), Revision: hex.EncodeToString(sum[:]) + ":" + fmt.Sprint(info.ModTime().Unix(), ":", info.Mode(), ":", attributes.UID, ":", attributes.GID)}, nil
+	return Document{Path: remote, Revision: hex.EncodeToString(sum[:]) + ":" + fmt.Sprint(info.ModTime().Unix(), ":", info.Mode(), ":", attributes.UID, ":", attributes.GID)}, data, nil
 }
 
 func Save(client *sftp.Client, document Document) (result Document, err error) {
-	if len(document.Content) > MaxEditSize || !utf8.ValidString(document.Content) || bytes.IndexByte([]byte(document.Content), 0) >= 0 {
-		return result, errors.New("内容不是有效 UTF-8 文本或超过 2 MiB")
+	data, err := EncodeDocument(document)
+	if err != nil {
+		return result, err
 	}
-	current, err := Read(client, document.Path)
+	current, _, err := readRaw(client, document.Path)
 	if err != nil {
 		return result, err
 	}
@@ -209,7 +225,7 @@ func Save(client *sftp.Client, document Document) (result Document, err error) {
 	if err != nil {
 		return result, err
 	}
-	if _, err = io.WriteString(f, document.Content); err != nil {
+	if _, err = f.Write(data); err != nil {
 		f.Close()
 		return result, err
 	}
@@ -224,7 +240,7 @@ func Save(client *sftp.Client, document Document) (result Document, err error) {
 	if err = f.Close(); err != nil {
 		return result, err
 	}
-	latest, err := Read(client, document.Path)
+	latest, _, err := readRaw(client, document.Path)
 	if err != nil {
 		return result, err
 	}
@@ -234,5 +250,9 @@ func Save(client *sftp.Client, document Document) (result Document, err error) {
 	if err = client.PosixRename(temporary, document.Path); err != nil {
 		return result, err
 	}
-	return Read(client, document.Path)
+	result, err = ReadEncoded(client, document.Path, document.Encoding)
+	if err == nil && (document.LineEnding == "LF" || document.LineEnding == "CRLF") {
+		result.LineEnding = document.LineEnding
+	}
+	return result, err
 }

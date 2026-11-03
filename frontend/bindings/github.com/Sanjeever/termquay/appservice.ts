@@ -113,6 +113,10 @@ export function DiscardAndQuit(): $CancellablePromise<void> {
     return $Call.ByID(2297958254);
 }
 
+export function DownloadFileDraft(document: files$0.Document): $CancellablePromise<void> {
+    return $Call.ByID(935735919, document);
+}
+
 export function DuplicateConnection(id: string, includeCredentials: boolean): $CancellablePromise<store$0.Connection> {
     return $Call.ByID(3599925595, id, includeCredentials);
 }
@@ -235,6 +239,10 @@ export function ReadRecoveryDraft(workspace: string, remote: string): $Cancellab
 
 export function ReadRemoteFile(id: string, remote: string): $CancellablePromise<files$0.Document> {
     return $Call.ByID(2337340862, id, remote);
+}
+
+export function ReadRemoteFileEncoded(id: string, remote: string, charset: string): $CancellablePromise<files$0.Document> {
+    return $Call.ByID(1025705448, id, remote, charset);
 }
 
 export function RecordConnectionSuccess(id: string): $CancellablePromise<void> {

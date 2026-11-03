@@ -76,12 +76,18 @@ export interface RecoveryDraft {
     "workspace_name"?: string;
     "path": string;
     "content": string;
+    "encoding"?: string;
+    "line_ending"?: string;
+    "bom"?: boolean;
     "updated_at": string;
 }
 
 export interface RecoveryDraftInput {
     "path": string;
     "content": string;
+    "encoding"?: string;
+    "line_ending"?: string;
+    "bom"?: boolean;
 }
 
 export interface RecoveryDraftSummary {
