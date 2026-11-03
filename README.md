@@ -16,6 +16,20 @@ TermQuay 是使用 Go、Wails v3 和 React 构建的开源远程连接工作台�
 
 操作方式与限制见 [使用说明](docs/development.md#使用说明)。内嵌 RDP 的 TLS 兼容边界见 [RDP 设计说明](docs/architecture.md#内嵌-rdp)；已记录的原生验证范围与缺口见 [验收记录](docs/development.md#已有验收记录与缺口)，不能据此推断所有目标平台均已验收。
 
+## 界面预览
+
+连接中心
+
+![连接中心，支持分组、协议筛选与延迟探测](docs/images/screenshots/connection-center.png)
+
+SSH 工作区
+
+![SSH 终端、远端文件树与 Linux 监控](docs/images/screenshots/ssh-workspace.png)
+
+远端文件编辑
+
+![远端文件编辑器，支持编码、换行符与代码缩略图](docs/images/screenshots/remote-file-editor.png)
+
 ## 运行与开发
 
 准备 Go、Node 和 pnpm。工具链及依赖版本以 [go.mod](go.mod)、[frontend/package.json](frontend/package.json) 和锁文件为准，原生桌面还需要对应平台的构建工具与 WebView。
