@@ -302,9 +302,12 @@ button:active:not(:disabled):not([role=tab]) { filter: brightness(.93); }
 .session-status { display: flex; align-items: center; gap: 14px; flex-shrink: 0; min-height: 25px; color: var(--color-muted); font-size: 11px; padding: 4px 8px; }
 .file-panel { position: relative; display: flex; flex-direction: column; height: 100%; min-height: 0; padding: 0 8px 8px; container-type: inline-size; background: var(--color-surface); }
 .file-drop-target-active { outline: 2px solid var(--color-primary); outline-offset: -2px; background: var(--color-selected) !important; }
-.file-panel::after { content: '上传到 ' attr(data-drop-directory) '\a松开后确认'; white-space: pre-wrap; overflow-wrap: anywhere; position: absolute; z-index: 5; bottom: 16px; left: 12px; right: 12px; padding: 12px; border: 1px solid var(--color-primary); border-radius: var(--radius); background: var(--color-elevated); color: var(--color-text); box-shadow: var(--shadow-floating); font-size: 12px; line-height: 1.7; pointer-events: none; opacity: 0; transform: translateY(4px); transition: opacity .15s ease, transform .15s ease; }
-.file-panel[data-drop-directory]::after { opacity: 1; transform: translateY(0); }
+.file-panel::after { content: '上传到 ' attr(data-drop-directory) '\a松开后确认'; white-space: pre-wrap; overflow-wrap: anywhere; position: absolute; z-index: 5; bottom: 16px; left: 12px; right: 12px; padding: 12px; border: 1px solid var(--color-primary); border-radius: var(--radius); background: var(--color-elevated); color: var(--color-text); box-shadow: var(--shadow-floating); font-size: 12px; line-height: 1.7; pointer-events: none; visibility: hidden; opacity: 0; transform: translateY(4px); transition: opacity .15s ease, transform .15s ease; }
+.file-panel[data-drop-directory]::after { visibility: visible; opacity: 1; transform: translateY(0); }
+.file-tree [data-upload-target] { outline: 2px solid var(--color-primary); outline-offset: -2px; background: var(--color-selected); }
+.file-panel[data-drop-row] .file-tree .file-drop-target-active:not([data-upload-target]) { outline: none; background: transparent !important; }
 .upload-dialog { max-width: 520px; }
+.upload-dialog > form { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 .upload-target { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; font-size: 12px; }
 .upload-target dt, .upload-summary { color: var(--color-muted); }
 .upload-target dd { overflow-wrap: anywhere; font-family: var(--font-mono); }
@@ -475,12 +478,14 @@ button:active:not(:disabled):not([role=tab]) { filter: brightness(.93); }
 .transfer-destination { display: block; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-muted); font: 11px var(--font-mono); margin-top: 4px; }
 .transfer-progress { min-width: 200px; font-variant-numeric: tabular-nums; }
 .transfer-state { white-space: nowrap; }
+.transfer-compact-target { display: none; }
 .transfer-metrics { display: flex; justify-content: space-between; gap: 12px; margin-top: 5px; color: var(--color-muted); font-size: 11px; }
 .transfer-batch-summary { margin: 2px 12px 8px; color: var(--color-muted); font-size: 12px; }
 .transfer-reason { margin-top: 5px; font-size: 11px; overflow-wrap: anywhere; }
 .transfer-revealed { background: color-mix(in srgb, var(--color-selected) 45%, transparent); }
 @media (max-width: 1000px) {
   .transfer-panel .transfer-target { display: none; }
+  .transfer-compact-target { display: block; margin-top: 4px; color: var(--color-muted); font: 11px var(--font-mono); }
   .transfer-heading { flex-wrap: wrap; gap: 8px; }
   .transfer-panel td, .transfer-panel th { padding-inline: 8px; }
 }

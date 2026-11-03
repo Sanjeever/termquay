@@ -69,7 +69,7 @@ export default function UploadDialog({ workspaces, onSubmitted }: { workspaces: 
   const files = preview?.files || [];
   const supported = files.filter(file => file.supported);
   const connected = !preview || workspaces.includes(preview.workspace);
-  return <Modal isOpen={!!preview || !!error} onClose={() => void close()} isDismissable={!busy} isKeyboardDismissDisabled={busy} scrollBehavior="inside" className="app-dialog upload-dialog">
+  return <Modal isOpen={!!preview || !!error} onClose={() => void close()} isDismissable={!busy} isKeyboardDismissDisabled={busy} hideCloseButton={busy} closeButton={<button type="button" aria-labelledby="upload-confirm-close"><span id="upload-confirm-close" className="sr-only">关闭上传确认</span><Icon name="close" width="14" /></button>} scrollBehavior="inside" className="app-dialog upload-dialog">
     <ModalContent><form onSubmit={async event => {
       event.preventDefault(); if (!preview || busy || !connected || !supported.length) return;
       setBusy(true); setError('');

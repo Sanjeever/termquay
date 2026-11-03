@@ -49,8 +49,14 @@ export default function FileBrowser({ id, connectionID, visible, onOpen, onClose
     if (!element || demoDirectories) return;
     const observer = new MutationObserver(() => {
       const target = element.matches('.file-drop-target-active') ? element : element.querySelector<HTMLElement>('.file-drop-target-active');
-      if (target) element.dataset.dropDirectory = target.dataset.remoteDirectory;
-      else delete element.dataset.dropDirectory;
+      element.querySelector('[data-upload-target]')?.removeAttribute('data-upload-target');
+      if (target) {
+        const directory = target.dataset.remoteDirectory || '';
+        element.dataset.dropDirectory = directory;
+        const row = element.querySelector<HTMLElement>(`[data-tree-path="${CSS.escape(directory)}"]`);
+        if (row) { row.dataset.uploadTarget = 'true'; element.dataset.dropRow = 'true'; }
+        else delete element.dataset.dropRow;
+      } else { delete element.dataset.dropDirectory; delete element.dataset.dropRow; }
     });
     observer.observe(element, { subtree: true, attributes: true, attributeFilter: ['class'] });
     return () => observer.disconnect();
