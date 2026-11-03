@@ -1,0 +1,50 @@
+[
+  {
+    "name": "asn1-rs-impl",
+    "version": "0.2.0",
+    "license": "MIT",
+    "repository": "https://github.com/rusticata/asn1-rs",
+    "commit": "a20e5f7319c896737ad0f2557037817b91ad854f",
+    "url": "https://raw.githubusercontent.com/rusticata/asn1-rs/a20e5f7319c896737ad0f2557037817b91ad854f/LICENSE-MIT"
+  },
+  {
+    "name": "gloo-net",
+    "version": "0.7.0",
+    "license": "MIT",
+    "repository": "https://github.com/rustwasm/gloo",
+    "commit": "d69fcff62ee63f37076c4a0715a6f828b0036599",
+    "url": "https://raw.githubusercontent.com/rustwasm/gloo/d69fcff62ee63f37076c4a0715a6f828b0036599/LICENSE-MIT"
+  },
+  {
+    "name": "gloo-timers",
+    "version": "0.4.0",
+    "license": "MIT",
+    "repository": "https://github.com/rustwasm/gloo",
+    "commit": "c8feeb18bf5dde6b7aed80c749e1aef89b34fb52",
+    "url": "https://raw.githubusercontent.com/rustwasm/gloo/c8feeb18bf5dde6b7aed80c749e1aef89b34fb52/LICENSE-MIT"
+  },
+  {
+    "name": "gloo-utils",
+    "version": "0.3.0",
+    "license": "MIT",
+    "repository": "https://github.com/rustwasm/gloo",
+    "commit": "e6280d4b93c86a478a8f2f31af5f13d770b156b7",
+    "url": "https://raw.githubusercontent.com/rustwasm/gloo/e6280d4b93c86a478a8f2f31af5f13d770b156b7/LICENSE-MIT"
+  },
+  {
+    "name": "rustcrypto-ff_derive",
+    "version": "0.14.0-rc.0",
+    "license": "MIT",
+    "repository": "https://github.com/zkcrypto/ff",
+    "commit": "8417973539baabf561975144e0a68d166d0f9a95",
+    "url": "https://raw.githubusercontent.com/zkcrypto/ff/8417973539baabf561975144e0a68d166d0f9a95/LICENSE-MIT"
+  },
+  {
+    "name": "winscard",
+    "version": "0.3.2",
+    "license": "MIT",
+    "repository": "https://github.com/devolutions/sspi-rs",
+    "commit": "fee71292aa03c569caeb44ec2782f3b5598f20c8",
+    "url": "https://raw.githubusercontent.com/devolutions/sspi-rs/fee71292aa03c569caeb44ec2782f3b5598f20c8/LICENSE-MIT"
+  }
+]

@@ -1,0 +1,24 @@
+{
+  "source_commit": "e45f68c7e52297ca50d33b44c0ace36c9940fbe6",
+  "source_repository": "https://github.com/Devolutions/IronRDP",
+  "wasm_sha256": "68b5c65280e5348ea418cd0aba2e4e28f9bd4051c2cf9fd4b84d721847ef3363",
+  "rustc": "1.89.0",
+  "wasm_bindgen": "0.2.122",
+  "packages": [
+    {
+      "name": "@devolutions/iron-remote-desktop-rdp",
+      "version": "0.7.0",
+      "integrity": "sha512-CclAh4OS9aBoPJT0l7bih7ETOHPnB9KjT0drB0a6r5+Qh95pTEuQCx7uFN/XA2AlkFlrqx+DBAMDGYXmgsjHAQ==",
+      "source_commit": "e45f68c7e52297ca50d33b44c0ace36c9940fbe6",
+      "attestations_url": "https://registry.npmjs.org/-/npm/v1/attestations/@devolutions%2firon-remote-desktop-rdp@0.7.0"
+    },
+    {
+      "name": "@devolutions/iron-remote-desktop",
+      "version": "0.11.0",
+      "integrity": "sha512-ZH8xfabDA+6rAXkW2V3XgRdj0LHOsHoXAzars/H22DmKsHM39LdMfheKFUR3qLaFDM8mjf6DTFngzjgr+Byx0Q==",
+      "source_commit": "e45f68c7e52297ca50d33b44c0ace36c9940fbe6",
+      "attestations_url": "https://registry.npmjs.org/-/npm/v1/attestations/@devolutions%2firon-remote-desktop@0.11.0"
+    }
+  ],
+  "missing_license_files": []
+}

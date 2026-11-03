@@ -307,7 +307,7 @@ git push origin main
 git push origin v1.0.0
 ```
 
-标签发布检查版本、日志、提交属于 `main` 及发行审计状态，三平台全部构建成功后合并附件并生成校验文件，先创建草稿、附齐文件，再公开并标记 Latest。Release 正文原样读取仓库日志，应用更新窗口复用该正文。工作流允许继续同版本未公开草稿，拒绝覆盖公开版本；修复通过新版本交付。当前发行审计尚有待办，`node scripts/release-check.mjs` 会明确拒绝正式发布，不能将其失败视为已完成发行验收。
+标签发布检查版本、日志、提交属于 `main` 及发行审计状态，三平台全部构建成功后合并附件并生成校验文件，先创建草稿、附齐文件，再公开并标记 Latest。Release 正文原样读取仓库日志，应用更新窗口复用该正文。工作流允许继续同版本未公开草稿，拒绝覆盖公开版本；修复通过新版本交付。`node scripts/release-check.mjs` 拒绝非空发行待办、已变化的依赖核对输入，以及缺失或空白的 WASM 许可材料。依赖或固定补丁变化后更新核对记录，不能绕过失败发布。
 
 正式构建通过 `TERMQUAY_RELEASE_LDFLAGS` 注入发布标记与提交号，具体值见工作流。普通本地生产构建仍显示开发版，不检查或安装更新。Windows 压缩包当前未配置 Authenticode 分发签名；macOS 未配置证书时明确记录 ad-hoc 状态。配置以下 GitHub Secrets 后，macOS 工作流执行 Developer ID 签名、公证和票据附加：`MACOS_CERTIFICATE`、`MACOS_CERTIFICATE_PASSWORD`、`MACOS_SIGNING_IDENTITY`、`APPLE_ID`、`APPLE_TEAM_ID`、`APPLE_APP_PASSWORD`。证书使用 Base64 编码的 p12，凭据不得进入仓库或日志。
 

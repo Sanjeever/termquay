@@ -1,0 +1,3405 @@
+{
+  "source_commit": "e45f68c7e52297ca50d33b44c0ace36c9940fbe6",
+  "target": "wasm32-unknown-unknown",
+  "scope": "ironrdp-web 默认特性的 normal/build 依赖，可能包含未链接到制品的依赖",
+  "packages": [
+    {
+      "name": "addchain",
+      "version": "0.2.1",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Jack Grigg <thestr4d@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/addchain/0.2.1/LICENSE-APACHE",
+        "build/licenses/wasm/addchain/0.2.1/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "adler2",
+      "version": "2.0.1",
+      "license": "0BSD OR MIT OR Apache-2.0",
+      "authors": [
+        "Jonas Schievink <jonasschievink@gmail.com>",
+        "oyvindln <oyvindln@users.noreply.github.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/adler2/2.0.1/LICENSE-0BSD",
+        "build/licenses/wasm/adler2/2.0.1/LICENSE-APACHE",
+        "build/licenses/wasm/adler2/2.0.1/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "aead",
+      "version": "0.6.0-rc.10",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/aead/0.6.0-rc.10/LICENSE-APACHE",
+        "build/licenses/wasm/aead/0.6.0-rc.10/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "aes-gcm",
+      "version": "0.11.0-rc.3",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/aes-gcm/0.11.0-rc.3/LICENSE-APACHE",
+        "build/licenses/wasm/aes-gcm/0.11.0-rc.3/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "aes-kw",
+      "version": "0.3.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/aes-kw/0.3.0/LICENSE-APACHE",
+        "build/licenses/wasm/aes-kw/0.3.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "aes",
+      "version": "0.9.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/aes/0.9.0/LICENSE-APACHE",
+        "build/licenses/wasm/aes/0.9.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "anyhow",
+      "version": "1.0.102",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/anyhow/1.0.102/LICENSE-APACHE",
+        "build/licenses/wasm/anyhow/1.0.102/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "asn1-rs-derive",
+      "version": "0.6.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Pierre Chifflier <chifflier@wzdftpd.net>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/asn1-rs-derive/0.6.0/LICENSE-APACHE",
+        "build/licenses/wasm/asn1-rs-derive/0.6.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "asn1-rs-impl",
+      "version": "0.2.0",
+      "license": "MIT/Apache-2.0",
+      "authors": [
+        "Pierre Chifflier <chifflier@wzdftpd.net>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/asn1-rs-impl/0.2.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "asn1-rs",
+      "version": "0.7.2",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Pierre Chifflier <chifflier@wzdftpd.net>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/asn1-rs/0.7.2/LICENSE-APACHE",
+        "build/licenses/wasm/asn1-rs/0.7.2/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "async-recursion",
+      "version": "1.1.1",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Robert Usher <266585+dcchut@users.noreply.github.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/async-recursion/1.1.1/LICENSE-APACHE",
+        "build/licenses/wasm/async-recursion/1.1.1/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "autocfg",
+      "version": "1.5.1",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "Josh Stone <cuviper@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/autocfg/1.5.1/LICENSE-APACHE",
+        "build/licenses/wasm/autocfg/1.5.1/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "base16ct",
+      "version": "1.0.0",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/base16ct/1.0.0/LICENSE-APACHE",
+        "build/licenses/wasm/base16ct/1.0.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "base64",
+      "version": "0.22.1",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Marshall Pierce <marshall@mpierce.org>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/base64/0.22.1/LICENSE-APACHE",
+        "build/licenses/wasm/base64/0.22.1/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "base64ct",
+      "version": "1.8.3",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/base64ct/1.8.3/LICENSE-APACHE",
+        "build/licenses/wasm/base64ct/1.8.3/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "bit_field",
+      "version": "0.10.3",
+      "license": "Apache-2.0/MIT",
+      "authors": [
+        "Philipp Oppermann <dev@phil-opp.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/bit_field/0.10.3/LICENSE-APACHE",
+        "build/licenses/wasm/bit_field/0.10.3/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "bitflags",
+      "version": "2.11.1",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "The Rust Project Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/bitflags/2.11.1/LICENSE-APACHE",
+        "build/licenses/wasm/bitflags/2.11.1/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "bitvec",
+      "version": "1.0.1",
+      "license": "MIT",
+      "authors": [],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/bitvec/1.0.1/LICENSE.txt"
+      ]
+    },
+    {
+      "name": "block-buffer",
+      "version": "0.10.4",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/block-buffer/0.10.4/LICENSE-APACHE",
+        "build/licenses/wasm/block-buffer/0.10.4/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "block-buffer",
+      "version": "0.12.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/block-buffer/0.12.0/LICENSE-APACHE",
+        "build/licenses/wasm/block-buffer/0.12.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "block-padding",
+      "version": "0.4.2",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/block-padding/0.4.2/LICENSE-APACHE",
+        "build/licenses/wasm/block-padding/0.4.2/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "bumpalo",
+      "version": "3.20.3",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Nick Fitzgerald <fitzgen@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/bumpalo/3.20.3/LICENSE-APACHE",
+        "build/licenses/wasm/bumpalo/3.20.3/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "bytemuck",
+      "version": "1.25.0",
+      "license": "Zlib OR Apache-2.0 OR MIT",
+      "authors": [
+        "Lokathor <zefria@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/bytemuck/1.25.0/LICENSE-APACHE",
+        "build/licenses/wasm/bytemuck/1.25.0/LICENSE-MIT",
+        "build/licenses/wasm/bytemuck/1.25.0/LICENSE-ZLIB"
+      ]
+    },
+    {
+      "name": "byteorder",
+      "version": "1.5.0",
+      "license": "Unlicense OR MIT",
+      "authors": [
+        "Andrew Gallant <jamslam@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/byteorder/1.5.0/COPYING",
+        "build/licenses/wasm/byteorder/1.5.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "bytes",
+      "version": "1.11.1",
+      "license": "MIT",
+      "authors": [
+        "Carl Lerche <me@carllerche.com>",
+        "Sean McArthur <sean@seanmonstar.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/bytes/1.11.1/LICENSE"
+      ]
+    },
+    {
+      "name": "cbc",
+      "version": "0.2.1",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/cbc/0.2.1/LICENSE-APACHE",
+        "build/licenses/wasm/cbc/0.2.1/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "cfg-if",
+      "version": "1.0.4",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Alex Crichton <alex@alexcrichton.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/cfg-if/1.0.4/LICENSE-APACHE",
+        "build/licenses/wasm/cfg-if/1.0.4/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "chacha20",
+      "version": "0.10.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/chacha20/0.10.0/LICENSE-APACHE",
+        "build/licenses/wasm/chacha20/0.10.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "chrono",
+      "version": "0.4.44",
+      "license": "MIT OR Apache-2.0",
+      "authors": [],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/chrono/0.4.44/LICENSE.txt"
+      ]
+    },
+    {
+      "name": "cipher",
+      "version": "0.5.2",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/cipher/0.5.2/LICENSE-APACHE",
+        "build/licenses/wasm/cipher/0.5.2/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "cmov",
+      "version": "0.5.3",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/cmov/0.5.3/LICENSE-APACHE",
+        "build/licenses/wasm/cmov/0.5.3/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "console_error_panic_hook",
+      "version": "0.1.7",
+      "license": "Apache-2.0/MIT",
+      "authors": [
+        "Nick Fitzgerald <fitzgen@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/console_error_panic_hook/0.1.7/LICENSE-APACHE",
+        "build/licenses/wasm/console_error_panic_hook/0.1.7/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "const-oid",
+      "version": "0.10.2",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/const-oid/0.10.2/LICENSE-APACHE",
+        "build/licenses/wasm/const-oid/0.10.2/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "const-oid",
+      "version": "0.9.6",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/const-oid/0.9.6/LICENSE-APACHE",
+        "build/licenses/wasm/const-oid/0.9.6/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "cpubits",
+      "version": "0.1.1",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/cpubits/0.1.1/LICENSE-APACHE",
+        "build/licenses/wasm/cpubits/0.1.1/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "crc32fast",
+      "version": "1.5.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Sam Rijs <srijs@airpost.net>",
+        "Alex Crichton <alex@alexcrichton.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/crc32fast/1.5.0/LICENSE-APACHE",
+        "build/licenses/wasm/crc32fast/1.5.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "crypto-bigint",
+      "version": "0.7.3",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/crypto-bigint/0.7.3/LICENSE-APACHE",
+        "build/licenses/wasm/crypto-bigint/0.7.3/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "crypto-common",
+      "version": "0.1.7",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/crypto-common/0.1.7/LICENSE-APACHE",
+        "build/licenses/wasm/crypto-common/0.1.7/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "crypto-common",
+      "version": "0.2.2",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/crypto-common/0.2.2/LICENSE-APACHE",
+        "build/licenses/wasm/crypto-common/0.2.2/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "crypto-mac",
+      "version": "0.11.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/crypto-mac/0.11.0/LICENSE-APACHE",
+        "build/licenses/wasm/crypto-mac/0.11.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "crypto-primes",
+      "version": "0.7.0",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/crypto-primes/0.7.0/LICENSE-APACHE",
+        "build/licenses/wasm/crypto-primes/0.7.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "ctr",
+      "version": "0.10.1",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/ctr/0.10.1/LICENSE-APACHE",
+        "build/licenses/wasm/ctr/0.10.1/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "ctutils",
+      "version": "0.4.2",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/ctutils/0.4.2/LICENSE-APACHE",
+        "build/licenses/wasm/ctutils/0.4.2/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "curve25519-dalek",
+      "version": "5.0.0-pre.6",
+      "license": "BSD-3-Clause",
+      "authors": [
+        "Isis Lovecruft <isis@patternsinthevoid.net>",
+        "Henry de Valence <hdevalence@hdevalence.ca>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/curve25519-dalek/5.0.0-pre.6/LICENSE"
+      ]
+    },
+    {
+      "name": "der-parser",
+      "version": "10.0.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Pierre Chifflier <chifflier@wzdftpd.net>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/der-parser/10.0.0/LICENSE-APACHE",
+        "build/licenses/wasm/der-parser/10.0.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "der",
+      "version": "0.7.10",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/der/0.7.10/LICENSE-APACHE",
+        "build/licenses/wasm/der/0.7.10/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "der",
+      "version": "0.8.0",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/der/0.8.0/LICENSE-APACHE",
+        "build/licenses/wasm/der/0.8.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "der_derive",
+      "version": "0.7.3",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/der_derive/0.7.3/LICENSE-APACHE",
+        "build/licenses/wasm/der_derive/0.7.3/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "deranged",
+      "version": "0.5.8",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Jacob Pratt <jacob@jhpratt.dev>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/deranged/0.5.8/LICENSE-Apache",
+        "build/licenses/wasm/deranged/0.5.8/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "des",
+      "version": "0.9.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/des/0.9.0/LICENSE-APACHE",
+        "build/licenses/wasm/des/0.9.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "digest",
+      "version": "0.10.7",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/digest/0.10.7/LICENSE-APACHE",
+        "build/licenses/wasm/digest/0.10.7/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "digest",
+      "version": "0.11.3",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/digest/0.11.3/LICENSE-APACHE",
+        "build/licenses/wasm/digest/0.11.3/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "displaydoc",
+      "version": "0.2.5",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Jane Lusby <jlusby@yaah.dev>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/displaydoc/0.2.5/LICENSE-APACHE",
+        "build/licenses/wasm/displaydoc/0.2.5/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "ecdsa",
+      "version": "0.17.0-rc.17",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/ecdsa/0.17.0-rc.17/LICENSE-APACHE",
+        "build/licenses/wasm/ecdsa/0.17.0-rc.17/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "ed25519-dalek",
+      "version": "3.0.0-pre.6",
+      "license": "BSD-3-Clause",
+      "authors": [
+        "isis lovecruft <isis@patternsinthevoid.net>",
+        "Tony Arcieri <bascule@gmail.com>",
+        "Michael Rosenberg <michael@mrosenberg.pub>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/ed25519-dalek/3.0.0-pre.6/LICENSE"
+      ]
+    },
+    {
+      "name": "ed25519",
+      "version": "3.0.0-rc.4",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/ed25519/3.0.0-rc.4/LICENSE-APACHE",
+        "build/licenses/wasm/ed25519/3.0.0-rc.4/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "elliptic-curve",
+      "version": "0.14.0-rc.31",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/elliptic-curve/0.14.0-rc.31/LICENSE-APACHE",
+        "build/licenses/wasm/elliptic-curve/0.14.0-rc.31/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "fdeflate",
+      "version": "0.3.7",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "The image-rs Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/fdeflate/0.3.7/LICENSE-APACHE",
+        "build/licenses/wasm/fdeflate/0.3.7/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "ff",
+      "version": "0.14.0-pre.0",
+      "license": "MIT/Apache-2.0",
+      "authors": [
+        "Sean Bowe <ewillbefull@gmail.com>",
+        "Jack Grigg <thestr4d@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/ff/0.14.0-pre.0/LICENSE-APACHE",
+        "build/licenses/wasm/ff/0.14.0-pre.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "fiat-crypto",
+      "version": "0.3.0",
+      "license": "MIT OR Apache-2.0 OR BSD-1-Clause",
+      "authors": [
+        "Fiat Crypto library authors <jgross@mit.edu>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/fiat-crypto/0.3.0/COPYRIGHT",
+        "build/licenses/wasm/fiat-crypto/0.3.0/LICENSE-APACHE",
+        "build/licenses/wasm/fiat-crypto/0.3.0/LICENSE-BSD-1",
+        "build/licenses/wasm/fiat-crypto/0.3.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "flagset",
+      "version": "0.4.7",
+      "license": "Apache-2.0",
+      "authors": [
+        "Nathaniel McCallum <nathaniel@profian.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/flagset/0.4.7/LICENSE"
+      ]
+    },
+    {
+      "name": "flate2",
+      "version": "1.1.9",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Alex Crichton <alex@alexcrichton.com>",
+        "Josh Triplett <josh@joshtriplett.org>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/flate2/1.1.9/LICENSE-APACHE",
+        "build/licenses/wasm/flate2/1.1.9/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "form_urlencoded",
+      "version": "1.2.2",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "The rust-url developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/form_urlencoded/1.2.2/LICENSE-APACHE",
+        "build/licenses/wasm/form_urlencoded/1.2.2/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "funty",
+      "version": "2.0.0",
+      "license": "MIT",
+      "authors": [
+        "myrrlyn <self@myrrlyn.dev>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/funty/2.0.0/LICENSE.txt"
+      ]
+    },
+    {
+      "name": "futures-channel",
+      "version": "0.3.32",
+      "license": "MIT OR Apache-2.0",
+      "authors": [],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/futures-channel/0.3.32/LICENSE-APACHE",
+        "build/licenses/wasm/futures-channel/0.3.32/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "futures-core",
+      "version": "0.3.32",
+      "license": "MIT OR Apache-2.0",
+      "authors": [],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/futures-core/0.3.32/LICENSE-APACHE",
+        "build/licenses/wasm/futures-core/0.3.32/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "futures-io",
+      "version": "0.3.32",
+      "license": "MIT OR Apache-2.0",
+      "authors": [],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/futures-io/0.3.32/LICENSE-APACHE",
+        "build/licenses/wasm/futures-io/0.3.32/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "futures-macro",
+      "version": "0.3.32",
+      "license": "MIT OR Apache-2.0",
+      "authors": [],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/futures-macro/0.3.32/LICENSE-APACHE",
+        "build/licenses/wasm/futures-macro/0.3.32/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "futures-sink",
+      "version": "0.3.32",
+      "license": "MIT OR Apache-2.0",
+      "authors": [],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/futures-sink/0.3.32/LICENSE-APACHE",
+        "build/licenses/wasm/futures-sink/0.3.32/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "futures-task",
+      "version": "0.3.32",
+      "license": "MIT OR Apache-2.0",
+      "authors": [],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/futures-task/0.3.32/LICENSE-APACHE",
+        "build/licenses/wasm/futures-task/0.3.32/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "futures-util",
+      "version": "0.3.32",
+      "license": "MIT OR Apache-2.0",
+      "authors": [],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/futures-util/0.3.32/LICENSE-APACHE",
+        "build/licenses/wasm/futures-util/0.3.32/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "generic-array",
+      "version": "0.14.7",
+      "license": "MIT",
+      "authors": [
+        "Bartłomiej Kamiński <fizyk20@gmail.com>",
+        "Aaron Trent <novacrazy@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/generic-array/0.14.7/LICENSE"
+      ]
+    },
+    {
+      "name": "getrandom",
+      "version": "0.2.17",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "The Rand Project Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/getrandom/0.2.17/LICENSE-APACHE",
+        "build/licenses/wasm/getrandom/0.2.17/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "getrandom",
+      "version": "0.3.4",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "The Rand Project Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/getrandom/0.3.4/LICENSE-APACHE",
+        "build/licenses/wasm/getrandom/0.3.4/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "getrandom",
+      "version": "0.4.2",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "The Rand Project Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/getrandom/0.4.2/LICENSE-APACHE",
+        "build/licenses/wasm/getrandom/0.4.2/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "ghash",
+      "version": "0.6.0",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/ghash/0.6.0/LICENSE-APACHE",
+        "build/licenses/wasm/ghash/0.6.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "gloo-net",
+      "version": "0.7.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Rust and WebAssembly Working Group",
+        "Elina <imelina@elina.website>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/gloo-net/0.7.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "gloo-timers",
+      "version": "0.4.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Rust and WebAssembly Working Group"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/gloo-timers/0.4.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "gloo-utils",
+      "version": "0.3.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Rust and WebAssembly Working Group"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/gloo-utils/0.3.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "group",
+      "version": "0.14.0-pre.0",
+      "license": "MIT/Apache-2.0",
+      "authors": [
+        "Sean Bowe <ewillbefull@gmail.com>",
+        "Jack Grigg <jack@z.cash>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/group/0.14.0-pre.0/COPYRIGHT",
+        "build/licenses/wasm/group/0.14.0-pre.0/LICENSE-APACHE",
+        "build/licenses/wasm/group/0.14.0-pre.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "hash32",
+      "version": "0.2.1",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Jorge Aparicio <jorge@japaric.io>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/hash32/0.2.1/LICENSE-APACHE",
+        "build/licenses/wasm/hash32/0.2.1/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "heapless",
+      "version": "0.7.17",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Jorge Aparicio <jorge@japaric.io>",
+        "Per Lindgren <per.lindgren@ltu.se>",
+        "Emil Fresk <emil.fresk@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/heapless/0.7.17/LICENSE-APACHE",
+        "build/licenses/wasm/heapless/0.7.17/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "hex",
+      "version": "0.4.3",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "KokaKiwi <kokakiwi@kokakiwi.net>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/hex/0.4.3/LICENSE-APACHE",
+        "build/licenses/wasm/hex/0.4.3/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "hkdf",
+      "version": "0.13.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/hkdf/0.13.0/LICENSE-APACHE",
+        "build/licenses/wasm/hkdf/0.13.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "hmac",
+      "version": "0.13.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/hmac/0.13.0/LICENSE-APACHE",
+        "build/licenses/wasm/hmac/0.13.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "http",
+      "version": "1.4.1",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Alex Crichton <alex@alexcrichton.com>",
+        "Carl Lerche <me@carllerche.com>",
+        "Sean McArthur <sean@seanmonstar.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/http/1.4.1/LICENSE-APACHE",
+        "build/licenses/wasm/http/1.4.1/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "hybrid-array",
+      "version": "0.4.12",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/hybrid-array/0.4.12/LICENSE-APACHE",
+        "build/licenses/wasm/hybrid-array/0.4.12/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "icu_collections",
+      "version": "2.2.0",
+      "license": "Unicode-3.0",
+      "authors": [
+        "The ICU4X Project Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/icu_collections/2.2.0/LICENSE"
+      ]
+    },
+    {
+      "name": "icu_locale_core",
+      "version": "2.2.0",
+      "license": "Unicode-3.0",
+      "authors": [
+        "The ICU4X Project Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/icu_locale_core/2.2.0/LICENSE"
+      ]
+    },
+    {
+      "name": "icu_normalizer",
+      "version": "2.2.0",
+      "license": "Unicode-3.0",
+      "authors": [
+        "The ICU4X Project Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/icu_normalizer/2.2.0/LICENSE"
+      ]
+    },
+    {
+      "name": "icu_normalizer_data",
+      "version": "2.2.0",
+      "license": "Unicode-3.0",
+      "authors": [
+        "The ICU4X Project Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/icu_normalizer_data/2.2.0/LICENSE"
+      ]
+    },
+    {
+      "name": "icu_properties",
+      "version": "2.2.0",
+      "license": "Unicode-3.0",
+      "authors": [
+        "The ICU4X Project Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/icu_properties/2.2.0/LICENSE"
+      ]
+    },
+    {
+      "name": "icu_properties_data",
+      "version": "2.2.0",
+      "license": "Unicode-3.0",
+      "authors": [
+        "The ICU4X Project Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/icu_properties_data/2.2.0/LICENSE"
+      ]
+    },
+    {
+      "name": "icu_provider",
+      "version": "2.2.0",
+      "license": "Unicode-3.0",
+      "authors": [
+        "The ICU4X Project Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/icu_provider/2.2.0/LICENSE"
+      ]
+    },
+    {
+      "name": "idna",
+      "version": "1.1.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "The rust-url developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/idna/1.1.0/LICENSE-APACHE",
+        "build/licenses/wasm/idna/1.1.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "idna_adapter",
+      "version": "1.2.2",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "The rust-url developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/idna_adapter/1.2.2/LICENSE-APACHE",
+        "build/licenses/wasm/idna_adapter/1.2.2/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "inout",
+      "version": "0.2.2",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/inout/0.2.2/LICENSE-APACHE",
+        "build/licenses/wasm/inout/0.2.2/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "iron-remote-desktop",
+      "version": "0.7.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Devolutions Inc. <infos@devolutions.net>",
+        "Teleport <goteleport.com>"
+      ],
+      "source": "git+https://github.com/Devolutions/IronRDP#e45f68c7e52297ca50d33b44c0ace36c9940fbe6",
+      "license_files": [
+        "build/licenses/wasm/ironrdp/LICENSE-MIT",
+        "build/licenses/wasm/ironrdp/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "ironrdp-async",
+      "version": "0.8.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Devolutions Inc. <infos@devolutions.net>",
+        "Teleport <goteleport.com>"
+      ],
+      "source": "git+https://github.com/Devolutions/IronRDP#e45f68c7e52297ca50d33b44c0ace36c9940fbe6",
+      "license_files": [
+        "build/licenses/wasm/ironrdp/LICENSE-MIT",
+        "build/licenses/wasm/ironrdp/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "ironrdp-bulk",
+      "version": "0.1.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Devolutions Inc. <infos@devolutions.net>",
+        "Teleport <goteleport.com>"
+      ],
+      "source": "git+https://github.com/Devolutions/IronRDP#e45f68c7e52297ca50d33b44c0ace36c9940fbe6",
+      "license_files": [
+        "build/licenses/wasm/ironrdp/LICENSE-MIT",
+        "build/licenses/wasm/ironrdp/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "ironrdp-cliprdr-format",
+      "version": "0.1.4",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Devolutions Inc. <infos@devolutions.net>",
+        "Teleport <goteleport.com>"
+      ],
+      "source": "git+https://github.com/Devolutions/IronRDP#e45f68c7e52297ca50d33b44c0ace36c9940fbe6",
+      "license_files": [
+        "build/licenses/wasm/ironrdp/LICENSE-MIT",
+        "build/licenses/wasm/ironrdp/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "ironrdp-cliprdr",
+      "version": "0.5.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Devolutions Inc. <infos@devolutions.net>",
+        "Teleport <goteleport.com>"
+      ],
+      "source": "git+https://github.com/Devolutions/IronRDP#e45f68c7e52297ca50d33b44c0ace36c9940fbe6",
+      "license_files": [
+        "build/licenses/wasm/ironrdp/LICENSE-MIT",
+        "build/licenses/wasm/ironrdp/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "ironrdp-connector",
+      "version": "0.8.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Devolutions Inc. <infos@devolutions.net>",
+        "Teleport <goteleport.com>"
+      ],
+      "source": "git+https://github.com/Devolutions/IronRDP#e45f68c7e52297ca50d33b44c0ace36c9940fbe6",
+      "license_files": [
+        "build/licenses/wasm/ironrdp-connector/0.8.0/src/license_exchange.rs"
+      ]
+    },
+    {
+      "name": "ironrdp-core",
+      "version": "0.1.5",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Devolutions Inc. <infos@devolutions.net>",
+        "Teleport <goteleport.com>"
+      ],
+      "source": "git+https://github.com/Devolutions/IronRDP#e45f68c7e52297ca50d33b44c0ace36c9940fbe6",
+      "license_files": [
+        "build/licenses/wasm/ironrdp/LICENSE-MIT",
+        "build/licenses/wasm/ironrdp/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "ironrdp-displaycontrol",
+      "version": "0.5.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Devolutions Inc. <infos@devolutions.net>",
+        "Teleport <goteleport.com>"
+      ],
+      "source": "git+https://github.com/Devolutions/IronRDP#e45f68c7e52297ca50d33b44c0ace36c9940fbe6",
+      "license_files": [
+        "build/licenses/wasm/ironrdp/LICENSE-MIT",
+        "build/licenses/wasm/ironrdp/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "ironrdp-dvc",
+      "version": "0.5.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Devolutions Inc. <infos@devolutions.net>",
+        "Teleport <goteleport.com>"
+      ],
+      "source": "git+https://github.com/Devolutions/IronRDP#e45f68c7e52297ca50d33b44c0ace36c9940fbe6",
+      "license_files": [
+        "build/licenses/wasm/ironrdp/LICENSE-MIT",
+        "build/licenses/wasm/ironrdp/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "ironrdp-error",
+      "version": "0.1.3",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Devolutions Inc. <infos@devolutions.net>",
+        "Teleport <goteleport.com>"
+      ],
+      "source": "git+https://github.com/Devolutions/IronRDP#e45f68c7e52297ca50d33b44c0ace36c9940fbe6",
+      "license_files": [
+        "build/licenses/wasm/ironrdp/LICENSE-MIT",
+        "build/licenses/wasm/ironrdp/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "ironrdp-futures",
+      "version": "0.6.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Devolutions Inc. <infos@devolutions.net>",
+        "Teleport <goteleport.com>"
+      ],
+      "source": "git+https://github.com/Devolutions/IronRDP#e45f68c7e52297ca50d33b44c0ace36c9940fbe6",
+      "license_files": [
+        "build/licenses/wasm/ironrdp/LICENSE-MIT",
+        "build/licenses/wasm/ironrdp/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "ironrdp-graphics",
+      "version": "0.7.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Devolutions Inc. <infos@devolutions.net>",
+        "Teleport <goteleport.com>"
+      ],
+      "source": "git+https://github.com/Devolutions/IronRDP#e45f68c7e52297ca50d33b44c0ace36c9940fbe6",
+      "license_files": [
+        "build/licenses/wasm/ironrdp/LICENSE-MIT",
+        "build/licenses/wasm/ironrdp/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "ironrdp-input",
+      "version": "0.5.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Devolutions Inc. <infos@devolutions.net>",
+        "Teleport <goteleport.com>"
+      ],
+      "source": "git+https://github.com/Devolutions/IronRDP#e45f68c7e52297ca50d33b44c0ace36c9940fbe6",
+      "license_files": [
+        "build/licenses/wasm/ironrdp/LICENSE-MIT",
+        "build/licenses/wasm/ironrdp/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "ironrdp-pdu",
+      "version": "0.7.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Devolutions Inc. <infos@devolutions.net>",
+        "Teleport <goteleport.com>"
+      ],
+      "source": "git+https://github.com/Devolutions/IronRDP#e45f68c7e52297ca50d33b44c0ace36c9940fbe6",
+      "license_files": [
+        "build/licenses/wasm/ironrdp/LICENSE-MIT",
+        "build/licenses/wasm/ironrdp/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "ironrdp-propertyset",
+      "version": "0.1.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Devolutions Inc. <infos@devolutions.net>",
+        "Teleport <goteleport.com>"
+      ],
+      "source": "git+https://github.com/Devolutions/IronRDP#e45f68c7e52297ca50d33b44c0ace36c9940fbe6",
+      "license_files": [
+        "build/licenses/wasm/ironrdp/LICENSE-MIT",
+        "build/licenses/wasm/ironrdp/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "ironrdp-rdcleanpath",
+      "version": "0.2.1",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Devolutions Inc. <infos@devolutions.net>",
+        "Teleport <goteleport.com>"
+      ],
+      "source": "git+https://github.com/Devolutions/IronRDP#e45f68c7e52297ca50d33b44c0ace36c9940fbe6",
+      "license_files": [
+        "build/licenses/wasm/ironrdp/LICENSE-MIT",
+        "build/licenses/wasm/ironrdp/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "ironrdp-rdpdr",
+      "version": "0.5.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Devolutions Inc. <infos@devolutions.net>",
+        "Teleport <goteleport.com>"
+      ],
+      "source": "git+https://github.com/Devolutions/IronRDP#e45f68c7e52297ca50d33b44c0ace36c9940fbe6",
+      "license_files": [
+        "build/licenses/wasm/ironrdp/LICENSE-MIT",
+        "build/licenses/wasm/ironrdp/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "ironrdp-rdpfile",
+      "version": "0.1.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Devolutions Inc. <infos@devolutions.net>",
+        "Teleport <goteleport.com>"
+      ],
+      "source": "git+https://github.com/Devolutions/IronRDP#e45f68c7e52297ca50d33b44c0ace36c9940fbe6",
+      "license_files": [
+        "build/licenses/wasm/ironrdp/LICENSE-MIT",
+        "build/licenses/wasm/ironrdp/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "ironrdp-rdpsnd",
+      "version": "0.7.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Devolutions Inc. <infos@devolutions.net>",
+        "Teleport <goteleport.com>"
+      ],
+      "source": "git+https://github.com/Devolutions/IronRDP#e45f68c7e52297ca50d33b44c0ace36c9940fbe6",
+      "license_files": [
+        "build/licenses/wasm/ironrdp/LICENSE-MIT",
+        "build/licenses/wasm/ironrdp/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "ironrdp-session",
+      "version": "0.8.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Devolutions Inc. <infos@devolutions.net>",
+        "Teleport <goteleport.com>"
+      ],
+      "source": "git+https://github.com/Devolutions/IronRDP#e45f68c7e52297ca50d33b44c0ace36c9940fbe6",
+      "license_files": [
+        "build/licenses/wasm/ironrdp/LICENSE-MIT",
+        "build/licenses/wasm/ironrdp/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "ironrdp-svc",
+      "version": "0.6.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Devolutions Inc. <infos@devolutions.net>",
+        "Teleport <goteleport.com>"
+      ],
+      "source": "git+https://github.com/Devolutions/IronRDP#e45f68c7e52297ca50d33b44c0ace36c9940fbe6",
+      "license_files": [
+        "build/licenses/wasm/ironrdp/LICENSE-MIT",
+        "build/licenses/wasm/ironrdp/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "ironrdp-web",
+      "version": "0.0.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Devolutions Inc. <infos@devolutions.net>",
+        "Teleport <goteleport.com>"
+      ],
+      "source": "git+https://github.com/Devolutions/IronRDP#e45f68c7e52297ca50d33b44c0ace36c9940fbe6",
+      "license_files": [
+        "build/licenses/wasm/ironrdp/LICENSE-MIT",
+        "build/licenses/wasm/ironrdp/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "ironrdp",
+      "version": "0.14.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Devolutions Inc. <infos@devolutions.net>",
+        "Teleport <goteleport.com>"
+      ],
+      "source": "git+https://github.com/Devolutions/IronRDP#e45f68c7e52297ca50d33b44c0ace36c9940fbe6",
+      "license_files": [
+        "build/licenses/wasm/ironrdp/LICENSE-MIT",
+        "build/licenses/wasm/ironrdp/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "iso7816-tlv",
+      "version": "0.4.4",
+      "license": "ISC",
+      "authors": [
+        "Julien Kowalski <julien.kowalski@ercom.fr>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/iso7816-tlv/0.4.4/LICENCE"
+      ]
+    },
+    {
+      "name": "iso7816",
+      "version": "0.1.4",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "The Trussed developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/iso7816/0.1.4/LICENSE-APACHE",
+        "build/licenses/wasm/iso7816/0.1.4/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "itoa",
+      "version": "1.0.18",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/itoa/1.0.18/LICENSE-APACHE",
+        "build/licenses/wasm/itoa/1.0.18/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "js-sys",
+      "version": "0.3.99",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "The wasm-bindgen Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/js-sys/0.3.99/LICENSE-APACHE",
+        "build/licenses/wasm/js-sys/0.3.99/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "keccak",
+      "version": "0.2.0",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/keccak/0.2.0/LICENSE-APACHE",
+        "build/licenses/wasm/keccak/0.2.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "lazy_static",
+      "version": "1.5.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Marvin Löbel <loebel.marvin@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/lazy_static/1.5.0/LICENSE-APACHE",
+        "build/licenses/wasm/lazy_static/1.5.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "libm",
+      "version": "0.2.16",
+      "license": "MIT",
+      "authors": [
+        "Alex Crichton <alex@alexcrichton.com>",
+        "Amanieu d'Antras <amanieu@gmail.com>",
+        "Jorge Aparicio <japaricious@gmail.com>",
+        "Trevor Gross <tg@trevorgross.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/libm/0.2.16/LICENSE.txt"
+      ]
+    },
+    {
+      "name": "litemap",
+      "version": "0.8.2",
+      "license": "Unicode-3.0",
+      "authors": [
+        "The ICU4X Project Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/litemap/0.8.2/LICENSE"
+      ]
+    },
+    {
+      "name": "log",
+      "version": "0.4.30",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "The Rust Project Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/log/0.4.30/LICENSE-APACHE",
+        "build/licenses/wasm/log/0.4.30/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "md-5",
+      "version": "0.10.6",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/md-5/0.10.6/LICENSE-APACHE",
+        "build/licenses/wasm/md-5/0.10.6/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "md-5",
+      "version": "0.11.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/md-5/0.11.0/LICENSE-APACHE",
+        "build/licenses/wasm/md-5/0.11.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "md4",
+      "version": "0.10.2",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/md4/0.10.2/LICENSE-APACHE",
+        "build/licenses/wasm/md4/0.10.2/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "memchr",
+      "version": "2.8.0",
+      "license": "Unlicense OR MIT",
+      "authors": [
+        "Andrew Gallant <jamslam@gmail.com>",
+        "bluss"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/memchr/2.8.0/COPYING",
+        "build/licenses/wasm/memchr/2.8.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "minimal-lexical",
+      "version": "0.2.1",
+      "license": "MIT/Apache-2.0",
+      "authors": [
+        "Alex Huszagh <ahuszagh@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/minimal-lexical/0.2.1/LICENSE-APACHE",
+        "build/licenses/wasm/minimal-lexical/0.2.1/LICENSE-MIT",
+        "build/licenses/wasm/minimal-lexical/0.2.1/LICENSE.md"
+      ]
+    },
+    {
+      "name": "miniz_oxide",
+      "version": "0.8.9",
+      "license": "MIT OR Zlib OR Apache-2.0",
+      "authors": [
+        "Frommi <daniil.liferenko@gmail.com>",
+        "oyvindln <oyvindln@users.noreply.github.com>",
+        "Rich Geldreich richgel99@gmail.com"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/miniz_oxide/0.8.9/LICENSE",
+        "build/licenses/wasm/miniz_oxide/0.8.9/LICENSE-APACHE.md",
+        "build/licenses/wasm/miniz_oxide/0.8.9/LICENSE-MIT.md",
+        "build/licenses/wasm/miniz_oxide/0.8.9/LICENSE-ZLIB.md"
+      ]
+    },
+    {
+      "name": "nom",
+      "version": "7.1.3",
+      "license": "MIT",
+      "authors": [
+        "contact@geoffroycouprie.com"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/nom/7.1.3/LICENSE"
+      ]
+    },
+    {
+      "name": "nu-ansi-term",
+      "version": "0.50.3",
+      "license": "MIT",
+      "authors": [
+        "ogham@bsago.me",
+        "Ryan Scheel (Havvy) <ryan.havvy@gmail.com>",
+        "Josh Triplett <josh@joshtriplett.org>",
+        "The Nushell Project Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/nu-ansi-term/0.50.3/LICENSE"
+      ]
+    },
+    {
+      "name": "num-bigint",
+      "version": "0.3.3",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "The Rust Project Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/num-bigint/0.3.3/LICENSE-APACHE",
+        "build/licenses/wasm/num-bigint/0.3.3/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "num-bigint",
+      "version": "0.4.6",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "The Rust Project Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/num-bigint/0.4.6/LICENSE-APACHE",
+        "build/licenses/wasm/num-bigint/0.4.6/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "num-conv",
+      "version": "0.2.2",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Jacob Pratt <jacob@jhpratt.dev>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/num-conv/0.2.2/LICENSE-Apache",
+        "build/licenses/wasm/num-conv/0.2.2/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "num-derive",
+      "version": "0.4.2",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "The Rust Project Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/num-derive/0.4.2/LICENSE-APACHE",
+        "build/licenses/wasm/num-derive/0.4.2/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "num-integer",
+      "version": "0.1.46",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "The Rust Project Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/num-integer/0.1.46/LICENSE-APACHE",
+        "build/licenses/wasm/num-integer/0.1.46/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "num-traits",
+      "version": "0.2.19",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "The Rust Project Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/num-traits/0.2.19/LICENSE-APACHE",
+        "build/licenses/wasm/num-traits/0.2.19/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "oid",
+      "version": "0.2.1",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Sean Bruton <sean@unnecessary.engineering>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/oid/0.2.1/LICENSE-APACHE",
+        "build/licenses/wasm/oid/0.2.1/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "once_cell",
+      "version": "1.21.4",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Aleksey Kladov <aleksey.kladov@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/once_cell/1.21.4/LICENSE-APACHE",
+        "build/licenses/wasm/once_cell/1.21.4/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "p256",
+      "version": "0.14.0-rc.9",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/p256/0.14.0-rc.9/LICENSE-APACHE",
+        "build/licenses/wasm/p256/0.14.0-rc.9/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "p384",
+      "version": "0.14.0-rc.9",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "RustCrypto Developers",
+        "Frank Denis <github@pureftpd.org>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/p384/0.14.0-rc.9/LICENSE-APACHE",
+        "build/licenses/wasm/p384/0.14.0-rc.9/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "p521",
+      "version": "0.14.0-rc.9",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/p521/0.14.0-rc.9/LICENSE-APACHE",
+        "build/licenses/wasm/p521/0.14.0-rc.9/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "pbkdf2",
+      "version": "0.13.0-rc.10",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/pbkdf2/0.13.0-rc.10/LICENSE-APACHE",
+        "build/licenses/wasm/pbkdf2/0.13.0-rc.10/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "pem-rfc7468",
+      "version": "1.0.0",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/pem-rfc7468/1.0.0/LICENSE-APACHE",
+        "build/licenses/wasm/pem-rfc7468/1.0.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "percent-encoding",
+      "version": "2.3.2",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "The rust-url developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/percent-encoding/2.3.2/LICENSE-APACHE",
+        "build/licenses/wasm/percent-encoding/2.3.2/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "picky-asn1-der",
+      "version": "0.5.6",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "KizzyCode Software Labs./Keziah Biermann <development@kizzycode.de>",
+        "Benoît CORTIER <bcortier@devolutions.net>",
+        "Alexandr Yusuk <aleksandr.yusuk@apriorit.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/picky-asn1-der/0.5.6/LICENSE-APACHE",
+        "build/licenses/wasm/picky-asn1-der/0.5.6/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "picky-asn1-x509",
+      "version": "0.15.4",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Benoît CORTIER <bcortier@devolutions.net>",
+        "Sergey Noskov <snoskov@avito.ru>",
+        "Kim Altintop <kim@monadic.xyz>",
+        "Joe Ellis <joe.ellis@arm.com>",
+        "Hugues de Valon <hugues.devalon@arm.com>",
+        "Isode Ltd./Geobert Quach <geobert.quach@isode.com>",
+        "Alexandr Yusuk <aleksandr.yusuk@apriorit.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/picky-asn1-x509/0.15.4/LICENSE-APACHE",
+        "build/licenses/wasm/picky-asn1-x509/0.15.4/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "picky-asn1",
+      "version": "0.10.1",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Benoît CORTIER <bcortier@devolutions.net>",
+        "Alexandr Yusuk <aleksandr.yusuk@apriorit.com>",
+        "Brian Maher"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/picky-asn1/0.10.1/LICENSE-APACHE",
+        "build/licenses/wasm/picky-asn1/0.10.1/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "picky-krb",
+      "version": "0.12.3",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Devolutions Inc."
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/picky-krb/0.12.3/LICENSE-APACHE",
+        "build/licenses/wasm/picky-krb/0.12.3/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "picky",
+      "version": "7.0.0-rc.23",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Benoît CORTIER <bcortier@devolutions.net>",
+        "Jonathan Trepanier <jtrepanier@devolutions.net>",
+        "François Dubois <fdubois@devolutions.net>",
+        "Richard Markiewicz <rmarkiewicz@devolutions.net>",
+        "Ionut Mihalcea <ionut.mihalcea@arm.com>",
+        "Kim Altintop <kim@monadic.xyz>",
+        "Alexandr Yusuk <aleksandr.yusuk@apriorit.com>",
+        "Flavio Castelli <flavio@castelli.me>",
+        "Xynnn_ <xynnn@linux.alibaba.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/picky/7.0.0-rc.23/LICENSE-APACHE",
+        "build/licenses/wasm/picky/7.0.0-rc.23/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "pin-project-internal",
+      "version": "1.1.13",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/pin-project-internal/1.1.13/LICENSE-APACHE",
+        "build/licenses/wasm/pin-project-internal/1.1.13/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "pin-project-lite",
+      "version": "0.2.17",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/pin-project-lite/0.2.17/LICENSE-APACHE",
+        "build/licenses/wasm/pin-project-lite/0.2.17/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "pin-project",
+      "version": "1.1.13",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/pin-project/1.1.13/LICENSE-APACHE",
+        "build/licenses/wasm/pin-project/1.1.13/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "pkcs1",
+      "version": "0.7.5",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/pkcs1/0.7.5/LICENSE-APACHE",
+        "build/licenses/wasm/pkcs1/0.7.5/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "pkcs1",
+      "version": "0.8.0-rc.4",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/pkcs1/0.8.0-rc.4/LICENSE-APACHE",
+        "build/licenses/wasm/pkcs1/0.8.0-rc.4/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "pkcs8",
+      "version": "0.11.0-rc.11",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/pkcs8/0.11.0-rc.11/LICENSE-APACHE",
+        "build/licenses/wasm/pkcs8/0.11.0-rc.11/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "png",
+      "version": "0.18.1",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "The image-rs Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/png/0.18.1/LICENSE-APACHE",
+        "build/licenses/wasm/png/0.18.1/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "polyval",
+      "version": "0.7.1",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/polyval/0.7.1/LICENSE-APACHE",
+        "build/licenses/wasm/polyval/0.7.1/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "potential_utf",
+      "version": "0.1.5",
+      "license": "Unicode-3.0",
+      "authors": [
+        "The ICU4X Project Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/potential_utf/0.1.5/LICENSE"
+      ]
+    },
+    {
+      "name": "powerfmt",
+      "version": "0.2.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Jacob Pratt <jacob@jhpratt.dev>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/powerfmt/0.2.0/LICENSE-Apache",
+        "build/licenses/wasm/powerfmt/0.2.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "ppv-lite86",
+      "version": "0.2.21",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "The CryptoCorrosion Contributors"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/ppv-lite86/0.2.21/LICENSE-APACHE",
+        "build/licenses/wasm/ppv-lite86/0.2.21/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "primefield",
+      "version": "0.14.0-rc.9",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/primefield/0.14.0-rc.9/LICENSE-APACHE",
+        "build/licenses/wasm/primefield/0.14.0-rc.9/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "primeorder",
+      "version": "0.14.0-rc.9",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/primeorder/0.14.0-rc.9/LICENSE-APACHE",
+        "build/licenses/wasm/primeorder/0.14.0-rc.9/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "proc-macro2",
+      "version": "1.0.106",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>",
+        "Alex Crichton <alex@alexcrichton.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/proc-macro2/1.0.106/LICENSE-APACHE",
+        "build/licenses/wasm/proc-macro2/1.0.106/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "quote",
+      "version": "1.0.45",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/quote/1.0.45/LICENSE-APACHE",
+        "build/licenses/wasm/quote/1.0.45/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "radium",
+      "version": "0.7.0",
+      "license": "MIT",
+      "authors": [
+        "Nika Layzell <nika@thelayzells.com>",
+        "myrrlyn <self@myrrlyn.dev>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/radium/0.7.0/LICENSE.txt"
+      ]
+    },
+    {
+      "name": "rand",
+      "version": "0.10.1",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "The Rand Project Developers",
+        "The Rust Project Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/rand/0.10.1/COPYRIGHT",
+        "build/licenses/wasm/rand/0.10.1/LICENSE-APACHE",
+        "build/licenses/wasm/rand/0.10.1/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "rand",
+      "version": "0.9.4",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "The Rand Project Developers",
+        "The Rust Project Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/rand/0.9.4/COPYRIGHT",
+        "build/licenses/wasm/rand/0.9.4/LICENSE-APACHE",
+        "build/licenses/wasm/rand/0.9.4/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "rand_chacha",
+      "version": "0.9.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "The Rand Project Developers",
+        "The Rust Project Developers",
+        "The CryptoCorrosion Contributors"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/rand_chacha/0.9.0/COPYRIGHT",
+        "build/licenses/wasm/rand_chacha/0.9.0/LICENSE-APACHE",
+        "build/licenses/wasm/rand_chacha/0.9.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "rand_core",
+      "version": "0.10.1",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "The Rand Project Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/rand_core/0.10.1/COPYRIGHT",
+        "build/licenses/wasm/rand_core/0.10.1/LICENSE-APACHE",
+        "build/licenses/wasm/rand_core/0.10.1/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "rand_core",
+      "version": "0.9.5",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "The Rand Project Developers",
+        "The Rust Project Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/rand_core/0.9.5/COPYRIGHT",
+        "build/licenses/wasm/rand_core/0.9.5/LICENSE-APACHE",
+        "build/licenses/wasm/rand_core/0.9.5/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "raw-window-handle",
+      "version": "0.6.2",
+      "license": "MIT OR Apache-2.0 OR Zlib",
+      "authors": [
+        "Osspial <osspial@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/raw-window-handle/0.6.2/LICENSE-APACHE.md",
+        "build/licenses/wasm/raw-window-handle/0.6.2/LICENSE-MIT.md",
+        "build/licenses/wasm/raw-window-handle/0.6.2/LICENSE-ZLIB.md"
+      ]
+    },
+    {
+      "name": "rc2",
+      "version": "0.9.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/rc2/0.9.0/LICENSE-APACHE",
+        "build/licenses/wasm/rc2/0.9.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "resize",
+      "version": "0.8.9",
+      "license": "MIT",
+      "authors": [
+        "Kornel <kornel@geekhood.net>",
+        "Kagami Hiiragi <kagami@genshiken.org>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/resize/0.8.9/LICENSE"
+      ]
+    },
+    {
+      "name": "rfc6979",
+      "version": "0.5.0-rc.5",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/rfc6979/0.5.0-rc.5/LICENSE-APACHE",
+        "build/licenses/wasm/rfc6979/0.5.0-rc.5/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "rgb",
+      "version": "0.8.53",
+      "license": "MIT",
+      "authors": [
+        "Kornel Lesiński <kornel@geekhood.net>",
+        "James Forster <james.forsterer@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/rgb/0.8.53/LICENSE"
+      ]
+    },
+    {
+      "name": "rsa",
+      "version": "0.10.0-rc.17",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "RustCrypto Developers",
+        "dignifiedquire <dignifiedquire@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/rsa/0.10.0-rc.17/LICENSE-APACHE",
+        "build/licenses/wasm/rsa/0.10.0-rc.17/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "rustc_version",
+      "version": "0.4.1",
+      "license": "MIT OR Apache-2.0",
+      "authors": [],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/rustc_version/0.4.1/LICENSE-APACHE",
+        "build/licenses/wasm/rustc_version/0.4.1/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "rustcrypto-ff",
+      "version": "0.14.0-rc.1",
+      "license": "MIT/Apache-2.0",
+      "authors": [
+        "Sean Bowe <ewillbefull@gmail.com>",
+        "Jack Grigg <thestr4d@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/rustcrypto-ff/0.14.0-rc.1/LICENSE-APACHE",
+        "build/licenses/wasm/rustcrypto-ff/0.14.0-rc.1/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "rustcrypto-ff_derive",
+      "version": "0.14.0-rc.0",
+      "license": "MIT/Apache-2.0",
+      "authors": [
+        "Sean Bowe <ewillbefull@gmail.com>",
+        "Jack Grigg <thestr4d@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/rustcrypto-ff_derive/0.14.0-rc.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "rustcrypto-group",
+      "version": "0.14.0-rc.1",
+      "license": "MIT/Apache-2.0",
+      "authors": [
+        "Sean Bowe <ewillbefull@gmail.com>",
+        "Jack Grigg <jack@z.cash>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/rustcrypto-group/0.14.0-rc.1/COPYRIGHT",
+        "build/licenses/wasm/rustcrypto-group/0.14.0-rc.1/LICENSE-APACHE",
+        "build/licenses/wasm/rustcrypto-group/0.14.0-rc.1/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "rusticata-macros",
+      "version": "4.1.0",
+      "license": "MIT/Apache-2.0",
+      "authors": [
+        "Pierre Chifflier <chifflier@wzdftpd.net>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/rusticata-macros/4.1.0/LICENSE-APACHE",
+        "build/licenses/wasm/rusticata-macros/4.1.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "rustversion",
+      "version": "1.0.22",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/rustversion/1.0.22/LICENSE-APACHE",
+        "build/licenses/wasm/rustversion/1.0.22/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "sec1",
+      "version": "0.8.1",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/sec1/0.8.1/LICENSE-APACHE",
+        "build/licenses/wasm/sec1/0.8.1/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "semver",
+      "version": "1.0.28",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/semver/1.0.28/LICENSE-APACHE",
+        "build/licenses/wasm/semver/1.0.28/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "serde",
+      "version": "1.0.228",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Erick Tryzelaar <erick.tryzelaar@gmail.com>",
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/serde/1.0.228/LICENSE-APACHE",
+        "build/licenses/wasm/serde/1.0.228/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "serde_bytes",
+      "version": "0.11.19",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/serde_bytes/0.11.19/LICENSE-APACHE",
+        "build/licenses/wasm/serde_bytes/0.11.19/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "serde_core",
+      "version": "1.0.228",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Erick Tryzelaar <erick.tryzelaar@gmail.com>",
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/serde_core/1.0.228/LICENSE-APACHE",
+        "build/licenses/wasm/serde_core/1.0.228/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "serde_derive",
+      "version": "1.0.228",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Erick Tryzelaar <erick.tryzelaar@gmail.com>",
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/serde_derive/1.0.228/LICENSE-APACHE",
+        "build/licenses/wasm/serde_derive/1.0.228/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "serde_json",
+      "version": "1.0.150",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Erick Tryzelaar <erick.tryzelaar@gmail.com>",
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/serde_json/1.0.150/LICENSE-APACHE",
+        "build/licenses/wasm/serde_json/1.0.150/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "sha1",
+      "version": "0.10.6",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/sha1/0.10.6/LICENSE-APACHE",
+        "build/licenses/wasm/sha1/0.10.6/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "sha1",
+      "version": "0.11.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/sha1/0.11.0/LICENSE-APACHE",
+        "build/licenses/wasm/sha1/0.11.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "sha2",
+      "version": "0.11.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/sha2/0.11.0/LICENSE-APACHE",
+        "build/licenses/wasm/sha2/0.11.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "sha3",
+      "version": "0.11.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/sha3/0.11.0/LICENSE-APACHE",
+        "build/licenses/wasm/sha3/0.11.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "sharded-slab",
+      "version": "0.1.7",
+      "license": "MIT",
+      "authors": [
+        "Eliza Weisman <eliza@buoyant.io>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/sharded-slab/0.1.7/LICENSE"
+      ]
+    },
+    {
+      "name": "signature",
+      "version": "3.0.0-rc.10",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/signature/3.0.0-rc.10/LICENSE-APACHE",
+        "build/licenses/wasm/signature/3.0.0-rc.10/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "simd-adler32",
+      "version": "0.3.9",
+      "license": "MIT",
+      "authors": [
+        "Marvin Countryman <me@maar.vin>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/simd-adler32/0.3.9/LICENSE.md"
+      ]
+    },
+    {
+      "name": "slab",
+      "version": "0.4.12",
+      "license": "MIT",
+      "authors": [
+        "Carl Lerche <me@carllerche.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/slab/0.4.12/LICENSE"
+      ]
+    },
+    {
+      "name": "smallvec",
+      "version": "1.15.1",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "The Servo Project Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/smallvec/1.15.1/LICENSE-APACHE",
+        "build/licenses/wasm/smallvec/1.15.1/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "softbuffer",
+      "version": "0.4.8",
+      "license": "MIT OR Apache-2.0",
+      "authors": [],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/softbuffer/0.4.8/LICENSE-APACHE",
+        "build/licenses/wasm/softbuffer/0.4.8/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "spki",
+      "version": "0.7.3",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/spki/0.7.3/LICENSE-APACHE",
+        "build/licenses/wasm/spki/0.7.3/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "spki",
+      "version": "0.8.0",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/spki/0.8.0/LICENSE-APACHE",
+        "build/licenses/wasm/spki/0.8.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "sspi",
+      "version": "0.21.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Devolutions Inc. <infos@devolutions.net>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/sspi/0.21.0/LICENSE-APACHE",
+        "build/licenses/wasm/sspi/0.21.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "stable_deref_trait",
+      "version": "1.2.1",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Robert Grosse <n210241048576@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/stable_deref_trait/1.2.1/LICENSE-APACHE",
+        "build/licenses/wasm/stable_deref_trait/1.2.1/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "subtle",
+      "version": "2.6.1",
+      "license": "BSD-3-Clause",
+      "authors": [
+        "Isis Lovecruft <isis@patternsinthevoid.net>",
+        "Henry de Valence <hdevalence@hdevalence.ca>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/subtle/2.6.1/LICENSE"
+      ]
+    },
+    {
+      "name": "syn",
+      "version": "1.0.109",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/syn/1.0.109/LICENSE-APACHE",
+        "build/licenses/wasm/syn/1.0.109/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "syn",
+      "version": "2.0.117",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/syn/2.0.117/LICENSE-APACHE",
+        "build/licenses/wasm/syn/2.0.117/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "synstructure",
+      "version": "0.13.2",
+      "license": "MIT",
+      "authors": [
+        "Nika Layzell <nika@thelayzells.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/synstructure/0.13.2/LICENSE"
+      ]
+    },
+    {
+      "name": "tap",
+      "version": "1.0.1",
+      "license": "MIT",
+      "authors": [
+        "Elliott Linder <elliott.darfink@gmail.com>",
+        "myrrlyn <self@myrrlyn.dev>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/tap/1.0.1/LICENSE.txt"
+      ]
+    },
+    {
+      "name": "thiserror-impl",
+      "version": "2.0.18",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/thiserror-impl/2.0.18/LICENSE-APACHE",
+        "build/licenses/wasm/thiserror-impl/2.0.18/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "thiserror",
+      "version": "2.0.18",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/thiserror/2.0.18/LICENSE-APACHE",
+        "build/licenses/wasm/thiserror/2.0.18/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "thread_local",
+      "version": "1.1.9",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Amanieu d'Antras <amanieu@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/thread_local/1.1.9/LICENSE-APACHE",
+        "build/licenses/wasm/thread_local/1.1.9/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "time-core",
+      "version": "0.1.8",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Jacob Pratt <open-source@jhpratt.dev>",
+        "Time contributors"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/time-core/0.1.8/LICENSE-Apache",
+        "build/licenses/wasm/time-core/0.1.8/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "time",
+      "version": "0.3.47",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Jacob Pratt <open-source@jhpratt.dev>",
+        "Time contributors"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/time/0.3.47/LICENSE-Apache",
+        "build/licenses/wasm/time/0.3.47/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "tinystr",
+      "version": "0.8.3",
+      "license": "Unicode-3.0",
+      "authors": [
+        "The ICU4X Project Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/tinystr/0.8.3/LICENSE"
+      ]
+    },
+    {
+      "name": "tracing-attributes",
+      "version": "0.1.31",
+      "license": "MIT",
+      "authors": [
+        "Tokio Contributors <team@tokio.rs>",
+        "Eliza Weisman <eliza@buoyant.io>",
+        "David Barsky <dbarsky@amazon.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/tracing-attributes/0.1.31/LICENSE"
+      ]
+    },
+    {
+      "name": "tracing-core",
+      "version": "0.1.36",
+      "license": "MIT",
+      "authors": [
+        "Tokio Contributors <team@tokio.rs>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/tracing-core/0.1.36/LICENSE",
+        "build/licenses/wasm/tracing-core/0.1.36/src/spin/LICENSE"
+      ]
+    },
+    {
+      "name": "tracing-log",
+      "version": "0.2.0",
+      "license": "MIT",
+      "authors": [
+        "Tokio Contributors <team@tokio.rs>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/tracing-log/0.2.0/LICENSE"
+      ]
+    },
+    {
+      "name": "tracing-subscriber",
+      "version": "0.3.23",
+      "license": "MIT",
+      "authors": [
+        "Eliza Weisman <eliza@buoyant.io>",
+        "David Barsky <me@davidbarsky.com>",
+        "Tokio Contributors <team@tokio.rs>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/tracing-subscriber/0.3.23/LICENSE"
+      ]
+    },
+    {
+      "name": "tracing-web",
+      "version": "0.1.3",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Martin Molzer <WorldSEnder@users.noreply.github.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/tracing-web/0.1.3/LICENSE-APACHE",
+        "build/licenses/wasm/tracing-web/0.1.3/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "tracing",
+      "version": "0.1.44",
+      "license": "MIT",
+      "authors": [
+        "Eliza Weisman <eliza@buoyant.io>",
+        "Tokio Contributors <team@tokio.rs>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/tracing/0.1.44/LICENSE"
+      ]
+    },
+    {
+      "name": "typenum",
+      "version": "1.20.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Paho Lurie-Gregg <paho@paholg.com>",
+        "Andre Bogus <bogusandre@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/typenum/1.20.0/LICENSE",
+        "build/licenses/wasm/typenum/1.20.0/LICENSE-APACHE",
+        "build/licenses/wasm/typenum/1.20.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "unicode-ident",
+      "version": "1.0.24",
+      "license": "(MIT OR Apache-2.0) AND Unicode-3.0",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/unicode-ident/1.0.24/LICENSE-APACHE",
+        "build/licenses/wasm/unicode-ident/1.0.24/LICENSE-MIT",
+        "build/licenses/wasm/unicode-ident/1.0.24/LICENSE-UNICODE"
+      ]
+    },
+    {
+      "name": "universal-hash",
+      "version": "0.6.1",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/universal-hash/0.6.1/LICENSE-APACHE",
+        "build/licenses/wasm/universal-hash/0.6.1/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "untrusted",
+      "version": "0.9.0",
+      "license": "ISC",
+      "authors": [
+        "Brian Smith <brian@briansmith.org>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/untrusted/0.9.0/LICENSE.txt"
+      ]
+    },
+    {
+      "name": "url",
+      "version": "2.5.8",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "The rust-url developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/url/2.5.8/LICENSE-APACHE",
+        "build/licenses/wasm/url/2.5.8/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "utf8_iter",
+      "version": "1.0.4",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "Henri Sivonen <hsivonen@hsivonen.fi>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/utf8_iter/1.0.4/COPYRIGHT",
+        "build/licenses/wasm/utf8_iter/1.0.4/LICENSE-APACHE",
+        "build/licenses/wasm/utf8_iter/1.0.4/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "uuid",
+      "version": "1.20.0",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "Ashley Mannix<ashleymannix@live.com.au>",
+        "Dylan DPC<dylan.dpc@gmail.com>",
+        "Hunar Roop Kahlon<hunar.roop@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/uuid/1.20.0/LICENSE-APACHE",
+        "build/licenses/wasm/uuid/1.20.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "version_check",
+      "version": "0.9.5",
+      "license": "MIT/Apache-2.0",
+      "authors": [
+        "Sergio Benitez <sb@sergio.bz>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/version_check/0.9.5/LICENSE-APACHE",
+        "build/licenses/wasm/version_check/0.9.5/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "wasm-bindgen-futures",
+      "version": "0.4.72",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "The wasm-bindgen Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/wasm-bindgen-futures/0.4.72/LICENSE-APACHE",
+        "build/licenses/wasm/wasm-bindgen-futures/0.4.72/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "wasm-bindgen-macro-support",
+      "version": "0.2.122",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "The wasm-bindgen Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/wasm-bindgen-macro-support/0.2.122/LICENSE-APACHE",
+        "build/licenses/wasm/wasm-bindgen-macro-support/0.2.122/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "wasm-bindgen-macro",
+      "version": "0.2.122",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "The wasm-bindgen Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/wasm-bindgen-macro/0.2.122/LICENSE-APACHE",
+        "build/licenses/wasm/wasm-bindgen-macro/0.2.122/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "wasm-bindgen-shared",
+      "version": "0.2.122",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "The wasm-bindgen Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/wasm-bindgen-shared/0.2.122/LICENSE-APACHE",
+        "build/licenses/wasm/wasm-bindgen-shared/0.2.122/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "wasm-bindgen",
+      "version": "0.2.122",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "The wasm-bindgen Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/wasm-bindgen/0.2.122/LICENSE-APACHE",
+        "build/licenses/wasm/wasm-bindgen/0.2.122/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "web-sys",
+      "version": "0.3.99",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "The wasm-bindgen Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/web-sys/0.3.99/LICENSE-APACHE",
+        "build/licenses/wasm/web-sys/0.3.99/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "widestring",
+      "version": "1.2.1",
+      "license": "MIT OR Apache-2.0",
+      "authors": [],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/widestring/1.2.1/LICENSE-APACHE",
+        "build/licenses/wasm/widestring/1.2.1/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "winscard",
+      "version": "0.3.2",
+      "license": "MIT/Apache-2.0",
+      "authors": [
+        "Devolutions Inc. <infos@devolutions.net>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/winscard/0.3.2/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "writeable",
+      "version": "0.6.3",
+      "license": "Unicode-3.0",
+      "authors": [
+        "The ICU4X Project Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/writeable/0.6.3/LICENSE"
+      ]
+    },
+    {
+      "name": "wyz",
+      "version": "0.5.1",
+      "license": "MIT",
+      "authors": [
+        "myrrlyn <self@myrrlyn.dev>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/wyz/0.5.1/LICENSE.txt"
+      ]
+    },
+    {
+      "name": "x25519-dalek",
+      "version": "3.0.0-pre.6",
+      "license": "BSD-3-Clause",
+      "authors": [
+        "Isis Lovecruft <isis@patternsinthevoid.net>",
+        "DebugSteven <debugsteven@gmail.com>",
+        "Henry de Valence <hdevalence@hdevalence.ca>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/x25519-dalek/3.0.0-pre.6/LICENSE"
+      ]
+    },
+    {
+      "name": "x509-cert",
+      "version": "0.2.5",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/x509-cert/0.2.5/LICENSE-APACHE",
+        "build/licenses/wasm/x509-cert/0.2.5/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "yoke-derive",
+      "version": "0.8.2",
+      "license": "Unicode-3.0",
+      "authors": [
+        "Manish Goregaokar <manishsmail@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/yoke-derive/0.8.2/LICENSE"
+      ]
+    },
+    {
+      "name": "yoke",
+      "version": "0.8.2",
+      "license": "Unicode-3.0",
+      "authors": [
+        "Manish Goregaokar <manishsmail@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/yoke/0.8.2/LICENSE"
+      ]
+    },
+    {
+      "name": "yuv",
+      "version": "0.8.14",
+      "license": "BSD-3-Clause OR Apache-2.0",
+      "authors": [
+        "Radzivon Bartoshyk"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/yuv/0.8.14/LICENSE-APACHE.md",
+        "build/licenses/wasm/yuv/0.8.14/LICENSE.md"
+      ]
+    },
+    {
+      "name": "zerocopy",
+      "version": "0.8.48",
+      "license": "BSD-2-Clause OR Apache-2.0 OR MIT",
+      "authors": [
+        "Joshua Liebow-Feeser <joshlf@google.com>",
+        "Jack Wrenn <jswrenn@amazon.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/zerocopy/0.8.48/LICENSE-APACHE",
+        "build/licenses/wasm/zerocopy/0.8.48/LICENSE-BSD",
+        "build/licenses/wasm/zerocopy/0.8.48/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "zerofrom-derive",
+      "version": "0.1.7",
+      "license": "Unicode-3.0",
+      "authors": [
+        "Manish Goregaokar <manishsmail@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/zerofrom-derive/0.1.7/LICENSE"
+      ]
+    },
+    {
+      "name": "zerofrom",
+      "version": "0.1.8",
+      "license": "Unicode-3.0",
+      "authors": [
+        "The ICU4X Project Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/zerofrom/0.1.8/LICENSE"
+      ]
+    },
+    {
+      "name": "zeroize",
+      "version": "1.8.2",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "The RustCrypto Project Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/zeroize/1.8.2/LICENSE-APACHE",
+        "build/licenses/wasm/zeroize/1.8.2/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "zeroize_derive",
+      "version": "1.4.3",
+      "license": "Apache-2.0 OR MIT",
+      "authors": [
+        "The RustCrypto Project Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/zeroize_derive/1.4.3/LICENSE-APACHE",
+        "build/licenses/wasm/zeroize_derive/1.4.3/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "zerotrie",
+      "version": "0.2.4",
+      "license": "Unicode-3.0",
+      "authors": [
+        "The ICU4X Project Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/zerotrie/0.2.4/LICENSE"
+      ]
+    },
+    {
+      "name": "zerovec-derive",
+      "version": "0.11.3",
+      "license": "Unicode-3.0",
+      "authors": [
+        "Manish Goregaokar <manishsmail@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/zerovec-derive/0.11.3/LICENSE"
+      ]
+    },
+    {
+      "name": "zerovec",
+      "version": "0.11.6",
+      "license": "Unicode-3.0",
+      "authors": [
+        "The ICU4X Project Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/zerovec/0.11.6/LICENSE"
+      ]
+    },
+    {
+      "name": "zmij",
+      "version": "1.0.21",
+      "license": "MIT",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/wasm/zmij/1.0.21/LICENSE-MIT"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,757 @@
+ironrdp-web v0.0.0 (upstream\crates\ironrdp-web)
+anyhow v1.0.102
+base64 v0.22.1
+chrono v0.4.44
+js-sys v0.3.99
+cfg-if v1.0.4
+futures-util v0.3.32
+futures-core v0.3.32
+futures-io v0.3.32
+futures-macro v0.3.32 (proc-macro)
+proc-macro2 v1.0.106
+unicode-ident v1.0.24
+quote v1.0.45
+proc-macro2 v1.0.106 (*)
+syn v2.0.117
+proc-macro2 v1.0.106 (*)
+quote v1.0.45 (*)
+unicode-ident v1.0.24
+futures-sink v0.3.32
+futures-task v0.3.32
+memchr v2.8.0
+pin-project-lite v0.2.17
+slab v0.4.12
+once_cell v1.21.4
+wasm-bindgen v0.2.122
+cfg-if v1.0.4
+once_cell v1.21.4
+wasm-bindgen-macro v0.2.122 (proc-macro)
+quote v1.0.45 (*)
+wasm-bindgen-macro-support v0.2.122
+bumpalo v3.20.3
+proc-macro2 v1.0.106 (*)
+quote v1.0.45 (*)
+syn v2.0.117 (*)
+wasm-bindgen-shared v0.2.122
+unicode-ident v1.0.24
+wasm-bindgen-shared v0.2.122
+unicode-ident v1.0.24
+rustversion v1.0.22 (proc-macro)
+num-traits v0.2.19
+autocfg v1.5.1
+wasm-bindgen v0.2.122 (*)
+futures-channel v0.3.32
+futures-core v0.3.32
+futures-util v0.3.32 (*)
+getrandom v0.2.17
+cfg-if v1.0.4
+js-sys v0.3.99 (*)
+wasm-bindgen v0.2.122 (*)
+getrandom v0.3.4
+cfg-if v1.0.4
+wasm-bindgen v0.2.122 (*)
+getrandom v0.4.2
+cfg-if v1.0.4
+rand_core v0.10.1
+wasm-bindgen v0.2.122 (*)
+gloo-net v0.7.0
+futures-channel v0.3.32 (*)
+futures-core v0.3.32
+futures-io v0.3.32
+futures-sink v0.3.32
+gloo-utils v0.3.0
+js-sys v0.3.99 (*)
+wasm-bindgen v0.2.122 (*)
+web-sys v0.3.99
+js-sys v0.3.99 (*)
+wasm-bindgen v0.2.122 (*)
+http v1.4.1
+bytes v1.11.1
+itoa v1.0.18
+js-sys v0.3.99 (*)
+pin-project v1.1.13
+pin-project-internal v1.1.13 (proc-macro)
+proc-macro2 v1.0.106 (*)
+quote v1.0.45 (*)
+syn v2.0.117 (*)
+thiserror v2.0.18
+thiserror-impl v2.0.18 (proc-macro)
+proc-macro2 v1.0.106 (*)
+quote v1.0.45 (*)
+syn v2.0.117 (*)
+wasm-bindgen v0.2.122 (*)
+wasm-bindgen-futures v0.4.72
+js-sys v0.3.99 (*)
+wasm-bindgen v0.2.122 (*)
+web-sys v0.3.99 (*)
+gloo-timers v0.4.0
+futures-channel v0.3.32 (*)
+futures-core v0.3.32
+js-sys v0.3.99 (*)
+wasm-bindgen v0.2.122 (*)
+iron-remote-desktop v0.7.0 (upstream\crates\iron-remote-desktop)
+console_error_panic_hook v0.1.7
+cfg-if v1.0.4
+wasm-bindgen v0.2.122 (*)
+tracing v0.1.44
+log v0.4.30
+pin-project-lite v0.2.17
+tracing-attributes v0.1.31 (proc-macro)
+proc-macro2 v1.0.106 (*)
+quote v1.0.45 (*)
+syn v2.0.117 (*)
+tracing-core v0.1.36
+once_cell v1.21.4
+tracing-subscriber v0.3.23
+nu-ansi-term v0.50.3
+sharded-slab v0.1.7
+lazy_static v1.5.0
+smallvec v1.15.1
+thread_local v1.1.9
+cfg-if v1.0.4
+time v0.3.47
+deranged v0.5.8
+powerfmt v0.2.0
+itoa v1.0.18
+js-sys v0.3.99 (*)
+num-conv v0.2.2
+powerfmt v0.2.0
+time-core v0.1.8
+tracing-core v0.1.36 (*)
+tracing-log v0.2.0
+log v0.4.30
+once_cell v1.21.4
+tracing-core v0.1.36 (*)
+tracing-web v0.1.3
+js-sys v0.3.99 (*)
+tracing-core v0.1.36 (*)
+tracing-subscriber v0.3.23 (*)
+wasm-bindgen v0.2.122 (*)
+web-sys v0.3.99 (*)
+wasm-bindgen v0.2.122 (*)
+web-sys v0.3.99 (*)
+ironrdp v0.14.0 (upstream\crates\ironrdp)
+ironrdp-cliprdr v0.5.0 (upstream\crates\ironrdp-cliprdr)
+bitflags v2.11.1
+ironrdp-core v0.1.5 (upstream\crates\ironrdp-core)
+ironrdp-error v0.1.3 (upstream\crates\ironrdp-error)
+ironrdp-pdu v0.7.0 (upstream\crates\ironrdp-pdu)
+bit_field v0.10.3
+bitflags v2.11.1
+byteorder v1.5.0
+der-parser v10.0.0
+asn1-rs v0.7.2
+asn1-rs-derive v0.6.0 (proc-macro)
+proc-macro2 v1.0.106 (*)
+quote v1.0.45 (*)
+syn v2.0.117 (*)
+synstructure v0.13.2
+proc-macro2 v1.0.106 (*)
+quote v1.0.45 (*)
+syn v2.0.117 (*)
+asn1-rs-impl v0.2.0 (proc-macro)
+proc-macro2 v1.0.106 (*)
+quote v1.0.45 (*)
+syn v2.0.117 (*)
+displaydoc v0.2.5 (proc-macro)
+proc-macro2 v1.0.106 (*)
+quote v1.0.45 (*)
+syn v2.0.117 (*)
+nom v7.1.3
+memchr v2.8.0
+minimal-lexical v0.2.1
+num-traits v0.2.19 (*)
+rusticata-macros v4.1.0
+nom v7.1.3 (*)
+thiserror v2.0.18 (*)
+displaydoc v0.2.5 (proc-macro) (*)
+nom v7.1.3 (*)
+num-traits v0.2.19 (*)
+rusticata-macros v4.1.0 (*)
+ironrdp-core v0.1.5 (upstream\crates\ironrdp-core) (*)
+ironrdp-error v0.1.3 (upstream\crates\ironrdp-error)
+md-5 v0.10.6
+cfg-if v1.0.4
+digest v0.10.7
+block-buffer v0.10.4
+generic-array v0.14.7
+typenum v1.20.0
+version_check v0.9.5
+crypto-common v0.1.7
+generic-array v0.14.7 (*)
+typenum v1.20.0
+num-bigint v0.4.6
+num-integer v0.1.46
+num-traits v0.2.19 (*)
+num-traits v0.2.19 (*)
+num-derive v0.4.2 (proc-macro)
+proc-macro2 v1.0.106 (*)
+quote v1.0.45 (*)
+syn v2.0.117 (*)
+num-integer v0.1.46 (*)
+num-traits v0.2.19 (*)
+pkcs1 v0.7.5
+der v0.7.10
+const-oid v0.9.6
+der_derive v0.7.3 (proc-macro)
+proc-macro2 v1.0.106 (*)
+quote v1.0.45 (*)
+syn v2.0.117 (*)
+flagset v0.4.7
+spki v0.7.3
+der v0.7.10 (*)
+sha1 v0.10.6
+cfg-if v1.0.4
+digest v0.10.7 (*)
+tap v1.0.1
+x509-cert v0.2.5
+const-oid v0.9.6
+der v0.7.10 (*)
+spki v0.7.3 (*)
+ironrdp-svc v0.6.0 (upstream\crates\ironrdp-svc)
+bitflags v2.11.1
+ironrdp-core v0.1.5 (upstream\crates\ironrdp-core) (*)
+ironrdp-pdu v0.7.0 (upstream\crates\ironrdp-pdu) (*)
+tracing v0.1.44 (*)
+ironrdp-connector v0.8.0 (upstream\crates\ironrdp-connector)
+ironrdp-core v0.1.5 (upstream\crates\ironrdp-core) (*)
+ironrdp-error v0.1.3 (upstream\crates\ironrdp-error)
+ironrdp-pdu v0.7.0 (upstream\crates\ironrdp-pdu) (*)
+ironrdp-svc v0.6.0 (upstream\crates\ironrdp-svc) (*)
+picky v7.0.0-rc.23
+aead v0.6.0-rc.10
+crypto-common v0.2.2
+getrandom v0.4.2 (*)
+hybrid-array v0.4.12
+subtle v2.6.1
+typenum v1.20.0
+zeroize v1.8.2
+zeroize_derive v1.4.3 (proc-macro)
+proc-macro2 v1.0.106 (*)
+quote v1.0.45 (*)
+syn v2.0.117 (*)
+rand_core v0.10.1
+inout v0.2.2
+block-padding v0.4.2
+hybrid-array v0.4.12 (*)
+hybrid-array v0.4.12 (*)
+aes v0.9.0
+cipher v0.5.2
+block-buffer v0.12.0
+hybrid-array v0.4.12 (*)
+crypto-common v0.2.2 (*)
+inout v0.2.2 (*)
+cpubits v0.1.1
+aes-gcm v0.11.0-rc.3
+aead v0.6.0-rc.10 (*)
+aes v0.9.0 (*)
+cipher v0.5.2 (*)
+ctr v0.10.1
+cipher v0.5.2 (*)
+ghash v0.6.0
+polyval v0.7.1
+cpubits v0.1.1
+universal-hash v0.6.1
+crypto-common v0.2.2 (*)
+ctutils v0.4.2
+cmov v0.5.3
+subtle v2.6.1
+subtle v2.6.1
+aes-kw v0.3.0
+aes v0.9.0 (*)
+const-oid v0.10.2
+base64 v0.22.1
+cbc v0.2.1
+cipher v0.5.2 (*)
+crypto-bigint v0.7.3
+cpubits v0.1.1
+ctutils v0.4.2 (*)
+getrandom v0.4.2 (*)
+hybrid-array v0.4.12 (*)
+num-traits v0.2.19 (*)
+rand_core v0.10.1
+subtle v2.6.1
+zeroize v1.8.2 (*)
+crypto-common v0.2.2 (*)
+ctr v0.10.1 (*)
+curve25519-dalek v5.0.0-pre.6
+cfg-if v1.0.4
+digest v0.11.3
+block-buffer v0.12.0 (*)
+const-oid v0.10.2
+crypto-common v0.2.2 (*)
+ctutils v0.4.2 (*)
+subtle v2.6.1
+zeroize v1.8.2 (*)
+rustc_version v0.4.1
+semver v1.0.28
+des v0.9.0
+cipher v0.5.2 (*)
+digest v0.11.3 (*)
+ecdsa v0.17.0-rc.17
+der v0.8.0
+const-oid v0.10.2
+pem-rfc7468 v1.0.0
+base64ct v1.8.3
+zeroize v1.8.2 (*)
+digest v0.11.3 (*)
+elliptic-curve v0.14.0-rc.31
+base16ct v1.0.0
+crypto-bigint v0.7.3 (*)
+crypto-common v0.2.2 (*)
+digest v0.11.3 (*)
+hkdf v0.13.0
+hmac v0.13.0
+digest v0.11.3 (*)
+hybrid-array v0.4.12 (*)
+pem-rfc7468 v1.0.0 (*)
+pkcs8 v0.11.0-rc.11
+der v0.8.0 (*)
+spki v0.8.0
+der v0.8.0 (*)
+rand_core v0.10.1
+rustcrypto-ff v0.14.0-rc.1
+bitvec v1.0.1
+funty v2.0.0
+radium v0.7.0
+tap v1.0.1
+wyz v0.5.1
+tap v1.0.1
+rand_core v0.10.1
+subtle v2.6.1
+rustcrypto-group v0.14.0-rc.1
+rand_core v0.10.1
+rustcrypto-ff v0.14.0-rc.1 (*)
+subtle v2.6.1
+sec1 v0.8.1
+base16ct v1.0.0
+ctutils v0.4.2 (*)
+der v0.8.0 (*)
+hybrid-array v0.4.12 (*)
+subtle v2.6.1
+zeroize v1.8.2 (*)
+subtle v2.6.1
+zeroize v1.8.2 (*)
+rfc6979 v0.5.0-rc.5
+hmac v0.13.0 (*)
+subtle v2.6.1
+signature v3.0.0-rc.10
+digest v0.11.3 (*)
+rand_core v0.10.1
+spki v0.8.0 (*)
+zeroize v1.8.2 (*)
+ed25519 v3.0.0-rc.4
+signature v3.0.0-rc.10 (*)
+ed25519-dalek v3.0.0-pre.6
+curve25519-dalek v5.0.0-pre.6 (*)
+ed25519 v3.0.0-rc.4 (*)
+rand_core v0.10.1
+sha2 v0.11.0
+cfg-if v1.0.4
+digest v0.11.3 (*)
+subtle v2.6.1
+zeroize v1.8.2 (*)
+elliptic-curve v0.14.0-rc.31 (*)
+ff v0.14.0-pre.0
+rand_core v0.9.5
+getrandom v0.3.4 (*)
+subtle v2.6.1
+group v0.14.0-pre.0
+ff v0.14.0-pre.0 (*)
+rand_core v0.9.5 (*)
+subtle v2.6.1
+hex v0.4.3
+hmac v0.13.0 (*)
+http v1.4.1 (*)
+inout v0.2.2 (*)
+md-5 v0.11.0
+cfg-if v1.0.4
+digest v0.11.3 (*)
+p256 v0.14.0-rc.9
+ecdsa v0.17.0-rc.17 (*)
+elliptic-curve v0.14.0-rc.31 (*)
+primefield v0.14.0-rc.9
+crypto-bigint v0.7.3 (*)
+crypto-common v0.2.2 (*)
+rand_core v0.10.1
+rustcrypto-ff v0.14.0-rc.1 (*)
+subtle v2.6.1
+zeroize v1.8.2 (*)
+primeorder v0.14.0-rc.9
+elliptic-curve v0.14.0-rc.31 (*)
+sha2 v0.11.0 (*)
+p384 v0.14.0-rc.9
+ecdsa v0.17.0-rc.17 (*)
+elliptic-curve v0.14.0-rc.31 (*)
+fiat-crypto v0.3.0
+primefield v0.14.0-rc.9 (*)
+primeorder v0.14.0-rc.9 (*)
+sha2 v0.11.0 (*)
+p521 v0.14.0-rc.9
+base16ct v1.0.0
+ecdsa v0.17.0-rc.17 (*)
+elliptic-curve v0.14.0-rc.31 (*)
+primefield v0.14.0-rc.9 (*)
+primeorder v0.14.0-rc.9 (*)
+sha2 v0.11.0 (*)
+pbkdf2 v0.13.0-rc.10
+digest v0.11.3 (*)
+hmac v0.13.0 (*)
+picky-asn1 v0.10.1
+oid v0.2.1
+serde v1.0.228
+serde_core v1.0.228
+serde_derive v1.0.228 (proc-macro)
+proc-macro2 v1.0.106 (*)
+quote v1.0.45 (*)
+syn v2.0.117 (*)
+serde v1.0.228 (*)
+serde_bytes v0.11.19
+serde_core v1.0.228
+time v0.3.47 (*)
+zeroize v1.8.2 (*)
+picky-asn1-der v0.5.6
+picky-asn1 v0.10.1 (*)
+serde v1.0.228 (*)
+serde_bytes v0.11.19 (*)
+picky-asn1-x509 v0.15.4
+base64 v0.22.1
+crypto-bigint v0.7.3 (*)
+oid v0.2.1 (*)
+picky-asn1 v0.10.1 (*)
+picky-asn1-der v0.5.6 (*)
+serde v1.0.228 (*)
+widestring v1.2.1
+zeroize v1.8.2 (*)
+pkcs1 v0.8.0-rc.4
+der v0.8.0 (*)
+spki v0.8.0 (*)
+pkcs8 v0.11.0-rc.11 (*)
+primefield v0.14.0-rc.9 (*)
+primeorder v0.14.0-rc.9 (*)
+rand v0.10.1
+chacha20 v0.10.0
+cfg-if v1.0.4
+rand_core v0.10.1
+getrandom v0.4.2 (*)
+rand_core v0.10.1
+rand_core v0.10.1
+rc2 v0.9.0
+cipher v0.5.2 (*)
+rfc6979 v0.5.0-rc.5 (*)
+rsa v0.10.0-rc.17
+const-oid v0.10.2
+crypto-bigint v0.7.3 (*)
+crypto-primes v0.7.0
+crypto-bigint v0.7.3 (*)
+libm v0.2.16
+rand_core v0.10.1
+digest v0.11.3 (*)
+pkcs1 v0.8.0-rc.4 (*)
+pkcs8 v0.11.0-rc.11 (*)
+rand_core v0.10.1
+signature v3.0.0-rc.10 (*)
+spki v0.8.0 (*)
+zeroize v1.8.2 (*)
+rustcrypto-ff v0.14.0-rc.1 (*)
+rustcrypto-ff_derive v0.14.0-rc.0 (proc-macro)
+addchain v0.2.1
+num-bigint v0.3.3
+num-integer v0.1.46
+num-traits v0.2.19
+autocfg v1.5.1
+num-traits v0.2.19 (*)
+autocfg v1.5.1
+num-integer v0.1.46 (*)
+num-traits v0.2.19 (*)
+num-bigint v0.3.3 (*)
+num-integer v0.1.46 (*)
+num-traits v0.2.19 (*)
+proc-macro2 v1.0.106 (*)
+quote v1.0.45 (*)
+syn v1.0.109
+proc-macro2 v1.0.106 (*)
+quote v1.0.45 (*)
+unicode-ident v1.0.24
+rustcrypto-group v0.14.0-rc.1 (*)
+serde v1.0.228 (*)
+serde_json v1.0.150
+itoa v1.0.18
+memchr v2.8.0
+serde_core v1.0.228
+zmij v1.0.21
+sha1 v0.11.0
+cfg-if v1.0.4
+digest v0.11.3 (*)
+sha2 v0.11.0 (*)
+sha3 v0.11.0
+digest v0.11.3 (*)
+keccak v0.2.0
+cfg-if v1.0.4
+signature v3.0.0-rc.10 (*)
+thiserror v2.0.18 (*)
+x25519-dalek v3.0.0-pre.6
+curve25519-dalek v5.0.0-pre.6 (*)
+rand_core v0.10.1
+zeroize v1.8.2 (*)
+zeroize v1.8.2 (*)
+picky-asn1-der v0.5.6 (*)
+picky-asn1-x509 v0.15.4 (*)
+rand v0.9.4
+rand_chacha v0.9.0
+ppv-lite86 v0.2.21
+zerocopy v0.8.48
+rand_core v0.9.5 (*)
+rand_core v0.9.5 (*)
+sspi v0.21.0
+async-recursion v1.1.1 (proc-macro)
+proc-macro2 v1.0.106 (*)
+quote v1.0.45 (*)
+syn v2.0.117 (*)
+bitflags v2.11.1
+bytemuck v1.25.0
+byteorder v1.5.0
+cfg-if v1.0.4
+crypto-bigint v0.7.3 (*)
+crypto-mac v0.11.0
+generic-array v0.14.7 (*)
+subtle v2.6.1
+getrandom v0.3.4 (*)
+hmac v0.13.0 (*)
+md-5 v0.11.0 (*)
+md4 v0.10.2
+digest v0.10.7 (*)
+num-derive v0.4.2 (proc-macro) (*)
+num-traits v0.2.19 (*)
+oid v0.2.1 (*)
+picky v7.0.0-rc.23 (*)
+picky-asn1 v0.10.1 (*)
+picky-asn1-der v0.5.6 (*)
+picky-asn1-x509 v0.15.4 (*)
+picky-krb v0.12.3
+aes v0.9.0 (*)
+block-padding v0.4.2 (*)
+byteorder v1.5.0
+cbc v0.2.1 (*)
+cipher v0.5.2 (*)
+crypto-bigint v0.7.3 (*)
+des v0.9.0 (*)
+hmac v0.13.0 (*)
+inout v0.2.2 (*)
+oid v0.2.1 (*)
+pbkdf2 v0.13.0-rc.10 (*)
+picky-asn1 v0.10.1 (*)
+picky-asn1-der v0.5.6 (*)
+picky-asn1-x509 v0.15.4 (*)
+rand v0.10.1 (*)
+rand_core v0.10.1
+serde v1.0.228 (*)
+sha1 v0.11.0 (*)
+thiserror v2.0.18 (*)
+uuid v1.20.0
+serde_core v1.0.228
+wasm-bindgen v0.2.122 (*)
+rand v0.10.1 (*)
+rand_core v0.10.1
+rsa v0.10.0-rc.17 (*)
+serde v1.0.228 (*)
+sha1 v0.11.0 (*)
+sha2 v0.11.0 (*)
+time v0.3.47 (*)
+tracing v0.1.44 (*)
+url v2.5.8
+form_urlencoded v1.2.2
+percent-encoding v2.3.2
+idna v1.1.0
+idna_adapter v1.2.2
+icu_normalizer v2.2.0
+icu_collections v2.2.0
+displaydoc v0.2.5 (proc-macro) (*)
+potential_utf v0.1.5
+zerovec v0.11.6
+yoke v0.8.2
+stable_deref_trait v1.2.1
+yoke-derive v0.8.2 (proc-macro)
+proc-macro2 v1.0.106 (*)
+quote v1.0.45 (*)
+syn v2.0.117 (*)
+synstructure v0.13.2 (*)
+zerofrom v0.1.8
+zerofrom-derive v0.1.7 (proc-macro)
+proc-macro2 v1.0.106 (*)
+quote v1.0.45 (*)
+syn v2.0.117 (*)
+synstructure v0.13.2 (*)
+zerofrom v0.1.8 (*)
+zerovec-derive v0.11.3 (proc-macro)
+proc-macro2 v1.0.106 (*)
+quote v1.0.45 (*)
+syn v2.0.117 (*)
+utf8_iter v1.0.4
+yoke v0.8.2 (*)
+zerofrom v0.1.8 (*)
+zerovec v0.11.6 (*)
+icu_normalizer_data v2.2.0
+icu_provider v2.2.0
+displaydoc v0.2.5 (proc-macro) (*)
+icu_locale_core v2.2.0
+displaydoc v0.2.5 (proc-macro) (*)
+litemap v0.8.2
+tinystr v0.8.3
+displaydoc v0.2.5 (proc-macro) (*)
+zerovec v0.11.6 (*)
+writeable v0.6.3
+zerovec v0.11.6 (*)
+writeable v0.6.3
+yoke v0.8.2 (*)
+zerofrom v0.1.8 (*)
+zerotrie v0.2.4
+displaydoc v0.2.5 (proc-macro) (*)
+yoke v0.8.2 (*)
+zerofrom v0.1.8 (*)
+zerovec v0.11.6 (*)
+smallvec v1.15.1
+zerovec v0.11.6 (*)
+icu_properties v2.2.0
+icu_collections v2.2.0 (*)
+icu_locale_core v2.2.0 (*)
+icu_properties_data v2.2.0
+icu_provider v2.2.0 (*)
+zerotrie v0.2.4 (*)
+zerovec v0.11.6 (*)
+smallvec v1.15.1
+utf8_iter v1.0.4
+percent-encoding v2.3.2
+uuid v1.20.0 (*)
+widestring v1.2.1
+winscard v0.3.2
+bitflags v2.11.1
+crypto-bigint v0.7.3 (*)
+flate2 v1.1.9
+crc32fast v1.5.0
+cfg-if v1.0.4
+miniz_oxide v0.8.9
+adler2 v2.0.1
+simd-adler32 v0.3.9
+iso7816 v0.1.4
+heapless v0.7.17
+hash32 v0.2.1
+byteorder v1.5.0
+stable_deref_trait v1.2.1
+rustc_version v0.4.1 (*)
+iso7816-tlv v0.4.4
+untrusted v0.9.0
+num-derive v0.4.2 (proc-macro) (*)
+num-traits v0.2.19 (*)
+picky v7.0.0-rc.23 (*)
+picky-asn1-x509 v0.15.4 (*)
+rsa v0.10.0-rc.17 (*)
+sha1 v0.11.0 (*)
+time v0.3.47 (*)
+tracing v0.1.44 (*)
+uuid v1.20.0 (*)
+widestring v1.2.1
+zeroize v1.8.2 (*)
+tracing v0.1.44 (*)
+url v2.5.8 (*)
+ironrdp-core v0.1.5 (upstream\crates\ironrdp-core) (*)
+ironrdp-displaycontrol v0.5.0 (upstream\crates\ironrdp-displaycontrol)
+ironrdp-core v0.1.5 (upstream\crates\ironrdp-core) (*)
+ironrdp-dvc v0.5.0 (upstream\crates\ironrdp-dvc)
+ironrdp-core v0.1.5 (upstream\crates\ironrdp-core) (*)
+ironrdp-pdu v0.7.0 (upstream\crates\ironrdp-pdu) (*)
+ironrdp-svc v0.6.0 (upstream\crates\ironrdp-svc) (*)
+tracing v0.1.44 (*)
+ironrdp-pdu v0.7.0 (upstream\crates\ironrdp-pdu) (*)
+ironrdp-svc v0.6.0 (upstream\crates\ironrdp-svc) (*)
+tracing v0.1.44 (*)
+ironrdp-dvc v0.5.0 (upstream\crates\ironrdp-dvc) (*)
+ironrdp-graphics v0.7.0 (upstream\crates\ironrdp-graphics)
+bit_field v0.10.3
+bitflags v2.11.1
+bitvec v1.0.1 (*)
+byteorder v1.5.0
+ironrdp-core v0.1.5 (upstream\crates\ironrdp-core) (*)
+ironrdp-pdu v0.7.0 (upstream\crates\ironrdp-pdu) (*)
+num-derive v0.4.2 (proc-macro) (*)
+num-traits v0.2.19 (*)
+yuv v0.8.14
+num-traits v0.2.19 (*)
+ironrdp-input v0.5.0 (upstream\crates\ironrdp-input)
+bitvec v1.0.1 (*)
+ironrdp-pdu v0.7.0 (upstream\crates\ironrdp-pdu) (*)
+smallvec v1.15.1
+ironrdp-pdu v0.7.0 (upstream\crates\ironrdp-pdu) (*)
+ironrdp-rdpdr v0.5.0 (upstream\crates\ironrdp-rdpdr)
+bitflags v2.11.1
+ironrdp-core v0.1.5 (upstream\crates\ironrdp-core) (*)
+ironrdp-error v0.1.3 (upstream\crates\ironrdp-error)
+ironrdp-pdu v0.7.0 (upstream\crates\ironrdp-pdu) (*)
+ironrdp-svc v0.6.0 (upstream\crates\ironrdp-svc) (*)
+tracing v0.1.44 (*)
+ironrdp-rdpsnd v0.7.0 (upstream\crates\ironrdp-rdpsnd)
+bitflags v2.11.1
+ironrdp-core v0.1.5 (upstream\crates\ironrdp-core) (*)
+ironrdp-pdu v0.7.0 (upstream\crates\ironrdp-pdu) (*)
+ironrdp-svc v0.6.0 (upstream\crates\ironrdp-svc) (*)
+tracing v0.1.44 (*)
+ironrdp-session v0.8.0 (upstream\crates\ironrdp-session)
+ironrdp-bulk v0.1.0 (upstream\crates\ironrdp-bulk)
+ironrdp-connector v0.8.0 (upstream\crates\ironrdp-connector) (*)
+ironrdp-core v0.1.5 (upstream\crates\ironrdp-core) (*)
+ironrdp-displaycontrol v0.5.0 (upstream\crates\ironrdp-displaycontrol) (*)
+ironrdp-dvc v0.5.0 (upstream\crates\ironrdp-dvc) (*)
+ironrdp-error v0.1.3 (upstream\crates\ironrdp-error)
+ironrdp-graphics v0.7.0 (upstream\crates\ironrdp-graphics) (*)
+ironrdp-pdu v0.7.0 (upstream\crates\ironrdp-pdu) (*)
+ironrdp-svc v0.6.0 (upstream\crates\ironrdp-svc) (*)
+tracing v0.1.44 (*)
+ironrdp-svc v0.6.0 (upstream\crates\ironrdp-svc) (*)
+ironrdp-cliprdr-format v0.1.4 (upstream\crates\ironrdp-cliprdr-format)
+ironrdp-core v0.1.5 (upstream\crates\ironrdp-core) (*)
+png v0.18.1
+bitflags v2.11.1
+crc32fast v1.5.0 (*)
+fdeflate v0.3.7
+simd-adler32 v0.3.9
+flate2 v1.1.9 (*)
+miniz_oxide v0.8.9 (*)
+ironrdp-core v0.1.5 (upstream\crates\ironrdp-core) (*)
+ironrdp-futures v0.6.0 (upstream\crates\ironrdp-futures)
+futures-util v0.3.32 (*)
+ironrdp-async v0.8.0 (upstream\crates\ironrdp-async)
+bytes v1.11.1
+ironrdp-connector v0.8.0 (upstream\crates\ironrdp-connector) (*)
+ironrdp-core v0.1.5 (upstream\crates\ironrdp-core) (*)
+ironrdp-pdu v0.7.0 (upstream\crates\ironrdp-pdu) (*)
+tracing v0.1.44 (*)
+ironrdp-pdu v0.7.0 (upstream\crates\ironrdp-pdu) (*)
+ironrdp-propertyset v0.1.0 (upstream\crates\ironrdp-propertyset)
+tracing v0.1.44 (*)
+ironrdp-rdcleanpath v0.2.1 (upstream\crates\ironrdp-rdcleanpath)
+der v0.7.10 (*)
+ironrdp-rdpfile v0.1.0 (upstream\crates\ironrdp-rdpfile)
+ironrdp-propertyset v0.1.0 (upstream\crates\ironrdp-propertyset) (*)
+ironrdp-svc v0.6.0 (upstream\crates\ironrdp-svc) (*)
+js-sys v0.3.99 (*)
+png v0.18.1 (*)
+resize v0.8.9
+rgb v0.8.53
+bytemuck v1.25.0
+rgb v0.8.53 (*)
+semver v1.0.28
+smallvec v1.15.1
+softbuffer v0.4.8
+js-sys v0.3.99 (*)
+raw-window-handle v0.6.2
+tracing v0.1.44 (*)
+wasm-bindgen v0.2.122 (*)
+web-sys v0.3.99 (*)
+tap v1.0.1
+time v0.3.47 (*)
+tracing v0.1.44 (*)
+url v2.5.8 (*)
+wasm-bindgen v0.2.122 (*)
+wasm-bindgen-futures v0.4.72 (*)
+web-sys v0.3.99 (*)
+x509-cert v0.2.5 (*)

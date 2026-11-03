@@ -1,0 +1,16 @@
+{
+  "inputs": {
+    "go.mod": "a64d2e3cb1ffc1fa2fcd1a33193d9a0219c6e7cb5bbb7ac018531992d8156b0c",
+    "go.sum": "293c9f53cd97efb1847a969f13d9b28cfaf44716bfb33e1c21f9e443cd17645a",
+    "frontend/pnpm-lock.yaml": "16c06d16c0cf27925a8e24b73c47440fa207ee5434cfa722d18c3a2a84d1a0c1",
+    "frontend/patches/@devolutions__iron-remote-desktop@0.11.0.patch": "53b4e282385f535f908c6399947350bff05c762c268b5060a9bba9d998fa0168"
+  },
+  "wasm_source_commit": "e45f68c7e52297ca50d33b44c0ace36c9940fbe6",
+  "npm_declared_mit": {
+    "minimap": "eb03174ce67e177bb86297c84c0389491350ff21",
+    "use_composed_ref": "ea2c9d969f2f90a349f4c99338b806423824cea2"
+  },
+  "mit_text_source": "https://raw.githubusercontent.com/spdx/license-list-data/main/text/MIT.txt",
+  "ci_run": "https://github.com/Sanjeever/termquay/actions/runs/41622227287",
+  "candidate_run": "https://github.com/Sanjeever/termquay/actions/runs/41622232151"
+}
