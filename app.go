@@ -45,6 +45,7 @@ type workspaceOwner struct {
 	timer    *time.Timer
 	stream   *application.StreamConn
 	opening  int
+	route    []latencyHop
 }
 
 type AppService struct {
@@ -94,6 +95,7 @@ type AppService struct {
 	automaticDone          chan struct{}
 	locals                 map[string]*localTerminal
 	localOpening           int
+	latencyProbes          map[string]*latencyProbe
 }
 
 func NewAppService() *AppService {
@@ -209,6 +211,9 @@ func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (Open
 	t.KeepConnection()
 	ownerCtx, ownerCancel := context.WithCancel(context.Background())
 	owner := &workspaceOwner{terminal: t, ctx: ownerCtx, cancel: ownerCancel, target: r.Username + "@" + net.JoinHostPort(r.Host, strconv.Itoa(r.Port)), identity: strings.Join(fingerprints, "/") + ":" + r.JumpID}
+	for _, request := range chain {
+		owner.route = append(owner.route, latencyHop{request.Host, request.Port, request.Username, request.JumpID, request.ProxyAddress})
+	}
 	a.workspaces[id] = owner
 	go func() { t.WaitConnection(); a.CloseWorkspace(id) }()
 	owner.timer = time.AfterFunc(15*time.Second, func() {
@@ -461,6 +466,9 @@ func (a *AppService) ServiceShutdown() (result error) {
 	defer func() { result = errors.Join(result, a.cleanupLocalTransferResumes()) }()
 	a.mu.Lock()
 	a.closed = true
+	for _, probe := range a.latencyProbes {
+		probe.cancel()
+	}
 	localIDs := []string{}
 	for id := range a.locals {
 		localIDs = append(localIDs, id)

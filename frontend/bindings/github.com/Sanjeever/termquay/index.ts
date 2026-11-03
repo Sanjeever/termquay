@@ -10,6 +10,7 @@ export type {
     AutomaticBackupStatus,
     BackupSelection,
     Catalog,
+    ConnectionLatency,
     CredentialReference,
     DirectorySyncPreview,
     DraftRecoveryState,

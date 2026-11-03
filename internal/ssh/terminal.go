@@ -63,6 +63,7 @@ type Terminal struct {
 	jumps           []*gossh.Client
 	forwardSlots    chan struct{}
 	forwardRequests chan struct{}
+	probeSlots      chan struct{}
 	session         *gossh.Session
 	Input           io.WriteCloser
 	Output          *io.PipeReader
@@ -251,7 +252,7 @@ func newTerminal(client *gossh.Client, cols, rows int) (*Terminal, error) {
 		writer.Close()
 		return fail(err)
 	}
-	t := &Terminal{client: client, session: s, Input: input, Output: reader, writer: writer, Done: make(chan struct{}), forwardSlots: make(chan struct{}, 8), forwardRequests: make(chan struct{}, 4)}
+	t := &Terminal{client: client, session: s, Input: input, Output: reader, writer: writer, Done: make(chan struct{}), forwardSlots: make(chan struct{}, 8), forwardRequests: make(chan struct{}, 4), probeSlots: make(chan struct{}, 4)}
 	go func() {
 		err := s.Wait()
 		t.mu.Lock()

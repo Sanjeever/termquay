@@ -39,6 +39,12 @@ export interface Catalog {
     "session_only": boolean;
 }
 
+export interface ConnectionLatency {
+    "milliseconds": number;
+    "status": string;
+    "error"?: string;
+}
+
 export interface CredentialReference {
     "id": string;
     "kind": string;

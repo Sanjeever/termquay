@@ -1,6 +1,7 @@
 package store
 
 import (
+	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -184,6 +185,19 @@ PRAGMA user_version = 1;`)
 }
 
 func (s *Store) Close() error { return s.db.Close() }
+
+func (s *Store) Connection(ctx context.Context, id string) (Connection, error) {
+	var data []byte
+	if err := s.db.QueryRowContext(ctx, "SELECT data FROM connections WHERE id = ?", id).Scan(&data); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Connection{}, errors.New("连接配置不存在")
+		}
+		return Connection{}, err
+	}
+	var connection Connection
+	err := json.Unmarshal(data, &connection)
+	return connection, err
+}
 
 func (s *Store) Read() (Data, error) {
 	tx, err := s.db.Begin()

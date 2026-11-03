@@ -265,6 +265,10 @@ export function ListTunnels(workspace: string): $CancellablePromise<$models.Tunn
     return $Call.ByID(1886316137, workspace);
 }
 
+export function MeasureConnectionLatency(id: string): $CancellablePromise<$models.ConnectionLatency> {
+    return $Call.ByID(3863388448, id);
+}
+
 export function MoveConnectionsToGroup(ids: string[] | null, groupID: string): $CancellablePromise<void> {
     return $Call.ByID(197431060, ids, groupID);
 }
