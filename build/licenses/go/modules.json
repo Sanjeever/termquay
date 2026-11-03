@@ -112,6 +112,10 @@
     "version": "v0.48.0"
   },
   {
+    "module": "golang.org/x/text",
+    "version": "v0.42.0"
+  },
+  {
     "module": "modernc.org/libc",
     "version": "v1.67.6"
   },
