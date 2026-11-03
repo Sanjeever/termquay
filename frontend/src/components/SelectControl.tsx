@@ -7,6 +7,7 @@ export default function SelectControl({ children, value, defaultValue, onChange,
   const native = useRef<HTMLSelectElement>(null);
   const [portal, setPortal] = useState<HTMLElement>();
   const [label, setLabel] = useState(props['aria-label'] || title || '选择');
+  const [invalid, setInvalid] = useState(false);
   useLayoutEffect(() => {
     setPortal(native.current?.closest<HTMLElement>('[role=dialog], details') || document.body);
     if (props['aria-label'] || title) return;
@@ -16,8 +17,8 @@ export default function SelectControl({ children, value, defaultValue, onChange,
   }, []);
   const current = String(value ?? selected);
   return <>
-    <select {...props} ref={native} hidden aria-hidden="true" tabIndex={-1} value={current} onChange={event => { setSelected(event.target.value); onChange?.(event); }}>{children}</select>
-    <Select id={id} title={title} aria-label={label} popoverProps={{ portalContainer: portal }} className={`select-control ${className || ''}`} classNames={{ trigger: 'select-trigger', value: 'select-value', popoverContent: 'select-popover', listbox: 'select-options' }} size="sm" variant="bordered" isDisabled={props.disabled} disallowEmptySelection selectedKeys={[current || '__empty__']} onSelectionChange={keys => {
+    <select {...props} ref={native} hidden aria-hidden="true" tabIndex={-1} value={current} onInvalid={event => { event.preventDefault(); setInvalid(true); const details = native.current?.closest('details'); if (details) details.open = true; requestAnimationFrame(() => native.current?.nextElementSibling?.querySelector<HTMLButtonElement>('button')?.focus()); }} onChange={event => { setInvalid(false); setSelected(event.target.value); onChange?.(event); }}>{children}</select>
+    <Select id={id} title={title} aria-label={label} aria-required={props.required} isInvalid={invalid} errorMessage={`请选择${label}`} validationBehavior="aria" popoverProps={{ portalContainer: portal }} className={`select-control ${className || ''}`} classNames={{ trigger: 'select-trigger', value: 'select-value', popoverContent: 'select-popover', listbox: 'select-options' }} size="sm" variant="bordered" isDisabled={props.disabled} disallowEmptySelection selectedKeys={[current || '__empty__']} onSelectionChange={keys => {
       const key = Array.from(keys)[0];
       if (key === undefined || !native.current) return;
       native.current.value = key === '__empty__' ? '' : String(key);

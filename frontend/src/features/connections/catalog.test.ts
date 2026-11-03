@@ -21,6 +21,9 @@ test('范围、子分组、协议与检索字段可组合', () => {
 test('自然排序、地址排序及缺失最近记录顺序稳定且不修改源数据', () => {
   assert.deepEqual(ids(catalogConnections(connections, groups, preferences, scope)), ['b', 'c', 'a']);
   assert.deepEqual(ids(catalogConnections(connections, groups, preferences, { ...scope, sort: 'address' })), ['b', 'c', 'a']);
+  assert.deepEqual(ids(catalogConnections(connections, groups, preferences, { ...scope, sort: 'name', descending: true })), ['a', 'c', 'b']);
+  assert.deepEqual(ids(catalogConnections(connections, groups, preferences, { ...scope, sort: 'username' })), ['c', 'a', 'b']);
+  assert.deepEqual(ids(catalogConnections(connections, groups, preferences, { ...scope, sort: 'protocol' })), ['b', 'c', 'a']);
   assert.deepEqual(ids(catalogConnections(connections, groups, preferences, { ...scope, sort: 'recent' })), ['b', 'a', 'c']);
   assert.deepEqual(ids(catalogConnections(connections, groups, preferences, { ...scope, view: 'recent', sort: 'recent' })), ['b', 'a']);
   assert.deepEqual(ids(connections), ['a', 'b', 'c']);
