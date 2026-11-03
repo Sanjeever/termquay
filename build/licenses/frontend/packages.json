@@ -1977,6 +1977,18 @@
     "author": null
   },
   {
+    "name": "@replit/codemirror-minimap",
+    "versions": [
+      "0.5.2"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/replit/codemirror-minimap",
+    "author": {
+      "name": "Brady Madden",
+      "email": "brady@repl.it"
+    }
+  },
+  {
     "name": "@wailsio/runtime",
     "versions": [
       "3.0.0"

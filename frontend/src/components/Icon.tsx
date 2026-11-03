@@ -1,6 +1,11 @@
 import type { SVGProps } from 'react';
 
 const paths = {
+  undo: 'M8 4 3 9l5 5M3 9h10a7 7 0 0 1 0 14',
+  redo: 'M16 4l5 5-5 5M21 9H11a7 7 0 0 0 0 14',
+  save: 'M4 3h13l4 4v14H3V3zM7 3v6h10V3M7 21v-8h10v8',
+  download: 'M12 3v12M7 10l5 5 5-5M4 16v5h16v-5',
+  minus: 'M5 12h14',
   eye: 'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0',
   eyeOff: 'M3 3l18 18M10 5.2A12 12 0 0 1 12 5c6.5 0 10 7 10 7a19 19 0 0 1-3.3 4.3M6.2 6.2A20 20 0 0 0 2 12s3.5 7 10 7a12 12 0 0 0 5.8-1.8M10 10a3 3 0 0 0 4 4',
   connections: 'M4 5h16v5H4zM4 14h16v5H4zM7 7.5h.01M7 16.5h.01',
