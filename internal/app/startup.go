@@ -48,12 +48,12 @@ func Run(assets fs.FS, appIcons fs.ReadFileFS, build BuildInfo, licenses fs.Read
 		}
 		id := details.Attributes["data-workspace-id"]
 		directory := details.Attributes["data-remote-directory"]
-		result, err := service.uploadFiles(id, directory, event.Context().DroppedFiles(), false)
+		preview, err := service.prepareUploads(id, directory, event.Context().DroppedFiles())
 		message := ""
 		if err != nil {
 			message = err.Error()
 		}
-		app.Event.Emit("files:upload-result", UploadDropResult{Workspace: id, Result: result, Error: message})
+		app.Event.Emit("files:upload-prepared", UploadPreparation{Preview: preview, Error: message})
 	})
 	window.RegisterHook(events.Common.WindowClosing, func(event *application.WindowEvent) {
 		if !service.canQuit() {

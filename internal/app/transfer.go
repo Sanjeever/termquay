@@ -33,6 +33,7 @@ type Transfer struct {
 	DestinationPath string `json:"destination_path"`
 	Resumable       bool   `json:"resumable"`
 	TemporaryPath   string `json:"temporary_path,omitempty"`
+	BatchID         string `json:"batch_id"`
 }
 type transferTask struct {
 	view          Transfer
@@ -49,6 +50,7 @@ type transferSpec struct {
 	workspace, local, remote, direction string
 	overwrite                           bool
 	syncPlanID                          string
+	batchID                             string
 	resume                              *transferResume
 }
 
@@ -81,15 +83,10 @@ type TransferBatch struct {
 	Items  []Transfer `json:"items"`
 	Errors []string   `json:"errors"`
 }
-type UploadDropResult struct {
-	Workspace string        `json:"workspace"`
-	Result    TransferBatch `json:"result"`
-	Error     string        `json:"error"`
-}
 
 func init() {
 	application.RegisterEvent[Transfer]("transfer:changed")
-	application.RegisterEvent[UploadDropResult]("files:upload-result")
+	application.RegisterEvent[UploadPreparation]("files:upload-prepared")
 }
 
 func (a *AppService) ListTransfers() []Transfer {
@@ -172,6 +169,7 @@ func (a *AppService) startTransfer(workspace, name, direction string, total int6
 	if len(specification) > 0 {
 		spec := specification[0]
 		task.spec = &spec
+		task.view.BatchID = spec.batchID
 		task.resume = spec.resume
 		if spec.resume != nil {
 			task.view.Completed = spec.resume.offset

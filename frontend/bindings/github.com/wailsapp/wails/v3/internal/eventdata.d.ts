@@ -14,7 +14,7 @@ declare module "@wailsio/runtime" {
         interface CustomEvents {
             "app:menu-command": string;
             "app:menu-state": { [_ in string]?: string } | null;
-            "files:upload-result": app$0.UploadDropResult;
+            "files:upload-prepared": app$0.UploadPreparation;
             "monitor:sample": app$0.MonitorEvent;
             "transfer:changed": app$0.Transfer;
         }

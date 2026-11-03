@@ -73,6 +73,7 @@ type AppService struct {
 	transferQueue          []string
 	transferSequence       uint64
 	transferEvent          func(Transfer)
+	uploadPreview          *pendingUpload
 	syncPlans              map[string]*directorySyncPlan
 	syncOpening            int
 	dirty                  map[string]bool
@@ -366,6 +367,9 @@ func (a *AppService) CloseWorkspace(id string) {
 	a.mu.Lock()
 	owner := a.workspaces[id]
 	delete(a.workspaces, id)
+	if a.uploadPreview != nil && a.uploadPreview.view.Workspace == id {
+		a.uploadPreview = nil
+	}
 	if owner != nil {
 		a.closing++
 		defer func() { a.mu.Lock(); a.closing--; a.mu.Unlock() }()

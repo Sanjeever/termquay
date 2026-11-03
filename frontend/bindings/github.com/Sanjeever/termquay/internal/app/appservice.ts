@@ -57,6 +57,10 @@ export function CheckUpdate(): $CancellablePromise<void> {
     return $Call.ByID(3657804223);
 }
 
+export function ChooseUploadFiles(id: string, directory: string): $CancellablePromise<$models.UploadPreview> {
+    return $Call.ByID(3202931173, id, directory);
+}
+
 export function ClearFinishedTransfers(): $CancellablePromise<string[] | null> {
     return $Call.ByID(210711123);
 }
@@ -113,6 +117,10 @@ export function ConfirmTrustReview(id: string): $CancellablePromise<void> {
     return $Call.ByID(2786070952, id);
 }
 
+export function ConfirmUpload(id: string, directory: string, overwrite: boolean): $CancellablePromise<$models.UploadSubmission> {
+    return $Call.ByID(3543393483, id, directory, overwrite);
+}
+
 export function CreateRemoteDirectory(id: string, remote: string): $CancellablePromise<void> {
     return $Call.ByID(2045068939, id, remote);
 }
@@ -159,6 +167,10 @@ export function DiscardAndQuit(): $CancellablePromise<void> {
 
 export function DiscardTransferResume(id: string, workspace: string): $CancellablePromise<void> {
     return $Call.ByID(739129800, id, workspace);
+}
+
+export function DiscardUpload(id: string): $CancellablePromise<void> {
+    return $Call.ByID(3726834945, id);
 }
 
 export function DownloadFileDraft(document: files$0.Document): $CancellablePromise<void> {

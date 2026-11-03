@@ -19,9 +19,9 @@ export const AppMenuCommand = "app:menu-command";
 export const AppMenuState = "app:menu-state";
 
 /**
- * Name of the custom event "files:upload-result".
+ * Name of the custom event "files:upload-prepared".
  */
-export const FilesUploadResult = "files:upload-result";
+export const FilesUploadPrepared = "files:upload-prepared";
 
 /**
  * Name of the custom event "monitor:sample".

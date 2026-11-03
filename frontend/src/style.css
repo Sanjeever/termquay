@@ -300,7 +300,28 @@ button:active:not(:disabled):not([role=tab]) { filter: brightness(.93); }
 .sync-preview th,.sync-preview td { text-align: left; padding: 6px; border-bottom: 1px solid var(--color-border); }
 .sync-preview .file-path { max-width: 350px; }
 .session-status { display: flex; align-items: center; gap: 14px; flex-shrink: 0; min-height: 25px; color: var(--color-muted); font-size: 11px; padding: 4px 8px; }
-.file-panel { display: flex; flex-direction: column; height: 100%; min-height: 0; padding: 0 8px 8px; container-type: inline-size; background: var(--color-surface); }
+.file-panel { position: relative; display: flex; flex-direction: column; height: 100%; min-height: 0; padding: 0 8px 8px; container-type: inline-size; background: var(--color-surface); }
+.file-drop-target-active { outline: 2px solid var(--color-primary); outline-offset: -2px; background: var(--color-selected) !important; }
+.file-panel::after { content: '上传到 ' attr(data-drop-directory) '\a松开后确认'; white-space: pre-wrap; overflow-wrap: anywhere; position: absolute; z-index: 5; bottom: 16px; left: 12px; right: 12px; padding: 12px; border: 1px solid var(--color-primary); border-radius: var(--radius); background: var(--color-elevated); color: var(--color-text); box-shadow: var(--shadow-floating); font-size: 12px; line-height: 1.7; pointer-events: none; opacity: 0; transform: translateY(4px); transition: opacity .15s ease, transform .15s ease; }
+.file-panel[data-drop-directory]::after { opacity: 1; transform: translateY(0); }
+.upload-dialog { max-width: 520px; }
+.upload-target { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; font-size: 12px; }
+.upload-target dt, .upload-summary { color: var(--color-muted); }
+.upload-target dd { overflow-wrap: anywhere; font-family: var(--font-mono); }
+.upload-directory { display: flex; gap: 8px; }
+.upload-directory input { flex: 1; min-width: 0; font-family: var(--font-mono); }
+.upload-files { max-height: 220px; overflow: auto; border-block: 1px solid var(--color-border); }
+.upload-files li { padding: 9px 0; border-bottom: 1px solid var(--color-border); font-size: 12px; }
+.upload-files li:last-child { border-bottom: 0; }
+.upload-files li > div { display: flex; justify-content: space-between; gap: 16px; }
+.upload-files li > div > span:first-child { overflow-wrap: anywhere; min-width: 0; }
+.upload-files li > div > span:last-child { flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.upload-files p { margin-top: 4px; overflow-wrap: anywhere; }
+.upload-summary { font-size: 12px; }
+.upload-directories { display: grid; max-height: 160px; overflow: auto; border: 1px solid var(--color-border); border-radius: var(--radius); }
+.upload-directories button { display: flex; align-items: center; gap: 8px; padding: 7px 10px; text-align: left; overflow-wrap: anywhere; font-size: 12px; }
+.upload-directories button:hover { background: var(--color-hover); }
+.upload-directories p { padding: 8px 10px; font-size: 12px; }
 .file-panel > :not(.file-tree) { flex-shrink: 0; }
 .file-panel > .file-tree { flex: 1; min-height: 0; overflow: auto; scrollbar-width: thin; }
 .file-panel > .file-results { flex-shrink: 1; }

@@ -263,6 +263,7 @@ export interface Transfer {
     "destination_path": string;
     "resumable": boolean;
     "temporary_path"?: string;
+    "batch_id": string;
 }
 
 export interface TransferBatch {
@@ -319,10 +320,29 @@ export interface UpdateStatus {
     "error": string;
 }
 
-export interface UploadDropResult {
-    "workspace": string;
-    "result": TransferBatch;
+export interface UploadFile {
+    "name": string;
+    "size": number;
+    "supported": boolean;
     "error": string;
+}
+
+export interface UploadPreparation {
+    "preview": UploadPreview;
+    "error": string;
+}
+
+export interface UploadPreview {
+    "id": string;
+    "workspace": string;
+    "target": string;
+    "directory": string;
+    "files": UploadFile[] | null;
+}
+
+export interface UploadSubmission {
+    "batch": TransferBatch;
+    "pending": UploadPreview;
 }
 
 export interface WorkspaceDraftUpdate {
