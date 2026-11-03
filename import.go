@@ -343,7 +343,7 @@ func (a *AppService) ConfirmSSHImport(id string, choices []SSHImportChoice) erro
 		}
 	}
 	for _, c := range current.Connections {
-		if c.Protocol == "ssh" && c.JumpID == "" && aliases[c.Name] == "" {
+		if c.Protocol == "ssh" && aliases[c.Name] == "" {
 			aliases[c.Name] = c.ID
 		}
 	}

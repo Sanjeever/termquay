@@ -53,13 +53,14 @@ type HostKeyError struct {
 	Host        string
 	Port        int
 	Jump        bool
+	Via         string
 }
 
 func (e *HostKeyError) Error() string { return "SSH 主机身份尚未确认或已变化" }
 
 type Terminal struct {
 	client          *gossh.Client
-	jump            *gossh.Client
+	jumps           []*gossh.Client
 	forwardSlots    chan struct{}
 	forwardRequests chan struct{}
 	session         *gossh.Session
@@ -190,7 +191,7 @@ func dialClient(ctx context.Context, r Request, connect func(context.Context, st
 		HostKeyCallback: func(_ string, _ net.Addr, key gossh.PublicKey) error {
 			fingerprint := gossh.FingerprintSHA256(key)
 			if subtle.ConstantTimeCompare([]byte(fingerprint), []byte(r.Fingerprint)) != 1 {
-				return &HostKeyError{Fingerprint: fingerprint, Host: r.Host, Port: r.Port}
+				return &HostKeyError{Fingerprint: fingerprint, Host: r.Host, Port: r.Port, Via: r.JumpID}
 			}
 			return nil
 		}}
@@ -273,8 +274,8 @@ func (t *Terminal) Close() {
 	t.once.Do(func() {
 		if t.connectionOwner {
 			t.client.Close()
-			if t.jump != nil {
-				t.jump.Close()
+			for _, jump := range t.jumps {
+				jump.Close()
 			}
 		}
 		t.Input.Close()
@@ -284,8 +285,8 @@ func (t *Terminal) Close() {
 		t.closeLog()
 		if t.connectionOwner {
 			t.client.Close()
-			if t.jump != nil {
-				t.jump.Close()
+			for _, jump := range t.jumps {
+				jump.Close()
 			}
 		}
 	})
@@ -296,8 +297,8 @@ func (t *Terminal) KeepConnection() { t.connectionOwner = false }
 func (t *Terminal) WaitConnection() error { return t.client.Wait() }
 func (t *Terminal) Disconnect() {
 	t.client.Close()
-	if t.jump != nil {
-		t.jump.Close()
+	for _, jump := range t.jumps {
+		jump.Close()
 	}
 	t.Close()
 }

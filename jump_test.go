@@ -26,11 +26,34 @@ func TestJumpReferences(t *testing.T) {
 	}
 	jump.JumpID = target.ID
 	if _, err = a.SaveConnection(jump, terminal.Request{}); err == nil {
-		t.Fatal("接受循环或多跳")
+		t.Fatal("接受循环引用")
 	}
 	target.JumpID = target.ID
 	if _, err = a.SaveConnection(target, terminal.Request{}); err == nil {
 		t.Fatal("接受自引用")
+	}
+	previous := jump.ID
+	for index := 0; index < 3; index++ {
+		next, err := a.SaveConnection(store.Connection{Name: strconv.Itoa(index), Protocol: "ssh", Host: "hop.invalid", Port: 22, Username: "test", JumpID: previous}, terminal.Request{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		previous = next.ID
+	}
+	target.JumpID = previous
+	if _, err = a.SaveConnection(target, terminal.Request{}); err != nil {
+		t.Fatal("四跳连接被拒绝", err)
+	}
+	request, _, err := a.savedRequest(target.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	chain, err := a.resolveSSHChain(request)
+	if err != nil || len(chain) != 5 {
+		t.Fatal("跳板链解析顺序或长度无效", err)
+	}
+	if _, err = a.SaveConnection(store.Connection{Name: "超限", Protocol: "ssh", Host: "extra.invalid", Port: 22, Username: "test", JumpID: target.ID}, terminal.Request{}); err == nil {
+		t.Fatal("接受超过四跳的连接")
 	}
 }
 func TestSG1Jump(t *testing.T) {

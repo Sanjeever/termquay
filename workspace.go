@@ -52,7 +52,7 @@ type WorkspaceLayout struct {
 }
 
 func (layout WorkspaceLayout) validate() error {
-	if layout.Version < 1 || layout.Version > 6 {
+	if layout.Version < 1 || layout.Version > 7 {
 		return errors.New("工作布局版本不受支持")
 	}
 	if len(layout.Entries) > 16 {

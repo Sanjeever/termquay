@@ -14,20 +14,30 @@ func ProbeIdentity(ctx context.Context, host string, port int, jump *Request) (s
 }
 
 func ProbeRequestIdentity(ctx context.Context, request Request, jump *Request) (string, error) {
+	var hops []Request
+	if jump != nil {
+		hops = []Request{*jump}
+	}
+	return ProbeChainIdentity(ctx, request, hops)
+}
+
+func ProbeChainIdentity(ctx context.Context, request Request, hops []Request) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 	address := net.JoinHostPort(request.Host, strconv.Itoa(request.Port))
 	var conn net.Conn
 	var err error
-	if jump != nil {
-		gateway, e := dialClient(ctx, *jump, func(ctx context.Context, addr string) (net.Conn, error) {
-			return connectDirect(ctx, *jump, addr)
-		})
+	if len(hops) > 0 {
+		clients, e := dialChainClients(ctx, hops)
 		if e != nil {
 			return "", e
 		}
-		defer gateway.Close()
-		conn, err = gateway.DialContext(ctx, "tcp", address)
+		defer func() {
+			for _, client := range clients {
+				client.Close()
+			}
+		}()
+		conn, err = clients[len(clients)-1].DialContext(ctx, "tcp", address)
 	} else {
 		conn, err = connectDirect(ctx, request, address)
 	}

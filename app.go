@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -110,38 +111,35 @@ func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (Open
 	if err := a.resolvePrivateKey(&r); err != nil {
 		return OpenResult{}, err
 	}
-	address := sshTrustKey(r.Host, r.Port, r.JumpID)
-	a.mu.Lock()
-	targetEpoch := a.trustEpoch[address]
-	a.mu.Unlock()
-	stored, err := a.readTrust("ssh:" + address)
+	chain, err := a.resolveSSHChain(r)
 	if err != nil {
 		return OpenResult{}, err
 	}
-	var jump *terminal.Request
-	var jumpAddress, jumpStored string
-	var jumpEpoch uint64
-	if r.JumpID != "" {
-		request, connection, e := a.savedRequest(r.JumpID)
-		if e != nil {
-			return OpenResult{}, e
+	epochs := map[string]uint64{}
+	a.mu.Lock()
+	for _, request := range chain {
+		key := sshTrustKey(request.Host, request.Port, request.JumpID)
+		epochs[key] = a.trustEpoch[key]
+	}
+	a.mu.Unlock()
+	stored := map[string]string{}
+	for _, request := range chain {
+		key := sshTrustKey(request.Host, request.Port, request.JumpID)
+		stored[key], err = a.readTrust("ssh:" + key)
+		if err != nil {
+			return OpenResult{}, err
 		}
-		if connection.Protocol != "ssh" || request.JumpID != "" {
-			return OpenResult{}, errors.New("跳板必须是无跳板引用的已保存 SSH 配置")
+	}
+	unchanged := func() bool {
+		for key, epoch := range epochs {
+			if a.trustEpoch[key] != epoch {
+				return false
+			}
 		}
-		jumpAddress = sshTrustKey(request.Host, request.Port, "")
-		a.mu.Lock()
-		jumpEpoch = a.trustEpoch[jumpAddress]
-		a.mu.Unlock()
-		jumpStored, e = a.readTrust("ssh:" + jumpAddress)
-		if e != nil {
-			return OpenResult{}, e
-		}
-		jump = &request
-		*jump = terminal.WithChallenge(*jump, challenge)
+		return true
 	}
 	a.mu.Lock()
-	if targetEpoch != a.trustEpoch[address] || (jump != nil && jumpEpoch != a.trustEpoch[jumpAddress]) {
+	if !unchanged() {
 		a.mu.Unlock()
 		return OpenResult{}, errors.New("信任记录已变化，请重新连接")
 	}
@@ -149,35 +147,30 @@ func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (Open
 		a.mu.Unlock()
 		return OpenResult{}, errors.New("当前最多运行 16 个终端")
 	}
-	if stored != "" {
-		a.trusted[address] = stored
-	}
-	r.Fingerprint = a.trusted[address]
-	if jump != nil {
-		if jumpStored != "" {
-			a.trusted[jumpAddress] = jumpStored
+	fingerprints := []string{}
+	for index, request := range chain {
+		key := sshTrustKey(request.Host, request.Port, request.JumpID)
+		if stored[key] != "" {
+			a.trusted[key] = stored[key]
 		}
-		jump.Fingerprint = a.trusted[jumpAddress]
+		request.Fingerprint = a.trusted[key]
+		chain[index] = terminal.WithChallenge(request, challenge)
+		fingerprints = append(fingerprints, request.Fingerprint)
 	}
+	r = chain[len(chain)-1]
 	a.opening++
 	a.mu.Unlock()
 	defer func() { a.mu.Lock(); a.opening--; a.mu.Unlock() }()
-	var t *terminal.Terminal
-	if jump != nil {
-		t, err = terminal.DialThrough(ctx, r, *jump)
-	} else {
-		t, err = terminal.Dial(ctx, r)
-	}
+	t, err := terminal.DialChain(ctx, chain)
 	if err != nil {
 		var identity *terminal.HostKeyError
 		if errors.As(err, &identity) {
-			via := r.JumpID
+			via := identity.Via
 			role := ""
-			if jump != nil {
+			if len(chain) > 1 {
 				role = "target"
 			}
 			if identity.Jump {
-				via = ""
 				role = "jump"
 			}
 			identityKey := sshTrustKey(identity.Host, identity.Port, via)
@@ -186,7 +179,7 @@ func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (Open
 			if a.trusted[identityKey] != "" {
 				return OpenResult{}, errors.New("SSH 主机密钥已变化，连接已阻止")
 			}
-			if targetEpoch != a.trustEpoch[address] || (jump != nil && jumpEpoch != a.trustEpoch[jumpAddress]) {
+			if !unchanged() {
 				return OpenResult{}, errors.New("身份探测已失效")
 			}
 			if err = a.setPendingTrustLocked(identityKey, identity.Fingerprint); err != nil {
@@ -207,13 +200,13 @@ func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (Open
 		t.Close()
 		return OpenResult{}, errors.New("应用正在关闭")
 	}
-	if targetEpoch != a.trustEpoch[address] || (jump != nil && jumpEpoch != a.trustEpoch[jumpAddress]) {
+	if !unchanged() {
 		t.Disconnect()
 		return OpenResult{}, errors.New("信任记录已变化，请重新连接")
 	}
 	t.KeepConnection()
 	ownerCtx, ownerCancel := context.WithCancel(context.Background())
-	owner := &workspaceOwner{terminal: t, ctx: ownerCtx, cancel: ownerCancel, target: r.Username + "@" + net.JoinHostPort(r.Host, strconv.Itoa(r.Port)), identity: r.Fingerprint + ":" + r.JumpID}
+	owner := &workspaceOwner{terminal: t, ctx: ownerCtx, cancel: ownerCancel, target: r.Username + "@" + net.JoinHostPort(r.Host, strconv.Itoa(r.Port)), identity: strings.Join(fingerprints, "/") + ":" + r.JumpID}
 	a.workspaces[id] = owner
 	go func() { t.WaitConnection(); a.CloseWorkspace(id) }()
 	owner.timer = time.AfterFunc(15*time.Second, func() {

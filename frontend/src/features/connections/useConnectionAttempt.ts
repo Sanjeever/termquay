@@ -50,7 +50,7 @@ export default function useConnectionAttempt(onSSH: (id: string, connection: Con
         let operation = open(); attempt.operation = operation;
         let result = await operation; owned = result.id; check();
         for(let review=0;result.trust_required;review++) {
-          if(review>=2)throw new Error('身份确认次数超限，请重新连接');
+          if(review>=5)throw new Error('身份确认次数超限，请重新连接');
           if (!await ask(result.fingerprint,result.trust_role==='jump'?'跳板机身份':result.trust_role==='target'?'跳板机后的目标身份':undefined,result.trust_host||connection.host,result.trust_port||connection.port)) { attempt.cancelled = true; return false; }
           check(); await TrustSSHHost(result.trust_host||connection.host, result.trust_port||connection.port, result.fingerprint,result.trust_via||''); check();
           operation = open(); attempt.operation = operation; result = await operation; owned = result.id; check();

@@ -22,6 +22,9 @@ export default function ConnectionDialog({ connection, temporary, groups, connec
   const [mfa, setMFA] = useState(connection?.mfa || false);
   const [referenceID,setReferenceID]=useState('');const [references,setReferences]=useState<CredentialReference[]>([]);
   const [certificate,setCertificate]=useState(connection?.certificate||'');
+  const [route,setRoute]=useState(connection?.jump_id?'jump':connection?.proxy_address?'proxy':'direct');
+  const connectionIndex=new Map(connections.map(value=>[value.id,value]));
+  const jumpCandidates=connections.filter(value=>{if(value.protocol!=='ssh')return false;let current:Connection|undefined=value;let depth=0;const seen=new Set<string>();while(current){if(current.id===saved?.id||seen.has(current.id)||depth++>=4)return false;seen.add(current.id);current=connectionIndex.get(current.jump_id||'');}return true;});
   useEffect(()=>{let ended=false;ListCredentialReferences().then(values=>{if(!ended)setReferences(values||[]);}).catch(e=>{if(!ended)setError(String(e));});return()=>{ended=true;};},[]);
   useEffect(()=>{setReferenceID('');},[protocol]);
   const [privateKey,setPrivateKey]=useState<PrivateKeySelection>();
@@ -69,7 +72,8 @@ export default function ConnectionDialog({ connection, temporary, groups, connec
     const config: Connection = { id: saved?.id || '', name: String(data.get('name') || host).trim(), host, port: Number(data.get('port')), protocol, username: String(data.get('username')), group_id: String(data.get('group') || ''), domain: String(data.get('domain') || ''), credential_id: saved?.credential_id || '',auth_method:protocol==='ssh'?(replace?authKind:saved?.auth_method||''):'',identity_agent:protocol==='ssh'&&authKind==='agent'?String(data.get('identity_agent')||saved?.identity_agent||''):'',jump_id:protocol==='ssh'?String(data.get('jump')||''):'' };
     config.mfa = protocol === 'ssh' && authKind !== 'keyboard_interactive' && mfa;
     config.certificate = protocol === 'ssh' && authKind === 'private_key' ? certificate : '';
-    config.proxy_address = protocol === 'ssh' ? String(data.get('proxy_address') || '').trim() : '';
+    if(route!=='jump')config.jump_id='';
+    config.proxy_address = protocol === 'ssh' && route==='proxy' ? String(data.get('proxy_address') || '').trim() : '';
     const request: Request = { host, port: config.port, username: config.username, password: String(data.get('password') || ''), private_key: String(data.get('private_key') || ''), passphrase: String(data.get('passphrase') || ''), fingerprint: '', cols: 100, rows: 30,auth_method:protocol==='ssh'?authKind:'',identity_agent:config.identity_agent,private_key_token:privateKey?.id,jump_id:config.jump_id,mfa:config.mfa };
     setError('');
     request.certificate = config.certificate; request.proxy_address = config.proxy_address;
@@ -117,7 +121,7 @@ export default function ConnectionDialog({ connection, temporary, groups, connec
       {!temporary && <label className="form-field">环境<SelectControl name="environment" defaultValue={preference?.environment || ''} disabled={busy || saving}><option value="">未设置</option><option value="production">生产</option><option value="staging">预发布</option><option value="development">开发</option></SelectControl></label>}
       </div></details>}
       {protocol === 'rdp' && <details className="connection-options"><summary>远程桌面选项</summary><div className="connection-options-fields"><label className="checkbox-label"><input type="checkbox" checked={rdpClipboard} onChange={e=>setRDPClipboard(e.target.checked)} disabled={busy||saving} />文本剪贴板</label><label className="form-field">远端分辨率<SelectControl value={rdpResolution} onChange={e=>setRDPResolution(e.target.value)} disabled={busy||saving}><option value="dynamic">适应窗口</option><option value="1280x800">1280 × 800</option><option value="1920x1080">1920 × 1080</option></SelectControl></label></div></details>}
-      {protocol==='ssh'&&<details><summary>内网连接</summary><div className="connection-options-fields"><label className="form-field">跳板机<SelectControl name="jump" defaultValue={saved?.jump_id||''} disabled={busy||saving}><option value="">直连</option>{connections.filter(c=>c.protocol==='ssh'&&!c.jump_id&&c.id!==saved?.id).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</SelectControl></label><Input name="proxy_address" label="SOCKS5 代理（主机:端口）" labelPlacement="outside" placeholder="127.0.0.1:1080" defaultValue={saved?.proxy_address} size="sm" isDisabled={busy||saving}/></div></details>}
+      {protocol==='ssh'&&<details><summary>内网连接</summary><div className="connection-options-fields"><label className="form-field">连接路径<SelectControl value={route} onChange={event=>setRoute(event.target.value)} disabled={busy||saving}><option value="direct">直连</option><option value="jump">SSH 跳板</option><option value="proxy">SOCKS5 代理</option></SelectControl></label>{route==='jump'&&<label className="form-field">下一跳<SelectControl name="jump" defaultValue={saved?.jump_id||''} disabled={busy||saving} required><option value="">选择跳板机</option>{jumpCandidates.map(c=><option key={c.id} value={c.id}>{c.name}{c.jump_id?' · 经 '+(connectionIndex.get(c.jump_id)?.name||'跳板'):''}</option>)}</SelectControl></label>}{route==='proxy'&&<Input name="proxy_address" label="SOCKS5 代理（主机:端口）" labelPlacement="outside" placeholder="127.0.0.1:1080" defaultValue={saved?.proxy_address} size="sm" isRequired isDisabled={busy||saving}/>}</div></details>}
       </div>
       {stored && connectionError && <p className="muted">配置已保存，连接未成功。</p>}
       {(error || connectionError) && <p role="alert" className="error">{error || connectionError}</p>}

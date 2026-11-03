@@ -158,23 +158,29 @@ func (a *AppService) probeTrust(ctx context.Context, r TrustRecord, expected str
 		}
 		return fp, err
 	}
-	var jump *terminal.Request
+	var hops []terminal.Request
 	if r.Via != "" {
 		request, c, err := a.savedRequest(r.Via)
 		if err != nil {
 			return "", err
 		}
-		if c.Protocol != "ssh" || request.JumpID != "" {
+		if c.Protocol != "ssh" {
 			return "", errors.New("跳板引用已失效")
 		}
-		request.Fingerprint, err = a.readTrust("ssh:" + sshTrustKey(request.Host, request.Port, ""))
-		if err != nil || request.Fingerprint == "" {
-			return "", errors.New("请先核对跳板身份")
+		hops, err = a.resolveSSHChain(request)
+		if err != nil {
+			return "", err
 		}
-		jump = &request
+		for index, hop := range hops {
+			hop.Fingerprint, err = a.readTrust("ssh:" + sshTrustKey(hop.Host, hop.Port, hop.JumpID))
+			if err != nil || hop.Fingerprint == "" {
+				return "", errors.New("请先核对链上所有跳板身份")
+			}
+			hops[index] = hop
+		}
 	}
 	request := terminal.Request{Host: r.Host, Port: r.Port}
-	if jump == nil {
+	if len(hops) == 0 {
 		catalog, err := a.GetCatalog()
 		if err != nil {
 			return "", err
@@ -192,7 +198,7 @@ func (a *AppService) probeTrust(ctx context.Context, r TrustRecord, expected str
 			request.ProxyAddress = address
 		}
 	}
-	return terminal.ProbeRequestIdentity(ctx, request, jump)
+	return terminal.ProbeChainIdentity(ctx, request, hops)
 }
 func (a *AppService) ProbeTrustReview(ctx context.Context, key string) (TrustReview, error) {
 	r, err := parseTrust(key, "")

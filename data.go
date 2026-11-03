@@ -495,6 +495,10 @@ func (a *AppService) savedRequest(id string) (terminal.Request, store.Connection
 	if err != nil {
 		return terminal.Request{}, store.Connection{}, err
 	}
+	return a.requestFromData(d, id)
+}
+
+func (a *AppService) requestFromData(d store.Data, id string) (terminal.Request, store.Connection, error) {
 	for _, c := range d.Connections {
 		if c.ID != id {
 			continue
@@ -511,7 +515,7 @@ func (a *AppService) savedRequest(id string) (terminal.Request, store.Connection
 					Key        string `json:"key"`
 					Passphrase string `json:"passphrase"`
 				}
-				if err = json.Unmarshal([]byte(credential.Secret), &key); err != nil {
+				if err := json.Unmarshal([]byte(credential.Secret), &key); err != nil {
 					return r, c, err
 				}
 				r.PrivateKey = key.Key

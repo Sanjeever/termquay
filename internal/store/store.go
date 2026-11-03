@@ -113,9 +113,14 @@ func (d Data) Validate() error {
 	}
 	for _, c := range d.Connections {
 		if c.JumpID != "" {
-			jump, ok := configs[c.JumpID]
-			if !ok || c.Protocol != "ssh" || jump.Protocol != "ssh" || jump.JumpID != "" || c.ID == c.JumpID {
-				return errors.New("跳板引用无效；仅支持不同 SSH 配置的单跳连接")
+			seen := map[string]bool{c.ID: true}
+			for id := c.JumpID; id != ""; {
+				jump, ok := configs[id]
+				if !ok || c.Protocol != "ssh" || jump.Protocol != "ssh" || seen[id] || len(seen) > 4 {
+					return errors.New("跳板引用无效、存在循环或超过四跳")
+				}
+				seen[id] = true
+				id = jump.JumpID
 			}
 		}
 	}
