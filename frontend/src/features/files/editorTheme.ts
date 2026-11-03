@@ -1,8 +1,10 @@
 import { EditorView } from '@codemirror/view';
+import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
+import { tags } from '@lezer/highlight';
 
 export function editorTheme(dark: boolean) {
-  return EditorView.theme({
-    '&': { height: '100%', background: 'var(--color-background)', color: 'var(--color-text)', fontSize: '14px' },
+  return [EditorView.theme({
+    '&': { height: '100%', background: 'var(--color-background)', color: 'var(--color-text)', fontSize: 'var(--editor-font-size, 14px)' },
     '.cm-scroller': { fontFamily: 'var(--font-mono)', overflow: 'auto', lineHeight: '1.5' },
     '.cm-gutters': { background: 'var(--color-surface)', color: 'var(--color-muted)', borderRight: '1px solid var(--color-border)' },
     '.cm-activeLine': { background: 'var(--color-surface)' },
@@ -13,5 +15,20 @@ export function editorTheme(dark: boolean) {
     '.cm-selectionMatch': { background: 'var(--color-selected)' },
     '.cm-search': { padding: '6px 8px', fontFamily: 'var(--font-ui)', fontSize: '12px' },
     '.cm-search input, .cm-search button': { borderRadius: '4px', padding: '3px 6px' },
-  }, { dark });
+    '.cm-content': { padding: '8px 0', caretColor: 'var(--color-primary)' },
+    '.cm-line': { padding: '0 12px' },
+    '.cm-foldGutter': { width: '14px' },
+    '.cm-minimap-gutter': { background: 'var(--color-background)', borderLeft: '1px solid var(--color-border)' },
+  }, { dark }), syntaxHighlighting(HighlightStyle.define([
+    { tag: tags.keyword, color: dark ? '#c586c0' : '#8a287b' },
+    { tag: [tags.propertyName, tags.attributeName], color: dark ? '#9cdcfe' : '#0451a5' },
+    { tag: [tags.string, tags.special(tags.string)], color: dark ? '#ce9178' : '#a31515' },
+    { tag: [tags.number, tags.bool, tags.null], color: dark ? '#b5cea8' : '#096b30' },
+    { tag: tags.comment, color: dark ? '#7f9f72' : '#557747', fontStyle: 'italic' },
+    { tag: [tags.function(tags.variableName), tags.labelName], color: dark ? '#dcdcaa' : '#795e26' },
+    { tag: [tags.typeName, tags.className], color: dark ? '#4ec9b0' : '#267f99' },
+    { tag: [tags.operator, tags.punctuation], color: dark ? '#c8ccd4' : '#434b59' },
+    { tag: tags.meta, color: dark ? '#d7ba7d' : '#795e26' },
+    { tag: tags.invalid, color: dark ? '#ffaaaa' : '#a52131', textDecoration: 'underline wavy' },
+  ]))];
 }

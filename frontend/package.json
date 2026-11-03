@@ -26,6 +26,8 @@
     "@devolutions/iron-remote-desktop-rdp": "0.7.0",
     "@heroui/react": "2.8.5",
     "@heroui/theme": "2.4.23",
+    "@lezer/highlight": "^1.2.5",
+    "@replit/codemirror-minimap": "^0.5.2",
     "@wailsio/runtime": "3.0.0",
     "@xterm/addon-fit": "0.10.0",
     "@xterm/addon-search": "0.15.0",
