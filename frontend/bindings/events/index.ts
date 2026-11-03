@@ -9,6 +9,16 @@ import type {} from "../github.com/wailsapp/wails/v3/internal/eventdata.js";
 import "../github.com/wailsapp/wails/v3/internal/eventcreate.js";
 
 /**
+ * Name of the custom event "app:menu-command".
+ */
+export const AppMenuCommand = "app:menu-command";
+
+/**
+ * Name of the custom event "app:menu-state".
+ */
+export const AppMenuState = "app:menu-state";
+
+/**
  * Name of the custom event "files:upload-result".
  */
 export const FilesUploadResult = "files:upload-result";

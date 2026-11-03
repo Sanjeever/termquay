@@ -12,6 +12,8 @@ import type * as app$0 from "../../../../Sanjeever/termquay/internal/app/models.
 declare module "@wailsio/runtime" {
     namespace Events {
         interface CustomEvents {
+            "app:menu-command": string;
+            "app:menu-state": { [_ in string]?: string } | null;
             "files:upload-result": app$0.UploadDropResult;
             "monitor:sample": app$0.MonitorEvent;
             "transfer:changed": app$0.Transfer;
