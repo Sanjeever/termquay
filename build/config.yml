@@ -3,7 +3,7 @@
 # 生成可能覆盖手工定制，执行前后检查平台资源 diff。
 version: '3'
 
-# This information is used to generate the build assets.
+# 平台资源生成元数据。
 info:
   companyName: "TermQuay"
   productName: "TermQuay"
@@ -12,25 +12,8 @@ info:
   copyright: "Copyright 2026 TermQuay contributors"
   comments: "开发版"
   version: "0.1.0"
-  # cfBundleIconName: "appicon" # The macOS icon name in Assets.car icon bundles (optional)
-  #                               # Should match the name of your .icon file without the extension
-  #                               # If not set and Assets.car exists, defaults to "appicon"
 
-# iOS build configuration (uncomment to customise iOS project generation)
-# Note: Keys under `ios` OVERRIDE values under `info` when set.
-# ios:
-#   # The iOS bundle identifier used in the generated Xcode project (CFBundleIdentifier)
-#   bundleID: "com.mycompany.myproduct"
-#   # The display name shown under the app icon (CFBundleDisplayName/CFBundleName)
-#   displayName: "My Product"
-#   # The app version to embed in Info.plist (CFBundleShortVersionString/CFBundleVersion)
-#   version: "0.0.1"
-#   # The company/organisation name for templates and project settings
-#   company: "My Company"
-#   # Additional comments to embed in Info.plist metadata
-#   comments: "Some Product Comments"
-
-# Dev mode configuration
+# 开发模式。
 dev_mode:
   root_path: .
   log_level: warn
@@ -56,32 +39,14 @@ dev_mode:
       type: blocking
     - cmd: wails3 task common:dev:frontend
       type: background
-      # The standard frontend task waits up to 60s for HTTP 200 from
-      # FRONTEND_DEVSERVER_URL before starting the app. Override if needed;
-      # custom background commands can opt in with the same readiness block.
-      # readiness:
-      #   http: "http://localhost:5173/"
-      #   timeout: "60s"
-      #   interval: "200ms"
+      # 标准前端任务等待 FRONTEND_DEVSERVER_URL 就绪后再启动桌面，端口由项目任务传入。
     - cmd: wails3 task run
       type: primary
       exit_policy: shutdown
 
-# File Associations
-# 文件关联由 Wails 生成到平台资源，下面保留模板示例，当前未启用。
+# 当前未启用文件关联；启用后需重新生成平台资源。
 fileAssociations:
-#  - ext: wails
-#    name: Wails
-#    description: Wails Application File
-#    iconName: wailsFileIcon
-#    role: Editor
-#  - ext: jpg
-#    name: JPEG
-#    description: Image File
-#    iconName: jpegFileIcon
-#    role: Editor
-#    mimeType: image/jpeg  # (optional)
 
-# Other data
+# Wails 模板附加数据。
 other:
   - name: My Other Data

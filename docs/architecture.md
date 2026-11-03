@@ -10,6 +10,8 @@ TermQuay 面向个人桌面的 SSH/RDP 连接管理。外层标签保留固定�
 
 SSH、SFTP、终端模拟、编辑器和 RDP 分别复用成熟协议库及组件。具体依赖与兼容组合由 [go.mod](../go.mod)、[前端清单](../frontend/package.json) 和锁文件固定。CodeMirror 面向配置文件编辑，不扩展为 IDE 服务。协议、ASN.1、SQLite、加密和快照封装不另造解析器或密码算法。
 
+本地终端由 Go 持有原生 PTY 与进程，复用终端视图和消费确认，不经过 SSH。进程生命周期属于工作区，布局恢复不自动启动本地进程。
+
 ## 通信、背压与生命周期
 
 - 控制操作使用 Wails 服务绑定，低频状态使用事件，终端字节使用有序、有界的 Streams。接口与类型从 Go 生成绑定，不能手工维护两套跨语言定义。
@@ -23,6 +25,8 @@ RDP 图形队列与 WASM 内存也属于资源边界，其上界需要持续真�
 连接目录的延迟是按保存路径测量的服务端口 TCP 建连耗时，属于运行时样本，不写入连接配置、数据库或备份。探测在 Go 执行，不解密凭据，不认证目标，不向交互终端插入命令。代理遵循保存配置；SSH 跳板复用已验证会话，并核对整条跳板路径的地址、用户与代理，路径不可用时明确显示未知，不能绕过跳板直连。调度跟随连接中心与窗口可见性，自动与手动请求合并，网络并发及尚未完成的 SSH 通道打开请求分别有界；取消返回后仍未完成的通道请求继续占用限额，直至完成或所属连接关闭。
 
 界面工作区 ID 与 SSH 连接实例、PTY ID 分开。原地重连先释放旧网络资源，再显式建立新实例，不复用旧 Stream、PTY 或输入；旧终端保留有界本地缓冲供查看。目录与草稿属于稳定界面，重连后逐文件重新核对远端基线；基线变化时阻止直接保存。草稿退出保护属于已注册的界面工作区，网络断开不能解除保护；关闭界面后拒绝旧异步更新恢复该保护。
+
+终端标签达到上限时要求用户先关闭结束标签，再重连，避免隐式丢弃用于排查的旧输出。窗格移动、合并与最大化保持终端和编辑器实例及其内容连续，不能因改变 React 父级或 key 而卸载重建。
 
 前端就绪后的正常退出先交回界面协调，处理远端草稿并等待本地持久写入，再允许原生关闭。可选本地草稿恢复默认关闭，正文使用现有 AEAD 设置加密，按工作区合并、串行写入并限制大小、文档数和保留期。保存失败必须可见，不能把本机恢复副本当作远端保存成功；退出时忽略本地写入错误需要显式选择。会话存储仍不保证跨重启恢复。
 
@@ -46,7 +50,7 @@ SSH 首次连接由用户核对并确认主机指纹，已知密钥变化必须�
 
 手动目录同步先扫描与预览，再显式执行选中差异。比较相对路径、大小和秒级修改时间，不删除目标多余文件，不跟随符号链接；执行前及发布前复核源/目标，普通 SFTP 检查与重命名之间仍无原子 CAS 保证。扫描与计划有条数、层数、路径字节、时长和并行计划限额；目录作为一项队列任务逐文件流式执行，失败报告已完成数量并要求重新预览剩余差异，不自动重放旧计划。
 
-现用 SFTP v1 的 ReadDir 会累积完整目录，不能靠读取后的条数检查限制这部分内存。同步扫描单独采用同一上游 SFTP v2 的分页 API，并限制包和在途请求；现有文件传输保留 v1。v2 当前为预发布版本，该选择限于分页扫描需求，需保留分页、取消、关闭与真实服务端回归；上游 v1 提供可限量读取或 v2 稳定后重新评估，不能静默取消扫描边界。
+现用 `github.com/pkg/sftp` v1 模块的 ReadDir 会累积完整目录，不能靠读取后的条数检查限制这部分内存。同步扫描单独采用同一上游 v2 模块的分页 API，并限制包和在途请求；现有文件传输保留 v1 模块。v2 当前为预发布版本，该选择限于分页扫描需求，需保留分页、取消、关闭与真实服务端回归；上游 v1 提供可限量读取或 v2 稳定后重新评估，不能静默取消扫描边界。
 
 远端路径使用 POSIX 语义，文件名不得直接拼接进 Shell 命令。文件草稿由前端持有，后台刷新、状态事件和保存失败不能覆盖草稿；关闭文件、工作区或应用前明确处理未保存内容。
 
@@ -78,7 +82,7 @@ JS、桌面组件与 WASM 必须使用已核对的兼容组合，资源随应用
 
 Windows 允许用户主动选择系统客户端，此路径直接启动 mstsc，不建立内嵌工作区、RDCleanPath 桥接或 WASM 实例。Go 在当前用户范围用 DPAPI 加密保存密码，写入限制当前用户和 SYSTEM 访问的临时 RDP 配置，命令行不携带密码，不改写系统凭据管理器；应用仍在运行时，mstsc 退出后清理配置。mstsc 使用普通模式，避免 `/public` 导致临时配置中的凭据未被采用、再次要求输入账号密码；Windows 的身份与资源重定向确认仍然保留。应用先于 mstsc 退出或异常终止可能遗留当前用户可解密的临时文件。认证、身份确认与远端生命周期交给 Windows；进程启动不表示远端连接成功，不计入应用成功连接历史。连接方式属于本机偏好，不进入备份快照。
 
-桌面组件的 `ready` 先于异步剪贴板初始化。当前通过 [固定版本补丁](../frontend/patches/@devolutions__iron-remote-desktop@0.11.0.patch) 增加 `clipboard-ready` 事件，应用先关闭自动同步，再等待回调注册完成后连接，避免认证启动时遗漏剪贴板回调。补丁由 pnpm 锁定与应用，未升级依赖；更换兼容组合前须核对上游就绪契约并验证手动剪贴板，不能用固定延时替代就绪信号。
+桌面组件的 `ready` 先于异步剪贴板初始化。当前通过 [固定版本补丁](../frontend/patches/@devolutions__iron-remote-desktop@0.11.0.patch) 提供独立就绪信号，避免认证启动时遗漏剪贴板回调。补丁由 pnpm 锁定与应用；更换兼容组合前须核对上游就绪契约并验证手动剪贴板，不能用固定延时替代就绪信号。
 
 ## 加密备份与恢复
 
@@ -88,9 +92,9 @@ WebDAV 使用追加式快照，不覆盖或自动清理历史。备份目录由�
 
 恢复顺序是解密、验证版本与引用、展示差异、用户确认、事务替换分组、连接和凭据。提交必须对应预览的同一份已解密数据，预览失效或本地配置已变化时拒绝提交。凭据使用目标设备主密钥重新加密，失败不能部分覆盖现有数据。
 
-完整恢复替换连接与凭据集合，即便快照未携带凭据；选择性导入将所选连接及依赖的跳板、分组与凭据重新分配 ID 后作为独立副本追加，避免改写已有连接的引用。v5 可显式携带并恢复命令片段、外观与快捷键，片段使用目标设备主密钥重新加密，与连接在同一事务提交；预览后相关设置改变时拒绝提交。WebDAV 登录配置、路径偏好、草稿、主机与证书信任保留。私钥内容是否携带由用户选择，引用本机路径不代表内容已备份。上传失败不撤销本地修改；自动备份须串行、合并等待任务，不能由监控或进度更新触发循环，不做无界重试。
+完整恢复替换连接与凭据集合，即便快照未携带凭据；选择性导入将所选连接及依赖的跳板、分组与凭据重新分配 ID 后作为独立副本追加，避免改写已有连接的引用。快照可显式携带并恢复命令片段、外观与快捷键，片段使用目标设备主密钥重新加密，与连接在同一事务提交；预览后相关设置改变时拒绝提交。WebDAV 登录配置、路径偏好、草稿、主机与证书信任保留。私钥内容是否携带由用户选择，引用本机路径不代表内容已备份。上传失败不撤销本地修改；自动备份须串行、合并等待任务，不能由监控或进度更新触发循环，不做无界重试。
 
-字段、格式版本、大小限制和预览时效以模型、校验与测试为准。修改这些定义须考虑现有数据库、快照和已生成接口的兼容性。
+快照根据所含能力选择格式版本，旧格式继续按其字段契约验证，未知版本拒绝。版本选择与读取约束以 [快照模型和校验](../internal/backup/snapshot.go) 为准；本机布局与加密草稿分别由 [workspace.go](../workspace.go) 和 [workspace_state.go](../workspace_state.go) 定义。修改这些定义须考虑现有数据库、快照和已生成接口的兼容性，不能把独立格式的版本号混为一套。
 
 ## 按概念定位代码
 
@@ -98,10 +102,13 @@ WebDAV 使用追加式快照，不覆盖或自动清理历史。备份目录由�
 
 | 概念 | 实现入口 | 验证入口 |
 | --- | --- | --- |
-| 工作区、绑定与退出 | [app.go](../app.go)、[lifecycle.go](../lifecycle.go)、[App.tsx](../frontend/src/App.tsx)、[工作台布局](../frontend/src/components/layout) | `internal/ssh/terminal_test.go`、原生关闭与重载验证 |
+| 工作区、布局与退出 | [app.go](../app.go)、[lifecycle.go](../lifecycle.go)、[workspace.go](../workspace.go)、[App.tsx](../frontend/src/App.tsx)、[工作台布局](../frontend/src/components/layout) | `lifecycle_test.go`、`workspace_test.go`、`workspace_state_test.go`、原生关闭与重载验证 |
 | SSH、PTY 与消费确认 | [internal/ssh](../internal/ssh)、[TerminalView](../frontend/src/features/terminal/TerminalView.tsx) | `internal/ssh/terminal_test.go` |
+| 本地 Shell 与 PTY | [local_terminal.go](../local_terminal.go)、[TerminalView](../frontend/src/features/terminal/TerminalView.tsx) | 各平台原生进程、输入与关闭验证 |
+| 目录延迟探测 | [latency.go](../latency.go)、[internal/ssh/latency.go](../internal/ssh/latency.go)、[前端调度](../frontend/src/features/connections/useConnectionLatency.ts) | 尚无专门自动化回归；需验证真实代理与跳板路径、取消及并发边界 |
 | 文件、草稿与传输 | [internal/files](../internal/files)、[files.go](../files.go)、[transfer.go](../transfer.go)、[前端文件工作区](../frontend/src/features/files) | `internal/files/service_test.go`、`transfer_test.go`、原生传输流程 |
 | Linux 监控 | [internal/monitor](../internal/monitor)、[monitor.go](../monitor.go) | `internal/monitor/sample_test.go` |
 | RDP、证书与授权 | [internal/rdp](../internal/rdp)、[rdp.go](../rdp.go)、[RDPView](../frontend/src/features/rdp/RDPView.tsx) | `internal/rdp/bridge_test.go`、真实 RDP 与原生 WebView |
-| 存储与连接凭据 | [internal/store](../internal/store)、[data.go](../data.go)、[连接界面](../frontend/src/features/connections) | `data_test.go`、`internal/backup/snapshot_test.go` |
+| 存储、凭据与信任 | [internal/store](../internal/store)、[data.go](../data.go)、[credentials.go](../credentials.go)、[trust.go](../trust.go)、[连接界面](../frontend/src/features/connections) | `data_test.go`、`credentials_test.go`、`trust_test.go` |
+| 配置预览导入 | [import.go](../import.go)、[import_putty_windows.go](../import_putty_windows.go) | `import_test.go` |
 | 快照与恢复 | [internal/backup](../internal/backup)、[data.go](../data.go)、[BackupSettings](../frontend/src/features/settings/BackupSettings.tsx) | `internal/backup/*_test.go`、`data_test.go` |
