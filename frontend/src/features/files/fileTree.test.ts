@@ -1,11 +1,22 @@
 import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
 import type { Entry } from '../../../bindings/github.com/Sanjeever/termquay/internal/files/models';
-import { directoryAncestors, fileTreeRows, inDirectory, entryMetadata } from './fileTree.ts';
+import { directoryAncestors, fileTreeRows, inDirectory, entryMetadata, uploadRefreshPaths } from './fileTree.ts';
 
 const entry = (path: string, directory = false, size = 0): Entry => ({ path, name: path.split('/').pop()!, directory, size, modified: 1700000000000, mode: directory ? 'drwxr-xr-x' : '-rw-r--r--', symlink: false, uid: 0, gid: 1000 });
 const nodes = { '/': { entries: [entry('/root', true), entry('/etc', true)], loading: false, error: '' }, '/root': { entries: [entry('/root/.cache', true), entry('/root/main.go'), entry('/root/config.json', false, 2048)], loading: false, error: '' } };
 const options = { filter: '', showHidden: true, sort: 'name', descending: false };
+
+test('上传完成刷新实际目标分支，目录同步覆盖已缓存子目录', () => {
+  const cached = ['/', '/root', '/root/child', '/root-other', '/etc'];
+  const task = { state: 'done', direction: 'upload', destination_path: '/root/file', directory: false };
+  assert.deepEqual(uploadRefreshPaths(task, cached), ['/root']);
+  assert.deepEqual(uploadRefreshPaths({ ...task, destination_path: '/file' }, cached), ['/']);
+  assert.deepEqual(uploadRefreshPaths({ ...task, destination_path: '/uncached/file' }, cached), []);
+  assert.deepEqual(uploadRefreshPaths({ ...task, destination_path: '/root', directory: true }, cached), ['/root', '/root/child']);
+  for (const state of ['queued', 'running', 'failed', 'skipped', 'cancelled']) assert.deepEqual(uploadRefreshPaths({ ...task, state }, cached), []);
+  assert.deepEqual(uploadRefreshPaths({ ...task, direction: 'download' }, cached), []);
+});
 
 test('展示所有根节点，展开目录后保持父子关系及层级', () => {
   const rows = fileTreeRows(nodes, new Set(['/', '/root']), options);

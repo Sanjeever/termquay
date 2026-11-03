@@ -24,7 +24,7 @@ const FileConflictView = lazy(() => import('./FileConflictView'));
 type Draft = Document & { saved: string; savedFormat?: string; reloadEpoch?: number; error: string; saving: boolean; needsReview?: boolean; recovery?:boolean };
 function isDirty(draft: Draft) { return !!draft.recovery || draft.content !== draft.saved || !!draft.savedFormat && formatKey(draft) !== draft.savedFormat; }
 function savedEncoding(draft: Draft) { return draft.savedFormat ? JSON.parse(draft.savedFormat).encoding as string : draft.encoding || 'UTF-8'; }
-export type SSHWorkspaceHandle = { workspaceAction(action: 'switchPane' | 'closeContent' | 'newTerminal'): boolean; layout():SSHLayout; hasDirty():boolean; recoveryDrafts():RecoveryDraftInput[]|null; insertionTarget():string; insert(text:string,target:string):boolean; focus(): void; saveAll(): Promise<boolean>; prepareReconnect(): Promise<boolean>; showFiles(): void; toggleMonitor(): void; toggleFocus(): void; terminalAction(action: TerminalAction): void };
+export type SSHWorkspaceHandle = { workspaceAction(action: 'switchPane' | 'closeContent' | 'newTerminal'): boolean; layout():SSHLayout; hasDirty():boolean; recoveryDrafts():RecoveryDraftInput[]|null; insertionTarget():string; insert(text:string,target:string):boolean; focus(): void; saveAll(): Promise<boolean>; prepareReconnect(): Promise<boolean>; showFiles(): void; locateDirectory(path: string): void; toggleMonitor(): void; toggleFocus(): void; terminalAction(action: TerminalAction): void };
 
 const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   id: string; sessionID: string; connectionID: string; target: string; environment: string; state: string; shortcuts: Shortcuts; initialLayout?:SSHLayout; visible: boolean; fontSize?: number; onDirtyChange(dirty: boolean): void; onState(state: string): void; onStateChange():void; onReconnect(): void; onAutomaticReconnect(): Promise<{ ok: boolean; retryable: boolean }>; onCancelReconnect(): void; onSnippets(): void; busy: boolean;
@@ -49,7 +49,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   const terminalOwners=useRef(new Map([[sessionID,sessionID]]));
   const [directory,setDirectory]=useState(initialLayout?.directory||'');
   const [followDirectory, setFollowDirectory] = useState(false);
-  const [directoryRequest, setDirectoryRequest] = useState<{ path: string; sequence: number }>();
+  const [directoryRequest, setDirectoryRequest] = useState<{ path: string; sequence: number; locate?: boolean }>();
   const [fileJump, setFileJump] = useState<{ path: string; line: number; sequence: number }>();
   const terminalDirectories = useRef(new Map<string, string>());
   const [preparing, setPreparing] = useState(false);
@@ -185,7 +185,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
     })();
     saves.current.set(path, operation); return operation;
   }
-  useImperativeHandle(ref, () => ({ workspaceAction, layout,hasDirty:()=>draftsRef.current.some(d=>isDirty(d)), recoveryDrafts:()=>restoreReady?draftsRef.current.filter(d=>isDirty(d)).map(d=>({path:d.path,content:d.content,encoding:d.encoding,line_ending:d.line_ending,bom:d.bom})):null,insertionTarget:()=>terminalHandles.current.has(active)?active:'',insert:(text,target)=>target===active?terminalHandles.current.get(target)?.insert(text)||false:false, focus:()=>focusTab(), showFiles, toggleMonitor, terminalAction: action => terminalHandles.current.get(active)?.action(action), toggleFocus: () => setFocus(prev => !prev), async prepareReconnect(){if(terminals.length>=16){setError('保留终端达到上限（16 个），请先关闭结束标签');return false;}if(saves.current.size||creating||preparing||restoring){setError('请等待当前保存、恢复或终端创建完成');return false;}setPreparing(true);try{await CloseWorkspace(sessionID);return !disposed.current;}finally{setPreparing(false);}}, async saveAll() { for (const draft of draftsRef.current) { if (!await save(draft.path)) { setActive(draft.path); return false; } } return !draftsRef.current.some(d => isDirty(d)); } }));
+  useImperativeHandle(ref, () => ({ workspaceAction, layout,hasDirty:()=>draftsRef.current.some(d=>isDirty(d)), recoveryDrafts:()=>restoreReady?draftsRef.current.filter(d=>isDirty(d)).map(d=>({path:d.path,content:d.content,encoding:d.encoding,line_ending:d.line_ending,bom:d.bom})):null,insertionTarget:()=>terminalHandles.current.has(active)?active:'',insert:(text,target)=>target===active?terminalHandles.current.get(target)?.insert(text)||false:false, focus:()=>focusTab(), showFiles, locateDirectory: path => { showFiles(); setDirectoryRequest(previous => ({path, sequence: (previous?.sequence || 0) + 1, locate: true})); }, toggleMonitor, terminalAction: action => terminalHandles.current.get(active)?.action(action), toggleFocus: () => setFocus(prev => !prev), async prepareReconnect(){if(terminals.length>=16){setError('保留终端达到上限（16 个），请先关闭结束标签');return false;}if(saves.current.size||creating||preparing||restoring){setError('请等待当前保存、恢复或终端创建完成');return false;}setPreparing(true);try{await CloseWorkspace(sessionID);return !disposed.current;}finally{setPreparing(false);}}, async saveAll() { for (const draft of draftsRef.current) { if (!await save(draft.path)) { setActive(draft.path); return false; } } return !draftsRef.current.some(d => isDirty(d)); } }));
 
   function close(path: string, discard = false) {
     const draft = draftsRef.current.find(d => d.path === path);

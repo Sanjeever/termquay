@@ -1,4 +1,5 @@
 import type { Entry } from '../../../bindings/github.com/Sanjeever/termquay/internal/files/models';
+import type { Transfer } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 
 export type TreeDirectory = { entries?: Entry[]; loading: boolean; error: string };
 export type FileTreeRow = { entry: Entry; depth: number; parent: string; position: number; siblings: number };
@@ -10,6 +11,12 @@ export function directoryAncestors(path: string) {
 
 export function inDirectory(path: string, parent: string) {
   return path === parent || path.startsWith(parent === '/' ? '/' : `${parent}/`);
+}
+
+export function uploadRefreshPaths(task: Pick<Transfer, 'state' | 'direction' | 'destination_path' | 'directory'>, cached: string[]) {
+  if (task.state !== 'done' || task.direction !== 'upload' || !task.destination_path) return [];
+  const directory = task.directory ? task.destination_path : task.destination_path.slice(0, task.destination_path.lastIndexOf('/')) || '/';
+  return cached.filter(path => task.directory ? inDirectory(path, directory) : path === directory);
 }
 
 export function fileTreeRows(nodes: Record<string, TreeDirectory>, expanded: ReadonlySet<string>, options: { filter: string; showHidden: boolean; sort: string; descending: boolean }) {

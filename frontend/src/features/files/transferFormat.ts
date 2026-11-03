@@ -1,11 +1,11 @@
+import type { Transfer } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
+
 export function bytes(value: number) {
   if (value < 1024) return `${value} B`;
   if (value < 1024 ** 2) return `${(value / 1024).toFixed(1)} KiB`;
   if (value < 1024 ** 3) return `${(value / 1024 ** 2).toFixed(1)} MiB`;
   return `${(value / 1024 ** 3).toFixed(1)} GiB`;
 }
-import type { Transfer } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
-
 
 export function remaining(seconds: number) {
   if (seconds < 0) return '—';

@@ -37,6 +37,7 @@ type Transfer struct {
 	Phase            string `json:"phase"`
 	Speed            int64  `json:"speed"`
 	RemainingSeconds int64  `json:"remaining_seconds"`
+	Directory        bool   `json:"directory"`
 }
 type transferTask struct {
 	view          Transfer
@@ -177,6 +178,7 @@ func (a *AppService) startTransfer(workspace, name, direction string, total int6
 	if len(specification) > 0 {
 		spec := specification[0]
 		task.spec = &spec
+		task.view.Directory = spec.direction == "sync"
 		task.view.BatchID = spec.batchID
 		task.resume = spec.resume
 		if spec.resume != nil {

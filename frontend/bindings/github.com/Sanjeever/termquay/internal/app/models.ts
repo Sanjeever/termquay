@@ -267,6 +267,7 @@ export interface Transfer {
     "phase": string;
     "speed": number;
     "remaining_seconds": number;
+    "directory": boolean;
 }
 
 export interface TransferBatch {
