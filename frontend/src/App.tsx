@@ -50,6 +50,7 @@ type Workspace = { id: string; sessionID?: string; connection?: Connection; conn
 export default function App() {
   const { appearance, update: updateAppearance, beginPreview, endPreview } = useAppearance();
   const [demoScene, setDemoScene] = useState<DemoScene|null>(null);
+  const [demoRevision, setDemoRevision] = useState(0);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [active, setActive] = useState('');
   const [catalog, setCatalog] = useState<{ groups: Group[]; connections: Connection[]; session_only: boolean }>();
@@ -152,7 +153,8 @@ export default function App() {
   }, (id, error) => setWorkspaces(prev => prev.map(w => w.id === id ? { ...w, rdp: { ...w.rdp!, error } } : w)), id => latestWorkspaces.current.find(w => w.id === id)?.view?.current?.cancel(), remove);
 
   async function reload() { setCatalogLoading(true); try { const data = await GetCatalog(); setCatalog({ ...data, groups: data.groups ?? [], connections: data.connections ?? [] }); setStorageError(''); try { setPreferences(await GetConnectionPreferences() || {}); setPreferenceError(''); } catch (e) { setPreferenceError(String(e)); } } catch (e) { setStorageError(String(e)); } finally { setCatalogLoading(false); } }
-  function showDemo(scene: DemoScene = 'connections') { if(attempt.busy||openingLocal||dialog||rdpStart||restoreDialog||snippetInsert||attempt.trust||closing||quitConfirm||restarting||document.querySelector('[role=dialog][aria-modal=true]:not(.command-palette)'))return;if(!demoScene)beginPreview();setPalette(false);setDemoScene(scene); }
+  function showDemo(scene: DemoScene = 'connections') { if(attempt.busy||openingLocal||dialog||rdpStart||restoreDialog||snippetInsert||attempt.trust||closing||quitConfirm||restarting||document.querySelector('[role=dialog][aria-modal=true]:not(.command-palette)'))return;if(!demoScene)beginPreview();setPalette(false);selectDemoScene(scene); }
+  function selectDemoScene(scene: DemoScene) { setDemoScene(scene);setDemoRevision(value=>value+1); }
   function exitDemo() { setDemoScene(null);endPreview(); }
   useEffect(() => { void reload(); }, []);
   useEffect(()=>{if(!palette&&!batchCommandOpen){setSnippets([]);return;}let ended=false;const request=ListSnippets();request.then(values=>{if(!ended){setSnippets(values||[]);setSnippetError('');}}).catch(e=>{if(!ended)setSnippetError(String(e));});return()=>{ended=true;request.cancel();};},[palette,active,batchCommandOpen]);
@@ -315,6 +317,6 @@ export default function App() {
     }}>保存并{quitConfirm ? '退出' : '关闭'}</Button></ModalFooter></ModalContent></Modal>
     </>}
     </div>
-    {demoScene&&<Suspense fallback={<div className="view-loading demo-loading" role="status">正在准备演示…</div>}><DemoWorkbench key={demoScene} scene={demoScene} onScene={setDemoScene} onExit={exitDemo} shortcuts={shortcuts} fontSize={fontSize} /></Suspense>}
+    {demoScene&&<Suspense fallback={<div className="view-loading demo-loading" role="status">正在准备演示…</div>}><DemoWorkbench key={`${demoScene}-${demoRevision}`} scene={demoScene} onScene={selectDemoScene} onExit={exitDemo} shortcuts={shortcuts} fontSize={fontSize} /></Suspense>}
   </>;
 }

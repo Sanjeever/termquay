@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { Dropdown, DropdownItem, DropdownMenu, DropdownTrigger, Tooltip } from '@heroui/react';
+import { Button, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger, Tooltip } from '@heroui/react';
 import { Events, System } from '@wailsio/runtime';
 import Workbench from '../../components/layout/Workbench';
 import WorkspaceTabs from '../../components/layout/WorkspaceTabs';
@@ -32,6 +32,7 @@ export default function DemoWorkbench({ scene, onScene, onExit, shortcuts, fontS
   const [items, setItems] = useState([demoConnections[0], demoConnections[2]]);
   const [active, setActive] = useState(scene === 'connections' ? '' : demoConnections[0].id);
   const [files, setFiles] = useState(initialFiles);
+  const [terminalOpen, setTerminalOpen] = useState(true);
   const [documents, setDocuments] = useState<Record<string,Draft>>(() => Object.fromEntries(Object.entries(demoFiles).map(([path,content]) => {
     const format: EditorFormat = { encoding: 'UTF-8', line_ending: 'LF', bom: false };
     return [path, { content, saved: content, format, savedFormat: JSON.stringify(format), epoch: 0 }];
@@ -66,8 +67,13 @@ export default function DemoWorkbench({ scene, onScene, onExit, shortcuts, fontS
   function activate(id: string) { const pane=paneFor(id);setSelected(previous=>pane===0?[id,previous[1]]:[previous[0],id]);setActivePane(pane); }
   function open(connection: Connection) { if(connection.protocol!=='ssh')return;setItems(previous=>previous.some(item=>item.id===connection.id)?previous:[...previous,connection]);selectWorkspace(connection.id); }
   function closeWorkspace(id = active) { setItems(previous=>previous.filter(item=>item.id!==id));if(active===id)setActive(''); }
-  function closeTab(id: string) { if(id==='terminal'){closeWorkspace();return;}setFiles(previous=>previous.filter(path=>path!==id));const next=files.find(path=>path!==id)||'terminal';setSelected(previous=>[previous[0]===id?'terminal':previous[0],previous[1]===id?next:previous[1]]); }
-  function closeCurrent() { if(settings)setSettings(false);else if(current)closeTab(selected[activePane]); }
+  function closeTab(id: string) {
+    if(id==='terminal'){setTerminalOpen(false);setSplit(false);setActivePane(0);setSelected([files[0]||'','']);return;}
+    const remaining=files.filter(path=>path!==id);setFiles(remaining);
+    if(split&&!remaining.length){setSplit(false);setActivePane(0);setSelected([terminalOpen?'terminal':'','']);return;}
+    setSelected(previous=>[previous[0]===id?(terminalOpen?'terminal':remaining[0]||''):previous[0],previous[1]===id?remaining[0]||'':previous[1]]);
+  }
+  function closeCurrent() { if(settings)setSettings(false);else if(current){const id=selected[activePane];if(id==='terminal'&&terminalOpen||files.includes(id))closeTab(id);else closeWorkspace();} }
   async function openFile(entry: Entry) { if(!documents[entry.path])throw new Error('此文件没有演示内容');setFiles(previous=>previous.includes(entry.path)?previous:[...previous,entry.path]);activate(entry.path); }
   function toggleFiles() { setFocus(false);setFilesOpen(true);if(narrow)setNarrowPanel(previous=>previous==='files'?null:'files');else setFilesOpen(!filesOpen); }
   function toggleMonitor() { setFocus(false);setMonitorOpen(true);if(narrow)setNarrowPanel(previous=>previous==='monitor'?null:'monitor');else setMonitorOpen(!monitorOpen); }
@@ -105,7 +111,7 @@ export default function DemoWorkbench({ scene, onScene, onExit, shortcuts, fontS
     };
     window.addEventListener('keydown',key,true);return()=>window.removeEventListener('keydown',key,true);
   },[shortcuts]);
-  const tabs=[{id:'terminal',label:'终端 1',terminal:true},...files.map(path=>({id:path,label:path.slice(path.lastIndexOf('/')+1),terminal:false,dirty:dirty(path)}))];
+  const tabs=[...(terminalOpen?[{id:'terminal',label:'终端 1',terminal:true}]:[]),...files.map(path=>({id:path,label:path.slice(path.lastIndexOf('/')+1),terminal:false,dirty:dirty(path)}))];
   return <div ref={root} className="demo-workbench" onDragOverCapture={event=>{if(event.dataTransfer.types.includes('Files'))event.preventDefault();}} onDropCapture={event=>{if(event.dataTransfer.types.includes('Files')){event.preventDefault();event.stopPropagation();}}}>
     <Workbench settings={settings} tabs={<WorkspaceTabs items={items} active={active} onSelect={selectWorkspace} onClose={closeWorkspace} onNew={()=>setPalette(true)} disableNew onSearch={()=>setPalette(true)} onMove={moveWorkspace} onRename={(id,name)=>setItems(previous=>previous.map(item=>item.id===id?{...item,name}:item))} />} tools={<><Tooltip content="命令搜索"><button className="icon-button" aria-label="命令搜索" onClick={()=>setPalette(true)}><Icon name="search" /></button></Tooltip><Tooltip content="设置"><button className="icon-button" aria-label="设置" aria-pressed={settings} onClick={()=>setSettings(value=>!value)}><Icon name="settings" /></button></Tooltip></>} status={<><span>演示模式</span><button onClick={onExit}>退出</button><span>{items.length} 个工作区</span><div className="status-spacer" />{error&&<span className="error" role="alert">{error}</span>}</>}>
       {settings&&<section className="settings-view" aria-label="演示设置"><div className="settings-layout"><aside className="settings-sidebar"><div className="settings-header"><button className="icon-button" aria-label="返回工作区" onClick={()=>setSettings(false)}><Icon name="back" width="16" /></button><h1>设置</h1></div><nav className="settings-navigation" aria-label="设置分类">{(['appearance','terminal'] as const).map(id=><button key={id} className={settingsSection===id?'selected':''} onClick={()=>setSettingsSection(id)}>{id==='appearance'?'外观':'终端与编辑器'}</button>)}</nav></aside><div className="settings-content"><AppearanceSettings section={settingsSection} fontSize={fontSize} onFontSize={setFontSize} demo onDemo={onExit} /></div></div></section>}
@@ -116,9 +122,9 @@ export default function DemoWorkbench({ scene, onScene, onExit, shortcuts, fontS
           {narrow&&narrowPanel&&<button className="panel-scrim" aria-label="关闭辅助面板" onClick={()=>setNarrowPanel(null)} />}
           <div className="file-dock" hidden={!filesShown} style={{width:filesWidth}}><FileBrowser id="demo-files" connectionID="" visible={visible&&filesShown} initialDirectory="/srv/termquay/config" demoDirectories={demoDirectories} onOpen={openFile} onClose={()=>{if(narrow)setNarrowPanel(null);else setFilesOpen(false);}} /></div>
           {filesShown&&!narrow&&<ResizeHandle label="文件面板宽度" value={filesWidth} min={200} max={420} onChange={setFilesWidth} />}
-          <div className="ssh-center"><WorkspacePanes split={split} maximized={false} ratio={ratio} onRatio={setRatio}>
+          <div className="ssh-center">{!tabs.length&&<div className="workspace-empty"><Button size="sm" variant="light" onPress={()=>onScene(scene)}>恢复演示场景</Button></div>}<WorkspacePanes split={split} maximized={false} ratio={ratio} onRatio={setRatio}>
             {[0,1].map(pane=><PaneTabs key={pane} pane={pane} items={tabs.filter(tab=>paneFor(tab.id)===pane)} selected={selected[pane]} focused={activePane===pane} hidden={pane===1&&!split} column={pane===0?1:3} creating newShortcut={shortcutLabel(shortcuts.newTerminal)} closeShortcut={shortcutLabel(shortcuts.closeTab)} onSelect={activate} onClose={closeTab} onNew={()=>{}} />)}
-            <div className="terminal-tab" hidden={!shown('terminal')} style={{gridColumn:1,gridRow:2}} onFocusCapture={()=>setActivePane(0)}><TerminalView ref={terminal} id={`demo-terminal-${active}`} workspace="demo" demoOutput={current?demoTerminal.split('deploy@app-01').join(`${current.username}@${current.host.split('.')[0]}`):demoTerminal} visible={visible&&shown('terminal')} fontSize={fontSize} onSnippets={()=>{}} /></div>
+            {terminalOpen&&<div className="terminal-tab" hidden={!shown('terminal')} style={{gridColumn:1,gridRow:2}} onFocusCapture={()=>setActivePane(0)}><TerminalView ref={terminal} id={`demo-terminal-${active}`} workspace="demo" demoOutput={current?demoTerminal.split('deploy@app-01').join(`${current.username}@${current.host.split('.')[0]}`):demoTerminal} visible={visible&&shown('terminal')} fontSize={fontSize} onSnippets={()=>{}} /></div>}
             {files.map(path=><div className="editor-tab" key={path} hidden={!shown(path)} style={{gridColumn:paneFor(path)===0?1:3,gridRow:2}} onFocusCapture={()=>setActivePane(paneFor(path))}><Suspense fallback={<div className="view-loading" role="status">正在载入编辑器…</div>}><CodeEditor demo path={path} content={documents[path].content} format={documents[path].format} visible={visible&&shown(path)} dirty={dirty(path)} saving={false} reloadEpoch={documents[path].epoch} onChange={(content,format)=>setDocuments(previous=>({...previous,[path]:{...previous[path],content,format}}))} onSave={()=>setDocuments(previous=>({...previous,[path]:{...previous[path],saved:previous[path].content,savedFormat:JSON.stringify(previous[path].format)}}))} onReload={()=>setDocuments(previous=>({...previous,[path]:{...previous[path],content:previous[path].saved,format:JSON.parse(previous[path].savedFormat) as EditorFormat,epoch:previous[path].epoch+1}}))} onDownload={()=>{}} /></Suspense></div>)}
           </WorkspacePanes></div>
           <MonitorPanel id="demo-monitor" visible={visible&&monitorShown} demoSamples={demoSamples} onClose={()=>{if(narrow)setNarrowPanel(null);else setMonitorOpen(false);}} />
