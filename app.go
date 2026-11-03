@@ -37,6 +37,7 @@ type pendingTerminal struct {
 
 type workspaceOwner struct {
 	target   string
+	identity string
 	terminal *terminal.Terminal
 	ctx      context.Context
 	cancel   context.CancelFunc
@@ -209,7 +210,7 @@ func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (Open
 	}
 	t.KeepConnection()
 	ownerCtx, ownerCancel := context.WithCancel(context.Background())
-	owner := &workspaceOwner{terminal: t, ctx: ownerCtx, cancel: ownerCancel, target: r.Username + "@" + net.JoinHostPort(r.Host, strconv.Itoa(r.Port))}
+	owner := &workspaceOwner{terminal: t, ctx: ownerCtx, cancel: ownerCancel, target: r.Username + "@" + net.JoinHostPort(r.Host, strconv.Itoa(r.Port)), identity: r.Fingerprint + ":" + r.JumpID}
 	a.workspaces[id] = owner
 	go func() { t.WaitConnection(); a.CloseWorkspace(id) }()
 	owner.timer = time.AfterFunc(15*time.Second, func() {
@@ -458,7 +459,8 @@ func (a *AppService) handleTerminal(c *application.StreamConn) {
 	}
 }
 
-func (a *AppService) ServiceShutdown() error {
+func (a *AppService) ServiceShutdown() (result error) {
+	defer func() { result = errors.Join(result, a.cleanupLocalTransferResumes()) }()
 	a.mu.Lock()
 	a.closed = true
 	for id, key := range a.privateKeys {

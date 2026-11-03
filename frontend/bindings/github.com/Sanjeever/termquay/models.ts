@@ -226,6 +226,8 @@ export interface Transfer {
     "target": string;
     "source_path": string;
     "destination_path": string;
+    "resumable": boolean;
+    "temporary_path"?: string;
 }
 
 export interface TransferBatch {

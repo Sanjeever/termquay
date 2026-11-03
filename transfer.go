@@ -31,19 +31,25 @@ type Transfer struct {
 	Target          string `json:"target"`
 	SourcePath      string `json:"source_path"`
 	DestinationPath string `json:"destination_path"`
+	Resumable       bool   `json:"resumable"`
+	TemporaryPath   string `json:"temporary_path,omitempty"`
 }
 type transferTask struct {
-	view   Transfer
-	cancel context.CancelFunc
-	done   chan struct{}
-	ctx    context.Context
-	run    func(context.Context, func(int64, int64)) error
-	spec   *transferSpec
+	view          Transfer
+	cancel        context.CancelFunc
+	done          chan struct{}
+	ctx           context.Context
+	run           func(context.Context, func(int64, int64)) error
+	spec          *transferSpec
+	resume        *transferResume
+	peerIdentity  string
+	resumeClaimed bool
 }
 type transferSpec struct {
 	workspace, local, remote, direction string
 	overwrite                           bool
 	syncPlanID                          string
+	resume                              *transferResume
 }
 
 var errTransferSkipped = errors.New("同名目标已跳过")
@@ -110,6 +116,10 @@ func (a *AppService) cancelTransferLocked(task *transferTask) {
 		return
 	}
 	task.view.State = "cancelled"
+	task.view.Resumable = task.resume != nil
+	if task.resume != nil {
+		task.view.TemporaryPath = task.resume.temporary
+	}
 	if task.spec != nil && task.spec.syncPlanID != "" {
 		delete(a.syncPlans, task.spec.syncPlanID)
 	}
@@ -126,7 +136,7 @@ func (a *AppService) cancelTransferLocked(task *transferTask) {
 func (a *AppService) ClearTransfer(id string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if task := a.transfers[id]; task != nil && task.view.State != "running" && task.view.State != "queued" {
+	if task := a.transfers[id]; task != nil && task.resume == nil && task.view.State != "running" && task.view.State != "queued" {
 		delete(a.transfers, id)
 	}
 }
@@ -136,6 +146,9 @@ func (a *AppService) ClearFinishedTransfers() []string {
 	defer a.mu.Unlock()
 	removed := []string{}
 	for id, task := range a.transfers {
+		if task.resume != nil {
+			continue
+		}
 		switch task.view.State {
 		case "done", "cancelled", "failed", "skipped":
 			delete(a.transfers, id)
@@ -155,10 +168,14 @@ func (a *AppService) startTransfer(workspace, name, direction string, total int6
 	id := base64.RawURLEncoding.EncodeToString(randomBytes(16))
 	a.transferSequence++
 	view := Transfer{ID: id, Workspace: workspace, Name: name, Direction: direction, State: "queued", Total: total, Sequence: a.transferSequence, Target: a.workspaces[workspace].target}
-	task := &transferTask{view: view, cancel: cancel, done: make(chan struct{}), ctx: ctx, run: run}
+	task := &transferTask{view: view, cancel: cancel, done: make(chan struct{}), ctx: ctx, run: run, peerIdentity: a.workspaces[workspace].identity}
 	if len(specification) > 0 {
 		spec := specification[0]
 		task.spec = &spec
+		task.resume = spec.resume
+		if spec.resume != nil {
+			task.view.Completed = spec.resume.offset
+		}
 		task.view.Retryable = spec.direction == "upload" || spec.direction == "download"
 		if direction == "upload" {
 			task.view.SourcePath = spec.local
@@ -207,7 +224,7 @@ func (a *AppService) runTransfer(task *transferTask) {
 		}
 		a.mu.Unlock()
 	}
-	err := task.run(task.ctx, report)
+	err := task.run(context.WithValue(task.ctx, transferContextKey{}, task), report)
 	a.mu.Lock()
 	if errors.Is(err, errTransferSkipped) {
 		task.view.State = "skipped"
@@ -221,6 +238,10 @@ func (a *AppService) runTransfer(task *transferTask) {
 		task.view.Error = err.Error()
 	}
 	task.run = nil
+	task.view.Resumable = task.resume != nil
+	if task.resume != nil {
+		task.view.TemporaryPath = task.resume.temporary
+	}
 	if task.spec != nil && task.spec.syncPlanID != "" {
 		delete(a.syncPlans, task.spec.syncPlanID)
 	}
@@ -356,8 +377,12 @@ func (a *AppService) uploadOperation(id, local, remote string, overwrite bool, e
 		if err != nil {
 			return errors.Join(err, remotefiles.RemoveStaging(c, staging))
 		}
+		retained := false
 		defer func() {
 			target.Close()
+			if retained {
+				return
+			}
 			if ctx.Err() == nil {
 				cleanupErr := remotefiles.RemoveStaging(c, staging)
 				if result == nil && cleanupErr != nil {
@@ -381,6 +406,7 @@ func (a *AppService) uploadOperation(id, local, remote string, overwrite bool, e
 		}()
 		writer := &transferWriter{ctx: ctx, writer: target, report: report, total: info.Size(), limit: a.transferRate.Load}
 		if _, err = io.CopyBuffer(writer, source, make([]byte, 64<<10)); err != nil {
+			retained = a.retainTransfer(ctx, &transferResume{source: info, before: before, offset: writer.completed, temporary: temporary, staging: staging})
 			return err
 		}
 		if err = target.Chmod(info.Mode().Perm()); err != nil {
@@ -534,14 +560,16 @@ func (a *AppService) downloadOperation(id, remote, local string, overwrite bool,
 			return err
 		}
 		published := false
+		retained := false
 		defer func() {
 			target.Close()
-			if !published {
+			if !published && !retained {
 				result = errors.Join(result, os.Remove(target.Name()))
 			}
 		}()
 		writer := &transferWriter{ctx: ctx, writer: target, report: report, total: info.Size(), limit: a.transferRate.Load}
 		if _, err = io.CopyBuffer(writer, source, make([]byte, 64<<10)); err != nil {
+			retained = a.retainTransfer(ctx, &transferResume{source: info, before: before, offset: writer.completed, temporary: target.Name()})
 			return err
 		}
 		if err = target.Sync(); err != nil {

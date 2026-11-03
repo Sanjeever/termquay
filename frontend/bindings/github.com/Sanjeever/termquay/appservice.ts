@@ -137,6 +137,10 @@ export function DiscardAndQuit(): $CancellablePromise<void> {
     return $Call.ByID(2297958254);
 }
 
+export function DiscardTransferResume(id: string, workspace: string): $CancellablePromise<void> {
+    return $Call.ByID(1858285940, id, workspace);
+}
+
 export function DownloadFileDraft(document: files$0.Document): $CancellablePromise<void> {
     return $Call.ByID(935735919, document);
 }
@@ -363,6 +367,10 @@ export function RenameRemotePath(id: string, oldPath: string, newPath: string): 
 
 export function ResizeTerminal(id: string, cols: number, rows: number): $CancellablePromise<void> {
     return $Call.ByID(253488878, id, cols, rows);
+}
+
+export function ResumeTransfer(id: string, workspace: string): $CancellablePromise<$models.Transfer> {
+    return $Call.ByID(907302374, id, workspace);
 }
 
 export function RetryTransfer(id: string, newName: string, overwrite: boolean): $CancellablePromise<$models.Transfer> {
