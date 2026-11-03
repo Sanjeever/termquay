@@ -17,7 +17,8 @@ function initialize() {
 
 function detail(error: unknown) {
   const iron = error as Partial<IronError> | null;
-  return typeof iron?.backtrace === 'function' ? iron.backtrace() : String(error);
+  const message = typeof iron?.backtrace === 'function' ? iron.backtrace() : String(error);
+  return message.replace(/(wss?:\/\/[^/\s]+)\/rdp\/[^\s)'"`]+/g, '$1/rdp/<会话>');
 }
 
 const RDPView = forwardRef<RDPHandle, { grant?: Grant; target: string; environment: string; visible: boolean; failure?: string; busy: boolean; pending?:boolean;onRetry(): void; onEdit(): void; onState(state: string): void; options: RDPOptions; onResolution(value: string): Promise<void> }>(function RDPView({ grant, target, environment, visible, failure, busy, pending=false,onRetry, onEdit, onState, options, onResolution }, ref) {

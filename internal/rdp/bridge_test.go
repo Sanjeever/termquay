@@ -172,6 +172,9 @@ func TestCleanPathBridge(t *testing.T) {
 		c.CloseNow()
 		t.Fatal("接受未授权来源")
 	}
+	if err := <-closed; err == nil || err.Error() != "本地 WebSocket 来源未授权，请核对开发服务器端口" {
+		t.Fatal("来源拒绝未报告明确阶段")
+	}
 	options.HTTPHeader.Set("Origin", "wails://localhost")
 	ws, _, err := websocket.Dial(ctx, grant.ProxyURL, options)
 	if err != nil {

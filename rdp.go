@@ -3,6 +3,9 @@ package main
 import (
 	"context"
 	"errors"
+	"net"
+	"net/url"
+	"os"
 
 	"github.com/Sanjeever/termquay/internal/rdp"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -109,6 +112,18 @@ func (a *AppService) TrustRDPCertificate(host string, port int, fingerprint stri
 	return nil
 }
 
+func rdpOrigins() []string {
+	origins := []string{"wails://localhost", "http://wails.localhost"}
+	frontend, err := url.Parse(os.Getenv("FRONTEND_DEVSERVER_URL"))
+	if err == nil && (frontend.Scheme == "http" || frontend.Scheme == "https") && (frontend.Hostname() == "localhost" || net.ParseIP(frontend.Hostname()).IsLoopback()) {
+		origins = append(origins, frontend.Scheme+"://"+frontend.Host)
+		if port := frontend.Port(); port != "" {
+			origins = append(origins, "http://wails.localhost:"+port, "wails://localhost:"+port)
+		}
+	}
+	return origins
+}
+
 func (a *AppService) OpenRDP(host string, port int) (rdp.Grant, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -116,7 +131,7 @@ func (a *AppService) OpenRDP(host string, port int) (rdp.Grant, error) {
 		return rdp.Grant{}, errors.New("应用正在关闭")
 	}
 	if a.rdp == nil {
-		b, err := rdp.NewBridge([]string{"wails://localhost", "http://wails.localhost", "http://127.0.0.1:9245", "http://localhost:9245"}, func(id string, closedErr error) {
+		b, err := rdp.NewBridge(rdpOrigins(), func(id string, closedErr error) {
 			if closedErr == nil {
 				application.Get().Event.Emit("rdp:closed", map[string]string{"id": id})
 			} else {

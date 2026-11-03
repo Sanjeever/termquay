@@ -166,10 +166,6 @@ func (b *Bridge) Close() error {
 }
 
 func (b *Bridge) serve(w http.ResponseWriter, r *http.Request) {
-	if !b.origins[r.Header.Get("Origin")] {
-		http.Error(w, "来源未授权", http.StatusForbidden)
-		return
-	}
 	if !bytes.HasPrefix([]byte(r.URL.Path), []byte("/rdp/")) {
 		http.NotFound(w, r)
 		return
@@ -177,6 +173,14 @@ func (b *Bridge) serve(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Path[len("/rdp/"):]
 	b.mu.Lock()
 	a := b.grants[id]
+	if !b.origins[r.Header.Get("Origin")] {
+		b.mu.Unlock()
+		http.Error(w, "来源未授权", http.StatusForbidden)
+		if a != nil && b.onClose != nil {
+			b.onClose(id, errors.New("本地 WebSocket 来源未授权，请核对开发服务器端口"))
+		}
+		return
+	}
 	if a == nil || a.claimed || time.Now().After(a.expires) {
 		b.mu.Unlock()
 		http.Error(w, "会话未授权或已过期", http.StatusUnauthorized)
@@ -194,6 +198,9 @@ func (b *Bridge) serve(w http.ResponseWriter, r *http.Request) {
 	}
 	ws, err := websocket.Accept(w, r, &websocket.AcceptOptions{OriginPatterns: origins})
 	if err != nil {
+		if b.onClose != nil {
+			b.onClose(id, errors.New("本地 WebSocket 升级失败"))
+		}
 		return
 	}
 	defer ws.CloseNow()
