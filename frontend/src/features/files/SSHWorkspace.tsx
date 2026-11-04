@@ -75,7 +75,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
     return new Promise<SudoAuthorization | undefined>(resolve => { sudoAnswer.current = resolve; setSudoPrompt({ path, encoding, operation }); });
   }
   function answerSudo(value?: SudoAuthorization) { const answer = sudoAnswer.current; sudoAnswer.current = undefined; setSudoPrompt(undefined); answer?.(value); }
-  useEffect(() => () => { sudoAnswer.current?.(); sudoAnswer.current = undefined; }, [sessionID]);
+  useEffect(() => { setSudoPrompt(undefined); return () => { sudoAnswer.current?.(); sudoAnswer.current = undefined; }; }, [sessionID]);
   async function setConflict(path: string) {
     if (!path) { applyConflict(''); setSudoConflict(undefined); return; }
     const draft = draftsRef.current.find(d => d.path === path);
