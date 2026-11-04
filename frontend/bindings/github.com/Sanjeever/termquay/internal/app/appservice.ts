@@ -585,6 +585,10 @@ export function SaveWorkspaceLayout(layout: $models.WorkspaceLayout): $Cancellab
     return $Call.ByID(278295598, layout);
 }
 
+export function SearchRemoteFiles(workspace: string, options: files$0.SearchOptions): $CancellablePromise<files$0.SearchResult> {
+    return $Call.ByID(674335763, workspace, options);
+}
+
 export function SelectPrivateKey(): $CancellablePromise<$models.PrivateKeySelection> {
     return $Call.ByID(2468586180);
 }

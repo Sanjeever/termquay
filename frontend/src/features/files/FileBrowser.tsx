@@ -1,5 +1,5 @@
 import { errorMessage } from "../../lib/errors";
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { Fragment, lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Button, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Modal, ModalBody, ModalContent, ModalHeader, ModalFooter } from '@heroui/react';
 import Tooltip from '../../components/Tooltip';
 import { GetDirectoryBookmarks, SetDirectoryBookmarks, CreateRemoteDirectory, RenameRemotePath, DeleteRemotePath, StartDownload, StartDownloads, MoveRemotePaths, DeleteRemotePaths } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
@@ -14,11 +14,13 @@ import { entryMetadata, fileTreeRows, inDirectory } from './fileTree';
 import FileIcon from './FileIcon';
 import RemoteLogDialog from './RemoteLogDialog';
 
+const FileSearchDialog = lazy(() => import('./FileSearchDialog'));
+
 function FileMetadata({entry}:{entry:Entry}) {
   return <dl className="file-tooltip">{entryMetadata(entry).map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>;
 }
 
-export default function FileBrowser({ id, connectionID, visible, onOpen, onClose, initialDirectory='', onDirectory, directoryRequest, followDirectory, onFollowDirectory, onTerminalDirectory, demoDirectories }: { id: string; connectionID: string; visible: boolean; onOpen(entry: Entry,view?:'text'|'image'): Promise<void>; onClose(): void; initialDirectory?:string; onDirectory?(path:string):void; directoryRequest?: { path: string; sequence: number; locate?: boolean }; followDirectory?: boolean; onFollowDirectory?(): void; onTerminalDirectory?(path: string): void; demoDirectories?: Record<string,Entry[]> }) {
+export default function FileBrowser({ id, connectionID, visible, onOpen, onOpenFile, onClose, initialDirectory='', onDirectory, directoryRequest, followDirectory, onFollowDirectory, onTerminalDirectory, demoDirectories }: { id: string; connectionID: string; visible: boolean; onOpen(entry: Entry,view?:'text'|'image'): Promise<void>; onOpenFile?(path: string, line: number): Promise<void>; onClose(): void; initialDirectory?:string; onDirectory?(path:string):void; directoryRequest?: { path: string; sequence: number; locate?: boolean }; followDirectory?: boolean; onFollowDirectory?(): void; onTerminalDirectory?(path: string): void; demoDirectories?: Record<string,Entry[]> }) {
   const [directory, setDirectory] = useState(initialDirectory);
   const tree = useFileTree(id, visible, demoDirectories);
   const [selected, setSelected] = useState('');
@@ -44,6 +46,8 @@ export default function FileBrowser({ id, connectionID, visible, onOpen, onClose
   const [overwrite,setOverwrite]=useState(false);
   const [syncOpen,setSyncOpen]=useState(false);
   const [logPath,setLogPath]=useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  useEffect(() => { if (!visible) setSearchOpen(false); }, [visible]);
   const loaded = useRef(false);
   const pending = useRef<ReturnType<typeof tree.reveal>>();
   const list = useRef<HTMLUListElement>(null);
@@ -125,7 +129,7 @@ export default function FileBrowser({ id, connectionID, visible, onOpen, onClose
     {editingPath ? <form className="path-form" onSubmit={e => { e.preventDefault(); void load(String(new FormData(e.currentTarget).get('path'))); setEditingPath(false); }}><input name="path" aria-label="远端目录" defaultValue={directory} autoFocus onFocus={e => e.target.select()} onKeyDown={e => { if (e.key === 'Escape') setEditingPath(false); }} onBlur={() => setEditingPath(false)} /></form> : <div className="path-bar"><div className="breadcrumbs"><button onClick={() => void load('/')} aria-label="根目录">/</button>{directory.split('/').filter(Boolean).map((part, index, parts) => <button key={index} onClick={() => void load(`/${parts.slice(0, index + 1).join('/')}`)}>{part}<span>/</span></button>)}</div><Tooltip content={`编辑目录路径 · ${directory}`}><button className="path-edit" aria-label="编辑目录路径" onClick={() => setEditingPath(true)}><Icon name="edit" width="13" /></button></Tooltip></div>}
     {!batch && (!action || action.kind === 'rename') && <ErrorNotice message={error} onDismiss={()=>setError('')} className="file-error"/>}
     {directoryFailure && <ErrorNotice message={directoryFailure.message} className="file-error"><button className="session-tool" onClick={()=>void load(directoryFailure.path)}>重试读取目录</button></ErrorNotice>}
-    <div className="file-filters" hidden={!filterOpen && !filter}><input aria-label="过滤已展开目录文件名" placeholder="过滤已展开目录" value={filter} onChange={e=>setFilter(e.target.value)} onKeyDown={e=>{if(e.key==='Escape'&&!e.nativeEvent.isComposing){setFilter('');setFilterOpen(false);}}} /></div>
+    <div className="file-filters" hidden={!filterOpen && !filter}><input aria-label="过滤已展开目录文件名" placeholder="过滤已展开目录" value={filter} onChange={e=>setFilter(e.target.value)} onKeyDown={e=>{if(e.key==='Escape'&&!e.nativeEvent.isComposing){setFilter('');setFilterOpen(false);}}} /><button className="session-tool" disabled={!directory || !!demoDirectories || !onOpenFile} onClick={() => setSearchOpen(true)}>递归搜索</button></div>
     {(loading||root?.loading) && <p className="muted" role="status">正在读取…</p>}
     <div className="file-selection" style={{visibility:selectedEntries.length?'visible':'hidden'}}><label><input type="checkbox" aria-label="选择全部可见文件" checked={selectedEntries.length===visibleEntries.length} onChange={e=>setSelection(e.target.checked?visibleEntries.map(e=>e.path):[])} />{selectedEntries.length} 项</label><button disabled={working||!!demoDirectories||!selectedEntries.every(regular)} onClick={()=>batchAction('download')}>下载</button><button disabled={working||!!demoDirectories||selectedEntries.some(e=>!regular(e)&&!e.directory&&!e.symlink)} onClick={()=>batchAction('move')}>移动</button><button disabled={working||!!demoDirectories} onClick={()=>batchAction('delete')}>删除</button></div>
     {!!results.length&&<details className="file-results" open><summary>批量操作结果 <button aria-label="关闭批量结果" onClick={e=>{e.preventDefault();setResults([]);}}>×</button></summary>{results.map((result,index)=><p key={index} className={['failed','not_run'].includes(result.state)?'error':'muted'}>{({done:'已完成',queued:'已入队',failed:'失败',skipped:'已跳过',not_run:'未执行'} as Record<string,string>)[result.state]} · {result.path}{result.error&&` · ${result.error}`}</p>)}</details>}
@@ -145,6 +149,7 @@ export default function FileBrowser({ id, connectionID, visible, onOpen, onClose
     <Modal isOpen={!!batch} onClose={()=>{if(!working){setBatch(undefined);setError('');}}} isDismissable={!working} isKeyboardDismissDisabled={working} className="app-dialog"><ModalContent><ModalHeader>{batch?.kind==='download'?'下载':batch?.kind==='move'?'移动':'删除'} {batch?.paths.length} 项</ModalHeader><form onSubmit={e=>{e.preventDefault();void performBatch(String(new FormData(e.currentTarget).get('directory')||''));}}><ModalBody><ul className="batch-paths">{batch?.paths.map(path=><li className="file-path" key={path}>{path}</li>)}</ul>{batch?.kind==='download'&&<label className="checkbox-label"><input type="checkbox" checked={overwrite} disabled={working} onChange={e=>setOverwrite(e.target.checked)} />覆盖同名普通文件</label>}{batch?.kind==='move'&&<label className="form-field">远端目标目录<input className="native-input" name="directory" aria-label="远端目标目录" required defaultValue={directory} disabled={working} /></label>}{batch?.kind==='delete'&&<p className="muted">目录须为空，删除后无法撤销。</p>}{error&&<p role="alert" className="error">{error}</p>}</ModalBody><ModalFooter><Button variant="light" isDisabled={working} onPress={()=>{setBatch(undefined);setError('');}}>取消</Button><Button type="submit" color={batch?.kind==='delete'?'danger':'primary'} isLoading={working}>{batch?.kind==='download'?'选择下载目录':batch?.kind==='move'?'移动':'删除'}</Button></ModalFooter></form></ModalContent></Modal>
     {syncOpen&&<DirectorySyncDialog key={id} id={id} remote={directory} connectionID={connectionID} onClose={()=>setSyncOpen(false)}/>}
     {logPath&&<RemoteLogDialog key={`${id}:${logPath}`} workspace={id} path={logPath} visible={visible} onClose={()=>setLogPath('')}/>}
+    {searchOpen && visible && <Suspense fallback={<p role="status" className="muted">正在载入搜索…</p>}><FileSearchDialog key={id} workspace={id} directory={directory} onClose={() => setSearchOpen(false)} onOpen={async match => { if (match.directory) await load(match.path); else await onOpenFile?.(match.path, match.line || 1); }} /></Suspense>}
     <Modal isOpen={!!action && action.kind !== 'rename'} onClose={()=>{if(!working){setAction(undefined);setError('');}}} className="app-dialog"><ModalContent><ModalHeader>{action?.kind === 'mkdir' ? '新建目录' : '删除远端路径'}</ModalHeader><form onSubmit={e => { e.preventDefault(); void perform(String(new FormData(e.currentTarget).get('name') || '')); }}><ModalBody>{action?.kind === 'delete' ? <p>确认删除 <code>{action.path}</code>？</p> : <label className="form-field">目录名称<input className="native-input" name="name" aria-label="目录名称" required pattern="[^/]+" autoFocus /></label>}{error && <p role="alert" className="error">{error}</p>}</ModalBody><ModalFooter><Button variant="light" isDisabled={working} onPress={()=>{setAction(undefined);setError('');}}>取消</Button><Button type="submit" color={action?.kind === 'delete' ? 'danger' : 'primary'} isLoading={working}>{action?.kind === 'delete' ? '删除' : '创建'}</Button></ModalFooter></form></ModalContent></Modal>
   </aside>;
 }

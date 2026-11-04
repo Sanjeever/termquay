@@ -30,6 +30,39 @@ export interface Entry {
     "link_error"?: string;
 }
 
+export interface SearchIssue {
+    "path": string;
+    "error": string;
+}
+
+export interface SearchMatch {
+    "path": string;
+    "directory": boolean;
+    "line": number;
+    "text": string;
+}
+
+export interface SearchOptions {
+    "root": string;
+    "query": string;
+    "content": boolean;
+    "case_sensitive": boolean;
+    "regex": boolean;
+    "exclude": string[] | null;
+}
+
+export interface SearchResult {
+    "root": string;
+    "matches": SearchMatch[] | null;
+    "scanned": number;
+    "read_bytes": number;
+    "skipped_large": number;
+    "skipped_binary": number;
+    "failed": number;
+    "issues": SearchIssue[] | null;
+    "stop_reason": string;
+}
+
 export interface SyncEntry {
     "path": string;
     "directory": boolean;

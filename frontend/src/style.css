@@ -705,6 +705,13 @@ button:active:not(:disabled):not([role=tab]) { filter: brightness(.93); }
 .command-result small, .command-kind { color: var(--color-muted); font-size: 11px; }
 .command-result kbd { flex-shrink: 0; margin-left: auto; color: var(--color-muted); font: 11px var(--font-ui); white-space: nowrap; }
 .command-kind { margin-left: auto; white-space: nowrap; }
+.file-search-query { display: flex; align-items: center; gap: 8px; }
+.file-search-query > input { min-width: 0; flex: 1; }
+.file-search-dialog textarea { width: 100%; margin-top: 8px; }
+.file-search-results { display: flex; flex-direction: column; max-height: 45vh; overflow: auto; }
+.file-search-results > button { display: flex; flex-direction: column; gap: 4px; padding: 9px 10px; text-align: left; border-bottom: 1px solid var(--color-border); }
+.file-search-results > button:hover, .file-search-results > button:focus-visible { background: var(--color-selected); }
+.file-search-results code { color: var(--color-muted); white-space: pre-wrap; overflow-wrap: anywhere; }
 @media (max-width: 1100px) {
   .file-dock { position: absolute; top: 0; bottom: 0; left: 0; z-index: 5; border-right: 1px solid var(--color-border); box-shadow: 12px 0 32px #0005; }
   .settings-sidebar { width: 180px; }

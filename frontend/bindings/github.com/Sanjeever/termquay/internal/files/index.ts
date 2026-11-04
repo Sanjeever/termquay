@@ -5,5 +5,9 @@ export type {
     Directory,
     Document,
     Entry,
+    SearchIssue,
+    SearchMatch,
+    SearchOptions,
+    SearchResult,
     SyncEntry
 } from "./models.js";
