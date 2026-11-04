@@ -15,6 +15,9 @@
   --color-warning: #e4bf7a;
   --color-danger: #ff9b9b;
   --color-material: #222326ed;
+  --scrollbar-thumb: #ffffff55;
+  --scrollbar-thumb-hover: #ffffff80;
+  --scrollbar-thumb-active: #ffffffa0;
   --shadow-control: 0 1px 2px #00000018;
   --shadow-floating: 0 12px 36px #00000038, 0 2px 8px #00000024;
   --font-mono: "Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", "Microsoft YaHei", monospace;
@@ -51,6 +54,9 @@
   --color-warning: #886000;
   --color-danger: #ba3542;
   --color-material: #f1f1f3ed;
+  --scrollbar-thumb: #00000066;
+  --scrollbar-thumb-hover: #00000088;
+  --scrollbar-thumb-active: #000000a6;
   --shadow-control: 0 1px 2px #00000009;
   --shadow-floating: 0 12px 36px #00000016, 0 2px 8px #0000000d;
   color-scheme: light;
