@@ -112,6 +112,51 @@ export interface ImagePreview {
     "format": string;
 }
 
+export interface LinuxProcess {
+    "pid": number;
+    "parent": number;
+    "user": string;
+    "cpu": number;
+    "memory": number;
+    "rss": number;
+    "elapsed": string;
+    "command": string;
+}
+
+export interface LinuxProcessDetails {
+    "directory": string;
+    "executable": string;
+    "service": string;
+    "errors": string[] | null;
+}
+
+export interface LinuxProcessList {
+    "items": LinuxProcess[] | null;
+    "time": string;
+    "truncated": boolean;
+    "warning": string;
+}
+
+export interface LinuxService {
+    "unit": string;
+    "load": string;
+    "active": string;
+    "sub": string;
+    "description": string;
+}
+
+export interface LinuxServiceDetails {
+    "properties": { [_ in string]?: string } | null;
+    "warning": string;
+}
+
+export interface LinuxServiceList {
+    "items": LinuxService[] | null;
+    "time": string;
+    "truncated": boolean;
+    "warning": string;
+}
+
 export interface LocalShell {
     "id": string;
     "name": string;

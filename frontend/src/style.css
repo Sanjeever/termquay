@@ -712,6 +712,28 @@ button:active:not(:disabled):not([role=tab]) { filter: brightness(.93); }
 .file-search-results > button { display: flex; flex-direction: column; gap: 4px; padding: 9px 10px; text-align: left; border-bottom: 1px solid var(--color-border); }
 .file-search-results > button:hover, .file-search-results > button:focus-visible { background: var(--color-selected); }
 .file-search-results code { color: var(--color-muted); white-space: pre-wrap; overflow-wrap: anywhere; }
+.metric-inspect { width: fit-content; padding: 0; text-align: left; color: var(--color-muted); }
+.metric-inspect:hover:not(:disabled) { color: var(--color-text); text-decoration: underline; }
+.inspection-toolbar { display: flex; align-items: center; gap: 8px; }
+.inspection-toolbar > input { flex: 1; min-width: 0; }
+.inspection-toolbar > strong { flex: 1; overflow-wrap: anywhere; }
+.inspection-table-scroll { max-height: 32vh; overflow: auto; }
+.inspection-table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
+.inspection-table th { position: sticky; top: 0; background: var(--color-elevated); color: var(--color-muted); font-weight: 500; white-space: nowrap; }
+.inspection-table th, .inspection-table td { padding: 6px 8px; border-bottom: 1px solid var(--color-border); }
+.inspection-table tr.selected { background: var(--color-selected); }
+.inspection-pick { text-align: left; white-space: nowrap; }
+.inspection-pick:hover { text-decoration: underline; }
+.inspection-process-command { display: block; width: 100%; max-width: 520px; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); }
+.inspection-detail { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--color-border); padding-top: 12px; }
+.inspection-command { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 160px; overflow: auto; }
+.inspection-path { display: flex; align-items: center; gap: 8px; }
+.inspection-path > span { flex: 1; }
+.inspection-properties { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 20px; }
+.inspection-properties > div { display: flex; gap: 12px; }
+.inspection-properties dt { color: var(--color-muted); flex-shrink: 0; }
+.inspection-properties dd { overflow-wrap: anywhere; }
+.inspection-journal > pre { max-height: 30vh; margin-top: 8px; }
 @media (max-width: 1100px) {
   .file-dock { position: absolute; top: 0; bottom: 0; left: 0; z-index: 5; border-right: 1px solid var(--color-border); box-shadow: 12px 0 32px #0005; }
   .settings-sidebar { width: 180px; }

@@ -309,6 +309,14 @@ export function ListCredentialReferences(): $CancellablePromise<$models.Credenti
     return $Call.ByID(1831277773);
 }
 
+export function ListLinuxProcesses(workspace: string, order: string): $CancellablePromise<$models.LinuxProcessList> {
+    return $Call.ByID(2883598345, workspace, order);
+}
+
+export function ListLinuxServices(workspace: string, filter: string): $CancellablePromise<$models.LinuxServiceList> {
+    return $Call.ByID(3174880280, workspace, filter);
+}
+
 export function ListLocalShells(): $CancellablePromise<$models.LocalShell[] | null> {
     return $Call.ByID(3912183842);
 }
@@ -463,6 +471,18 @@ export function PuTTYImportAvailable(): $CancellablePromise<boolean> {
 
 export function ReadDirectory(id: string, remote: string): $CancellablePromise<files$0.Directory> {
     return $Call.ByID(504709045, id, remote);
+}
+
+export function ReadLinuxProcessDetails(workspace: string, pid: number): $CancellablePromise<$models.LinuxProcessDetails> {
+    return $Call.ByID(3532396353, workspace, pid);
+}
+
+export function ReadLinuxServiceDetails(workspace: string, unit: string): $CancellablePromise<$models.LinuxServiceDetails> {
+    return $Call.ByID(1439260543, workspace, unit);
+}
+
+export function ReadLinuxServiceLog(workspace: string, unit: string): $CancellablePromise<ssh$0.CommandResult> {
+    return $Call.ByID(4231150871, workspace, unit);
 }
 
 export function ReadRecoveryDraft(workspace: string, remote: string): $CancellablePromise<$models.RecoveryDraft> {
