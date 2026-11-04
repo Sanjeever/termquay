@@ -83,6 +83,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
   const integration = useRef<ReturnType<typeof addShellIntegration>>();
   const callbacks = useRef({ onDirectory, onFile, onAttention, onActivate }); callbacks.current = { onDirectory, onFile, onAttention, onActivate };
   const shown = useRef(visible); shown.current = visible;
+  const appFocused = useRef(document.hasFocus());
   const focusRequested=useRef(focusOnShow);focusRequested.current=focusOnShow;
   const inputStream=useRef<ReturnType<typeof Stream>>();
   const completion=useTerminalCompletion({id,workspace,visible,terminal,send:sendFrame,fail:message=>reportError('completion',message),help:()=>setHelp({})});
@@ -101,11 +102,11 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
   }
   useEffect(() => {
     if (demoOutput !== undefined) return;
-    const clearAttention = () => { if (shown.current && !running.current) callbacks.current.onAttention?.(); };
-    const off = [Events.On(Events.Types.Common.WindowFocus, clearAttention), Events.On('terminal:notification-activated', event => { if (event.data === id) callbacks.current.onActivate?.(); })];
+    const clearAttention = () => { appFocused.current = true; if (shown.current && !running.current) callbacks.current.onAttention?.(); };
+    const off = [Events.On(Events.Types.Common.WindowFocus, clearAttention), Events.On(Events.Types.Common.WindowLostFocus, () => { appFocused.current = false; }), Events.On('terminal:notification-activated', event => { if (event.data === id) callbacks.current.onActivate?.(); })];
     return () => off.forEach(dispose => dispose());
   }, [id, demoOutput]);
-  useEffect(() => { if (visible && document.hasFocus() && !running.current) callbacks.current.onAttention?.(); }, [visible]);
+  useEffect(() => { if (visible && appFocused.current && !running.current) callbacks.current.onAttention?.(); }, [visible]);
   function sendFrame(data:string):boolean {
     const stream=inputStream.current,bytes=new TextEncoder().encode(data);
     if(!stream||stream.readyState!==stream.OPEN){reportError('completion','终端已断开');return false;}
@@ -164,7 +165,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
       } else if (running.current && currentCommand.current === latest.id) {
         running.current = false; setRunningCommand(false);
         const failed = latest.exitCode !== undefined && latest.exitCode !== '0';
-        callbacks.current.onAttention?.(shown.current && document.hasFocus() ? undefined : failed ? 'failed' : 'completed');
+        callbacks.current.onAttention?.(shown.current && appFocused.current ? undefined : failed ? 'failed' : 'completed');
         if (reminderCommand.current === latest.id) {
           reminderCommand.current = undefined; setReminder(false);
           NotifyCommandFinished(id, failed).catch(e => { if (terminal.current === term) reportError('notification', e); });

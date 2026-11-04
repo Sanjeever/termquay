@@ -52,6 +52,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   const [ratio,setRatio]=useState(initialLayout?.ratio||50);
   const [terminals, setTerminals] = useState<string[]>(!initialLayout||initialLayout.tabs?.some(t=>t.kind==='terminal')?[sessionID]:[]);
   const [attention, setAttention] = useState<Record<string, CommandAttention | undefined>>({});
+  useEffect(() => { setAttention(previous => Object.keys(previous).every(id => terminals.includes(id)) ? previous : Object.fromEntries(Object.entries(previous).filter(([id]) => terminals.includes(id)))); }, [terminals]);
   const attentionCallback = useRef(onAttention); attentionCallback.current = onAttention;
   useEffect(() => { const states = terminals.map(id => attention[id]); attentionCallback.current?.(states.includes('failed') ? 'failed' : states.includes('running') ? 'running' : states.includes('completed') ? 'completed' : undefined); }, [attention, terminals]);
   const [tmuxBindings, setTmuxBindings] = useState<Record<string, string>>(() => Object.fromEntries((initialLayout?.tabs || []).flatMap((tab, index) => tab.tmux_session ? [[initialIDs[index], tab.tmux_session]] : [])));
