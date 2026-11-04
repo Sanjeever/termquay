@@ -1,7 +1,7 @@
 import Tooltip from '../../components/Tooltip';
 import { errorMessage } from "../../lib/errors";
-import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
-import { Stream, Events, Browser } from '@wailsio/runtime';
+import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Stream, Events, Browser, System } from '@wailsio/runtime';
 import { Button, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from '@heroui/react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
@@ -9,7 +9,11 @@ import { SearchAddon } from '@xterm/addon-search';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import TerminalSearch, { searchHighlightLimit } from './TerminalSearch';
 import { addLogHighlights } from './logHighlights';
-import { addShellIntegration, shellSetupForHost } from './shellIntegration';
+import { addShellIntegration } from './shellIntegration';
+import { shellCompletionSetup } from './shellCompletionSetup';
+import useTerminalCompletion from './useTerminalCompletion';
+import TerminalCompletion from './TerminalCompletionPanel';
+import CommandHelpDialog from './CommandHelpDialog';
 import SelectControl from '../../components/SelectControl';
 import TmuxDialog from './TmuxDialog';
 import { ExportTerminalBuffer, StartTerminalLog, PauseTerminalLog, GetTerminalLogStatus } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
@@ -22,7 +26,7 @@ import { CloseTerminal, ResizeTerminal } from '../../../bindings/github.com/Sanj
 import { CloseLocalTerminal, ResizeLocalTerminal } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import '@xterm/xterm/css/xterm.css';
 
-export type TerminalAction = 'find' | 'copy' | 'paste' | 'selectAll' | 'clear' | 'zoomIn' | 'zoomOut' | 'zoomReset';
+export type TerminalAction = 'find' | 'terminalCompletion' | 'copy' | 'paste' | 'selectAll' | 'clear' | 'zoomIn' | 'zoomOut' | 'zoomReset';
 export type TerminalHandle = { ended():boolean; action(action: TerminalAction): void; insert(text: string): boolean };
 const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string; host?:string; local?: boolean; visible: boolean; fontSize: number; demoOutput?: string; focusOnShow?:boolean; onConnectionChange?():void; onSnippets(): void; onDirectory?(path: string, host: string): void; onFile?(path: string, line: number): void }>(function TerminalView({ id, workspace, host='localhost', local=false, visible, fontSize, demoOutput, focusOnShow=true, onConnectionChange, onSnippets, onDirectory, onFile }, ref) {
   const container = useRef<HTMLDivElement>(null);
@@ -44,6 +48,10 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
   const [cwd, setCwd] = useState('');
   const [exitCode, setExitCode] = useState('');
   const [integrationOpen, setIntegrationOpen] = useState(false);
+  const [help, setHelp] = useState<{command?:string}>();
+  const [pathCompletion, setPathCompletion] = useState(false);
+  const [setupToken, setSetupToken] = useState(()=>Array.from(crypto.getRandomValues(new Uint8Array(32)),byte=>byte.toString(16).padStart(2,'0')).join(''));
+  const nextIntegration = useRef<{token:string;paths:boolean}>();
   const [tmuxOpen, setTmuxOpen] = useState(false);
   const [logConfirm, setLogConfirm] = useState(false);
   const [log, setLog] = useState<TerminalLogStatus>();
@@ -52,14 +60,25 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
   async function exportBuffer() { clearError('export'); try { const buffer = terminal.current?.buffer.active; if (!buffer) return; const lines: string[] = []; for (let y = 0; y < buffer.length; y++) lines.push(buffer.getLine(y)?.translateToString(true) || ''); await ExportTerminalBuffer(lines.join('\n')); clearError('export'); } catch (e) { reportError('export',e); } }
   async function pauseLog() { clearError('log'); try { setLog(await PauseTerminalLog(id)); clearError('log'); } catch (e) { reportError('log',e); } }
   useEffect(() => { if (!log?.recording || !connected) return; let ended = false; let timer: ReturnType<typeof setTimeout>; async function load() { try { const value = await GetTerminalLogStatus(id); if (!ended) { setLog(value); setLogError(value.error ? `日志记录停止：${value.error}` : ''); if (!value.error) setLogErrorDismissed(false); } } catch (e) { if (!ended) setLogError(errorMessage(e)); } finally { if (!ended) timer = setTimeout(load, 2000); } } timer = setTimeout(load, 2000); return () => { ended = true; clearTimeout(timer); }; }, [id, log?.recording, connected]);
-  const [shell, setShell] = useState<'bash' | 'zsh'>('bash');
-  const shellSetup=shellSetupForHost(shell,host);
+  const [shell, setShell] = useState<'bash' | 'zsh'>(local&&System.IsMac()?'zsh':'bash');
+  const shellSetup=useMemo(()=>shellCompletionSetup(shell,host,setupToken),[shell,host,setupToken]);
   const integration = useRef<ReturnType<typeof addShellIntegration>>();
   const callbacks = useRef({ onDirectory, onFile }); callbacks.current = { onDirectory, onFile };
   const shown = useRef(visible); shown.current = visible;
   const focusRequested=useRef(focusOnShow);focusRequested.current=focusOnShow;
   const inputStream=useRef<ReturnType<typeof Stream>>();
+  const completion=useTerminalCompletion({id,workspace,visible,terminal,send:sendFrame,fail:message=>reportError('completion',message),help:()=>setHelp({})});
+  const complete=useRef(completion);complete.current=completion;
   const stateCallback=useRef(onConnectionChange);stateCallback.current=onConnectionChange;
+  function sendFrame(data:string):boolean {
+    const stream=inputStream.current,bytes=new TextEncoder().encode(data);
+    if(!stream||stream.readyState!==stream.OPEN){reportError('completion','终端已断开');return false;}
+    if(stream.bufferedAmount+bytes.length+Math.ceil(bytes.length/32768)>256*1024){reportError('completion','输入队列已满，请等待远端响应');return false;}
+    for(let offset=0;offset<bytes.length;offset+=32768){const chunk=bytes.subarray(offset,offset+32768);const frame=new Uint8Array(chunk.length+1);frame.set(chunk,1);stream.send(frame);}
+    return true;
+  }
+  function openIntegration(){completion.dismiss();setSetupToken(Array.from(crypto.getRandomValues(new Uint8Array(32)),byte=>byte.toString(16).padStart(2,'0')).join(''));setIntegrationOpen(true);}
+  function confirmPaste(){if(nextIntegration.current){clearError('completion');completion.activate(nextIntegration.current.token,nextIntegration.current.paths);nextIntegration.current=undefined;}terminal.current?.paste(paste||'');setPaste(undefined);terminal.current?.focus();}
   function insert(text: string):boolean {
     if (demoOutput !== undefined) { reportError('input','演示终端不执行命令'); return false; }
     const size=new TextEncoder().encode(text).length;
@@ -67,12 +86,13 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
     const stream=inputStream.current;if(!stream||stream.readyState!==stream.OPEN){reportError('input','终端已断开');return false;}
     if(stream.bufferedAmount+size+Math.ceil(size/32768)+16>256*1024){reportError('input','输入队列已满，请等待远端响应');return false;}
     clearError('input');
-    if (/[\r\n]/.test(text)) setPaste(text); else terminal.current?.paste(text);
+    completion.dismiss();if (/[\r\n]/.test(text)) setPaste(text); else terminal.current?.paste(text);
     return true;
   }
   function action(name: TerminalAction) {
     const term = terminal.current; if (!term) return;
     if (name === 'find') setSearchOpen(true);
+    if (name === 'terminalCompletion') {clearError('completion');term.focus();completion.request();return;}
     if (name === 'copy') navigator.clipboard.writeText(term.getSelection()).then(()=>clearError('clipboard')).catch(e => reportError('clipboard',e));
     if (name === 'paste' && demoOutput === undefined) navigator.clipboard.readText().then(value=>{clearError('clipboard');insert(value);}).catch(e => reportError('clipboard',e));
     if (name === 'selectAll') term.selectAll();
@@ -96,7 +116,10 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
       const url = new URL(uri); if (url.protocol === 'http:' || url.protocol === 'https:') Browser.OpenURL(url).then(()=>clearError('link')).catch(e => reportError('link',e));
     }));
     terminal.current = term;
-    integration.current = addShellIntegration(term, (path, host) => { setCwd(path); callbacks.current.onDirectory?.(path, host); }, setExitCode, (path, line) => callbacks.current.onFile?.(path, line));
+    integration.current = addShellIntegration(term, (path, host) => { setCwd(path); callbacks.current.onDirectory?.(path, host); }, setExitCode, (path, line) => callbacks.current.onFile?.(path, line),kind=>complete.current.command(kind),data=>complete.current.receive(data));
+    term.attachCustomKeyEventHandler(event=>complete.current.key(event));
+    const bufferChange=term.buffer.onBufferChange(()=>complete.current.invalidate());
+    const textarea=term.textarea,blur=()=>complete.current.dismiss();textarea?.addEventListener('blur',blur);
     let fitFrame = 0;
     const fitVisible = () => {
       if (fitFrame) return;
@@ -114,7 +137,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
       setConnected(true);
       if(shown.current&&focusRequested.current)term.focus();
       const observer = new ResizeObserver(fitVisible); observer.observe(container.current!);
-      return () => { observer.disconnect(); cancelAnimationFrame(fitFrame); requestFit.current = undefined; integration.current?.dispose(); integration.current = undefined; term.dispose(); terminal.current = undefined; search.current = undefined; };
+      return () => { observer.disconnect();bufferChange.dispose();textarea?.removeEventListener('blur',blur);cancelAnimationFrame(fitFrame); requestFit.current = undefined; integration.current?.dispose(); integration.current = undefined; term.dispose(); terminal.current = undefined; search.current = undefined; };
     }
     const stream = Stream(local ? 'local-terminal' : 'terminal');
     inputStream.current=stream;
@@ -130,9 +153,10 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
         stream.send(ack);
       });
     };
-    stream.onclose = () => { if (!disposed) { setConnected(false); term.options.disableStdin = true;stateCallback.current?.(); } };
+    stream.onclose = () => { if (!disposed) { complete.current.invalidate();setConnected(false); term.options.disableStdin = true;stateCallback.current?.(); } };
     stream.onerror = () => { if (!disposed) setStreamError('终端数据流中断'); };
     const input = term.onData((data) => {
+      complete.current.input(data);
       const bytes = new TextEncoder().encode(data);
       if (stream.readyState !== stream.OPEN) return;
       if (stream.bufferedAmount + bytes.length + Math.ceil(bytes.length/32768) > 256 * 1024) { if (!disposed) reportError('input','输入队列已满，请等待远端响应'); return; }
@@ -148,7 +172,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
       const data = event.data as { id: string; error: string };
       if (data.id === id && !disposed) setStreamError(data.error);
     });
-    return () => { disposed = true; integration.current?.dispose(); integration.current = undefined; observer.disconnect(); cancelAnimationFrame(fitFrame); requestFit.current = undefined; unsubscribe(); input.dispose(); resize.dispose(); stream.close(); term.dispose(); terminal.current = undefined; search.current = undefined; inputStream.current=undefined; (local ? CloseLocalTerminal(id) : CloseTerminal(id)).catch(() => {}); };
+    return () => { disposed = true;bufferChange.dispose();textarea?.removeEventListener('blur',blur); integration.current?.dispose(); integration.current = undefined; observer.disconnect(); cancelAnimationFrame(fitFrame); requestFit.current = undefined; unsubscribe(); input.dispose(); resize.dispose(); stream.close(); term.dispose(); terminal.current = undefined; search.current = undefined; inputStream.current=undefined; (local ? CloseLocalTerminal(id) : CloseTerminal(id)).catch(() => {}); };
   }, [id, demoOutput]);
   useEffect(() => { if (terminal.current) terminal.current.options.theme = terminalTheme(appearance.terminalPalette, dark); }, [id, dark, appearance.terminalPalette]);
   useEffect(() => { if (terminal.current && visible && appearance.terminalLogHighlight) return addLogHighlights(terminal.current, terminalTheme(appearance.terminalPalette, dark)).dispose; }, [id, visible, appearance.terminalLogHighlight, appearance.terminalPalette, dark]);
@@ -159,9 +183,10 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
   function closeSearch() { setSearchOpen(false); search.current?.clearDecorations(); terminal.current?.focus(); }
   return <div className="terminal-view" onPasteCapture={e => { if (!(e.target as HTMLElement).closest('.xterm')) return; e.preventDefault(); e.stopPropagation(); insert(e.clipboardData.getData('text/plain')); }}>
     <div className="terminal-tools"><Tooltip content="命令片段"><button className="icon-button" aria-label="命令片段" disabled={demoOutput !== undefined} onClick={onSnippets}><Icon name="list" width="14" /></button></Tooltip><Tooltip content="终端查找"><button className="icon-button" aria-label="终端查找" onClick={() => action('find')}><Icon name="search" width="14" /></button></Tooltip>
-      <Dropdown><DropdownTrigger><Tooltip content="终端操作"><button className="icon-button" aria-label="终端操作"><Icon name="more" width="14" /></button></Tooltip></DropdownTrigger><DropdownMenu aria-label="终端操作" disabledKeys={demoOutput !== undefined ? ['paste','export','log','tmux','integration'] : []} onAction={key => { if(demoOutput !== undefined && ['paste','export','log','tmux','integration'].includes(String(key)))return; if (key === 'keyword') setKeywordOpen(value => !value); else if (key === 'export') void exportBuffer(); else if (key === 'log') { if (log?.recording) void pauseLog(); else setLogConfirm(true); } else if (key === 'tmux') setTmuxOpen(true); else if (key === 'integration') setIntegrationOpen(true); else if (key === 'previousCommand') integration.current?.previous(); else if (key === 'commandOutput') integration.current?.selectOutput(); else action(key as TerminalAction); }}>
+      <Dropdown><DropdownTrigger><Tooltip content="终端操作"><button className="icon-button" aria-label="终端操作"><Icon name="more" width="14" /></button></Tooltip></DropdownTrigger><DropdownMenu aria-label="终端操作" disabledKeys={demoOutput !== undefined ? ['paste','export','log','tmux','integration'] : []} onAction={key => { if(demoOutput !== undefined && ['paste','export','log','tmux','integration'].includes(String(key)))return; if (key === 'keyword') setKeywordOpen(value => !value); else if (key === 'export') void exportBuffer(); else if (key === 'log') { if (log?.recording) void pauseLog(); else setLogConfirm(true); } else if (key === 'tmux') setTmuxOpen(true); else if (key === 'integration') openIntegration(); else if(key==='help'){completion.dismiss();setHelp({});} else if (key === 'previousCommand') integration.current?.previous(); else if (key === 'commandOutput') integration.current?.selectOutput(); else action(key as TerminalAction); }}>
         <DropdownItem key="copy">复制</DropdownItem><DropdownItem key="paste">粘贴</DropdownItem><DropdownItem key="selectAll">全选</DropdownItem><DropdownItem key="find">查找</DropdownItem><DropdownItem key="clear">清空显示</DropdownItem><DropdownItem key="zoomIn">放大字号</DropdownItem><DropdownItem key="zoomOut">缩小字号</DropdownItem><DropdownItem key="zoomReset">复位字号</DropdownItem>
         <DropdownItem key="previousCommand">跳到上一条命令</DropdownItem><DropdownItem key="commandOutput">选择上次命令输出</DropdownItem><DropdownItem key="integration" isDisabled={!connected}>启用当前 Shell 集成…</DropdownItem>
+        <DropdownItem key="terminalCompletion" isDisabled={!connected||demoOutput!==undefined}>命令补全</DropdownItem><DropdownItem key="help">POSIX 命令参考…</DropdownItem>
         <DropdownItem key="tmux" className={local?'hidden':''} isDisabled={local||!connected}>tmux 会话…</DropdownItem>
         <DropdownItem key="keyword">临时关键词高亮</DropdownItem><DropdownItem key="export">导出当前缓冲区</DropdownItem><DropdownItem key="log" className={local?'hidden':''} isDisabled={local||!connected}>{log?.recording ? '暂停日志记录' : log?.directory ? '继续日志记录…' : '记录终端输出…'}</DropdownItem>
       </DropdownMenu></Dropdown>
@@ -170,13 +195,15 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
     {keywordOpen && <div className="terminal-search"><input aria-label="临时高亮关键词" placeholder="高亮关键词" value={keyword} onChange={event => setKeyword(event.target.value)} maxLength={128} onKeyDown={event => { if (event.key === 'Escape' && !event.nativeEvent.isComposing) { setKeyword(''); setKeywordOpen(false); terminal.current?.focus(); } }}/><button className="icon-button" aria-label="清除临时高亮" onClick={() => { setKeyword(''); setKeywordOpen(false); }}><Icon name="close" width="14"/></button></div>}
     {tmuxOpen && <TmuxDialog workspace={workspace} onInsert={insert} onClose={() => setTmuxOpen(false)} />}
     <div className="terminal-canvas" ref={container} style={{ background: colors.background }} />
+    <TerminalCompletion completion={completion} onHelp={command=>{completion.dismiss();setHelp({command});}}/>
+    {help&&<CommandHelpDialog initial={help.command} enabled={completion.enabled} onEnable={()=>{setHelp(undefined);openIntegration();}} onClose={()=>{setHelp(undefined);terminal.current?.focus();}}/>}
     {log?.directory && <div className="session-status"><span>{connected && log.recording ? '日志记录中' : '日志已暂停'}</span><Tooltip content={log.directory}><button className="session-tool file-path" onClick={() => { navigator.clipboard.writeText(log.directory).then(()=>clearError('clipboard')).catch(e => reportError('clipboard',e)); }}>{log.directory}</button></Tooltip>{logError && <button className="session-tool error" onClick={()=>setLogErrorDismissed(false)}>日志异常</button>}</div>}
     <Modal isOpen={logConfirm} onClose={() => {setLogConfirm(false);clearError('log');}} className="app-dialog"><ModalContent><ModalHeader>记录终端输出</ModalHeader><ModalBody><p>输出以 ANSI 原始字节保存在本机，可能包含敏感信息。最多保留三段日志，每段 8 MiB，循环覆盖最旧段。</p>{log?.directory && <p className="file-path">{log.directory}</p>}<ErrorNotice message={error?.source==='log'?error.message:''} onDismiss={()=>clearError('log')}/></ModalBody><ModalFooter><Button variant="light" onPress={() => {setLogConfirm(false);clearError('log');}}>取消</Button><Button color="primary" onPress={async () => { clearError('log');setLogErrorDismissed(false);try { const value = await StartTerminalLog(id); if (value.directory) setLog(value); setLogError(''); setLogConfirm(false); } catch (e) { reportError('log',e); } }}>开始记录</Button></ModalFooter></ModalContent></Modal>
     <ErrorNotice message={logConfirm&&error?.source==='log'?'':error?.message || ''} onDismiss={()=>setError(undefined)}/>
     {logError && !logErrorDismissed && <ErrorNotice message={logError} onDismiss={()=>setLogErrorDismissed(true)}/>}
     {(connected !== true || cwd || exitCode && exitCode !== '0' || streamError) && <div className="session-status">{connected !== true && <span role="status">{connected===null?'连接中':'已断开'}</span>}{cwd && <Tooltip content={cwd}><span className="file-path">{cwd}</span></Tooltip>}{exitCode && exitCode !== '0' && <span className="error">退出码 {exitCode}</span>}{streamError && <details className="error"><summary>终端连接异常</summary>{errorMessage(streamError)}</details>}</div>}
-    <Modal isOpen={integrationOpen} onClose={() => setIntegrationOpen(false)} className="app-dialog"><ModalContent><ModalHeader>当前 Shell 集成</ModalHeader><ModalBody><label className="form-field">Shell<SelectControl value={shell} onChange={event => setShell(event.target.value as 'bash' | 'zsh')}><option value="bash">Bash 4.4+</option><option value="zsh">Zsh</option></SelectControl></label><p className="muted">在当前 Shell 提示符执行，退出后失效。将设置提示符与命令钩子。</p><pre className="paste-preview">{shellSetup}</pre></ModalBody><ModalFooter><Button variant="light" onPress={() => setIntegrationOpen(false)}>取消</Button><Button color="primary" onPress={() => { if (insert(shellSetup + '\n')) setIntegrationOpen(false); }}>插入并预览</Button></ModalFooter></ModalContent></Modal>
-    <Modal isOpen={paste !== undefined} onClose={() => { setPaste(undefined); terminal.current?.focus(); }} className="app-dialog"><ModalContent><ModalHeader>确认多行粘贴</ModalHeader><ModalBody><p>换行可能立即执行命令，请核对内容。</p><pre className="paste-preview">{paste}</pre></ModalBody><ModalFooter><Button variant="light" onPress={() => { setPaste(undefined); terminal.current?.focus(); }}>取消</Button><Button color="primary" onPress={() => { if (paste !== undefined) terminal.current?.paste(paste); setPaste(undefined); terminal.current?.focus(); }}>粘贴到终端</Button></ModalFooter></ModalContent></Modal>
+    <Modal isOpen={integrationOpen} onClose={() => setIntegrationOpen(false)} className="app-dialog"><ModalContent><ModalHeader>当前 Shell 集成</ModalHeader><ModalBody><label className="form-field">Shell<SelectControl value={shell} onChange={event => setShell(event.target.value as 'bash' | 'zsh')}><option value="bash">Bash 4.4+</option><option value="zsh">Zsh</option></SelectControl></label><p className="muted">在当前 Shell 提示符执行，退出后失效。将设置提示符、命令钩子和补全键位。</p><label className="terminal-path-confirm"><input type="checkbox" checked={pathCompletion} disabled={local&&System.IsWindows()} onChange={event=>setPathCompletion(event.target.checked)}/>确认当前 Shell 与本工作区使用同一文件系统，开启路径补全</label><pre className="paste-preview">{shellSetup}</pre></ModalBody><ModalFooter><Button variant="light" onPress={() => setIntegrationOpen(false)}>取消</Button><Button color="primary" onPress={() => { if (insert(shellSetup + '\n')) {nextIntegration.current={token:setupToken,paths:pathCompletion&&!(local&&System.IsWindows())};setIntegrationOpen(false);} }}>插入并预览</Button></ModalFooter></ModalContent></Modal>
+    <Modal isOpen={paste !== undefined} onClose={() => { nextIntegration.current=undefined;setPaste(undefined); terminal.current?.focus(); }} className="app-dialog"><ModalContent><ModalHeader>确认多行粘贴</ModalHeader><ModalBody><p>换行可能立即执行命令，请核对内容。</p><pre className="paste-preview">{paste}</pre></ModalBody><ModalFooter><Button variant="light" onPress={() => { nextIntegration.current=undefined;setPaste(undefined); terminal.current?.focus(); }}>取消</Button><Button color="primary" onPress={confirmPaste}>粘贴到终端</Button></ModalFooter></ModalContent></Modal>
   </div>;
 });
 export default TerminalView;

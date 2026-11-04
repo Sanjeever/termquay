@@ -102,6 +102,6 @@ export function pathCandidates(context: CompletionContext, entries: readonly {na
     let value=context.path!.displayPrefix+entry.name+(entry.directory?'/':'');
     if(value.startsWith('-'))value='./'+value;
     const text=context.path!.tilde?'~/'+quoted(value.slice(2)):quoted(value);
-    return {label:entry.name+(entry.directory?'/':''),description:entry.directory?'目录':'文件',text:text+(entry.directory?'':' '),kind:entry.directory?'directory':'file'};
+    return {label:entry.name+(entry.directory?'/':''),description:'',text:text+(entry.directory?'':' '),kind:entry.directory?'directory':'file'};
   });
 }

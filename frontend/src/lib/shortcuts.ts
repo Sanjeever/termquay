@@ -12,6 +12,7 @@ export const shortcutDefinitions = [
   { id: 'closeContent', label: '关闭当前终端或文件', scope: 'workspace', key: 'Mod+Alt+KeyW' },
   { id: 'newTerminal', label: '新建终端', scope: 'app', key: mac ? 'Mod+KeyT' : 'Mod+Alt+KeyT' },
   { id: 'find', label: '终端查找', scope: 'terminal', key: mac ? 'Mod+KeyF' : 'Mod+Shift+KeyF' },
+  { id: 'terminalCompletion', label: '触发终端补全', scope: 'terminal', key: 'Alt+Slash' },
   { id: 'copy', label: '复制终端选择', scope: 'terminal', key: mac ? 'Mod+KeyC' : 'Mod+Shift+KeyC' },
   { id: 'paste', label: '粘贴到终端', scope: 'terminal', key: mac ? 'Mod+KeyV' : 'Mod+Shift+KeyV' },
   { id: 'clear', label: '清空终端显示', scope: 'terminal', key: 'Mod+Shift+KeyL' },
@@ -27,10 +28,11 @@ export const defaultShortcuts = Object.fromEntries(shortcutDefinitions.map(d => 
 export const shortcutStorageKey = 'termquay.shortcuts';
 export function mergeShortcuts(stored: Partial<Shortcuts>): Shortcuts {
   const values = { ...defaultShortcuts, ...stored };
-  const assigned = new Set(Object.values(stored));
-  for (const d of shortcutDefinitions) { if (Object.prototype.hasOwnProperty.call(stored, d.id)) continue; values[d.id] = assigned.has(d.key) ? '' : d.key; if (values[d.id]) assigned.add(values[d.id]); }
+  const assigned = shortcutDefinitions.filter(d=>Object.prototype.hasOwnProperty.call(stored,d.id));
+  for (const d of shortcutDefinitions) { if (Object.prototype.hasOwnProperty.call(stored, d.id)) continue; values[d.id] = assigned.some(other=>values[other.id]===d.key&&overlappingScopes(other.scope,d.scope)) ? '' : d.key; if (values[d.id]) assigned.push(d); }
   return values;
 }
+function overlappingScopes(first: string, second: string) { return first===second || first==='app' || second==='app' || first==='workspace' || second==='workspace'; }
 export function eventShortcut(event: KeyboardEvent): string {
   if (event.isComposing || event.key === 'Process' || event.getModifierState('AltGraph') || !/^(Key[A-Z]|Digit[0-9]|Comma|Period|Slash|Backslash|Semicolon|Quote|BracketLeft|BracketRight|Minus|Equal|Tab|ArrowLeft|ArrowRight|ArrowUp|ArrowDown|F[1-9]|F1[0-2])$/.test(event.code)) return '';
   const mac = /Mac|iPhone|iPad/.test(navigator.platform);
@@ -43,7 +45,8 @@ export function shortcutLabel(key: string) {
 }
 export function shortcutConflict(id: ShortcutID, key: string, values: Shortcuts): string {
   if (!key) return '';
-  const other = shortcutDefinitions.find(d => d.id !== id && values[d.id] === key);
+  const scope = shortcutDefinitions.find(d=>d.id===id)!.scope;
+  const other = shortcutDefinitions.find(d => d.id !== id && values[d.id] === key && overlappingScopes(d.scope,scope));
   if (other) return `与“${other.label}”冲突`;
   const assignedInput: Partial<Record<ShortcutID,string>> = { closeTab: 'Mod+KeyW', closeWorkspace: 'Mod+Shift+KeyW', copy: 'Mod+KeyC', paste: 'Mod+KeyV', find: 'Mod+KeyF' };
   if ((/^Mod\+(Key[ACFVXYZS]|KeyW|KeyQ|Tab|Arrow\w+)$/.test(key) || /^(Alt\+(Tab|F4)|Mod\+Alt\+Tab|Mod\+Shift\+KeyW)$/.test(key)) && assignedInput[id] !== key) return '此组合保留给输入组件或系统';

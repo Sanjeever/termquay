@@ -36,3 +36,9 @@ test('方向键与 Tab 可解析，系统组合仍拒绝', () => {
   assert.equal(eventShortcut(key({ code: 'Tab', key: 'Tab', ctrlKey: false, metaKey: false, altKey: true, shiftKey: false })), 'Alt+Tab');
   assert.match(shortcutConflict('nextWorkspace', 'Alt+Tab', defaultShortcuts), /保留/);
 });
+test('终端和编辑器允许共享补全键，应用级动作仍检查冲突',()=>{
+  const values=mergeShortcuts({completion:'Alt+Slash'});
+  assert.equal(values.terminalCompletion,'Alt+Slash');
+  assert.equal(shortcutConflict('terminalCompletion','Alt+Slash',values),'');
+  assert.match(shortcutConflict('palette','Alt+Slash',values),/冲突/);
+});
