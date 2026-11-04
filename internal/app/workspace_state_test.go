@@ -13,11 +13,8 @@ func TestDraftRecoveryEncryptedAndWorkspaceScoped(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := a.SaveWorkspaceDrafts("one", []RecoveryDraftInput{{Path: "/test.txt", Content: "recovery-placeholder"}}); err == nil {
-		t.Fatal("草稿恢复默认未关闭")
-	}
-	if err := a.SetDraftRecoveryEnabled(true); err != nil {
-		t.Fatal(err)
+	if state, err := a.GetDraftRecoveryState(); err != nil || !state.Enabled {
+		t.Fatal("持久存储未默认启用草稿恢复", err)
 	}
 	for _, id := range []string{"one", "two"} {
 		if err := a.SaveWorkspaceDrafts(id, []RecoveryDraftInput{{Path: "/test.txt", Content: "recovery-placeholder", Encoding: "GB18030", LineEnding: "CRLF"}}); err != nil {
@@ -47,9 +44,16 @@ func TestDraftRecoveryEncryptedAndWorkspaceScoped(t *testing.T) {
 	if err != nil || state.Enabled || len(state.Drafts) != 0 {
 		t.Fatal("关闭恢复未清理正文")
 	}
+	if err := a.SaveWorkspaceDrafts("two", []RecoveryDraftInput{{Path: "/test.txt", Content: "recovery-placeholder"}}); err == nil {
+		t.Fatal("已保存的关闭选择未生效")
+	}
 }
 func TestDraftRecoveryLimitsExpiryAndFutureVersion(t *testing.T) {
 	a := testAppStore(t)
+	a.sessionDir = t.TempDir()
+	if state, err := a.GetDraftRecoveryState(); err != nil || state.Enabled || !state.SessionOnly {
+		t.Fatal("会话存储未默认关闭草稿恢复", err)
+	}
 	a.RegisterWorkspaceView("view")
 	a.SetDraftRecoveryEnabled(true)
 	if err := a.SaveWorkspaceDrafts("view", []RecoveryDraftInput{{Path: "/test", Content: strings.Repeat("x", maxRecoveryDocumentBytes+1)}}); err == nil {

@@ -13,7 +13,7 @@ TermQuay 是使用 Go、Wails v3 和 React 构建的开源远程连接工作台�
 - [终端工具](docs/development.md#终端工具与命令片段)：查找、加密片段、会话命令索引、POSIX 命令参考与主动启用的 Bash/Zsh 补全、tmux 入口、输出日志、带时间轴录制与离线回放；多主机任务支持参数、分批执行、首台确认、结果对比与导出。
 - [Linux 诊断](docs/development.md#linux-监控与日志查看)：按需监控、趋势、文件系统容量、进程与 systemd 服务、监听端口关联及双来源 TCP 探测；大日志分片跟随与筛选，Docker 容器、Compose 分组、终端、健康与资源诊断及显式启停。
 - [远程桌面](docs/development.md#远程桌面)：内嵌 RDP、经 SSH 访问内网桌面，以及 Windows 系统客户端入口。
-- [本机工作环境](docs/development.md#本地草稿与布局恢复)：命名工作集、工作布局、可选加密草稿恢复，以及[外观和快捷键设置](docs/development.md#设置与演示模式)。
+- [本机工作环境](docs/development.md#本地草稿与布局恢复)：命名工作集、工作布局、加密草稿恢复，以及[外观和快捷键设置](docs/development.md#设置与演示模式)。
 - [加密备份](docs/development.md#备份与恢复)：本地文件与 WebDAV 快照、设备历史、分项预览恢复、导入连接副本、工作环境配置迁移及自动备份。
 
 操作方式与限制见 [使用说明](docs/development.md#使用说明)。内嵌 RDP 的 TLS 兼容边界见 [RDP 设计说明](docs/architecture.md#内嵌-rdp)；已记录的原生验证范围与缺口见 [验收记录](docs/development.md#已有验收记录与缺口)，不能据此推断所有目标平台均已验收。

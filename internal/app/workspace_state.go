@@ -59,6 +59,7 @@ func (a *AppService) recoveryData() (recoveryData, error) {
 	if err := a.openStorage(); err != nil {
 		return result, err
 	}
+	result.Enabled = a.sessionDir == ""
 	value, err := a.store.SecretSetting("workspace_drafts")
 	if err != nil || value == "" {
 		return result, err
