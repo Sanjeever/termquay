@@ -1,6 +1,6 @@
 import { autocompletion, completeAnyWord, completeFromList, completionKeymap, snippet, startCompletion, type Completion } from '@codemirror/autocomplete';
 import { syntaxTree } from '@codemirror/language';
-import { EditorState, type Extension } from '@codemirror/state';
+import { EditorState, Prec, type Extension } from '@codemirror/state';
 import { hoverTooltip, keymap } from '@codemirror/view';
 import type { EditorLanguageID } from './editorLanguage';
 import { editorDiagnostics } from './editorDiagnostics';
@@ -48,7 +48,7 @@ export function editorIntelligence(language: EditorLanguageID, onDiagnosticError
   const complete = completeFromList(completions);
   return [
     autocompletion({activateOnTypingDelay:150,maxRenderedOptions:30,defaultKeymap:false}),
-    keymap.of(completionKeymap.filter(binding=>binding.key!=='Ctrl-Space')),
+    Prec.high(keymap.of(completionKeymap.filter(binding=>binding.key!=='Ctrl-Space'))),
     EditorState.languageData.of(()=>[{autocomplete:context=>{
       if (context.view?.composing) return null;
       if (!context.explicit && (context.matchBefore(/[\w.-]+/)?.text.length || 0)<2) return null;

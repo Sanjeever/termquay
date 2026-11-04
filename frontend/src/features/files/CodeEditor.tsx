@@ -6,8 +6,8 @@ import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLi
 import { defaultKeymap, history, historyKeymap, indentWithTab, undo, redo, undoDepth, redoDepth, invertedEffects } from '@codemirror/commands';
 import { searchKeymap, highlightSelectionMatches, openSearchPanel } from '@codemirror/search';
 import { bracketMatching, foldGutter, indentOnInput } from '@codemirror/language';
-import { closeBrackets } from '@codemirror/autocomplete';
-import { diagnosticCount, openLintPanel } from '@codemirror/lint';
+import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
+import { diagnosticCount, openLintPanel, setDiagnostics } from '@codemirror/lint';
 import { showMinimap } from '@replit/codemirror-minimap';
 import Icon from '../../components/Icon';
 import { detectEditorLanguage, editorLanguages, loadEditorLanguage, type EditorLanguageID } from './editorLanguage';
@@ -60,7 +60,7 @@ export default function CodeEditor({ path, content, format, visible, saving, dir
       formatState.init(() => format), lineNumbers(), history(), drawSelection(), highlightActiveLine(), highlightActiveLineGutter(), bracketMatching(), closeBrackets(), foldGutter(), indentOnInput(), highlightSelectionMatches(), language.current.of([]), intelligence.current.of([]),
       EditorView.domEventHandlers({keydown(event,editor){if(!editor.composing&&!event.isComposing&&callbacks.current.completionShortcut&&eventShortcut(event)===callbacks.current.completionShortcut&&!editor.state.facet(EditorState.readOnly)){event.preventDefault();startCompletion(editor);return true;}return false;}}),
       invertedEffects.of(transaction => transaction.effects.some(effect => effect.is(changeFormat)) ? [changeFormat.of(transaction.startState.field(formatState))] : []),
-      keymap.of([{ key: 'Mod-s', run: () => { callbacks.current.onSave(); return true; } }, ...defaultKeymap, ...historyKeymap, ...searchKeymap, indentWithTab]),
+      keymap.of([{ key: 'Mod-s', run: () => { callbacks.current.onSave(); return true; } }, ...closeBracketsKeymap, ...defaultKeymap, ...historyKeymap, ...searchKeymap, indentWithTab]),
       EditorState.phrases.of({ 'Find': '查找', 'Replace': '替换', 'next': '下一个', 'previous': '上一个', 'all': '全部', 'match case': '区分大小写', 'regexp': '正则', 'by word': '全词', 'replace': '替换', 'replace all': '全部替换', 'close': '关闭', 'current match': '当前匹配', 'on line': '所在行' }),
       EditorView.contentAttributes.of({ 'aria-label': `编辑 ${path}`, spellcheck: 'false' }),
       EditorView.updateListener.of(update => {
@@ -79,7 +79,7 @@ export default function CodeEditor({ path, content, format, visible, saving, dir
     void loadEditorLanguage(mode).then(extension=>{if(!ended&&view.current===editor)editor.dispatch({effects:language.current.reconfigure(extension)});}).catch(error=>{if(!ended)setLanguageError(errorMessage(error));});
     return()=>{ended=true;};
   },[mode,path,reloadEpoch,languageEpoch]);
-  useEffect(()=>{view.current?.dispatch({effects:intelligence.current.reconfigure(visible?editorIntelligence(mode,setDiagnosticError):[])});},[mode,visible,path,reloadEpoch,diagnosticEpoch]);
+  useEffect(()=>{const editor=view.current;if(!editor)return;setDiagnosticError('');if(diagnosticCount(editor.state))editor.dispatch(setDiagnostics(editor.state,[]));editor.dispatch({effects:intelligence.current.reconfigure(visible?editorIntelligence(mode,setDiagnosticError):[])});},[mode,visible,path,reloadEpoch,diagnosticEpoch]);
   useEffect(() => { view.current?.dispatch({ effects: theme.current.reconfigure(editorTheme(dark)) }); view.current?.requestMeasure(); }, [dark, appearance.monoFont, path, reloadEpoch]);
   useEffect(() => { const observer = new ResizeObserver(([entry]) => setWide(entry.contentRect.width >= 600)); observer.observe(host.current!); return () => observer.disconnect(); }, []);
   useEffect(() => { view.current?.dispatch({ effects: map.current.reconfigure(visible && wide && minimap ? showMinimap.of({ create: () => ({ dom: document.createElement('div') }), displayText: 'blocks', showOverlay: 'always' }) : []) }); }, [visible, wide, minimap, reloadEpoch]);

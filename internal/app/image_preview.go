@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	"image/draw"
 	"image/gif"
 	_ "image/jpeg"
 	"image/png"
@@ -188,7 +189,9 @@ func (a *AppService) publishImage(ctx context.Context, workspace string, owner *
 			return ImagePreview{}, fmt.Errorf("读取 GIF 首帧失败：%w", err)
 		}
 		var output bytes.Buffer
-		if err := png.Encode(&output, frame); err != nil {
+		canvas := image.NewNRGBA(image.Rect(0, 0, config.Width, config.Height))
+		draw.Draw(canvas, frame.Bounds(), frame, frame.Bounds().Min, draw.Src)
+		if err := png.Encode(&output, canvas); err != nil {
 			return ImagePreview{}, err
 		}
 		data = output.Bytes()

@@ -19,8 +19,10 @@ import PaneTabs from './PaneTabs';
 import { shortcutLabel, type Shortcuts } from '../../lib/shortcuts';
 import { shellQuote } from '../terminal/shellIntegration';
 import useSSHReconnect from '../connections/useSSHReconnect';
+import { isImagePath } from './fileTypes';
 
-const CodeEditor = lazy(() => import('./CodeEditor'));
+const TextDocument = lazy(() => import('./TextDocument'));
+const ImagePreview = lazy(() => import('./ImagePreview'));
 const FileConflictView = lazy(() => import('./FileConflictView'));
 
 type Draft = Document & { saved: string; savedFormat?: string; reloadEpoch?: number; error: string; saving: boolean; needsReview?: boolean; recovery?:boolean };
@@ -43,6 +45,8 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   const [ratio,setRatio]=useState(initialLayout?.ratio||50);
   const [terminals, setTerminals] = useState<string[]>(!initialLayout||initialLayout.tabs?.some(t=>t.kind==='terminal')?[sessionID]:[]);
   const [fileOrder,setFileOrder]=useState((initialLayout?.tabs||[]).filter(t=>t.kind==='file').map(t=>t.path));
+  const [fileViews,setFileViews]=useState<Record<string,'text'|'image'>>({});
+  const [markdownAnchor,setMarkdownAnchor]=useState<{path:string;hash:string;sequence:number}>();
   const [restoring,setRestoring]=useState(!!initialLayout);
   const [restoreReady,setRestoreReady]=useState(!initialLayout);
   const [restoreEpoch,setRestoreEpoch]=useState(0);
@@ -109,7 +113,8 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   useEffect(()=>{if(!paneSelected[activePane]&&paneSelected[1-activePane])setActivePane(1-activePane);},[paneSelected[0],paneSelected[1],activePane]);
   function setActive(path:string){const pane=paneFor(path);setActivePane(pane);setSelection(prev=>pane===0?[path,prev[1]]:[prev[0],path]);}
   function shown(path:string){return path===paneSelected[paneFor(path)]&&(!maximized||paneFor(path)===activePane);}
-  function focusTab(path=active){if(document.querySelector('[role=dialog][data-open=true]'))return;center.current?.querySelector<HTMLElement>(`[data-tab-id="${CSS.escape(path)}"] .terminal-search > input, [data-tab-id="${CSS.escape(path)}"] .xterm-helper-textarea, [data-tab-id="${CSS.escape(path)}"] .cm-content`)?.focus();}
+  function imageFile(path:string){return fileViews[path]?fileViews[path]==='image':isImagePath(path);}
+  function focusTab(path=active){if(document.querySelector('[role=dialog][data-open=true]'))return;const selector=`[data-tab-id="${CSS.escape(path)}"]`;Array.from(center.current?.querySelectorAll<HTMLElement>(`${selector} .terminal-search > input, ${selector} .xterm-helper-textarea, ${selector} .cm-content, ${selector} [data-image-preview], ${selector} [data-markdown-preview]`)||[]).find(element=>element.getClientRects().length>0)?.focus();}
   function moveActive(){if(!active)return;const target=1-paneFor(active);setSplit(true);setMaximized(false);setSecondary(prev=>target===1?[...prev,active]:prev.filter(p=>p!==active));setSelection(prev=>target===0?[active,prev[1]]:[prev[0],active]);setActivePane(target);requestAnimationFrame(()=>focusTab(active));}
   async function newTerminal(pane=activePane){if(creating||restoring||terminals.length>=16)return;setCreating(true);try{const result=await CreateTerminal(sessionID);if(disposed.current||instance.current!==sessionID){CloseTerminal(result.id);return;}terminalOwners.current.set(result.id,sessionID);setTerminals(prev=>[...prev,result.id]);if(pane===1){setSplit(true);setSecondary(prev=>[...prev,result.id]);}setSelection(prev=>pane===0?[result.id,prev[1]]:[prev[0],result.id]);setActivePane(pane);setMaximized(false);}catch(e){setError(errorMessage(e));}finally{setCreating(false);}}
   function layout():SSHLayout{if(restoring&&initialLayout)return initialLayout;const live=terminals.filter(t=>terminalOwners.current.get(t)===sessionID&&!terminalHandles.current.get(t)?.ended()).slice(-8);const ordered=[...live,...fileOrder];return {tabs:ordered.map(path=>({kind:live.includes(path)?'terminal':'file',path:live.includes(path)?'':path,pane:paneFor(path)})),selected:[ordered.indexOf(paneSelected[0]),ordered.indexOf(paneSelected[1])],active_pane:activePane,split,maximized,ratio,directory,files_open:filesOpen,files_width:Math.round(filesWidth),monitor_open:monitorOpen,focus};}
@@ -143,11 +148,11 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
     if(!initialLayout||restoreApplied.current)return;restoreApplied.current=true;setRestoring(true);let stopped=false;const bodyRequest=WorkspaceRecoveryDrafts(id);
     void(async()=>{try{
       const bodies=await bodyRequest;if(stopped)return;const paths=[...new Set([...(initialLayout.tabs||[]).filter(t=>t.kind==='file').map(t=>t.path),...(bodies||[]).map(d=>d.path)])];if(paths.length>64)throw new Error('恢复文件超过 64 个，请在本地草稿设置查看或清理后重试');setFileOrder(paths);
-      updateDrafts(prev=>[...prev,...(bodies||[]).filter(d=>!prev.some(old=>old.path===d.path)).map(d=>({path:d.path,content:d.content,encoding:d.encoding,line_ending:d.line_ending,bom:d.bom,revision:'',saved:'',saving:false,error:'恢复草稿，连接后需对比最新远端内容',needsReview:true,recovery:true}))]);setRestoreReady(true);
+      updateDrafts(prev=>[...prev,...(bodies||[]).filter(d=>!prev.some(old=>old.path===d.path)).map(d=>({path:d.path,content:d.content,encoding:d.encoding,line_ending:d.line_ending,bom:d.bom,revision:'',saved:'',saving:false,error:'恢复草稿，连接后需对比最新远端内容',needsReview:true,recovery:true}))]);setFileViews(previous=>({...previous,...Object.fromEntries((bodies||[]).map(body=>[body.path,'text' as const]))}));setRestoreReady(true);
       const planned=(initialLayout.tabs||[]).map((tab,index)=>({tab,key:initialIDs[index]})).filter(t=>t.tab.kind==='terminal');
       if(!planned.length)await CloseTerminal(sessionID);
       for(let index=1;index<planned.length;index++){try{const result=await CreateTerminal(sessionID);if(stopped){CloseTerminal(result.id);return;}terminalOwners.current.set(result.id,sessionID);setTerminals(prev=>[...prev,result.id]);const old=planned[index].key;setSecondary(prev=>prev.map(id=>id===old?result.id:id));setSelection(prev=>prev.map(id=>id===old?result.id:id) as [string,string]);}catch(e){if(!stopped)setError(`部分终端未能恢复：${errorMessage(e)}`);break;}}
-      for(const path of paths){if(stopped)return;const encoding=draftsRef.current.find(d=>d.path===path)?.encoding || 'UTF-8';const request=ReadRemoteFileEncoded(sessionID,path,encoding);reads.current.set(path,request);try{const doc=await request;if(stopped||reads.current.get(path)!==request)return;updateDrafts(prev=>{const old=prev.find(d=>d.path===path);return old?prev.map(d=>d.path===path?{...d,revision:doc.revision,saved:doc.content,savedFormat:formatKey(doc),needsReview:!!d.recovery,error:d.recovery?'恢复草稿，请先对比与合并':'',saving:false}:d):[...prev,{...doc,saved:doc.content,savedFormat:formatKey(doc),error:'',saving:false}];});}catch(e){if(stopped||reads.current.get(path)!==request)return;setPendingErrors(prev=>({...prev,[path]:{message:errorMessage(e),code:errorCode(e),encoding}}));updateDrafts(prev=>prev.map(d=>d.path===path?{...d,error:errorMessage(e),needsReview:true}:d));}finally{if(reads.current.get(path)===request)reads.current.delete(path);}}
+      for(const path of paths){if(stopped)return;if(isImagePath(path)&&!bodies?.some(body=>body.path===path))continue;const encoding=draftsRef.current.find(d=>d.path===path)?.encoding || 'UTF-8';const request=ReadRemoteFileEncoded(sessionID,path,encoding);reads.current.set(path,request);try{const doc=await request;if(stopped||reads.current.get(path)!==request)return;updateDrafts(prev=>{const old=prev.find(d=>d.path===path);return old?prev.map(d=>d.path===path?{...d,revision:doc.revision,saved:doc.content,savedFormat:formatKey(doc),needsReview:!!d.recovery,error:d.recovery?'恢复草稿，请先对比与合并':'',saving:false}:d):[...prev,{...doc,saved:doc.content,savedFormat:formatKey(doc),error:'',saving:false}];});}catch(e){if(stopped||reads.current.get(path)!==request)return;setPendingErrors(prev=>({...prev,[path]:{message:errorMessage(e),code:errorCode(e),encoding}}));updateDrafts(prev=>prev.map(d=>d.path===path?{...d,error:errorMessage(e),needsReview:true}:d));}finally{if(reads.current.get(path)===request)reads.current.delete(path);}}
       if(!stopped){setActivePane(initialLayout.active_pane);const first=(bodies||[])[0];if(first){setActive(first.path);setConflict(first.path);}}
     }catch(e){if(!stopped)setError(errorMessage(e));}finally{if(!stopped)setRestoring(false);}})();
     return()=>{stopped=true;bodyRequest.cancel();};
@@ -155,14 +160,19 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   useEffect(() => { dirtyCallback.current(dirty); viewReady.current?.then(()=>{if(!disposed.current)return SetWorkspaceDirty(id,currentDirty.current);}).catch(e => {if(!disposed.current)setError(errorMessage(e));}); }, [dirty, id]);
   useEffect(() => { const handler = (event: BeforeUnloadEvent) => { if (draftsRef.current.some(d => isDirty(d))) { event.preventDefault(); event.returnValue = ''; } }; window.addEventListener('beforeunload', handler); return () => window.removeEventListener('beforeunload', handler); }, []);
 
-  async function open(entry: Entry) {
-    await openPath(entry.path);
+  async function open(entry: Entry,view?:'text'|'image') {
+    await openPath(entry.path,'UTF-8',view);
   }
-  async function openPath(path:string, encoding = 'UTF-8'){
+  async function openPath(path:string, encoding = 'UTF-8', view?:'text'|'image'){
     if(restoring||!restoreReady)throw new Error('请等待或重试本地草稿载入');
+    if(!fileOrder.includes(path)&&new Set([...fileOrder,...reads.current.keys()]).size>=64)throw new Error('打开文件达到上限（64 个）');
+    if(view)setFileViews(previous=>({...previous,[path]:view}));
+    if(view==='image'||view!=='text'&&imageFile(path)){
+      const request=reads.current.get(path);reads.current.delete(path);request?.cancel();
+      setFileOrder(previous=>previous.includes(path)?previous:[...previous,path]);setActive(path);if(narrow)setNarrowPanel(null);return true;
+    }
     if (draftsRef.current.some(d => d.path === path)) { setActive(path); if(narrow)setNarrowPanel(null); return true; }
     if (reads.current.has(path)) return;
-    if(!fileOrder.includes(path)&&fileOrder.length+reads.current.size>=64)throw new Error('打开文件达到上限（64 个）');
     setFileOrder(prev=>prev.includes(path)?prev:[...prev,path]); setActive(path);
     if(narrow)setNarrowPanel(null);
     setPendingErrors(prev=>{const next={...prev};delete next[path];return next;});
@@ -196,6 +206,9 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
     if (draft?.saving) return;
     if (!discard && draft && (isDirty(draft))) { setClosing(path); return; }
     const request = reads.current.get(path); reads.current.delete(path); request?.cancel();
+    setFileViews(previous=>{const next={...previous};delete next[path];return next;});
+    setFileJump(previous=>previous?.path===path?undefined:previous);
+    setMarkdownAnchor(previous=>previous?.path===path?undefined:previous);
     updateDrafts(prev => prev.filter(d => d.path !== path));setFileOrder(prev=>prev.filter(p=>p!==path)); setSecondary(prev=>prev.filter(p=>p!==path));setPendingErrors(prev=>{const next={...prev};delete next[path];return next;}); setClosing('');
   }
   function requestReload(path: string, encoding: string) {
@@ -230,9 +243,9 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
       <WorkspacePanes split={split} maximized={maximized} ratio={ratio} onRatio={setRatio}>
       {[0, 1].map(pane => <PaneTabs key={`pane-${pane}`} pane={pane} newShortcut={shortcutLabel(shortcuts.newTerminal)} closeShortcut={shortcutLabel(shortcuts.closeContent)} items={tabs.filter(t => paneFor(t.id) === pane)} selected={paneSelected[pane]} focused={pane === activePane} hidden={(!split && pane === 1) || (maximized && pane !== activePane)} column={maximized || pane === 0 ? 1 : 3} creating={creating || restoring || terminals.length >= 16} onSelect={activate} onClose={closeTab} onNew={() => void newTerminal(pane)} />)}
       {terminals.map(terminal => <div className={`terminal-tab ${activePane===paneFor(terminal)?'focused-pane':''}`} data-tab-id={terminal} hidden={!shown(terminal)} style={{gridColumn:maximized?1:paneFor(terminal)===0?1:3,gridRow:2}} onFocusCapture={()=>setActivePane(paneFor(terminal))} key={terminal}><TerminalView ref={handle => { if (handle) terminalHandles.current.set(terminal, handle); else terminalHandles.current.delete(terminal); }} id={terminal} workspace={terminalOwners.current.get(terminal) || sessionID} host={target.slice(target.lastIndexOf('@')+1,target.lastIndexOf(':')).replace(/^\[|\]$/g,'')} onDirectory={(path, host) => terminalDirectory(terminal, path, host)} onFile={openTerminalFile} onSnippets={()=>{setActive(terminal);onSnippets();}} onConnectionChange={()=>changeCallback.current()} visible={visible && shown(terminal)} focusOnShow={activePane===paneFor(terminal)} fontSize={fontSize} /></div>)}
-      {fileOrder.filter(path=>!drafts.some(d=>d.path===path)).map(path=>{
+      {fileOrder.filter(path=>!imageFile(path)&&!drafts.some(d=>d.path===path)).map(path=>{
         const failure = pendingErrors[path];
-        const retry = (encoding: string) => { void openPath(path,encoding).catch(e=>setError(errorMessage(e))); };
+        const retry = (encoding: string) => { void openPath(path,encoding,'text').catch(e=>setError(errorMessage(e))); };
         return <div key={path} className="editor-tab pending-file" data-tab-id={path} hidden={!shown(path)} style={{gridColumn:maximized?1:paneFor(path)===0?1:3,gridRow:2}}>
           <p className="file-path">{path}</p>
           {failure ? <ErrorNotice message={failure.message}/> : <p role="status" className="muted">正在读取文件…</p>}
@@ -240,13 +253,15 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
             {failure?.code === 'file_encoding' && <SelectControl aria-label="以指定编码打开文件" value="" disabled={restoring||!restoreReady} onChange={e=>{if(e.target.value)retry(e.target.value);}}><option value="" disabled>选择编码…</option>{editorEncodings.map(([value,label])=><option key={value} value={value}>{label}</option>)}</SelectControl>}
             {failure && !['file_encoding','file_binary','file_too_large','file_not_regular'].includes(failure.code) && <Button size="sm" variant="bordered" isDisabled={restoring||!restoreReady} onPress={()=>retry(failure.encoding)}>重试读取</Button>}
             {failure && failure.code !== 'file_not_regular' && <Button size="sm" variant="light" onPress={()=>{void StartDownload(sessionID,path).catch(e=>setError(errorMessage(e)));}}>下载原文件</Button>}
+            {failure?.code==='file_binary'&&<Button size="sm" variant="light" onPress={()=>{void openPath(path,'UTF-8','image').catch(e=>setError(errorMessage(e)));}}>预览图片</Button>}
             <Button size="sm" variant="light" onPress={()=>close(path)}>关闭文件</Button>
           </div>
         </div>;
       })}
-      {drafts.map(d => <div key={d.path} className={`editor-tab ${activePane===paneFor(d.path)?'focused-pane':''}`} data-tab-id={d.path} hidden={!shown(d.path)} style={{gridColumn:maximized?1:paneFor(d.path)===0?1:3,gridRow:2}} onFocusCapture={()=>setActivePane(paneFor(d.path))}>
+      {fileOrder.filter(imageFile).map(path=><div key={`image:${path}`} className="editor-tab" data-tab-id={path} hidden={!shown(path)} style={{gridColumn:maximized?1:paneFor(path)===0?1:3,gridRow:2}} onFocusCapture={()=>setActivePane(paneFor(path))}><Suspense fallback={<div className="view-loading" role="status">正在载入图片预览…</div>}><ImagePreview workspace={sessionID} path={path} visible={visible&&shown(path)} onDownload={()=>{void StartDownload(sessionID,path).catch(e=>setError(errorMessage(e)));}} onText={()=>{void openPath(path,'UTF-8','text').catch(e=>setError(errorMessage(e)));}}/></Suspense></div>)}
+      {drafts.map(d => <div key={d.path} className={`editor-tab ${activePane===paneFor(d.path)?'focused-pane':''}`} data-tab-id={d.path} hidden={!shown(d.path)||imageFile(d.path)} style={{gridColumn:maximized?1:paneFor(d.path)===0?1:3,gridRow:2}} onFocusCapture={()=>setActivePane(paneFor(d.path))}>
         {d.error && <div className="file-save-error"><p role="alert" className="error">{d.error}</p><div className="button-row"><Button size="sm" variant="light" isDisabled={d.saving} onPress={()=>setConflict(d.path)}>对比与合并</Button><Button size="sm" variant="light" onPress={() => setRereading(d.path)}>重新读取</Button><Button size="sm" variant="light" onPress={() => { navigator.clipboard.writeText(d.content).catch(e => setError(errorMessage(e))); }}>复制草稿</Button></div></div>}
-        <Suspense fallback={<div className="view-loading" role="status">正在载入编辑器…</div>}><CodeEditor completionShortcut={shortcuts.completion} path={d.path} jumpTo={fileJump?.path === d.path ? fileJump : undefined} content={d.content} format={documentFormat(d)} saving={d.saving} dirty={isDirty(d)} reloadEpoch={d.reloadEpoch} visible={visible && shown(d.path)} focusOnShow={activePane===paneFor(d.path)} onChange={(value,format) => updateDrafts(prev => prev.map(item => item.path === d.path ? { ...item, ...format, content: value } : item))} onSave={() => void save(d.path)} onReload={encoding=>requestReload(d.path,encoding)} onDownload={()=>void DownloadFileDraft({...d,...documentFormat(d)}).catch(e=>updateDrafts(prev=>prev.map(item=>item.path===d.path?{...item,error:errorMessage(e)}:item)))} /></Suspense>
+        <Suspense fallback={<div className="view-loading" role="status">正在载入编辑器…</div>}><TextDocument workspace={sessionID} anchor={markdownAnchor?.path===d.path?markdownAnchor:undefined} onNavigate={(path,hash)=>{setMarkdownAnchor(previous=>({path,hash,sequence:(previous?.sequence||0)+1}));void openPath(path).catch(error=>setError(errorMessage(error)));}} completionShortcut={shortcuts.completion} path={d.path} jumpTo={fileJump?.path === d.path ? fileJump : undefined} content={d.content} format={documentFormat(d)} saving={d.saving} dirty={isDirty(d)} reloadEpoch={d.reloadEpoch} visible={visible && shown(d.path) && !imageFile(d.path)} focusOnShow={activePane===paneFor(d.path)} onChange={(value,format) => updateDrafts(prev => prev.map(item => item.path === d.path ? { ...item, ...format, content: value } : item))} onSave={() => void save(d.path)} onReload={encoding=>requestReload(d.path,encoding)} onDownload={()=>void DownloadFileDraft({...d,...documentFormat(d)}).catch(e=>updateDrafts(prev=>prev.map(item=>item.path===d.path?{...item,error:errorMessage(e)}:item)))} /></Suspense>
       </div>)}
       </WorkspacePanes>
     </div>

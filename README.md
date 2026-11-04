@@ -13,6 +13,7 @@ TermQuay 是使用 Go、Wails v3 和 React 构建的开源远程连接工作台�
 - 按需 Linux 监控，提供趋势与文件系统容量，区分未知、过期和采集失败。
 - 内嵌 RDP、经 SSH 访问内网桌面，以及 Windows 系统客户端入口。
 - 本地文件与 WebDAV 加密备份，按设备查看历史，支持分项预览恢复、导入连接副本和自动备份。
+- 远端文本多语言高亮、补全与 JSON/YAML 语法提示，支持 Markdown 和常见图片预览。
 
 操作方式与限制见 [使用说明](docs/development.md#使用说明)。内嵌 RDP 的 TLS 兼容边界见 [RDP 设计说明](docs/architecture.md#内嵌-rdp)；已记录的原生验证范围与缺口见 [验收记录](docs/development.md#已有验收记录与缺口)，不能据此推断所有目标平台均已验收。
 

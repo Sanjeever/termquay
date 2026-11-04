@@ -20,6 +20,7 @@ export function languageFromTag(tag: string): EditorLanguageID | undefined {
 
 export function detectEditorLanguage(path: string, content = ''): EditorLanguageID {
   const name = (path.split('/').pop() || '').toLowerCase();
+  if (/^(readme|changelog|changes)$/.test(name)) return 'markdown';
   if (/^dockerfile(?:\..*)?$/.test(name) || /\.dockerfile$/.test(name)) return 'dockerfile';
   if (/^(?:gnumakefile|makefile)(?:\..*)?$/.test(name) || /\.mk$/.test(name)) return 'makefile';
   if (name === 'cmakelists.txt' || /\.cmake$/.test(name)) return 'cmake';
