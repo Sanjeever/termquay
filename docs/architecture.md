@@ -148,7 +148,7 @@ WebDAV 使用追加式快照，不覆盖或自动清理历史。备份目录由�
 | 版本发布与应用更新 | [assets.go](../assets.go)、[version.go](../internal/app/version.go)、[update.go](../internal/app/update.go)、[internal/update](../internal/update)、[发布工作流](../.github/workflows/release.yml)、[版本工具](../scripts/version.mjs) | `internal/update/provider_test.go`、`scripts/version.test.mjs`、原生替换与重启验收 |
 | SSH、PTY 与消费确认 | [internal/ssh](../internal/ssh)、[TerminalView](../frontend/src/features/terminal/TerminalView.tsx) | `internal/ssh/terminal_test.go` |
 | 本地 Shell 与 PTY | [local_terminal.go](../internal/app/local_terminal.go)、[TerminalView](../frontend/src/features/terminal/TerminalView.tsx) | 各平台原生进程、输入与关闭验证 |
-| 目录延迟探测 | [latency.go](../internal/app/latency.go)、[internal/ssh/latency.go](../internal/ssh/latency.go)、[前端调度](../frontend/src/features/connections/useConnectionLatency.ts) | 尚无专门自动化回归；需验证真实代理与跳板路径、取消及并发边界 |
+| 目录延迟探测 | [latency.go](../internal/app/latency.go)、[internal/ssh/latency.go](../internal/ssh/latency.go)、[前端调度](../frontend/src/features/connections/useConnectionLatency.ts) | `latency_test.go` 验证本地 TCP、代理请求合并、取消与并发边界；真实代理、跳板路径与前端可见性调度仍需验证 |
 | 文件、草稿与传输 | [internal/files](../internal/files)、[files.go](../internal/app/files.go)、[transfer.go](../internal/app/transfer.go)、[前端文件工作区](../frontend/src/features/files) | `internal/files/service_test.go`、`transfer_test.go`、原生传输流程 |
 | Linux 监控 | [internal/monitor](../internal/monitor)、[monitor.go](../internal/app/monitor.go) | `internal/monitor/sample_test.go`、`filesystems_test.go`、前端 `history.test.ts` |
 | RDP、证书与授权 | [internal/rdp](../internal/rdp)、[rdp.go](../internal/app/rdp.go)、[RDPView](../frontend/src/features/rdp/RDPView.tsx) | `internal/rdp/bridge_test.go`、真实 RDP 与原生 WebView |
