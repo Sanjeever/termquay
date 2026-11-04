@@ -132,7 +132,7 @@ export default function ConnectionDialog({ connection, temporary, groups, connec
       </div>
       {stored && connectionError && <p className="muted">配置已保存，连接未成功。</p>}
       {(error || connectionError) && <p role="alert" className="error">{error || connectionError}</p>}
-      {!!connectionSteps.length && <details><summary>连接诊断{busy && ` · ${connectionSteps.at(-1)?.stage}`}</summary><ConnectionDiagnostics steps={connectionSteps} busy={busy} /></details>}
+      {!!connectionSteps.length && <details><summary>连接诊断{busy && ` · ${connectionSteps[connectionSteps.length - 1]?.stage}`}</summary><ConnectionDiagnostics steps={connectionSteps} busy={busy} /></details>}
     </form></ModalBody>
     <ModalFooter>{temporary && <span className="temporary-label">临时连接</span>}<Button variant="light" isDisabled={saving} onPress={() => { onCancel(); onClose(); }}>{busy ? '取消连接' : '取消'}</Button>{!temporary && <Button variant="bordered" isDisabled={busy || saving} onPress={() => void submit('save')}>保存</Button>}<Button color="primary" type="submit" form="connection-dialog-form" isDisabled={!targetReady || parsing} isLoading={busy || saving}>{temporary ? '连接' : '保存并连接'}</Button></ModalFooter>
   </ModalContent></Modal>;
