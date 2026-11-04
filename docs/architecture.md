@@ -44,6 +44,12 @@ RDP 图形队列与 WASM 内存也属于资源边界，其上界需要持续真�
 
 命名工作集复用布局模型，只保存 SSH/RDP 入口，不包含秘密、授权、PTY、终端输出或文件正文；数量、布局大小与总存储有界，未知版本或无效数据必须报错。打开时分配新的界面 ID 并追加断开工作区，保留既有会话与草稿，避免复用旧会话或误关联草稿；手动连接后才建立网络与读取文件，不能恢复旧 PTY、回放命令或绕过保存配置目标变化的核对。操作见 [布局与工作集](development.md#本地草稿与布局恢复)，迁移范围见 [备份与恢复](development.md#备份与恢复)。
 
+命名服务入口复用隧道预设，绑定保存的 SSH 连接，显式打开时沿既有认证与身份确认建立工作区，再开启回环本地转发。HTTP/HTTPS 路径不得改变本地访问来源，其他类型只复制地址；隧道仍属于工作区，服务定义随隧道预设迁移。
+
+tmux 绑定保存会话名称，布局及工作集恢复后保持待附着。用户点击续接时重新查询当前远端会话，并通过独立 PTY 执行固定附着命令，不向未知 Shell 重放输入；会话缺失必须报错。名称不承诺远端重启后的任务身份，绑定不扩大认证或信任范围。布局版本及字段以 [工作布局模型](../internal/app/workspace.go) 为准。
+
+多主机巡检扩展既有加密任务步骤，Go 校验条件并判定命令结果。JSON 字段、正则及数字比较有界，截断、读取或解析失败不得呈现为通过；条件失败沿用任务停止策略。文件基线复用独立 SFTP 读取，在本次运行固定版本并逐目标核对，不承诺跨主机快照。定义可随任务迁移，基线选择、版本及结果不持久化；显式导出包含判定与来源，不能夹带文件正文。实现见 [巡检判定](../internal/app/command_checks.go)。
+
 ## 身份、凭据与本地数据
 
 版本发布、应用更新和本地数据格式相互独立。应用更新保留既定产品标识、系统密钥库标识和数据目录，不重置配置，也不承诺活动会话跨重启恢复。
@@ -146,7 +152,7 @@ WebDAV 使用追加式快照，不覆盖或自动清理历史。备份目录由�
 | --- | --- | --- |
 | 工作区、布局与退出 | [app.go](../internal/app/app.go)、[lifecycle.go](../internal/app/lifecycle.go)、[workspace.go](../internal/app/workspace.go)、[App.tsx](../frontend/src/App.tsx)、[前端工作区与退出协调](../frontend/src/features/workspaces)、[工作台布局](../frontend/src/components/layout) | `lifecycle_test.go`、`workspace_test.go`、`workspace_state_test.go`、前端 `workspaceLayout.test.ts`、原生关闭与重载验证 |
 | 版本发布与应用更新 | [assets.go](../assets.go)、[version.go](../internal/app/version.go)、[update.go](../internal/app/update.go)、[internal/update](../internal/update)、[发布工作流](../.github/workflows/release.yml)、[版本工具](../scripts/version.mjs) | `internal/update/provider_test.go`、`scripts/version.test.mjs`、原生替换与重启验收 |
-| SSH、PTY 与消费确认 | [internal/ssh](../internal/ssh)、[ssh_connect.go](../internal/app/ssh_connect.go)、[terminal_sessions.go](../internal/app/terminal_sessions.go)、[TerminalView](../frontend/src/features/terminal/TerminalView.tsx) | [terminal_test.go](../internal/ssh/terminal_test.go)、[自动重连路径变化缺陷](development.md#已确认的待修复缺陷) |
+| SSH、PTY 与消费确认 | [internal/ssh](../internal/ssh)、[ssh_connect.go](../internal/app/ssh_connect.go)、[terminal_sessions.go](../internal/app/terminal_sessions.go)、[TerminalView](../frontend/src/features/terminal/TerminalView.tsx) | [terminal_test.go](../internal/ssh/terminal_test.go)、[重连修复与验证缺口](development.md#重连修复与本轮验证缺口) |
 | 本地 Shell 与 PTY | [local_terminal.go](../internal/app/local_terminal.go)、[TerminalView](../frontend/src/features/terminal/TerminalView.tsx) | 各平台原生进程、输入与关闭验证 |
 | 目录延迟探测 | [latency.go](../internal/app/latency.go)、[internal/ssh/latency.go](../internal/ssh/latency.go)、[前端调度](../frontend/src/features/connections/useConnectionLatency.ts) | `latency_test.go` 验证本地 TCP、代理请求合并、取消与并发边界；真实代理、跳板路径与前端可见性调度仍需验证 |
 | 文件、草稿与传输 | [internal/files](../internal/files)、[files.go](../internal/app/files.go)、[transfer.go](../internal/app/transfer.go)、[前端文件工作区](../frontend/src/features/files) | `internal/files/service_test.go`、`transfer_test.go`、原生传输流程 |
