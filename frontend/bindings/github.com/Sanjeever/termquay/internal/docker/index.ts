@@ -6,5 +6,6 @@ export type {
     Details,
     Logs,
     Mount,
-    Port
+    Port,
+    Stats
 } from "./models.js";

@@ -40,8 +40,15 @@ type Mount struct {
 	Writable    bool   `json:"writable"`
 }
 type Details struct {
-	Mounts []Mount `json:"mounts"`
-	TTY    bool    `json:"tty"`
+	Mounts       []Mount `json:"mounts"`
+	TTY          bool    `json:"tty"`
+	Health       string  `json:"health"`
+	HealthLog    string  `json:"health_log"`
+	ExitCode     int     `json:"exit_code"`
+	OOMKilled    bool    `json:"oom_killed"`
+	Error        string  `json:"error"`
+	FinishedAt   string  `json:"finished_at"`
+	RestartCount int     `json:"restart_count"`
 }
 type Logs struct {
 	Text      string `json:"text"`
@@ -177,7 +184,17 @@ func (c *Client) Inspect(ctx context.Context, id string) (Details, error) {
 		return Details{}, errors.New("容器 ID 无效")
 	}
 	var raw struct {
-		Config struct{ Tty bool }
+		Config       struct{ Tty bool }
+		RestartCount int
+		State        struct {
+			ExitCode          int
+			OOMKilled         bool
+			Error, FinishedAt string
+			Health            *struct {
+				Status string
+				Log    []struct{ Output string }
+			}
+		}
 		Mounts []struct {
 			Type, Source, Destination string
 			RW                        bool
@@ -190,6 +207,21 @@ func (c *Client) Inspect(ctx context.Context, id string) (Details, error) {
 		return Details{}, errors.New("挂载超过 256 项")
 	}
 	result := Details{TTY: raw.Config.Tty, Mounts: []Mount{}}
+	result.ExitCode = raw.State.ExitCode
+	result.OOMKilled = raw.State.OOMKilled
+	result.Error = raw.State.Error
+	result.FinishedAt = raw.State.FinishedAt
+	result.RestartCount = raw.RestartCount
+	if raw.State.Health != nil {
+		result.Health = raw.State.Health.Status
+		for _, entry := range raw.State.Health.Log[max(0, len(raw.State.Health.Log)-5):] {
+			output := entry.Output
+			if len(output) > 4096 {
+				output = output[:4096] + "\n[健康检查输出已截断]"
+			}
+			result.HealthLog += strings.ToValidUTF8(output, "�") + "\n"
+		}
+	}
 	for _, mount := range raw.Mounts {
 		result.Mounts = append(result.Mounts, Mount{mount.Type, mount.Source, mount.Destination, mount.RW})
 	}

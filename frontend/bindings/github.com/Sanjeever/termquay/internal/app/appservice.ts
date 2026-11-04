@@ -68,6 +68,10 @@ export function CancelUpdate(): $CancellablePromise<void> {
     return $Call.ByID(33469453);
 }
 
+export function ChangeContainerState(workspace: string, socket: string, id: string, action: string): $CancellablePromise<void> {
+    return $Call.ByID(1293882578, workspace, socket, id, action);
+}
+
 export function CheckSSHFileAccess(workspace: string): $CancellablePromise<void> {
     return $Call.ByID(354512916, workspace);
 }
@@ -574,6 +578,10 @@ export function PuTTYImportAvailable(): $CancellablePromise<boolean> {
 
 export function ReadContainerLogs(workspace: string, socket: string, id: string): $CancellablePromise<docker$0.Logs> {
     return $Call.ByID(541234366, workspace, socket, id);
+}
+
+export function ReadContainerStats(workspace: string, socket: string, id: string): $CancellablePromise<docker$0.Stats> {
+    return $Call.ByID(3965958036, workspace, socket, id);
 }
 
 export function ReadDirectory(id: string, remote: string): $CancellablePromise<files$0.Directory> {

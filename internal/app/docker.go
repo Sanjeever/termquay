@@ -103,6 +103,28 @@ func (a *AppService) ReadContainerLogs(ctx context.Context, workspace, socket, i
 	defer release()
 	return client.Logs(ctx, id)
 }
+
+func (a *AppService) ReadContainerStats(ctx context.Context, workspace, socket, id string) (docker.Stats, error) {
+	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	client, ctx, release, err := a.dockerClient(ctx, workspace, socket)
+	if err != nil {
+		return docker.Stats{}, err
+	}
+	defer release()
+	return client.Stats(ctx, id)
+}
+
+func (a *AppService) ChangeContainerState(ctx context.Context, workspace, socket, id, action string) error {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	client, ctx, release, err := a.dockerClient(ctx, workspace, socket)
+	if err != nil {
+		return err
+	}
+	defer release()
+	return client.ChangeState(ctx, id, action)
+}
 func (a *AppService) OpenContainerTerminal(ctx context.Context, workspace, socket, id, shell string) (OpenResult, error) {
 	if !path.IsAbs(socket) || path.Clean(socket) != socket || len(socket) > 4096 || strings.ContainsAny(socket, "\x00\r\n") {
 		return OpenResult{}, errors.New("Docker socket 必须是远端 Unix 绝对路径")

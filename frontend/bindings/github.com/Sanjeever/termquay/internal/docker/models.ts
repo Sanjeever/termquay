@@ -14,6 +14,13 @@ export interface Container {
 export interface Details {
     "mounts": Mount[] | null;
     "tty": boolean;
+    "health": string;
+    "health_log": string;
+    "exit_code": number;
+    "oom_killed": boolean;
+    "error": string;
+    "finished_at": string;
+    "restart_count": number;
 }
 
 export interface Logs {
@@ -33,4 +40,15 @@ export interface Port {
     "private_port": number;
     "public_port": number;
     "type": string;
+}
+
+export interface Stats {
+    "time": string;
+    "cpu": number | null;
+    "memory": number | null;
+    "memory_limit": number | null;
+    "network_read": number | null;
+    "network_write": number | null;
+    "disk_read": number | null;
+    "disk_write": number | null;
 }
