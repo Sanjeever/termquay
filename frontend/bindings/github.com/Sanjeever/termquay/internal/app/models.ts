@@ -605,6 +605,7 @@ export interface WorkspaceTabLayout {
     "kind": string;
     "path": string;
     "pane": number;
+    "tmux_session"?: string;
 }
 
 export interface WorkspaceTarget {

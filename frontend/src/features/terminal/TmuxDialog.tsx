@@ -6,7 +6,7 @@ import type { TmuxSession } from '../../../bindings/github.com/Sanjeever/termqua
 import { shellQuote } from './shellIntegration';
 import ErrorNotice from '../../components/ErrorNotice';
 
-export default function TmuxDialog({ workspace, onInsert, onClose }: { workspace: string; onInsert(command: string): boolean; onClose(): void }) {
+export default function TmuxDialog({ workspace, onInsert, onAttach, onClose }: { workspace: string; onInsert(command: string): boolean; onAttach?(name: string): Promise<boolean>; onClose(): void }) {
   const [items, setItems] = useState<TmuxSession[]>([]);
   const [name, setName] = useState('');
   const [error, setError] = useState('');
@@ -19,7 +19,7 @@ export default function TmuxDialog({ workspace, onInsert, onClose }: { workspace
   return <Modal isOpen onClose={onClose} className="app-dialog"><ModalContent><ModalHeader>tmux 会话</ModalHeader><ModalBody>
     <div className="button-row"><Button size="sm" variant="light" isLoading={busy} onPress={() => void load()}>刷新会话</Button><Button size="sm" variant="light" onPress={() => insert('tmux detach-client')}>分离当前会话</Button></div>
     <ErrorNotice message={error} onDismiss={()=>setError('')}/>
-    <ul className="snapshot-list">{items.map(item => <li key={item.id}><span>{item.name}<small className="muted"> {item.attached ? '已附着' : '未附着'}</small></span><Button size="sm" variant="light" onPress={() => insert(`tmux attach-session -t ${shellQuote(item.id)}`)}>附着</Button></li>)}</ul>
+    <ul className="snapshot-list">{items.map(item => <li key={item.id}><span>{item.name}<small className="muted"> {item.attached ? '已附着' : '未附着'}</small></span><Button size="sm" variant="light" isDisabled={busy} onPress={() => insert(`tmux attach-session -t ${shellQuote(item.id)}`)}>插入附着命令</Button>{onAttach && <Button size="sm" isDisabled={busy} onPress={async () => { setBusy(true); try { if (await onAttach(item.name)) onClose(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); } }}>新标签绑定并附着</Button>}</li>)}</ul>
     <form id="tmux-new" onSubmit={event => { event.preventDefault(); if (name.trim()) insert(`tmux new-session -s ${shellQuote(name.trim())}`); }}><Input label="新会话名称" labelPlacement="outside" value={name} onValueChange={setName} maxLength={128} autoComplete="off" /></form>
   </ModalBody><ModalFooter><Button variant="light" onPress={onClose}>关闭</Button><Button color="primary" type="submit" form="tmux-new" isDisabled={!name.trim() || /[.:\x00-\x1f]/.test(name)}>新建会话</Button></ModalFooter></ModalContent></Modal>;
 }

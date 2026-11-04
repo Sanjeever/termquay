@@ -270,6 +270,10 @@ func dialClient(ctx context.Context, r Request, connect func(context.Context, st
 }
 
 func newTerminal(client *gossh.Client, cols, rows int) (*Terminal, error) {
+	return newTerminalCommand(client, cols, rows, "")
+}
+
+func newTerminalCommand(client *gossh.Client, cols, rows int, command string) (*Terminal, error) {
 	s, err := client.NewSession()
 	if err != nil {
 		return nil, err
@@ -287,7 +291,12 @@ func newTerminal(client *gossh.Client, cols, rows int) (*Terminal, error) {
 		writer.Close()
 		return fail(err)
 	}
-	if err = s.Shell(); err != nil {
+	if command == "" {
+		err = s.Shell()
+	} else {
+		err = s.Start(command)
+	}
+	if err != nil {
 		reader.Close()
 		writer.Close()
 		return fail(err)
@@ -352,6 +361,18 @@ func (t *Terminal) OpenPTY(cols, rows int) (*Terminal, error) {
 		return nil, errors.New("终端尺寸无效")
 	}
 	return newTerminal(t.client, cols, rows)
+}
+
+func (t *Terminal) OpenTmuxPTY(sessionID string) (*Terminal, error) {
+	if len(sessionID) < 2 || len(sessionID) > 32 || sessionID[0] != '$' {
+		return nil, errors.New("tmux 会话标识无效")
+	}
+	for _, digit := range sessionID[1:] {
+		if digit < '0' || digit > '9' {
+			return nil, errors.New("tmux 会话标识无效")
+		}
+	}
+	return newTerminalCommand(t.client, 100, 30, "tmux attach-session -t '"+sessionID+"'")
 }
 
 func (t *Terminal) WaitError() error { t.mu.Lock(); defer t.mu.Unlock(); return t.waitErr }

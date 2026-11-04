@@ -188,6 +188,10 @@ export function CreateTerminal(workspace: string): $CancellablePromise<$models.O
     return $Call.ByID(272076810, workspace);
 }
 
+export function CreateTmuxTerminal(workspace: string, name: string): $CancellablePromise<$models.OpenResult> {
+    return $Call.ByID(1598212760, workspace, name);
+}
+
 export function DeleteCommandTask(id: string): $CancellablePromise<void> {
     return $Call.ByID(1666692899, id);
 }

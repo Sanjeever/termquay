@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"time"
@@ -31,6 +32,29 @@ func (a *AppService) CloseTerminal(id string) {
 }
 
 func (a *AppService) CreateTerminal(workspace string) (OpenResult, error) {
+	return a.createTerminal(workspace, "")
+}
+
+func (a *AppService) CreateTmuxTerminal(ctx context.Context, workspace, name string) (OpenResult, error) {
+	if !validTmuxName(name) {
+		return OpenResult{}, errors.New("tmux 会话名称无效")
+	}
+	sessions, err := a.ListTmuxSessions(ctx, workspace)
+	if err != nil {
+		return OpenResult{}, err
+	}
+	for _, session := range sessions {
+		if session.Name == name {
+			if err := ctx.Err(); err != nil {
+				return OpenResult{}, err
+			}
+			return a.createTerminal(workspace, session.ID)
+		}
+	}
+	return OpenResult{}, errors.New("绑定的 tmux 会话已不存在，请选择已有会话或在普通终端新建")
+}
+
+func (a *AppService) createTerminal(workspace, tmuxSession string) (OpenResult, error) {
 	a.mu.Lock()
 	owner := a.workspaces[workspace]
 	count := 0
@@ -47,7 +71,13 @@ func (a *AppService) CreateTerminal(workspace string) (OpenResult, error) {
 	owner.opening++
 	a.mu.Unlock()
 	defer func() { a.mu.Lock(); a.opening--; owner.opening--; a.mu.Unlock() }()
-	t, err := owner.terminal.OpenPTY(100, 30)
+	var t *terminal.Terminal
+	var err error
+	if tmuxSession == "" {
+		t, err = owner.terminal.OpenPTY(100, 30)
+	} else {
+		t, err = owner.terminal.OpenTmuxPTY(tmuxSession)
+	}
 	if err != nil {
 		return OpenResult{}, err
 	}

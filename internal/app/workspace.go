@@ -5,6 +5,8 @@ import (
 	"errors"
 	"path"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 type WorkspaceTarget struct {
@@ -21,10 +23,16 @@ type WorkspaceTarget struct {
 	ProxyAddress  string `json:"proxy_address,omitempty"`
 }
 type WorkspaceTabLayout struct {
-	Kind string `json:"kind"`
-	Path string `json:"path"`
-	Pane int    `json:"pane"`
+	Kind        string `json:"kind"`
+	Path        string `json:"path"`
+	Pane        int    `json:"pane"`
+	TmuxSession string `json:"tmux_session,omitempty"`
 }
+
+func validTmuxName(name string) bool {
+	return name != "" && len(name) <= 128 && utf8.ValidString(name) && strings.IndexFunc(name, unicode.IsControl) < 0
+}
+
 type SSHLayout struct {
 	Tabs        []WorkspaceTabLayout `json:"tabs"`
 	Selected    [2]int               `json:"selected"`
@@ -52,7 +60,7 @@ type WorkspaceLayout struct {
 }
 
 func (layout WorkspaceLayout) validate() error {
-	if layout.Version < 1 || layout.Version > 7 {
+	if layout.Version < 1 || layout.Version > 8 {
 		return errors.New("工作布局版本不受支持")
 	}
 	if len(layout.Entries) > 16 {
@@ -96,6 +104,9 @@ func (layout WorkspaceLayout) validate() error {
 		files := map[string]bool{}
 		terminals := 0
 		for _, tab := range s.Tabs {
+			if tab.TmuxSession != "" && (layout.Version < 8 || tab.Kind != "terminal" || !validTmuxName(tab.TmuxSession)) {
+				return errors.New("布局 tmux 绑定无效或版本过旧")
+			}
 			if tab.Pane < 0 || tab.Pane > 1 || (!s.Split && tab.Pane != 0) {
 				return errors.New("布局窗格无效")
 			}
