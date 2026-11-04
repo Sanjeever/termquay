@@ -68,6 +68,12 @@ type AppService struct {
 	backupMu               sync.Mutex
 	preview                *pendingRestore
 	fileSlots              chan struct{}
+	imageMu                sync.Mutex
+	imageSlots             chan struct{}
+	imagePending           int
+	imagePreviews          map[string]*imagePreviewData
+	imageBytes             int64
+	imagePixels            int64
 	monitors               map[string]context.CancelFunc
 	transfers              map[string]*transferTask
 	transferQueue          []string
@@ -116,7 +122,7 @@ type AppService struct {
 }
 
 func NewAppService(build BuildInfo, licenses fs.ReadFileFS) *AppService {
-	return &AppService{build: build, licenseFiles: licenses, terminals: map[string]*pendingTerminal{}, workspaces: map[string]*workspaceOwner{}, trusted: map[string]string{}, pendingTrust: map[string]string{}, fileSlots: make(chan struct{}, 4), monitors: map[string]context.CancelFunc{}, transfers: map[string]*transferTask{}, dirty: map[string]bool{}, views: map[string]bool{}, syncPlans: map[string]*directorySyncPlan{}, privateKeys: map[string]stagedPrivateKey{}, tunnels: map[string]*workspaceTunnel{}, transferEvent: func(view Transfer) { application.Get().Event.Emit("transfer:changed", view) }}
+	return &AppService{build: build, licenseFiles: licenses, terminals: map[string]*pendingTerminal{}, workspaces: map[string]*workspaceOwner{}, trusted: map[string]string{}, pendingTrust: map[string]string{}, fileSlots: make(chan struct{}, 4), imageSlots: make(chan struct{}, 2), monitors: map[string]context.CancelFunc{}, transfers: map[string]*transferTask{}, dirty: map[string]bool{}, views: map[string]bool{}, syncPlans: map[string]*directorySyncPlan{}, privateKeys: map[string]stagedPrivateKey{}, tunnels: map[string]*workspaceTunnel{}, transferEvent: func(view Transfer) { application.Get().Event.Emit("transfer:changed", view) }}
 }
 
 func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (OpenResult, error) {
@@ -407,6 +413,7 @@ func (a *AppService) CloseWorkspace(id string) {
 		}
 	}
 	a.mu.Unlock()
+	a.releaseWorkspaceImages(id)
 	for _, t := range forwarding {
 		if t.forward != nil {
 			t.forward.Close()

@@ -23,7 +23,7 @@ func Run(assets fs.FS, appIcons fs.ReadFileFS, build BuildInfo, licenses fs.Read
 		Icon:       appIcon,
 		ShouldQuit: service.canQuit,
 		Services:   []application.Service{application.NewServiceWithOptions(service, application.ServiceOptions{MarshalError: marshalServiceError})},
-		Assets:     application.AssetOptions{Handler: application.AssetFileServerFS(assets)},
+		Assets:     application.AssetOptions{Handler: service.imageAssetHandler(application.AssetFileServerFS(assets))},
 		Mac:        application.MacOptions{ApplicationShouldTerminateAfterLastWindowClosed: true},
 	})
 	installWorkbenchMenu(app)

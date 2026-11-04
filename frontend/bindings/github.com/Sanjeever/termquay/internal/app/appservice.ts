@@ -405,6 +405,14 @@ export function PauseTerminalLog(id: string): $CancellablePromise<ssh$0.Terminal
     return $Call.ByID(1209150522, id);
 }
 
+export function PrepareExternalImagePreview(id: string, address: string): $CancellablePromise<$models.ImagePreview> {
+    return $Call.ByID(3199994361, id, address);
+}
+
+export function PrepareImagePreview(id: string, remote: string): $CancellablePromise<$models.ImagePreview> {
+    return $Call.ByID(1916396934, id, remote);
+}
+
 export function PreviewDirectorySync(workspace: string, direction: string, local: string, remote: string): $CancellablePromise<$models.DirectorySyncPreview> {
     return $Call.ByID(936556326, workspace, direction, local, remote);
 }
@@ -479,6 +487,10 @@ export function RecordConnectionSuccess(id: string): $CancellablePromise<void> {
 
 export function RegisterWorkspaceView(id: string): $CancellablePromise<void> {
     return $Call.ByID(3121833981, id);
+}
+
+export function ReleaseImagePreview(id: string): $CancellablePromise<void> {
+    return $Call.ByID(2939308256, id);
 }
 
 export function ReleasePrivateKey(id: string): $CancellablePromise<void> {

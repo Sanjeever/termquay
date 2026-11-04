@@ -93,6 +93,15 @@ export interface DraftRecoveryState {
     "drafts": RecoveryDraftSummary[] | null;
 }
 
+export interface ImagePreview {
+    "id": string;
+    "url": string;
+    "width": number;
+    "height": number;
+    "size": number;
+    "format": string;
+}
+
 export interface LocalShell {
     "id": string;
     "name": string;

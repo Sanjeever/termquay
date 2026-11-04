@@ -17,6 +17,7 @@ export type {
     CredentialReference,
     DirectorySyncPreview,
     DraftRecoveryState,
+    ImagePreview,
     LocalShell,
     LocalTerminal,
     MonitorEvent,
