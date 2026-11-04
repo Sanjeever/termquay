@@ -13,6 +13,8 @@ export type {
     BackupSettings,
     BuildInfo,
     Catalog,
+    CompletionPath,
+    CompletionPaths,
     ConnectionLatency,
     CredentialReference,
     DirectorySyncPreview,

@@ -65,6 +65,16 @@ export interface Catalog {
     "session_only": boolean;
 }
 
+export interface CompletionPath {
+    "name": string;
+    "directory": boolean;
+}
+
+export interface CompletionPaths {
+    "entries": CompletionPath[] | null;
+    "truncated": boolean;
+}
+
 export interface ConnectionLatency {
     "milliseconds": number;
     "status": string;

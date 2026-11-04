@@ -42,17 +42,27 @@ func validatePortableUI(values map[string]string) error {
 			if err := json.Unmarshal([]byte(value), &shortcuts); err != nil || shortcuts == nil || len(shortcuts) > 32 {
 				return errors.New("快捷键设置无效")
 			}
-			seen := map[string]bool{}
+			seen := map[string][]string{}
+			terminalActions := []string{"find", "terminalCompletion", "copy", "paste", "selectAll", "clear", "zoomIn", "zoomOut", "zoomReset"}
 			reserved := regexp.MustCompile(`^Mod\+(Key[ACFVXYZSWQ]|Tab|Arrow\w+)$|^(Alt\+(Tab|F4)|Mod\+Alt\+Tab|Mod\+Shift\+KeyW)$`)
 			assignedInput := map[string]string{"closeTab": "Mod+KeyW", "closeWorkspace": "Mod+Shift+KeyW", "copy": "Mod+KeyC", "paste": "Mod+KeyV", "find": "Mod+KeyF"}
 			for name, shortcut := range shortcuts {
 				if len(name) > 64 || len(shortcut) > 128 {
 					return errors.New("快捷键字段过长")
 				}
-				if shortcut != "" && (seen[shortcut] || reserved.MatchString(shortcut) && assignedInput[name] != shortcut) {
+				if shortcut == "" {
+					continue
+				}
+				if reserved.MatchString(shortcut) && assignedInput[name] != shortcut {
 					return errors.New("快捷键重复或占用了系统和输入组件保留组合")
 				}
-				seen[shortcut] = true
+				for _, other := range seen[shortcut] {
+					if name == "completion" && slices.Contains(terminalActions, other) || other == "completion" && slices.Contains(terminalActions, name) {
+						continue
+					}
+					return errors.New("快捷键重复或占用了系统和输入组件保留组合")
+				}
+				seen[shortcut] = append(seen[shortcut], name)
 			}
 		default:
 			return errors.New("可迁移设置包含未知字段")

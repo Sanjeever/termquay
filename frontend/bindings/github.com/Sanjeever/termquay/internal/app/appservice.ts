@@ -113,6 +113,10 @@ export function CompareDirectorySyncFile(id: string, relative: string): $Cancell
     return $Call.ByID(4208465317, id, relative);
 }
 
+export function CompleteTerminalPath(workspace: string, terminal: string, directory: string, prefix: string, directoriesOnly: boolean): $CancellablePromise<$models.CompletionPaths> {
+    return $Call.ByID(3874034242, workspace, terminal, directory, prefix, directoriesOnly);
+}
+
 export function ConfirmRestore(id: string): $CancellablePromise<void> {
     return $Call.ByID(2803702404, id);
 }
