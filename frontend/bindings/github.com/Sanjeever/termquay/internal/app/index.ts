@@ -49,6 +49,7 @@ export type {
     SSHReconnectResult,
     SnapshotDetails,
     Snippet,
+    StorageStatus,
     SyncContentComparison,
     SyncPreset,
     TmuxSession,

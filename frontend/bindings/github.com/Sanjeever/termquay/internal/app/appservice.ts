@@ -156,6 +156,10 @@ export function CopyRemoteFile(sourceID: string, sourcePath: string, targetID: s
     return $Call.ByID(1619394583, sourceID, sourcePath, targetID, targetPath, overwrite);
 }
 
+export function CreatePasswordStorage(password: string): $CancellablePromise<void> {
+    return $Call.ByID(949906388, password);
+}
+
 export function CreateRemoteDirectory(id: string, remote: string): $CancellablePromise<void> {
     return $Call.ByID(2045068939, id, remote);
 }
@@ -302,6 +306,10 @@ export function GetSSHChallenge(id: string): $CancellablePromise<$models.SSHChal
 
 export function GetSnapshotDetails(path: string, password: string): $CancellablePromise<$models.SnapshotDetails> {
     return $Call.ByID(2881406116, path, password);
+}
+
+export function GetStorageStatus(): $CancellablePromise<$models.StorageStatus> {
+    return $Call.ByID(3480260673);
 }
 
 export function GetSyncPresets(connectionID: string): $CancellablePromise<$models.SyncPreset[] | null> {
@@ -720,6 +728,10 @@ export function SetRDPResolution(id: string, resolution: string): $CancellablePr
     return $Call.ByID(2357053090, id, resolution);
 }
 
+export function SetStoragePassword(current: string, password: string): $CancellablePromise<void> {
+    return $Call.ByID(3601944218, current, password);
+}
+
 export function SetTransferRate(kibPerSecond: number): $CancellablePromise<void> {
     return $Call.ByID(3161967335, kibPerSecond);
 }
@@ -792,6 +804,10 @@ export function TrustSSHHost(host: string, port: number, fingerprint: string, vi
     return $Call.ByID(3522158632, host, port, fingerprint, via);
 }
 
+export function UnlockPasswordStorage(password: string): $CancellablePromise<void> {
+    return $Call.ByID(3812328692, password);
+}
+
 export function UnsubscribeMonitor(id: string): $CancellablePromise<void> {
     return $Call.ByID(86316371, id);
 }
@@ -802,6 +818,10 @@ export function UpdateCredential(id: string, auth: ssh$0.Request, expectedConnec
 
 export function UseSessionStorage(): $CancellablePromise<void> {
     return $Call.ByID(4123207024);
+}
+
+export function UseSystemStorage(password: string): $CancellablePromise<void> {
+    return $Call.ByID(3744715745, password);
 }
 
 export function WorkspaceRecoveryDrafts(workspace: string): $CancellablePromise<$models.RecoveryDraft[] | null> {

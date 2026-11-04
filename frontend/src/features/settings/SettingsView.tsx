@@ -17,6 +17,7 @@ const SnippetSettings = lazy(() => import('./SnippetSettings'));
 const TrustSettings = lazy(() => import('./TrustSettings'));
 const CredentialSettings = lazy(() => import('./CredentialSettings'));
 const AboutSettings = lazy(() => import('./AboutSettings'));
+const StorageSettings = lazy(() => import('./StorageSettings'));
 
 export default function SettingsView({ fontSize, onFontSize, onRestore, onClose, shortcuts, onShortcuts, shortcutError, recovery, automaticBackup, updates, onRestart, activeWorkspaces, activeTransfers, section, onSectionChange: setSection, onDemo, demoDisabled, connections, onEditConnection }: { fontSize: number; onFontSize(value: number): void; onRestore(): void; onClose(): void; shortcuts: Shortcuts; onShortcuts(value: Shortcuts): void; shortcutError: string; recovery:ReturnType<typeof useDraftRecovery>; automaticBackup: ReturnType<typeof useAutomaticBackup>; updates:ReturnType<typeof useUpdates>; onRestart():void; activeWorkspaces:number; activeTransfers:number; section:string; onSectionChange(section:string):void; onDemo():void; demoDisabled:boolean; connections:Connection[]; onEditConnection(id:string):void }) {
   const content = useRef<HTMLDivElement>(null);
@@ -30,7 +31,7 @@ export default function SettingsView({ fontSize, onFontSize, onRestore, onClose,
         {section === 'snippets' && <SnippetSettings/>}
         {section === 'recovery'&&<RecoverySettings recovery={recovery}/>}
         {section === 'trust'&&<TrustSettings/>}
-        {section === 'credentials'&&<CredentialSettings onChanged={onRestore}/>}
+        {section === 'credentials'&&<><StorageSettings/><CredentialSettings onChanged={onRestore}/></>}
         {section === 'about' && <AboutSettings updates={updates} onRestart={onRestart} activeWorkspaces={activeWorkspaces} activeTransfers={activeTransfers}/>}
       </Suspense></div>
     </div>

@@ -336,6 +336,12 @@ export interface Snippet {
     "body": string;
 }
 
+export interface StorageStatus {
+    "mode": string;
+    "unlocked": boolean;
+    "can_create": boolean;
+}
+
 export interface SyncContentComparison {
     "path": string;
     "equal": boolean;

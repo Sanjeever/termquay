@@ -15,12 +15,17 @@ import (
 )
 
 func OpenVault(dir string) (*Store, error) {
-	canonical, err := filepath.Abs(dir)
+	protected, err := PasswordVaultExists(dir)
 	if err != nil {
 		return nil, err
 	}
-	sum := sha256.Sum256([]byte(canonical))
-	account := "master-v1-" + hex.EncodeToString(sum[:16])
+	if protected {
+		return nil, ErrPasswordRequired
+	}
+	account, err := vaultAccount(dir)
+	if err != nil {
+		return nil, err
+	}
 	encoded, err := keyring.Get("com.termquay.app", account)
 	if errors.Is(err, keyring.ErrNotFound) {
 		if _, statErr := os.Stat(filepath.Join(dir, "termquay.db")); statErr == nil {
@@ -43,7 +48,17 @@ func OpenVault(dir string) (*Store, error) {
 	if err != nil || len(key) != 32 {
 		return nil, errors.New("系统密钥库中的主密钥格式无效")
 	}
+	defer clear(key)
 	return Open(dir, key)
+}
+
+func vaultAccount(dir string) (string, error) {
+	canonical, err := filepath.Abs(dir)
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256([]byte(canonical))
+	return "master-v1-" + hex.EncodeToString(sum[:16]), nil
 }
 
 func (s *Store) Setting(id string) (string, error) {
