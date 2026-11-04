@@ -51,7 +51,7 @@ export default function TitleBar({ tabs, tools, onError }: {
   function doubleClick(event: MouseEvent) {
     if (!draggable(event) || fullscreen) return;
     if (mac) run(() => TitlebarDoubleClick());
-    else if (System.IsLinux()) run(() => Window.ToggleMaximise());
+    else if (System.IsLinux() || System.IsWindows()) run(() => Window.ToggleMaximise());
   }
   return <header className={`workbench-header${mac ? ' mac-titlebar' : ''}${fullscreen ? ' fullscreen-titlebar' : ''}${focused ? '' : ' inactive-titlebar'}`} onDoubleClick={doubleClick}
     onMouseDown={event => { if (mac) dragStart.current = !fullscreen && event.button === 0 && event.detail === 1 && draggable(event) ? { x: event.clientX, y: event.clientY } : undefined; }}>

@@ -40,7 +40,8 @@ func Run(assets fs.FS, appIcons fs.ReadFileFS, build BuildInfo, licenses fs.Read
 		EnableFileDrop: true,
 		Frameless:      runtime.GOOS != "darwin",
 		Mac:            application.MacWindow{TitleBar: application.MacTitleBarHidden, Backdrop: application.MacBackdropTranslucent},
-		Windows:        application.WindowsWindow{NonClientRegionSupport: true, WebView2CompositionHosting: true},
+		// 当前合成托管未转发 OLE 拖放，使用 HWND 托管接收资源管理器文件。
+		Windows: application.WindowsWindow{NonClientRegionSupport: true, WebView2CompositionHosting: false},
 	})
 	window.OnWindowEvent(events.Common.WindowFilesDropped, func(event *application.WindowEvent) {
 		details := event.Context().DropTargetDetails()
