@@ -3,7 +3,7 @@ import { errorCode, errorMessage } from "../../lib/errors";
 import { forwardRef, lazy, Suspense, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Button, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
 import { Stream } from '@wailsio/runtime';
-import { ReadRemoteFile, ReadRemoteFileEncoded, DownloadFileDraft, StartDownload, SaveRemoteFile, CreateTerminal, CloseTerminal, WorkspaceRecoveryDrafts, CloseWorkspace, RegisterWorkspaceView, ReleaseWorkspaceView, SetWorkspaceDirty } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
+import { ReadRemoteFileEncoded, DownloadFileDraft, StartDownload, CreateTerminal, CloseTerminal, WorkspaceRecoveryDrafts, CloseWorkspace, RegisterWorkspaceView, ReleaseWorkspaceView, SetWorkspaceDirty } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import SelectControl from '../../components/SelectControl';
 import { documentFormat, formatKey, editorEncodings } from './editorFormat';
 import type { Document, Entry } from '../../../bindings/github.com/Sanjeever/termquay/internal/files/models';
@@ -21,17 +21,16 @@ import { shortcutLabel, type Shortcuts } from '../../lib/shortcuts';
 import { shellQuote } from '../terminal/shellIntegration';
 import useSSHReconnect from '../connections/useSSHReconnect';
 import { isImagePath } from './fileTypes';
-import { ReadSudoFile, SaveSudoFile } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
+import { ReadSudoFile } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import SudoAuthorizationDialog, { type SudoAuthorization } from './SudoAuthorizationDialog';
+import useFileDrafts from './useFileDrafts';
+import { isDirty, savedEncoding } from './fileDrafts';
 
 const TextDocument = lazy(() => import('./TextDocument'));
 const ImagePreview = lazy(() => import('./ImagePreview'));
 const FileConflictView = lazy(() => import('./FileConflictView'));
 const FileHistoryDialog = lazy(() => import('./FileHistoryDialog'));
 
-type Draft = Document & { saved: string; savedFormat?: string; reloadEpoch?: number; error: string; saving: boolean; needsReview?: boolean; recovery?:boolean; sudo?: boolean };
-function isDirty(draft: Draft) { return !!draft.recovery || draft.content !== draft.saved || !!draft.savedFormat && formatKey(draft) !== draft.savedFormat; }
-function savedEncoding(draft: Draft) { return draft.savedFormat ? JSON.parse(draft.savedFormat).encoding as string : draft.encoding || 'UTF-8'; }
 export type SSHWorkspaceHandle = { sudoEdit(): void; workspaceAction(action: 'switchPane' | 'closeContent' | 'newTerminal'): boolean; layout():SSHLayout; hasDirty():boolean; recoveryDrafts():RecoveryDraftInput[]|null; insertionTarget():string; insert(text:string,target:string):boolean; focus(): void; saveAll(): Promise<boolean>; prepareReconnect(): Promise<boolean>; showFiles(): void; locateDirectory(path: string): void; toggleMonitor(): void; toggleFocus(): void; terminalAction(action: TerminalAction): void };
 
 const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
@@ -40,7 +39,9 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   const reconnect = useSSHReconnect(sessionID, state, busy, onAutomaticReconnect);
   let terminalIndex=0;const initialIDs=(initialLayout?.tabs||[]).map((tab,index)=>tab.kind==='file'?tab.path:terminalIndex++===0?sessionID:`restore-terminal-${index}`);
   const [error, setError] = useState('');
-  const [drafts, setDrafts] = useState<Draft[]>([]);
+  const disposed = useRef(false);
+  const instance = useRef(sessionID); instance.current = sessionID;
+  const { drafts, draftsRef, updateDrafts, reads, saves, save, rereading, setRereading, requestReload, reread } = useFileDrafts({ sessionID, disposed, instance, authorizeSudo, setError });
   const [selection,setSelection]=useState<[string,string]>(initialLayout?[initialIDs[initialLayout.selected[0]]||'',initialIDs[initialLayout.selected[1]]||'']:[sessionID,'']);
   const [activePane,setActivePane]=useState(initialLayout?.active_pane||0);
   const [secondary,setSecondary]=useState<string[]>((initialLayout?.tabs||[]).flatMap((tab,index)=>tab.pane===1?[initialIDs[index]]:[]));
@@ -65,8 +66,6 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   const [preparing, setPreparing] = useState(false);
   const [tunnelsOpen,setTunnelsOpen]=useState(false);
   const [closing, setClosing] = useState('');
-  const [rereading, setRereading] = useState('');
-  const [reopenEncoding, setReopenEncoding] = useState('UTF-8');
   const [conflict, applyConflict] = useState('');
   const [sudoPrompt, setSudoPrompt] = useState<{ path: string; encoding: string; operation: 'open' | 'read' | 'save' }>();
   const sudoAnswer = useRef<(value?: SudoAuthorization) => void>();
@@ -120,14 +119,9 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   const [focus, setFocus] = useState(initialLayout?.focus||false);
   const [narrow, setNarrow] = useState(window.innerWidth <= 1100);
   const [narrowPanel, setNarrowPanel] = useState<'files' | 'monitor' | null>(null);
-  const draftsRef = useRef(drafts);
-  const disposed = useRef(false);
-  const instance = useRef(sessionID); instance.current = sessionID;
   const previousInstance = useRef(sessionID);
   const viewReady = useRef<Promise<void>>();
   const currentDirty = useRef(false);
-  const reads = useRef(new Map<string, ReturnType<typeof ReadRemoteFile>>());
-  const saves = useRef(new Map<string, Promise<boolean>>());
   const center = useRef<HTMLDivElement>(null);
   const terminalHandles = useRef(new Map<string, TerminalHandle>());
   const filesToggle = useRef<HTMLButtonElement>(null);
@@ -176,7 +170,6 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   useEffect(() => { localStorage.setItem('termquay.layout.monitor', String(monitorOpen)); }, [monitorOpen]);
   useEffect(() => { const media = window.matchMedia('(max-width: 1100px)'); const update = () => { setNarrow(media.matches); setNarrowPanel(null); }; media.addEventListener('change', update); return () => media.removeEventListener('change', update); }, []);
 
-  function updateDrafts(update: (prev: Draft[]) => Draft[]) { const next = update(draftsRef.current); draftsRef.current = next; setDrafts(next); }
   useEffect(() => {
     disposed.current = false;
     viewReady.current = RegisterWorkspaceView(id);
@@ -230,28 +223,6 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
     catch(e) { if (!disposed.current && instance.current===sessionID && reads.current.get(path)===request) setPendingErrors(prev=>({...prev,[path]:{message:errorMessage(e),code:errorCode(e),encoding}})); return false; }
     finally { if(reads.current.get(path)===request)reads.current.delete(path); }
   }
-  async function save(path: string): Promise<boolean> {
-    const pending = saves.current.get(path); if (pending) return pending;
-    const draft = draftsRef.current.find(d => d.path === path); if (!draft) return true;
-    if (draft.needsReview) { updateDrafts(prev=>prev.map(d=>d.path===path?{...d,error:'请先核对最新远端内容，再保存草稿'}:d)); return false; }
-    if (!isDirty(draft)) return true;
-    updateDrafts(prev => prev.map(d => d.path === path ? { ...d, saving: true, error: '' } : d));
-    const operation = (async () => {
-      try {
-        const authorization = draft.sudo ? await authorizeSudo(path, draft.encoding || 'UTF-8', 'save') : undefined;
-        if (draft.sudo && !authorization) { updateDrafts(prev => prev.map(d => d.path === path ? { ...d, saving: false } : d)); return false; }
-        if (disposed.current || instance.current !== sessionID) return false;
-        const document = { path, content: draft.content, revision: draft.revision, original_encoding: savedEncoding(draft), ...documentFormat(draft) };
-        const result = authorization ? await SaveSudoFile(sessionID, document, authorization.password) : await SaveRemoteFile(sessionID, document);
-        if (disposed.current || instance.current!==sessionID) return false;
-        updateDrafts(prev => prev.map(d => d.path === path ? { ...d, saved: result.content, savedFormat: formatKey(result), revision: result.revision, saving: false } : d));
-        const current = draftsRef.current.find(d => d.path === path);
-        return !!current && !isDirty(current);
-      } catch (e) { if (!disposed.current) updateDrafts(prev => prev.map(d => d.path === path ? { ...d, saving: false, error: errorMessage(e) } : d)); return false; }
-      finally { saves.current.delete(path); }
-    })();
-    saves.current.set(path, operation); return operation;
-  }
   useImperativeHandle(ref, () => ({ sudoEdit: () => { void openSudo(); }, workspaceAction, layout,hasDirty:()=>draftsRef.current.some(d=>isDirty(d)), recoveryDrafts:()=>restoreReady?draftsRef.current.filter(d=>isDirty(d)).map(d=>({path:d.path,content:d.content,encoding:d.encoding,line_ending:d.line_ending,bom:d.bom})):null,insertionTarget:()=>terminalHandles.current.has(active)?active:'',insert:(text,target)=>target===active?terminalHandles.current.get(target)?.insert(text)||false:false, focus:()=>focusTab(), showFiles, locateDirectory: path => { showFiles(); setDirectoryRequest(previous => ({path, sequence: (previous?.sequence || 0) + 1, locate: true})); }, toggleMonitor, terminalAction: action => terminalHandles.current.get(active)?.action(action), toggleFocus: () => setFocus(prev => !prev), async prepareReconnect(){if(terminals.length>=16){setError('保留终端达到上限（16 个），请先关闭结束标签');return false;}if(saves.current.size||creating||preparing||restoring||sudoPrompt){setError('请等待当前保存、恢复或终端创建完成');return false;}setPreparing(true);try{await CloseWorkspace(sessionID);return !disposed.current;}finally{setPreparing(false);}}, async saveAll() { for (const draft of draftsRef.current) { if (!await save(draft.path)) { setActive(draft.path); return false; } } return !draftsRef.current.some(d => isDirty(d)); } }));
 
   function close(path: string, discard = false) {
@@ -263,20 +234,6 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
     setFileJump(previous=>previous?.path===path?undefined:previous);
     setMarkdownAnchor(previous=>previous?.path===path?undefined:previous);
     updateDrafts(prev => prev.filter(d => d.path !== path));setFileOrder(prev=>prev.filter(p=>p!==path)); setSecondary(prev=>prev.filter(p=>p!==path));setPendingErrors(prev=>{const next={...prev};delete next[path];return next;}); setClosing('');
-  }
-  function requestReload(path: string, encoding: string) {
-    if (reads.current.has(path)) return;
-    setError(''); setReopenEncoding(encoding);
-    const draft = draftsRef.current.find(d => d.path === path);
-    if (draft && isDirty(draft)) setRereading(path); else void reread(path, encoding);
-  }
-  async function reread(path: string, encoding = reopenEncoding) {
-    const sudo = draftsRef.current.find(d => d.path === path)?.sudo;
-    const authorization = sudo ? await authorizeSudo(path, encoding, 'read') : undefined;
-    if (sudo && !authorization || disposed.current || instance.current !== sessionID) return;
-    setError(''); const request = authorization ? ReadSudoFile(sessionID, path, encoding, authorization.password) : ReadRemoteFileEncoded(sessionID, path, encoding); reads.current.set(path, request);
-    try { const doc = await request; if (!disposed.current && instance.current===sessionID && reads.current.get(path)===request) { updateDrafts(prev => prev.map(d => d.path === path ? { ...doc, sudo, saved: doc.content, savedFormat: formatKey(doc), reloadEpoch:(d.reloadEpoch||0)+1, saving: false, error: '' } : d)); setRereading(''); } }
-    catch (e) { if (!disposed.current && instance.current===sessionID && reads.current.get(path)===request) { updateDrafts(prev=>prev.map(d=>d.path===path?{...d,error:errorMessage(e)}:d)); setRereading(''); } } finally { if(reads.current.get(path)===request)reads.current.delete(path); }
   }
   const closingDraft = drafts.find(d => d.path === closing);
   function activate(path: string) { setActive(path); requestAnimationFrame(() => focusTab(path)); }
