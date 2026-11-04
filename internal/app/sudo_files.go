@@ -15,7 +15,7 @@ const sudoFilePrelude = `set -eu
 test "$(uname -s)" = Linux || { echo 'sudo 编辑仅支持 Linux' >&2; exit 1; }
 test -f "$file" && test ! -L "$file" || { echo '请选择普通文件的实际路径' >&2; exit 1; }
 test "$(realpath -e -- "$file")" = "$file" || { echo '请使用不经过符号链接的实际路径' >&2; exit 1; }
-test "$(stat -c %s -- "$file")" -le 2097152 || { echo '文件超过 2 MiB' >&2; exit 1; }
+test "$(stat -c %s -- "$file")" -le "$limit" || { echo '文件超过编辑大小限制' >&2; exit 1; }
 revision() {
   hash=$(sha256sum < "$file")
   printf '%s:%s' "${hash%% *}" "$(stat -c '%d:%i:%s:%Y:%f:%u:%g' -- "$file")"
@@ -51,7 +51,7 @@ func (a *AppService) sudoFile(ctx context.Context, id, remote, password, script 
 		return files.Document{}, ctx.Err()
 	}
 	defer func() { <-slots }()
-	data, err := owner.terminal.Sudo(ctx, "file="+sudoQuote(remote)+"\n"+sudoFilePrelude+script, password, payload, files.MaxEditSize+512)
+	data, err := owner.terminal.Sudo(ctx, "file="+sudoQuote(remote)+"\nlimit="+fmt.Sprint(files.MaxEditSize)+"\n"+sudoFilePrelude+script, password, payload, files.MaxEditSize+512)
 	if err != nil {
 		return files.Document{}, err
 	}
@@ -72,7 +72,7 @@ func (a *AppService) sudoFile(ctx context.Context, id, remote, password, script 
 func (a *AppService) ReadSudoFile(ctx context.Context, id, remote, charset, password string) (files.Document, error) {
 	return a.sudoFile(ctx, id, remote, password, `before=$(revision)
 printf '%s\n' "$before"
-head -c 2097153 -- "$file"
+head -c "$((limit + 1))" -- "$file"
 test "$before" = "$(revision)" || { echo '读取期间文件已变化' >&2; exit 1; }
 `, nil, charset)
 }
@@ -97,13 +97,13 @@ test "$((0$parent_mode & 0022))" -eq 0 || { echo '目标目录允许其他用户
 umask 077
 staging=$(mktemp -d -- "$parent/.termquay-sudo-XXXXXXXXXX")
 trap 'rm -f -- "$staging/data"; rmdir -- "$staging"' EXIT
-cp --attributes-only --preserve=all -- "$file" "$staging/data"
 cat > "$staging/data"
 test "$(stat -c %s -- "$staging/data")" -eq ` + fmt.Sprint(len(data)) + ` || { echo '文件写入不完整' >&2; exit 1; }
+cp --attributes-only --preserve=mode,ownership,xattr -- "$file" "$staging/data"
 test "$expected" = "$(revision)" || { echo '写入期间远端文件已变化' >&2; exit 1; }
 mv -fT -- "$staging/data" "$file"
 printf '%s\n' "$(revision)"
-head -c 2097153 -- "$file"
+head -c "$((limit + 1))" -- "$file"
 `
 	return a.sudoFile(ctx, id, document.Path, password, script, data, document.Encoding)
 }
