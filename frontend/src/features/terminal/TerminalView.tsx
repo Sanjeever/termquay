@@ -68,7 +68,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
   const [keywordOpen, setKeywordOpen] = useState(false);
   const [keyword, setKeyword] = useState('');
   async function exportBuffer() { clearError('export'); try { const buffer = terminal.current?.buffer.active; if (!buffer) return; const lines: string[] = []; for (let y = 0; y < buffer.length; y++) lines.push(buffer.getLine(y)?.translateToString(true) || ''); await ExportTerminalBuffer(lines.join('\n')); clearError('export'); } catch (e) { reportError('export',e); } }
-  async function pauseLog() { clearError('log'); try { setLog(await PauseTerminalLog(id)); clearError('log'); } catch (e) { reportError('log',e); } }
+  async function pauseLog() { clearError('log'); try { const value = await PauseTerminalLog(id); setLog(value); setLogError(value.error ? `记录停止：${value.error}` : ''); setLogErrorDismissed(false); clearError('log'); } catch (e) { reportError('log',e); } }
   useEffect(() => { if (!log?.recording || !connected) return; let ended = false; let timer: ReturnType<typeof setTimeout>; async function load() { try { const value = await GetTerminalLogStatus(id); if (!ended) { setLog(value); setLogError(value.error ? `日志记录停止：${value.error}` : ''); if (!value.error) setLogErrorDismissed(false); } } catch (e) { if (!ended) setLogError(errorMessage(e)); } finally { if (!ended) timer = setTimeout(load, 2000); } } timer = setTimeout(load, 2000); return () => { ended = true; clearTimeout(timer); }; }, [id, log?.recording, connected]);
   const [shell, setShell] = useState<'bash' | 'zsh'>(local&&System.IsMac()?'zsh':'bash');
   const shellSetup=useMemo(()=>shellCompletionSetup(shell,host,setupToken),[shell,host,setupToken]);

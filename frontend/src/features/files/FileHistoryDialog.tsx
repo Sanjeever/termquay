@@ -11,7 +11,7 @@ import { editorTheme } from './editorTheme';
 import { errorMessage } from '../../lib/errors';
 import SelectControl from '../../components/SelectControl';
 
-export default function FileHistoryDialog({ workspace, document, dirty, onRestore, onClose }: { workspace: string; document: Document; dirty: boolean; onRestore(value: Document): void; onClose(): void }) {
+export default function FileHistoryDialog({ workspace, target, document, dirty, onRestore, onClose }: { workspace: string; target: string; document: Document; dirty: boolean; onRestore(value: Document): void; onClose(): void }) {
   const [history, setHistory] = useState<FileHistory>();
   const [enabled, setEnabled] = useState(false);
   const [validate, setValidate] = useState('');
@@ -50,10 +50,10 @@ export default function FileHistoryDialog({ workspace, document, dirty, onRestor
     catch (e) { if (mounted.current) setError(errorMessage(e)); }
     finally { requests.current.delete(request); if (mounted.current) setBusy(false); }
   }
-  function execute(action: 'validate' | 'reload') { setResult(undefined); void operation(RunFileAction(workspace, document.path, action), setResult); }
+  function execute(action: 'validate' | 'reload') { setResult(undefined); void operation(RunFileAction(workspace, document.path, action, action === 'reload' ? reload : validate), setResult); }
   function restore() { if (version) { onRestore(version); onClose(); } }
   return <Modal isOpen onClose={() => !busy && onClose()} isDismissable={!busy} size="5xl" className="app-dialog file-conflict-dialog" scrollBehavior="inside"><ModalContent><ModalHeader>配置历史与验证</ModalHeader><ModalBody>
-    <p className="file-path">{document.path}</p>{error && <p className="error" role="alert">{error}</p>}
+    <p className="file-path">{target} · {document.path}</p>{error && <p className="error" role="alert">{error}</p>}
     <label className="checkbox-label"><input type="checkbox" checked={enabled} disabled={!history || busy} onChange={event => setEnabled(event.target.checked)} />保存修改前的加密历史</label>
     <div className="file-compare-sides"><label className="form-field">验证命令<textarea rows={3} value={validate} maxLength={8192} disabled={!history || busy} onChange={event => setValidate(event.target.value)} spellCheck={false} /></label><label className="form-field">reload 命令<textarea rows={3} value={reload} maxLength={8192} disabled={!history || busy} onChange={event => setReload(event.target.value)} spellCheck={false} /></label></div>
     <div className="button-row"><Button size="sm" isDisabled={!changed || busy} onPress={() => void operation(SetFileHistory(workspace, document.path, enabled, validate, reload), () => setHistory(previous => ({ enabled, validate, reload, versions: previous?.versions || [] })))}>保存设置</Button><Button size="sm" variant="light" isDisabled={busy || !history || !!changed || !validate.trim() || dirty} onPress={() => execute('validate')}>验证已保存文件</Button><Button size="sm" variant="light" isDisabled={busy || !history || !!changed || !reload.trim() || dirty} onPress={() => setConfirmation('reload')}>reload</Button></div>

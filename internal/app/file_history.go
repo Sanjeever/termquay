@@ -201,7 +201,7 @@ func (a *AppService) ReadFileVersion(workspace, remote, versionID string) (files
 	}
 	return files.Document{}, errors.New("配置历史版本不存在或已淘汰")
 }
-func (a *AppService) RunFileAction(ctx context.Context, workspace, remote, action string) (terminal.CommandResult, error) {
+func (a *AppService) RunFileAction(ctx context.Context, workspace, remote, action, expectedScript string) (terminal.CommandResult, error) {
 	history, err := a.GetFileHistory(workspace, remote)
 	if err != nil {
 		return terminal.CommandResult{}, err
@@ -214,6 +214,9 @@ func (a *AppService) RunFileAction(ctx context.Context, workspace, remote, actio
 	}
 	if strings.TrimSpace(script) == "" {
 		return terminal.CommandResult{}, errors.New("尚未设置此文件的操作命令")
+	}
+	if script != expectedScript {
+		return terminal.CommandResult{}, errors.New("操作命令已变化，请重新读取设置并确认")
 	}
 	return a.RunRemoteCommand(ctx, workspace, "export TERMQUAY_FILE="+sudoQuote(remote)+"\n"+script, 60)
 }

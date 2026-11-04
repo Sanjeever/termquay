@@ -684,8 +684,8 @@ export function RevokeTrust(key: string): $CancellablePromise<void> {
     return $Call.ByID(3245294958, key);
 }
 
-export function RunFileAction(workspace: string, remote: string, action: string): $CancellablePromise<ssh$0.CommandResult> {
-    return $Call.ByID(2078851123, workspace, remote, action);
+export function RunFileAction(workspace: string, remote: string, action: string, expectedScript: string): $CancellablePromise<ssh$0.CommandResult> {
+    return $Call.ByID(2078851123, workspace, remote, action, expectedScript);
 }
 
 export function RunRemoteCommand(workspace: string, script: string, timeoutSeconds: number): $CancellablePromise<ssh$0.CommandResult> {

@@ -106,6 +106,7 @@ button:active:not(:disabled):not([role=tab]) { filter: brightness(.93); }
 .toolbar-divider { height: 18px; width: 1px; margin: 0 6px; background: var(--color-border); }
 .catalog-create { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
 .catalog-filters { display: flex; align-items: center; gap: 12px; padding: 12px 0 10px; min-height: 56px; flex-shrink: 0; }
+.catalog-saved-filters { padding: 0 0 10px; flex-shrink: 0; }
 .catalog-actions { display: flex; align-items: center; justify-content: flex-end; margin-left: auto; gap: 4px; min-height: 32px; }
 .catalog-batch { display: flex; align-items: center; gap: 4px; min-height: var(--control-height); flex-shrink: 0; }
 .catalog-batch label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--color-muted); }
