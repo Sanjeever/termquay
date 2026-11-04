@@ -13,10 +13,12 @@ type Props = Omit<TriggerProps, 'children' | 'content'> & {
 export default forwardRef<HTMLElement, Props>(function Tooltip({ children, content, isDisabled = false, placement, ...triggerProps }, ref) {
   const [open, setOpen] = useState(false);
   const shown = useRef(false);
+  const pointerFocus = useRef(false);
   const timers = useRef<{ show?: ReturnType<typeof setTimeout>; hide?: ReturnType<typeof setTimeout> }>({});
   const listeners = useRef<AbortController>();
   const body = useRef<HTMLDivElement>(null);
-  const disabled = useRef(false); disabled.current = isDisabled || !!children.props.disabled || !!triggerProps.disabled || !content;
+  const unavailable = isDisabled || !!children.props.disabled || !!triggerProps.disabled || !content;
+  const disabled = useRef(unavailable); disabled.current = unavailable;
   const owner = useRef({ dismiss: () => {} }); owner.current.dismiss = dismiss;
   const childRef = (children as ReactElement & { ref?: Ref<HTMLElement> }).ref;
   const setTrigger = useCallback((node: HTMLElement | null) => {
@@ -64,7 +66,7 @@ export default forwardRef<HTMLElement, Props>(function Tooltip({ children, conte
     };
     if (immediate) show(); else timers.current.show = setTimeout(show, tooltipDelay);
   }
-  useEffect(() => { if (disabled.current) dismiss(); }, [isDisabled, !!content]);
+  useEffect(() => { if (unavailable) dismiss(); }, [unavailable]);
   useEffect(() => () => reset(), []);
 
   const props = { ...children.props, ...triggerProps };
@@ -85,8 +87,9 @@ export default forwardRef<HTMLElement, Props>(function Tooltip({ children, conte
       ref: setTrigger,
       onPointerEnter: event => { props.onPointerEnter?.(event); if (event.pointerType !== 'touch' && !event.buttons) enter(event.currentTarget); },
       onPointerLeave: event => { props.onPointerLeave?.(event); if (!body.current?.contains(event.relatedTarget as Node | null)) leave(); },
-      onFocus: event => { props.onFocus?.(event); if (event.target instanceof HTMLElement && event.target.matches(':focus-visible')) enter(event.currentTarget, true); },
-      onBlur: event => { props.onBlur?.(event); dismiss(); },
+      onPointerDown: event => { pointerFocus.current = true; props.onPointerDown?.(event); },
+      onFocus: event => { props.onFocus?.(event); if (!pointerFocus.current && event.target instanceof HTMLElement && event.target.matches(':focus-visible')) enter(event.currentTarget, true); },
+      onBlur: event => { props.onBlur?.(event); pointerFocus.current = false; dismiss(); },
     })}
   </HeroTooltip>;
 });
