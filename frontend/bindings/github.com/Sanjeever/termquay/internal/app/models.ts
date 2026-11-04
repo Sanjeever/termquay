@@ -141,6 +141,23 @@ export interface ImagePreview {
     "format": string;
 }
 
+export interface LinuxPort {
+    "protocol": string;
+    "state": string;
+    "address": string;
+    "host": string;
+    "port": number;
+    "pids": number[] | null;
+    "process": string;
+}
+
+export interface LinuxPortList {
+    "items": LinuxPort[] | null;
+    "truncated": boolean;
+    "warning": string;
+    "time": string;
+}
+
 export interface LinuxProcess {
     "pid": number;
     "parent": number;

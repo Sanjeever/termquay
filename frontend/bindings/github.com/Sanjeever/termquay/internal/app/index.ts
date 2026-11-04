@@ -23,6 +23,8 @@ export type {
     DirectorySyncPreview,
     DraftRecoveryState,
     ImagePreview,
+    LinuxPort,
+    LinuxPortList,
     LinuxProcess,
     LinuxProcessDetails,
     LinuxProcessList,

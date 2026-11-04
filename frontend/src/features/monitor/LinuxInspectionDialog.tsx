@@ -8,6 +8,7 @@ import SelectControl from '../../components/SelectControl';
 import Tooltip from '../../components/Tooltip';
 import { errorMessage } from '../../lib/errors';
 import { bytes } from '../files/transferFormat';
+import PortInspection from './PortInspection';
 
 type Navigation = { onDirectory?(path: string): void; onFile?(path: string): Promise<void>; onService(unit: string): void };
 
@@ -125,8 +126,11 @@ export default function LinuxInspectionDialog({ workspace, initialOrder, onDirec
   function openDirectory(path: string) { onDirectory?.(path); onClose(); }
   async function openFile(path: string) { await onFile?.(path); onClose(); }
   function openService(unit: string) { setService(unit); setTab('services'); }
-  return <Modal isOpen onClose={onClose} size="5xl" scrollBehavior="inside" className="app-dialog linux-inspection-dialog"><ModalContent><ModalHeader>进程与服务</ModalHeader><ModalBody>
-    <div className="protocol-filters" role="group" aria-label="诊断类型"><button aria-pressed={tab === 'processes'} onClick={() => setTab('processes')}>进程</button><button aria-pressed={tab === 'services'} onClick={() => { setService(''); setTab('services'); }}>服务</button></div>
+  return <Modal isOpen onClose={onClose} size="5xl" scrollBehavior="inside" className="app-dialog linux-inspection-dialog"><ModalContent><ModalHeader>进程、服务与端口</ModalHeader><ModalBody>
+    <div className="protocol-filters" role="group" aria-label="诊断类型"><button aria-pressed={tab === 'processes'} onClick={() => setTab('processes')}>进程</button><button aria-pressed={tab === 'services'} onClick={() => { setService(''); setTab('services'); }}>服务</button><button aria-pressed={tab === 'ports'} onClick={() => setTab('ports')}>端口</button></div>
+    {tab === 'ports' && <PortInspection workspace={workspace} onDirectory={onDirectory ? openDirectory : undefined} onService={openService} />}
+    {tab !== 'ports' && <>
     {tab === 'processes' ? <ProcessInspection workspace={workspace} initialOrder={initialOrder === 'memory' ? 'memory' : 'cpu'} onDirectory={onDirectory ? openDirectory : undefined} onFile={onFile ? openFile : undefined} onService={openService} /> : <ServiceInspection key={service} workspace={workspace} initialUnit={service} onDirectory={onDirectory ? openDirectory : undefined} onFile={onFile ? openFile : undefined} onService={openService} />}
+    </>}
   </ModalBody><ModalFooter><Button variant="light" onPress={onClose}>关闭</Button></ModalFooter></ModalContent></Modal>;
 }

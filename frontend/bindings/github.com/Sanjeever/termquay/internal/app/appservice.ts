@@ -368,6 +368,10 @@ export function ListCredentialReferences(): $CancellablePromise<$models.Credenti
     return $Call.ByID(1831277773);
 }
 
+export function ListLinuxPorts(workspace: string): $CancellablePromise<$models.LinuxPortList> {
+    return $Call.ByID(3533430464, workspace);
+}
+
 export function ListLinuxProcesses(workspace: string, order: string): $CancellablePromise<$models.LinuxProcessList> {
     return $Call.ByID(2883598345, workspace, order);
 }
@@ -522,6 +526,10 @@ export function PreviewSSHImport(text: string): $CancellablePromise<$models.SSHI
 
 export function PreviewSavedRestore(path: string, password: string): $CancellablePromise<$models.RestorePreview> {
     return $Call.ByID(827587197, path, password);
+}
+
+export function ProbeNetworkTCP(workspace: string, source: string, host: string, port: number): $CancellablePromise<number> {
+    return $Call.ByID(1277934005, workspace, source, host, port);
 }
 
 export function ProbeRDP(host: string, port: number): $CancellablePromise<$models.RDPProbe> {

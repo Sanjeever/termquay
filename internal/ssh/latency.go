@@ -20,6 +20,10 @@ func MeasureTCP(ctx context.Context, request Request) (time.Duration, error) {
 	return elapsed, ctx.Err()
 }
 
+func (t *Terminal) MeasureTargetTCP(ctx context.Context, address string) (time.Duration, error) {
+	return t.MeasureHopTCP(ctx, len(t.jumps), address)
+}
+
 func (t *Terminal) MeasureHopTCP(ctx context.Context, hop int, address string) (time.Duration, error) {
 	if err := ctx.Err(); err != nil {
 		return 0, err
