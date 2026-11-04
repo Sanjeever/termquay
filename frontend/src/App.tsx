@@ -50,6 +50,7 @@ import { demoScenes, type DemoScene } from './features/demo/scenes';
 const SettingsView = lazy(() => import('./features/settings/SettingsView'));
 const DemoWorkbench = lazy(() => import('./features/demo/DemoWorkbench'));
 const WorkspaceSetsDialog = lazy(() => import('./features/workspaces/WorkspaceSetsDialog'));
+const FileCompareDialog = lazy(() => import('./features/files/FileCompareDialog'));
 
 type Workspace = { id: string; sessionID?: string; connection?: Connection; connectionID: string; name: string; state?: string; restore?:SSHLayout; restored?:boolean; rdp?: { connection: Connection; grant?: Grant; error?: string; options: RDPOptions }; local?:{shell:string;terminal:RefObject<TerminalHandle>}; view?: RefObject<RDPHandle>; ssh?: RefObject<SSHWorkspaceHandle>; dirty?: boolean };
 
@@ -98,6 +99,7 @@ export default function App() {
   const [snippetError,setSnippetError]=useState('');
   const [snippetInsert,setSnippetInsert]=useState<{snippet:Snippet;workspace:string;terminal:string}>();
   const [batchCommandOpen, setBatchCommandOpen] = useState(false);
+  const [fileCompareOpen, setFileCompareOpen] = useState(false);
   const [localShells,setLocalShells]=useState<LocalShell[]>([]);
   const [openingLocal,setOpeningLocal]=useState(false);
   const localOpening=useRef(false);
@@ -306,6 +308,7 @@ export default function App() {
     ...(current?.ssh ? shortcutDefinitions.filter(d=>d.scope==='workspace').map(d=>({id:d.id,label:d.label,detail:shortcutLabel(shortcuts[d.id]),kind:'command' as const,run:()=>current.ssh?.current?.workspaceAction(d.id)})) : []),
     { id: 'transfers', label: '查看传输任务', kind: 'command', run: () => setTransfersOpen(true) },
     { id: 'batch-command', label: '多主机执行命令', kind: 'command', run: () => setBatchCommandOpen(true) },
+    { id: 'file-compare', label: '文件对比与跨工作区复制', kind: 'command', run: () => setFileCompareOpen(true) },
     { id: 'diagnostics', label: '导出脱敏诊断信息', kind: 'command', run: () => { ExportDiagnostics().catch(e => setPreferenceError(errorMessage(e))); } },
     { id: 'settings', label: '打开设置', shortcut: shortcutLabel(shortcuts.settings), kind: 'command', run: () => setSettings(true) },
     { id: 'about', label: '关于 TermQuay', kind: 'command', run: () => { setSettingsSection('about'); setSettings(true); } },
@@ -348,6 +351,7 @@ export default function App() {
     <HostTrustDialog target={attempt.trust} onConfirm={attempt.confirm} />
     {attempt.challenge && <SSHChallengeDialog key={attempt.challenge.id} challenge={attempt.challenge} target={attempt.target} onAnswer={attempt.answer} onCancel={attempt.cancel} />}
     {batchCommandOpen && <BatchCommandDialog targets={workspaces.filter(w => w.sessionID && w.state === '已连接').map(w => ({ id: w.sessionID!, name: w.name, address: `${w.connection?.username}@${w.connection?.host}:${w.connection?.port}` }))} initial={current?.sessionID} snippets={snippets} onClose={() => setBatchCommandOpen(false)} />}
+    {fileCompareOpen && <Suspense fallback={<div role="status">正在载入文件对比…</div>}><FileCompareDialog targets={workspaces.filter(w => !w.local && !w.rdp && w.sessionID && w.state === '已连接').map(w => ({ id: w.sessionID!, name: w.name }))} initial={current?.ssh ? current.sessionID : undefined} onTransfer={item => { transfers.accept([item]); setTransferReveal(item.id); setTransfersOpen(true); }} onClose={() => setFileCompareOpen(false)} /></Suspense>}
     {restoreDialog&&<WorkspaceRestoreDialog layout={restoreDialog} connections={catalog?.connections||[]} openIDs={workspaces.map(w=>w.id)} onRestore={restoreWorkspaces} onClose={()=>setRestoreDialog(undefined)}/>}
     {workspaceSetLayout && <Suspense fallback={<div className="session-status" role="status">正在载入工作集…</div>}><WorkspaceSetsDialog layout={workspaceSetLayout} localCount={workspaces.filter(workspace => !!workspace.local).length} connections={catalog?.connections || []} onOpen={openWorkspaceSet} onClose={() => setWorkspaceSetLayout(undefined)} /></Suspense>}
     {palette && <CommandPalette commands={commands} initialScope={paletteScope} initialQuery={paletteQuery} onClose={() => { setPalette(false); setPaletteQuery(''); }} error={snippetError} />}
