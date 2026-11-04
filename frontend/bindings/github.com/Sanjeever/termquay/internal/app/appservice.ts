@@ -280,6 +280,10 @@ export function GetCatalog(): $CancellablePromise<$models.Catalog> {
     return $Call.ByID(3198086081);
 }
 
+export function GetConnectionFilters(): $CancellablePromise<$models.ConnectionFilter[] | null> {
+    return $Call.ByID(1522307065);
+}
+
 export function GetConnectionPassword(id: string): $CancellablePromise<string> {
     return $Call.ByID(2914636331, id);
 }
@@ -648,6 +652,10 @@ export function SaveConnection(c: store$0.Connection, auth: ssh$0.Request): $Can
     return $Call.ByID(2029120419, c, auth);
 }
 
+export function SaveConnectionFilters(filters: $models.ConnectionFilter[] | null): $CancellablePromise<void> {
+    return $Call.ByID(1840224794, filters);
+}
+
 export function SaveConnectionWithCredential(c: store$0.Connection, auth: ssh$0.Request, referenceID: string): $CancellablePromise<store$0.Connection> {
     return $Call.ByID(1100173426, c, auth, referenceID);
 }
@@ -726,6 +734,10 @@ export function SetBackupDeviceAlias(deviceID: string, name: string): $Cancellab
 
 export function SetConnectionPreference(id: string, favorite: boolean, environment: string): $CancellablePromise<void> {
     return $Call.ByID(3298853787, id, favorite, environment);
+}
+
+export function SetConnectionTags(id: string, tags: string[] | null): $CancellablePromise<void> {
+    return $Call.ByID(2870797395, id, tags);
 }
 
 export function SetDirectoryBookmarks(id: string, bookmarks: string[] | null): $CancellablePromise<void> {

@@ -148,6 +148,9 @@ func validateWorkflowSettings(values map[string]string, data store.Data, checkRe
 				return nil, nil, err
 			}
 			for id, item := range items {
+				if err := validateConnectionTags(item.Tags); err != nil {
+					return nil, nil, err
+				}
 				if checkReferences && connections[id].ID == "" || len(item.Bookmarks) > 32 || len(item.PrivateKeyPath) > 4096 || strings.ContainsRune(item.PrivateKeyPath, 0) || item.Environment != "" && item.Environment != "production" && item.Environment != "staging" && item.Environment != "development" || item.RDPResolution != "" && item.RDPResolution != "dynamic" && item.RDPResolution != "1280x800" && item.RDPResolution != "1920x1080" && item.RDPResolution != "multimon" || item.RDPClient != "" && item.RDPClient != "internal" && item.RDPClient != "system" {
 					return nil, nil, errors.New("连接偏好字段或引用无效")
 				}

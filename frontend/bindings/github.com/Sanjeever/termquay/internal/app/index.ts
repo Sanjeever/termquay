@@ -17,6 +17,7 @@ export type {
     CommandTask,
     CompletionPath,
     CompletionPaths,
+    ConnectionFilter,
     ConnectionLatency,
     CredentialReference,
     DirectorySyncPreview,

@@ -22,6 +22,7 @@ export interface Connection {
 export interface ConnectionPreference {
     "favorite": boolean;
     "environment": string;
+    "tags"?: string[] | null;
     "rdp_resolution"?: string;
     "rdp_client"?: string;
     "bookmarks"?: string[] | null;

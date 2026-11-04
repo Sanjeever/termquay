@@ -4,6 +4,7 @@ import (
 	"errors"
 	"path"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/Sanjeever/termquay/internal/store"
@@ -66,6 +67,45 @@ func (a *AppService) SetConnectionPreference(id string, favorite bool, environme
 			p.Favorite = favorite
 			p.Environment = environment
 			preferences[id] = p
+			return a.store.SetConnectionPreferences(preferences)
+		}
+	}
+	return errors.New("连接不存在")
+}
+
+func validateConnectionTags(tags []string) error {
+	if len(tags) > 16 {
+		return errors.New("每个连接最多 16 个标签")
+	}
+	seen := map[string]bool{}
+	for _, tag := range tags {
+		if tag == "" || tag != strings.TrimSpace(tag) || len(tag) > 64 || strings.ContainsAny(tag, ",，\r\n\x00") || seen[tag] {
+			return errors.New("标签须为不重复的 1 至 64 字节文本，不含逗号或换行")
+		}
+		seen[tag] = true
+	}
+	return nil
+}
+
+func (a *AppService) SetConnectionTags(id string, tags []string) error {
+	if err := validateConnectionTags(tags); err != nil {
+		return err
+	}
+	a.storeMu.Lock()
+	defer a.storeMu.Unlock()
+	preferences, err := a.connectionPreferences()
+	if err != nil {
+		return err
+	}
+	data, err := a.store.Read()
+	if err != nil {
+		return err
+	}
+	for _, connection := range data.Connections {
+		if connection.ID == id {
+			value := preferences[id]
+			value.Tags = tags
+			preferences[id] = value
 			return a.store.SetConnectionPreferences(preferences)
 		}
 	}

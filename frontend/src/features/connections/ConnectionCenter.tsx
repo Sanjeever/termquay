@@ -1,7 +1,9 @@
 import Tooltip from '../../components/Tooltip';
 import { errorMessage } from "../../lib/errors";
 import SelectControl from '../../components/SelectControl';
-import { useDeferredValue, useMemo, useRef, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { GetConnectionFilters, SaveConnectionFilters } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
+import type { ConnectionFilter } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import { Button, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Input, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from '@heroui/react';
 import { DeleteConnection, DuplicateConnection, SetConnectionPreference, ClearRecentConnections, SaveGroup, DeleteGroup, MoveConnectionsToGroup, MoveGroup } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { Connection, ConnectionPreference, Group } from '../../../bindings/github.com/Sanjeever/termquay/internal/store/models';
@@ -27,6 +29,13 @@ export default function ConnectionCenter({ connections, groups, preferences, ses
   const latency = useConnectionLatency(demo ? [] : connections, active && !demo && !loading && !loadError);
   const [search, setSearch] = useState('');
   const [protocol, setProtocol] = useState('all');
+  const [environment, setEnvironment] = useState('');
+  const [tag, setTag] = useState('');
+  const [filters, setFilters] = useState<ConnectionFilter[]>([]);
+  const [filterName, setFilterName] = useState('');
+  const [savingFilter, setSavingFilter] = useState(false);
+  const [filterLoaded, setFilterLoaded] = useState(false);
+  const [saveFilterOpen, setSaveFilterOpen] = useState(false);
   const [view, setView] = useState('all');
   const [group, setGroup] = useState('');
   const [sort, setSort] = useState<CatalogSort>('name');
@@ -49,7 +58,21 @@ export default function ConnectionCenter({ connections, groups, preferences, ses
   const [groupMenu, setGroupMenu] = useState('');
   const list = useRef<HTMLDivElement>(null);
   const query = useDeferredValue(search);
-  const visible = useMemo(() => catalogConnections(connections, groups, preferences, { view, group, protocol, search: query, sort, descending }), [connections, groups, preferences, view, group, protocol, query, sort, descending]);
+  const selectedTags = tag.split(',').filter(Boolean);
+  const visible = useMemo(() => catalogConnections(connections, groups, preferences, { view, group, protocol, search: query, sort, descending, environment, tags: tag.split(',').filter(Boolean) }), [connections, groups, preferences, view, group, protocol, query, sort, descending, environment, tag]);
+  const tags = [...new Set(Object.values(preferences).flatMap(value => value?.tags || []))].sort((a,b) => a.localeCompare(b, 'zh-CN'));
+  useEffect(() => {
+    if (demo) return;
+    let ended = false; const request = GetConnectionFilters();
+    request.then(values => { if (!ended) { setFilters(values || []); setFilterLoaded(true); } }).catch(e => { if (!ended) setError(errorMessage(e)); });
+    return () => { ended = true; request.cancel(); };
+  }, [demo]);
+  async function saveFilters(next: ConnectionFilter[]) {
+    setSavingFilter(true); setError('');
+    try { await SaveConnectionFilters(next); setFilters(next); setSaveFilterOpen(false); }
+    catch (e) { setError(errorMessage(e)); }
+    finally { setSavingFilter(false); }
+  }
   const selectedSet = new Set(selection);
   const groupChildren = useMemo(() => {
     const children = new Map<string, Group[]>();
@@ -94,6 +117,15 @@ export default function ConnectionCenter({ connections, groups, preferences, ses
         <Tooltip content="刷新连接"><button className="icon-button" disabled={loading||demo} aria-label="刷新连接" onClick={onReload}><Icon name="refresh" width="15" /></button></Tooltip>
       </div>
     </div>
+    <div className="catalog-saved-filters button-row">
+      <SelectControl aria-label="环境筛选" value={environment} onChange={event => setEnvironment(event.target.value)}><option value="">全部环境</option><option value="production">生产</option><option value="staging">预发布</option><option value="development">开发</option></SelectControl>
+      <SelectControl aria-label="添加标签筛选" value="" onChange={event => { if (event.target.value && !selectedTags.includes(event.target.value)) setTag([...selectedTags, event.target.value].join(',')); }}><option value="">标签筛选</option>{tags.filter(value => !selectedTags.includes(value)).map(value => <option key={value}>{value}</option>)}</SelectControl>
+      {selectedTags.map(value => <button key={value} className="session-tool" aria-label={`移除标签筛选 ${value}`} onClick={() => setTag(selectedTags.filter(item => item !== value).join(','))}>{value} ×</button>)}
+      {!!filters.length && <SelectControl aria-label="保存的筛选" value="" disabled={demo || savingFilter} onChange={event => { const item = filters.find(value => value.name === event.target.value); if (item) { scope(item.view, item.group); setProtocol(item.protocol); setEnvironment(item.environment); setTag((item.tags || []).join(',')); setSearch(item.search); setFilterName(item.name); } }}><option value="">保存的筛选</option>{filters.map(item => <option key={item.name}>{item.name}</option>)}</SelectControl>}
+      <Button size="sm" variant="light" isDisabled={demo || !filterLoaded || savingFilter} onPress={() => setSaveFilterOpen(true)}>保存筛选</Button>
+      {(environment || tag || search) && <Button size="sm" variant="light" onPress={() => { setEnvironment(''); setTag(''); setSearch(''); }}>清除筛选</Button>}
+    </div>
+    {saveFilterOpen && <Modal isOpen onClose={() => !savingFilter && setSaveFilterOpen(false)} className="app-dialog"><ModalContent><ModalHeader>保存当前筛选</ModalHeader><ModalBody><Input label="名称" value={filterName} onValueChange={setFilterName} maxLength={128} isDisabled={savingFilter} />{error && <p className="error" role="alert">{error}</p>}</ModalBody><ModalFooter><Button variant="light" isDisabled={savingFilter} onPress={() => setSaveFilterOpen(false)}>取消</Button>{filters.some(item => item.name === filterName.trim()) && <Button color="danger" variant="light" isDisabled={savingFilter} onPress={() => void saveFilters(filters.filter(item => item.name !== filterName.trim()))}>删除此筛选</Button>}<Button color="primary" isLoading={savingFilter} isDisabled={!filterName.trim()} onPress={() => void saveFilters([...filters.filter(item => item.name !== filterName.trim()), { name: filterName.trim(), view, group, protocol, environment, tags: selectedTags, search }])}>保存</Button></ModalFooter></ModalContent></Modal>}
     {latency.error && <p role="alert" className="error">{latency.error}</p>}
     {!groupDialog&&!deleting&&!duplicating&&!moveOpen&&<ErrorNotice message={error} onDismiss={()=>setError('')}/>}
     <div className="connection-list" aria-label="已保存连接" ref={list}><div className="connection-columns"><div className="connection-name-columns"><span />{sortHeading('name','名称')}{sortHeading('address','地址','connection-address-heading')}{sortHeading('username','用户名','connection-user')}{sortHeading('protocol','协议','connection-protocol')}</div><Tooltip content={demo?'演示样本':'刷新全部已保存连接的 TCP 建连耗时'}><button className="latency-heading" aria-label="刷新全部已保存连接的 TCP 延迟" aria-disabled={demo} aria-busy={latency.refreshing || undefined} onClick={() => {if(!demo)latency.refresh();}}><Icon name="refresh" width="12" height="12" className={latency.refreshing ? 'latency-refreshing' : undefined} />TCP 延迟</button></Tooltip><span /></div>{visible.map((c, index) => <div key={c.id} draggable={!working&&!demo} onDragStart={e=>{e.dataTransfer.setData('application/x-termquay-connections',JSON.stringify(selectedIDs.includes(c.id)?selectedIDs:[c.id]));e.dataTransfer.effectAllowed='move';}} className={`connection-row ${selectedIDs.includes(c.id) ? 'selected' : ''}`} onContextMenu={e => { e.preventDefault(); if(!selectedIDs.includes(c.id))pick(c.id); if(!demo)setMenu(c.id); }}>

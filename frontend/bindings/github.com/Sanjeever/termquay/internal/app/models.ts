@@ -94,6 +94,16 @@ export interface CompletionPaths {
     "truncated": boolean;
 }
 
+export interface ConnectionFilter {
+    "name": string;
+    "view": string;
+    "group": string;
+    "protocol": string;
+    "environment": string;
+    "tags": string[] | null;
+    "search": string;
+}
+
 export interface ConnectionLatency {
     "milliseconds": number;
     "status": string;

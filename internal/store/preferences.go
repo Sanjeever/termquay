@@ -10,6 +10,7 @@ import (
 type ConnectionPreference struct {
 	Favorite       bool       `json:"favorite"`
 	Environment    string     `json:"environment"`
+	Tags           []string   `json:"tags,omitempty"`
 	RDPResolution  string     `json:"rdp_resolution,omitempty"`
 	RDPClient      string     `json:"rdp_client,omitempty"`
 	Bookmarks      []string   `json:"bookmarks,omitempty"`
