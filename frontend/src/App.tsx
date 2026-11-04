@@ -1,15 +1,14 @@
 import { errorMessage } from "./lib/errors";
 import SelectControl from './components/SelectControl';
-import { createRef, lazy, Suspense, useEffect, useRef, useState, type RefObject } from 'react';
+import { createRef, lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { AnimatePresence } from 'framer-motion';
 import { Events, System } from '@wailsio/runtime';
 import { Button, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from '@heroui/react';
 import Tooltip from './components/Tooltip';
-import { GetCatalog, GetConnectionPreferences, RecordConnectionSuccess, SetRDPResolution, SetRDPClient, SystemRDPAvailable, ListSnippets, SetFrontendReady, DiscardAndQuit } from '../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
-import type { Snippet, SSHLayout, WorkspaceLayout, WorkspaceLayoutEntry } from '../bindings/github.com/Sanjeever/termquay/internal/app/models';
+import { GetCatalog, GetConnectionPreferences, RecordConnectionSuccess, SetRDPResolution, SetRDPClient, SystemRDPAvailable, ListSnippets } from '../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
+import type { Snippet, WorkspaceLayout, WorkspaceLayoutEntry } from '../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import type { Connection, ConnectionPreference, Group } from '../bindings/github.com/Sanjeever/termquay/internal/store/models';
-import type { Grant } from '../bindings/github.com/Sanjeever/termquay/internal/rdp/models';
 import SSHWorkspace, { type SSHWorkspaceHandle } from './features/files/SSHWorkspace';
 import RDPView, { type RDPHandle, type RDPOptions } from './features/rdp/RDPView';
 import TransferPanel from './features/files/TransferPanel';
@@ -27,7 +26,6 @@ import { GetPortableUI, SavePortableUI } from '../bindings/github.com/Sanjeever/
 import { applyPortableUI, capturePortableUI } from './features/settings/portable';
 import useAutomaticBackup from './features/settings/useAutomaticBackup';
 import useUpdates from './features/settings/useUpdates';
-import { RestartForUpdate } from '../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import { ExportDiagnostics } from '../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import { ListLocalShells, OpenLocalTerminal, CloseLocalTerminal } from '../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { LocalShell } from '../bindings/github.com/Sanjeever/termquay/internal/app/models';
@@ -47,6 +45,10 @@ import type { CommandKind } from './lib/commands';
 import { useAppearance } from './features/settings/AppearanceProvider';
 import { uiZoomLevels } from './features/settings/appearance';
 import { demoScenes, type DemoScene } from './features/demo/scenes';
+import type { Workspace } from './features/workspaces/workspace';
+import { captureWorkspaceLayout as captureLayout } from './features/workspaces/workspaceLayout';
+import useWorkbenchClose from './features/workspaces/useWorkbenchClose';
+import WorkbenchCloseDialog from './features/workspaces/WorkbenchCloseDialog';
 
 const SettingsView = lazy(() => import('./features/settings/SettingsView'));
 const DemoWorkbench = lazy(() => import('./features/demo/DemoWorkbench'));
@@ -56,8 +58,6 @@ const CommandTasksDialog = lazy(() => import('./features/terminal/CommandTasksDi
 const RecordingPlayer = lazy(() => import('./features/terminal/RecordingPlayer'));
 const DockerDialog = lazy(() => import('./features/docker/DockerDialog'));
 const StorageAccess = lazy(() => import('./features/settings/StorageAccess'));
-
-type Workspace = { id: string; sessionID?: string; connection?: Connection; connectionID: string; name: string; state?: string; restore?:SSHLayout; restored?:boolean; rdp?: { connection: Connection; grant?: Grant; error?: string; options: RDPOptions }; local?:{shell:string;terminal:RefObject<TerminalHandle>}; view?: RefObject<RDPHandle>; ssh?: RefObject<SSHWorkspaceHandle>; dirty?: boolean };
 
 export default function App() {
   const { appearance, update: updateAppearance, beginPreview, endPreview } = useAppearance();
@@ -71,8 +71,6 @@ export default function App() {
   const [catalogLoading, setCatalogLoading] = useState(true);
   const automaticBackup = useAutomaticBackup(!!catalog);
   const updates = useUpdates(!!catalog);
-  const restartUpdate = useRef(false);
-  const [restarting, setRestarting] = useState(false);
   const [preferences, setPreferences] = useState<Record<string, ConnectionPreference | undefined>>({});
   const [preferenceError, setPreferenceError] = useState('');
   const [preferenceLoadError, setPreferenceLoadError] = useState('');
@@ -86,11 +84,6 @@ export default function App() {
   useEffect(() => { SystemRDPAvailable().then(setSystemRDP).catch(e => setPreferenceError(errorMessage(e))); return Events.On('rdp:system-error', event => setPreferenceError((event.data as {error:string}).error)); }, []);
   const [settings, setSettings] = useState(false);
   const [settingsSection,setSettingsSection]=useState('appearance');
-  const [closing, setClosing] = useState('');
-  const [quitConfirm, setQuitConfirm] = useState(false);
-  const [savingClose, setSavingClose] = useState(false);
-  const [closeError, setCloseError] = useState('');
-  const [exitPersistenceError,setExitPersistenceError]=useState(false);
   const [transfersOpen, setTransfersOpen] = useState(false);
   const [transferReveal, setTransferReveal] = useState('');
   const [transferHeight, setTransferHeight] = useState(Number(localStorage.getItem('termquay.layout.transfer-height')) || 220);
@@ -120,26 +113,13 @@ export default function App() {
   const rdpGateways=workspaces.filter(workspace=>workspace.ssh&&workspace.sessionID&&workspace.state==='已连接').map(workspace=>({id:workspace.sessionID!,name:workspace.name}));
   const latestWorkspaces = useRef(workspaces); latestWorkspaces.current = workspaces;
   const tabNavigation = useRef(false);
-  const closingKeyboard = useRef(false);
   const recovery=useDraftRecovery();
   const workspaceRestore=useWorkspaceRestore(!!catalog);
   const [restoreDialog,setRestoreDialog]=useState<WorkspaceLayout>();
   const [workspaceSetLayout, setWorkspaceSetLayout] = useState<WorkspaceLayout>();
   const restorePrompted=useRef(false);
-  const autoQuitting=useRef(false);
-  const nativeClose=useRef<()=>void>(()=>{});
   function notifyRecovery(items=latestWorkspaces.current){if(!recovery.enabled)return;recovery.queue(items.flatMap(w=>{const documents=w.ssh?.current?.recoveryDrafts();return documents?[{workspace:w.id,name:w.name,documents}]:[];}));}
-  function captureWorkspaceLayout(items=latestWorkspaces.current): WorkspaceLayout | undefined {
-    const entries: WorkspaceLayoutEntry[] = [];
-    for (const workspace of items) {
-      const connection = workspace.rdp?.connection || workspace.connection;
-      if (!connection) continue;
-      const ssh = workspace.ssh?.current?.layout() || workspace.restore;
-      if (connection.protocol === 'ssh' && !ssh) return;
-      entries.push({ id: workspace.id, connection_id: workspace.connectionID, name: workspace.name, target: { name: connection.name, protocol: connection.protocol, host: connection.host, port: connection.port, username: connection.username, domain: connection.domain || '', auth_method: connection.auth_method || '', identity_agent: connection.identity_agent || '', jump_id: connection.jump_id || '', mfa: connection.mfa, proxy_address: connection.proxy_address }, ...(ssh ? { ssh } : {}) });
-    }
-    return { version: entries.some(entry => entry.target.jump_id) ? 7 : entries.some(entry => entry.target.proxy_address) ? 6 : entries.some(entry => entry.target.mfa || entry.target.auth_method === 'keyboard_interactive') ? 4 : entries.some(entry => entry.target.auth_method || entry.target.identity_agent) ? 2 : 1, active: entries.some(entry => entry.id === active) ? active : '', entries };
-  }
+  function captureWorkspaceLayout(items=latestWorkspaces.current) { return captureLayout(items, active); }
   function notifyLocalState(items=latestWorkspaces.current){notifyRecovery(items);const layout=captureWorkspaceLayout(items);if(layout)workspaceRestore.queue(layout);}
   function manageWorkspaceSets() {
     const layout = captureWorkspaceLayout();
@@ -147,8 +127,15 @@ export default function App() {
     setWorkspaceSetLayout(layout);
   }
   async function flushLocalState(){if(!catalog)return;notifyLocalState();await workspaceRestore.flush();await recovery.flush();++portableGeneration.current;await SavePortableUI(capturePortableUI());setPortableError('');}
-  async function finishExit() { if (restartUpdate.current) { setRestarting(true); try { await RestartForUpdate(); } catch (error) { setRestarting(false); throw error; } } else await DiscardAndQuit(); }
-  nativeClose.current=()=>{if(autoQuitting.current)return;if(demoScene)exitDemo();if(latestWorkspaces.current.some(w=>w.ssh?.current?.hasDirty())){setQuitConfirm(true);return;}autoQuitting.current=true;void(async()=>{try{try{await flushLocalState();}catch(e){setExitPersistenceError(true);throw e;}await finishExit();}catch(e){setCloseError(errorMessage(e));setQuitConfirm(true);}finally{autoQuitting.current=false;}})();};
+  const workbenchClose = useWorkbenchClose({
+    workspaces,
+    flushLocalState,
+    beforeQuit: () => { if (demoScene) exitDemo(); },
+    remove,
+    select,
+    onError: setPreferenceError,
+  });
+  const { closing, quitConfirm, restarting } = workbenchClose;
   useEffect(()=>{notifyLocalState();},[workspaces,active,recovery.enabled,workspaceRestore.startup]);
   useEffect(()=>{if(demoScene||workspaceSetLayout||restorePrompted.current||!catalog||!workspaceRestore.startup)return;restorePrompted.current=true;if(workspaceRestore.startup.entries?.length&&!workspaces.length&&!dialog&&!settings)setRestoreDialog(workspaceRestore.startup);},[catalog,workspaceRestore.startup,demoScene,workspaceSetLayout]);
 
@@ -161,7 +148,7 @@ export default function App() {
     if (keyboard) { tabNavigation.current = true; requestAnimationFrame(() => document.querySelector<HTMLElement>('.workspace-tabs [role=tab][aria-selected=true]')?.focus()); }
   }
   function select(id: string, keyboard = false) { tabNavigation.current = keyboard; setActive(id); setSettings(false); }
-  function closeWorkspace(id = active, keyboard = true) { if (!id) return; closingKeyboard.current = keyboard; if (workspaces.find(w=>w.id===id)?.ssh?.current?.hasDirty()) setClosing(id); else remove(id, keyboard); }
+  function closeWorkspace(id = active, keyboard = true) { if (id) workbenchClose.requestClose(id, keyboard); }
   function closeCurrentTab() { if (settings) { setSettings(false); return; } if (current?.ssh?.current?.workspaceAction('closeContent')) return; closeWorkspace(); }
   function newTerminal() { if (current?.ssh && !settings) { current.ssh.current?.workspaceAction('newTerminal'); return; } const shell = localShells.find(shell=>shell.name===current?.local?.shell) || localShells[0]; if(shell)void openLocalShell(shell.id); }
   function moveWorkspace(id: string, target: string) {
@@ -221,7 +208,6 @@ export default function App() {
     GetPortableUI().then(async values => { if (ended||changed) return; if (Object.keys(values || {}).length) applyPortableUI(values); else await savePortable(); }).catch(e => { if (!ended) setPreferenceError(`读取界面设置失败：${errorMessage(e)}`); });
     return () => { ended = true; ++portableGeneration.current; clearTimeout(timer); window.removeEventListener('termquay:portable-restored', restored); window.removeEventListener('termquay:portable-changed', save); };
   }, [catalog?.session_only]);
-  useEffect(() => {const off=Events.On('app:close-requested',()=>nativeClose.current());SetFrontendReady().catch(e=>setPreferenceError(`退出协调初始化失败：${errorMessage(e)}`));return off;}, []);
   useEffect(() => { localStorage.setItem('termquay.layout.transfer-height', String(transferHeight)); }, [transferHeight]);
   useEffect(() => { localStorage.setItem('termquay.terminal.font-size', String(fontSize)); }, [fontSize]);
   useEffect(() => {
@@ -347,7 +333,7 @@ export default function App() {
       {storageError && !catalog && <Suspense fallback={<div role="status">正在读取存储保护…</div>}><StorageAccess error={storageError} onOpened={async () => { await reload(); await recovery.refresh(); }} /></Suspense>}
       {storageError && catalog && <ErrorNotice message={storageError} />}
       {!dialog && (attempt.busy || (attempt.error && !current?.rdp)) && <div className="connection-feedback" role={attempt.error ? 'alert' : 'status'}><span className={attempt.error ? 'error' : ''}>{attempt.target} · {attempt.error || attempt.steps[attempt.steps.length - 1]?.stage || '正在连接…'}</span><div className="button-row">{!!attempt.steps.length && <Button size="sm" variant="light" onPress={() => setConnectionDiagnosticsOpen(true)}>连接诊断</Button>}{attempt.busy && <Button size="sm" variant="light" onPress={attempt.cancel}>取消连接</Button>}{!attempt.busy && <button className="icon-button" aria-label="关闭连接错误" onClick={attempt.clearError}><Icon name="close" /></button>}</div></div>}
-      {settings && <Suspense fallback={<div className="view-loading" role="status">正在载入设置…</div>}><SettingsView section={settingsSection} onSectionChange={setSettingsSection} recovery={recovery} fontSize={fontSize} onFontSize={setFontSize} onRestore={() => void reload()} onClose={() => setSettings(false)} shortcuts={shortcuts} onShortcuts={saveShortcuts} shortcutError={shortcutError} automaticBackup={automaticBackup} updates={updates} onRestart={() => { restartUpdate.current = true; nativeClose.current(); }} activeWorkspaces={workspaces.length} activeTransfers={transfers.items.filter(item => ['queued','running'].includes(item.state)).length} onDemo={()=>showDemo()} demoDisabled={attempt.busy||openingLocal} connections={catalog?.connections || []} onEditConnection={id => { const connection = catalog?.connections.find(item => item.id === id); if (connection) openDialog(false, connection); }} /></Suspense>}
+      {settings && <Suspense fallback={<div className="view-loading" role="status">正在载入设置…</div>}><SettingsView section={settingsSection} onSectionChange={setSettingsSection} recovery={recovery} fontSize={fontSize} onFontSize={setFontSize} onRestore={() => void reload()} onClose={() => setSettings(false)} shortcuts={shortcuts} onShortcuts={saveShortcuts} shortcutError={shortcutError} automaticBackup={automaticBackup} updates={updates} onRestart={workbenchClose.restart} activeWorkspaces={workspaces.length} activeTransfers={transfers.items.filter(item => ['queued','running'].includes(item.state)).length} onDemo={()=>showDemo()} demoDisabled={attempt.busy||openingLocal} connections={catalog?.connections || []} onEditConnection={id => { const connection = catalog?.connections.find(item => item.id === id); if (connection) openDialog(false, connection); }} /></Suspense>}
       <ErrorNotice message={preferenceError} onDismiss={()=>setPreferenceError('')} className="connection-feedback"/>
       <ErrorNotice message={preferenceLoadError} className="connection-feedback"><button className="session-tool" onClick={()=>void reload()}>重新读取连接偏好</button></ErrorNotice>
       {portableError && portableFailure!==dismissedPortable && <ErrorNotice message={`界面设置未保存：${portableError}`} onDismiss={()=>setDismissedPortable(portableFailure)} className="connection-feedback"><button className="session-tool" onClick={()=>void savePortable()}>重试保存</button></ErrorNotice>}
@@ -375,15 +361,7 @@ export default function App() {
     {workspaceSetLayout && <Suspense fallback={<div className="session-status" role="status">正在载入工作集…</div>}><WorkspaceSetsDialog layout={workspaceSetLayout} localCount={workspaces.filter(workspace => !!workspace.local).length} connections={catalog?.connections || []} onOpen={openWorkspaceSet} onClose={() => setWorkspaceSetLayout(undefined)} /></Suspense>}
     {palette && <CommandPalette commands={commands} initialScope={paletteScope} initialQuery={paletteQuery} onClose={() => { setPalette(false); setPaletteQuery(''); }} error={snippetError} />}
     {snippetInsert&&<SnippetInsertDialog snippet={snippetInsert.snippet} onClose={()=>setSnippetInsert(undefined)} onInsert={text=>active===snippetInsert.workspace&&(current?.local?!!current.local.terminal.current?.insert(text):!!current?.ssh?.current?.insert(text,snippetInsert.terminal))}/>}
-    <Modal isOpen={restarting} isDismissable={false} isKeyboardDismissDisabled className="app-dialog"><ModalContent><ModalHeader>正在重启更新</ModalHeader><ModalBody><p role="status">正在等待更新进程就绪…</p></ModalBody></ModalContent></Modal>
-    <Modal isOpen={!!closing || quitConfirm} onClose={() => { if (!savingClose) { restartUpdate.current=false;setClosing(''); setQuitConfirm(false); setCloseError('');setExitPersistenceError(false); } }} isDismissable={!savingClose} isKeyboardDismissDisabled={savingClose} className="app-dialog"><ModalContent><ModalHeader>{exitPersistenceError?'本地状态保存失败':closeError?'退出失败':'未保存文件'}</ModalHeader><ModalBody><p>{exitPersistenceError?'最新本地状态尚未保存。':quitConfirm ? '退出前请处理未保存修改。' : '此工作区有未保存修改。'}</p>{closeError && <p className="error" role="alert">{closeError}</p>}</ModalBody><ModalFooter><Button variant="light" isDisabled={savingClose} onPress={() => { restartUpdate.current=false;setClosing(''); setQuitConfirm(false); setCloseError('');setExitPersistenceError(false); }}>返回编辑</Button><Button color="danger" variant="light" isDisabled={savingClose} onPress={async () => { if(!quitConfirm){remove(closing,closingKeyboard.current);setClosing('');return;}setSavingClose(true);try{if(!exitPersistenceError){try{await flushLocalState();}catch(e){setExitPersistenceError(true);throw e;}}await finishExit();}catch(e){setCloseError(errorMessage(e));}finally{setSavingClose(false);} }}>{quitConfirm?(exitPersistenceError?'忽略本地保存错误并退出':recovery.enabled?'保留本地草稿并退出':'放弃修改并退出'):'放弃修改并关闭'}</Button><Button color="primary" isLoading={savingClose} onPress={async () => {
-      setSavingClose(true); setCloseError('');
-      try {
-        const targets = quitConfirm ? workspaces.filter(w => w.ssh?.current?.hasDirty()) : workspaces.filter(w => w.id === closing);
-        for (const w of targets) { if (!await w.ssh?.current?.saveAll()) { select(w.id); setCloseError('保存未完成，请返回编辑处理文件错误。'); return; } }
-        if (quitConfirm) {try{await flushLocalState();}catch(e){setExitPersistenceError(true);throw e;}await finishExit();} else { remove(closing, closingKeyboard.current); setClosing(''); }
-      } catch (e) { setCloseError(errorMessage(e)); } finally { setSavingClose(false); }
-    }}>保存并{quitConfirm ? '退出' : '关闭'}</Button></ModalFooter></ModalContent></Modal>
+    <WorkbenchCloseDialog close={workbenchClose} keepDrafts={recovery.enabled} />
     </>}
     </div>
     {demoScene&&<Suspense fallback={<div className="view-loading demo-loading" role="status">正在准备演示…</div>}><DemoWorkbench key={`${demoScene}-${demoRevision}`} scene={demoScene} onScene={selectDemoScene} onExit={exitDemo} shortcuts={shortcuts} fontSize={fontSize} /></Suspense>}
