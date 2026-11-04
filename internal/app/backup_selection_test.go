@@ -10,6 +10,16 @@ import (
 )
 
 func TestBackupSettingsMigrateAndPause(t *testing.T) {
+	fresh := testAppStore(t)
+	defaults, err := fresh.GetBackupSettings()
+	if err != nil || defaults.Configured || defaults.Selection.Credentials {
+		t.Fatal("新备份配置默认状态无效", err)
+	}
+	for _, selected := range []bool{defaults.Selection.Snippets, defaults.Selection.Settings, defaults.Selection.Tasks, defaults.Selection.Workspaces, defaults.Selection.Tunnels, defaults.Selection.Sync, defaults.Selection.Preferences, defaults.Selection.LogRules} {
+		if !selected {
+			t.Fatal("新备份配置未默认包含工作配置")
+		}
+	}
 	a := testAppStore(t)
 	t.Cleanup(a.stopAutomaticBackup)
 	legacy := `{"options":{"url":"https://backup.invalid/dav","username":"test","password":"test-webdav-secret","directory":"termquay/backups"},"password":"test-recovery-secret","selection":{"credentials":true,"snippets":true,"settings":false}}`
@@ -19,6 +29,9 @@ func TestBackupSettingsMigrateAndPause(t *testing.T) {
 	settings, err := a.GetBackupSettings()
 	if err != nil || !settings.Configured || !settings.PasswordSaved || !settings.RecoverySaved || !settings.Selection.Credentials {
 		t.Fatal("旧备份配置未正确载入", err)
+	}
+	if settings.Selection.Settings || settings.Selection.Tasks || settings.Selection.Workspaces || settings.Selection.Tunnels || settings.Selection.Sync || settings.Selection.Preferences || settings.Selection.LogRules {
+		t.Fatal("新默认值扩大了旧备份范围")
 	}
 	status, err := a.GetAutomaticBackupStatus()
 	if err != nil || !status.Enabled {

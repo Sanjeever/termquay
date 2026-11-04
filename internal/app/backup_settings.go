@@ -60,7 +60,10 @@ func (a *AppService) GetBackupSettings() (BackupSettings, error) {
 	}
 	a.automaticMu.Lock()
 	config := a.automaticConfig
-	view := BackupSettings{Directory: "termquay/backups", Selection: BackupSelection{Snippets: true, Settings: true}}
+	view := BackupSettings{Directory: "termquay/backups", Selection: BackupSelection{
+		Snippets: true, Settings: true, Tasks: true, Workspaces: true,
+		Tunnels: true, Sync: true, Preferences: true, LogRules: true,
+	}}
 	if config != nil {
 		view.Configured = true
 		view.URL, view.Username, view.Directory = config.Options.URL, config.Options.Username, config.Options.Directory

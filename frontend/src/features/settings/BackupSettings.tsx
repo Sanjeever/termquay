@@ -20,6 +20,7 @@ export default function BackupSettings({ onRestore, onEditConnection, connection
   const [locationEditing, setLocationEditing] = useState(false);
   const [backupEditing, setBackupEditing] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
+  const [newConfiguration, setNewConfiguration] = useState(false);
   const [checked, setChecked] = useState(false);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState<{ area: string; message: string }>();
@@ -35,7 +36,7 @@ export default function BackupSettings({ onRestore, onEditConnection, connection
   useEffect(() => {
     mounted.current = true;
     const request = GetBackupSettings();
-    request.then(value => { if (mounted.current) { setPreferences(value); setLocationEditing(!value.configured); setBackupEditing(!value.recovery_saved); void automaticBackup.refresh(); } }).catch(error => { if (mounted.current) setError({ area: 'location', message: errorMessage(error) }); });
+    request.then(value => { if (mounted.current) { setPreferences(value); setNewConfiguration(!value.configured); setLocationEditing(!value.configured); setBackupEditing(!value.recovery_saved); void automaticBackup.refresh(); } }).catch(error => { if (mounted.current) setError({ area: 'location', message: errorMessage(error) }); });
     return () => { mounted.current = false; request.cancel(); };
   }, [loadRevision]);
   useEffect(() => {
@@ -77,9 +78,11 @@ export default function BackupSettings({ onRestore, onEditConnection, connection
       const password = String(data.get('recovery') || '');
       if (password && password !== String(data.get('confirmation') || '')) throw new Error('两次输入的备份密码不一致');
       const selection: BackupSelection = { connection_ids: [], credentials: data.get('credentials') === 'on', snippets: data.get('snippets') === 'on', settings: data.get('settings') === 'on', ...workflowBackupSelection(data) };
+      const enableAutomatic = !preferences!.recovery_saved && data.get('automatic') === 'on';
       if (selection.settings) await SavePortableUI(capturePortableUI());
       await SaveBackupSettings(options(), password, String(data.get('device_name')), selection);
       await refreshPreferences(); setBackupEditing(false); setChangingPassword(false); setHistoryRevision(value => value + 1);
+      if (enableAutomatic) { await SetAutomaticBackupEnabled(true); await automaticBackup.refresh(); }
     });
     data.set('recovery', ''); data.set('confirmation', '');
   }
@@ -120,9 +123,10 @@ export default function BackupSettings({ onRestore, onEditConnection, connection
         {changingPassword && <Input name="confirmation" label="再次输入备份加密密码" labelPlacement="outside" type="password" autoComplete="new-password" size="sm" isRequired isDisabled={!!busy}/>}
         {changingPassword && preferences.recovery_saved && <p className="muted">旧备份仍需原密码解锁。</p>}
         <fieldset className="backup-content-options" disabled={!!busy}><legend>备份内容 · 全部连接</legend><label className="checkbox-label"><input type="checkbox" name="credentials" defaultChecked={preferences.selection.credentials}/>携带已保存密码与私钥</label><label className="checkbox-label"><input type="checkbox" name="snippets" defaultChecked={preferences.selection.snippets}/>命令片段</label><label className="checkbox-label"><input type="checkbox" name="settings" defaultChecked={preferences.selection.settings}/>外观与快捷键</label>{workflowBackupOptions.map(option => <label className="checkbox-label" key={option.field}><input type="checkbox" name={option.field} defaultChecked={!!preferences.selection[option.field]}/>{option.label}</label>)}</fieldset>
+        {!preferences.recovery_saved && <label className="checkbox-label"><input type="checkbox" name="automatic" defaultChecked={newConfiguration} disabled={!!busy}/>保存后启用自动备份</label>}
         <div className="button-row"><Button size="sm" type="submit" color="primary" isLoading={busy === 'backup'} isDisabled={!!busy || !preferences.configured}>保存备份设置</Button>{preferences.recovery_saved && <Button size="sm" variant="light" isDisabled={!!busy} onPress={() => { setBackupEditing(false); setChangingPassword(false); }}>取消</Button>}</div>
       </form> : <dl className="backup-location"><div><dt>设备</dt><dd>{preferences.device_name}</dd></div><div><dt>内容</dt><dd>全部连接{preferences.selection.credentials ? '、已保存密码与私钥' : '（不携带凭据）'}{preferences.selection.snippets && '、命令片段'}{preferences.selection.settings && '、外观与快捷键'}{workflowBackupOptions.filter(option => preferences.selection[option.field]).map(option => `、${option.label}`).join('')}</dd></div></dl>}
-      <div className="backup-automatic-row"><label className="checkbox-label"><input type="checkbox" role="switch" aria-label="自动备份" checked={!!status?.enabled} disabled={!!busy || !preferences.configured || !preferences.recovery_saved || backupEditing || locationEditing} onChange={event => { const enabled = event.target.checked; void run('backup', async () => { await SetAutomaticBackupEnabled(enabled); await automaticBackup.refresh(); }); }}/>自动备份<span className="muted">{automaticLabel}</span></label><Button size="sm" variant="bordered" isLoading={busy === 'backup' || !!status?.running} isDisabled={!!busy || !!status?.running || !preferences.configured || !preferences.recovery_saved || backupEditing || locationEditing} onPress={() => void run('backup', async () => { if (preferences.selection.settings) await SavePortableUI(capturePortableUI()); await BackupNow(); await automaticBackup.refresh(); setHistoryRevision(value => value + 1); })}>{status?.error ? '重试备份' : '立即备份'}</Button></div>
+      <div className="backup-automatic-row">{(!backupEditing || preferences.recovery_saved) && <label className="checkbox-label"><input type="checkbox" role="switch" aria-label="自动备份" checked={!!status?.enabled} disabled={!!busy || !preferences.configured || !preferences.recovery_saved || backupEditing || locationEditing} onChange={event => { const enabled = event.target.checked; void run('backup', async () => { await SetAutomaticBackupEnabled(enabled); await automaticBackup.refresh(); }); }}/>自动备份<span className="muted">{automaticLabel}</span></label>}<Button size="sm" variant="bordered" isLoading={busy === 'backup' || !!status?.running} isDisabled={!!busy || !!status?.running || !preferences.configured || !preferences.recovery_saved || backupEditing || locationEditing} onPress={() => void run('backup', async () => { if (preferences.selection.settings) await SavePortableUI(capturePortableUI()); await BackupNow(); await automaticBackup.refresh(); setHistoryRevision(value => value + 1); })}>{status?.error ? '重试备份' : '立即备份'}</Button></div>
       <p className="muted backup-last-success">{status?.last_success ? `最近成功 ${new Date(status.last_success).toLocaleString()}` : '尚无成功备份记录'}</p>
       {!!coverage.length && <details className="backup-coverage"><summary>需要补齐或在目标设备配置的认证 · {coverage.length} 个连接</summary><ul>{coverage.map(item => <li key={item.connection_id}><div><strong>{item.name}</strong><span className="muted">{item.reason}</span></div>{item.can_save && <Button size="sm" variant="light" isDisabled={!!busy} onPress={() => onEditConnection(item.connection_id)}>补齐凭据</Button>}</li>)}</ul></details>}
       <ErrorNotice message={error?.area==='backup'?error.message:''} onDismiss={()=>setError(undefined)}/>
