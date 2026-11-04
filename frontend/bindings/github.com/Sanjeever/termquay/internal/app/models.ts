@@ -466,6 +466,13 @@ export interface WorkspaceLayoutEntry {
     "ssh"?: SSHLayout | null;
 }
 
+export interface WorkspaceSet {
+    "id": string;
+    "name": string;
+    "layout": WorkspaceLayout;
+    "updated_at": string;
+}
+
 export interface WorkspaceTabLayout {
     "kind": string;
     "path": string;

@@ -65,6 +65,7 @@ export type {
     WorkspaceDraftUpdate,
     WorkspaceLayout,
     WorkspaceLayoutEntry,
+    WorkspaceSet,
     WorkspaceTabLayout,
     WorkspaceTarget
 } from "./models.js";

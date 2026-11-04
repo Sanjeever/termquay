@@ -49,6 +49,7 @@ import { demoScenes, type DemoScene } from './features/demo/scenes';
 
 const SettingsView = lazy(() => import('./features/settings/SettingsView'));
 const DemoWorkbench = lazy(() => import('./features/demo/DemoWorkbench'));
+const WorkspaceSetsDialog = lazy(() => import('./features/workspaces/WorkspaceSetsDialog'));
 
 type Workspace = { id: string; sessionID?: string; connection?: Connection; connectionID: string; name: string; state?: string; restore?:SSHLayout; restored?:boolean; rdp?: { connection: Connection; grant?: Grant; error?: string; options: RDPOptions }; local?:{shell:string;terminal:RefObject<TerminalHandle>}; view?: RefObject<RDPHandle>; ssh?: RefObject<SSHWorkspaceHandle>; dirty?: boolean };
 
@@ -112,16 +113,33 @@ export default function App() {
   const recovery=useDraftRecovery();
   const workspaceRestore=useWorkspaceRestore();
   const [restoreDialog,setRestoreDialog]=useState<WorkspaceLayout>();
+  const [workspaceSetLayout, setWorkspaceSetLayout] = useState<WorkspaceLayout>();
   const restorePrompted=useRef(false);
   const autoQuitting=useRef(false);
   const nativeClose=useRef<()=>void>(()=>{});
   function notifyRecovery(items=latestWorkspaces.current){if(!recovery.enabled)return;recovery.queue(items.flatMap(w=>{const documents=w.ssh?.current?.recoveryDrafts();return documents?[{workspace:w.id,name:w.name,documents}]:[];}));}
-  function notifyLocalState(items=latestWorkspaces.current){notifyRecovery(items);const entries:WorkspaceLayoutEntry[]=[];for(const w of items){const c=w.rdp?.connection||w.connection;if(!c)continue;const ssh=w.ssh?.current?.layout()||w.restore;if(c.protocol==='ssh'&&!ssh)return;entries.push({id:w.id,connection_id:w.connectionID,name:w.name,target:{name:c.name,protocol:c.protocol,host:c.host,port:c.port,username:c.username,domain:c.domain||'',auth_method:c.auth_method||'',identity_agent:c.identity_agent||'',jump_id:c.jump_id||'',mfa:c.mfa,proxy_address:c.proxy_address},...(ssh?{ssh}:{})});}workspaceRestore.queue({version:entries.some(e=>e.target.jump_id)?7:entries.some(e=>e.target.proxy_address)?6:entries.some(e=>e.target.mfa||e.target.auth_method==='keyboard_interactive')?4:entries.some(e=>e.target.auth_method||e.target.identity_agent)?2:1,active:entries.some(entry=>entry.id===active)?active:'',entries});}
+  function captureWorkspaceLayout(items=latestWorkspaces.current): WorkspaceLayout | undefined {
+    const entries: WorkspaceLayoutEntry[] = [];
+    for (const workspace of items) {
+      const connection = workspace.rdp?.connection || workspace.connection;
+      if (!connection) continue;
+      const ssh = workspace.ssh?.current?.layout() || workspace.restore;
+      if (connection.protocol === 'ssh' && !ssh) return;
+      entries.push({ id: workspace.id, connection_id: workspace.connectionID, name: workspace.name, target: { name: connection.name, protocol: connection.protocol, host: connection.host, port: connection.port, username: connection.username, domain: connection.domain || '', auth_method: connection.auth_method || '', identity_agent: connection.identity_agent || '', jump_id: connection.jump_id || '', mfa: connection.mfa, proxy_address: connection.proxy_address }, ...(ssh ? { ssh } : {}) });
+    }
+    return { version: entries.some(entry => entry.target.jump_id) ? 7 : entries.some(entry => entry.target.proxy_address) ? 6 : entries.some(entry => entry.target.mfa || entry.target.auth_method === 'keyboard_interactive') ? 4 : entries.some(entry => entry.target.auth_method || entry.target.identity_agent) ? 2 : 1, active: entries.some(entry => entry.id === active) ? active : '', entries };
+  }
+  function notifyLocalState(items=latestWorkspaces.current){notifyRecovery(items);const layout=captureWorkspaceLayout(items);if(layout)workspaceRestore.queue(layout);}
+  function manageWorkspaceSets() {
+    const layout = captureWorkspaceLayout();
+    if (!layout) { setPreferenceError('工作区布局尚未就绪，请稍后重试'); return; }
+    setWorkspaceSetLayout(layout);
+  }
   async function flushLocalState(){notifyLocalState();await workspaceRestore.flush();await recovery.flush();++portableGeneration.current;await SavePortableUI(capturePortableUI());setPortableError('');}
   async function finishExit() { if (restartUpdate.current) { setRestarting(true); try { await RestartForUpdate(); } catch (error) { setRestarting(false); throw error; } } else await DiscardAndQuit(); }
   nativeClose.current=()=>{if(autoQuitting.current)return;if(demoScene)exitDemo();if(latestWorkspaces.current.some(w=>w.ssh?.current?.hasDirty())){setQuitConfirm(true);return;}autoQuitting.current=true;void(async()=>{try{try{await flushLocalState();}catch(e){setExitPersistenceError(true);throw e;}await finishExit();}catch(e){setCloseError(errorMessage(e));setQuitConfirm(true);}finally{autoQuitting.current=false;}})();};
   useEffect(()=>{notifyLocalState();},[workspaces,active,recovery.enabled,workspaceRestore.startup]);
-  useEffect(()=>{if(demoScene||restorePrompted.current||!catalog||!workspaceRestore.startup)return;restorePrompted.current=true;if(workspaceRestore.startup.entries?.length&&!workspaces.length&&!dialog&&!settings)setRestoreDialog(workspaceRestore.startup);},[catalog,workspaceRestore.startup,demoScene]);
+  useEffect(()=>{if(demoScene||workspaceSetLayout||restorePrompted.current||!catalog||!workspaceRestore.startup)return;restorePrompted.current=true;if(workspaceRestore.startup.entries?.length&&!workspaces.length&&!dialog&&!settings)setRestoreDialog(workspaceRestore.startup);},[catalog,workspaceRestore.startup,demoScene,workspaceSetLayout]);
 
   function remove(id: string, keyboard = false) {
     attempt.cancelWorkspace(id);
@@ -196,11 +214,11 @@ export default function App() {
   useEffect(() => { localStorage.setItem('termquay.layout.transfer-height', String(transferHeight)); }, [transferHeight]);
   useEffect(() => { localStorage.setItem('termquay.terminal.font-size', String(fontSize)); }, [fontSize]);
   useEffect(() => {
-    if (demoScene || dialog || rdpStart || restoreDialog || snippetInsert || attempt.trust || closing || quitConfirm || palette || settings) return;
+    if (demoScene || dialog || rdpStart || restoreDialog || workspaceSetLayout || snippetInsert || attempt.trust || closing || quitConfirm || palette || settings) return;
     if (tabNavigation.current) { tabNavigation.current = false; return; }
     const frame = requestAnimationFrame(() => { if (current?.rdp) current.view?.current?.focus(); else current?.ssh?.current?.focus(); });
     return () => cancelAnimationFrame(frame);
-  }, [active, dialog, rdpStart, restoreDialog, snippetInsert, attempt.trust, closing, quitConfirm, palette, settings,demoScene]);
+  }, [active, dialog, rdpStart, restoreDialog, workspaceSetLayout, snippetInsert, attempt.trust, closing, quitConfirm, palette, settings,demoScene]);
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
       if (demoScene || event.isComposing || event.repeat || dialog || attempt.trust || closing || quitConfirm || restarting) return;
@@ -262,8 +280,15 @@ export default function App() {
     const ok = await attempt.start(saved, undefined, w.id, undefined, true);
     return { ok, retryable: attempt.canRetry() };
   }
-  async function restoreWorkspaces(entries:WorkspaceLayoutEntry[]){await recovery.flush();const currentIDs=new Set(latestWorkspaces.current.map(w=>w.id));const values=entries.filter(e=>!currentIDs.has(e.id));if(values.length+currentIDs.size>16)throw new Error('打开工作区达到上限（16 个）');const restored:Workspace[]=values.map(e=>{const c:Connection={...e.target,id:e.connection_id,group_id:'',credential_id:''};return {id:e.id,connectionID:e.connection_id,connection:c,name:e.name,state:'未连接',restored:true,...(c.protocol==='ssh'?{ssh:createRef<SSHWorkspaceHandle>(),restore:e.ssh||undefined}:{rdp:{connection:c,options:{clipboard:false,resolution:preferences[c.id]?.rdp_resolution||'dynamic'}},view:createRef<RDPHandle>()})};});setWorkspaces(prev=>[...prev,...restored]);if(restored.length)select(restored.some(w=>w.id===restoreDialog?.active)?restoreDialog!.active:restored[0].id);}
+  async function restoreWorkspaces(entries:WorkspaceLayoutEntry[], preferredActive=restoreDialog?.active){await recovery.flush();const currentIDs=new Set(latestWorkspaces.current.map(w=>w.id));const values=entries.filter(e=>!currentIDs.has(e.id));if(values.length+currentIDs.size>16)throw new Error('打开工作区达到上限（16 个）');const restored:Workspace[]=values.map(e=>{const c:Connection={...e.target,id:e.connection_id,group_id:'',credential_id:''};return {id:e.id,connectionID:e.connection_id,connection:c,name:e.name,state:'未连接',restored:true,...(c.protocol==='ssh'?{ssh:createRef<SSHWorkspaceHandle>(),restore:e.ssh||undefined}:{rdp:{connection:c,options:{clipboard:false,resolution:preferences[c.id]?.rdp_resolution||'dynamic'}},view:createRef<RDPHandle>()})};});setWorkspaces(prev=>[...prev,...restored]);if(restored.length)select(restored.some(w=>w.id===preferredActive)?preferredActive!:restored[0].id);}
+  async function openWorkspaceSet(layout: WorkspaceLayout) {
+    if (attempt.busy || localOpening.current) throw new Error('请等待当前连接或本地终端创建完成');
+    const entries = layout.entries || [];
+    const ids = new Map(entries.map(entry => [entry.id, crypto.randomUUID()]));
+    await restoreWorkspaces(entries.map(entry => ({ ...entry, id: ids.get(entry.id)! })), ids.get(layout.active));
+  }
   const tools = <>
+    <Tooltip content="命名工作集"><button className="icon-button" aria-label="命名工作集" disabled={attempt.busy || openingLocal || !catalog} onClick={manageWorkspaceSets}><Icon name="list" /></button></Tooltip>
     <Tooltip content={`命令搜索 · ${shortcutLabel(shortcuts.palette)}`}><button className="icon-button" aria-label="命令搜索" onClick={() => { setPaletteScope('all'); setPaletteQuery(''); setPalette(true); }}><Icon name="search" /></button></Tooltip>
     <Tooltip content={updates.status?.version ? '设置 · 有可用更新' : '设置'}><button className="icon-button relative" aria-label={updates.status?.version ? '设置，有可用更新' : '设置'} aria-pressed={settings} onClick={() => { if(updates.status?.version)setSettingsSection('about');setSettings(!settings); }}><Icon name="settings" />{updates.status?.version && <span className="update-indicator" aria-hidden="true" />}</button></Tooltip>
   </>;
@@ -275,6 +300,7 @@ export default function App() {
     ...demoScenes.map(scene=>({id:`demo-${scene.id}`,label:scene.label,search:'demo 演示模式',kind:'command' as const,run:()=>showDemo(scene.id)})),
     ...localShells.map(shell=>({id:`local-${shell.id}`,label:`本地终端 · ${shell.name}`,kind:'command' as const,run:()=>{void openLocalShell(shell.id);}})),
     { id: 'connections', label: '进入连接中心', kind: 'command', run: () => select('') },
+    { id: 'workspace-sets', label: '管理命名工作集', kind: 'command', run: manageWorkspaceSets },
     ...(current?.ssh ? [{ id: 'files', label: '显示远端文件', kind: 'command' as const, run: () => current.ssh?.current?.showFiles() }, { id: 'monitor', label: '切换监控面板', kind: 'command' as const, run: () => current.ssh?.current?.toggleMonitor() }, { id: 'focus', label: '切换专注模式', kind: 'command' as const, run: () => current.ssh?.current?.toggleFocus() }] : []),
     ...(current?.ssh||current?.local ? shortcutDefinitions.filter(d => d.scope === 'terminal').map(d => ({ id: `terminal-${d.id}`, label: d.label, detail: shortcutLabel(shortcuts[d.id]), kind: 'command' as const, run: () => {if(current.local)current.local.terminal.current?.action(d.id);else current.ssh?.current?.terminalAction(d.id);} })) : []),
     ...(current?.ssh ? shortcutDefinitions.filter(d=>d.scope==='workspace').map(d=>({id:d.id,label:d.label,detail:shortcutLabel(shortcuts[d.id]),kind:'command' as const,run:()=>current.ssh?.current?.workspaceAction(d.id)})) : []),
@@ -295,7 +321,7 @@ export default function App() {
   const menuCommand = useRef<(id:string)=>void>(()=>{});
   menuCommand.current = id => { if (demoScene || dialog || rdpStart || restoreDialog || snippetInsert || attempt.trust || closing || quitConfirm || restarting || document.querySelector('[role=dialog]')) return; commands.find(command=>command.id===id)?.run(); };
   useEffect(()=>Events.On('app:menu-command',event=>menuCommand.current(event.data as string)),[]);
-  const menuState = JSON.stringify(dialog || rdpStart || restoreDialog || snippetInsert || attempt.trust || closing || quitConfirm || restarting || palette || batchCommandOpen ? {} : Object.fromEntries(commands.map(command=>[command.id,command.shortcut==='未分配'?'':command.shortcut||''])));
+  const menuState = JSON.stringify(dialog || rdpStart || restoreDialog || workspaceSetLayout || snippetInsert || attempt.trust || closing || quitConfirm || restarting || palette || batchCommandOpen ? {} : Object.fromEntries(commands.map(command=>[command.id,command.shortcut==='未分配'?'':command.shortcut||''])));
   useEffect(()=>{if(!demoScene&&System.IsMac())void Events.Emit('app:menu-state',JSON.parse(menuState) as Record<string,string>).catch(error=>setPreferenceError(`菜单更新失败：${errorMessage(error)}`));},[menuState,demoScene]);
   return <>
     <div className="live-workbench" hidden={demoScene!==null}>
@@ -323,6 +349,7 @@ export default function App() {
     {attempt.challenge && <SSHChallengeDialog key={attempt.challenge.id} challenge={attempt.challenge} target={attempt.target} onAnswer={attempt.answer} onCancel={attempt.cancel} />}
     {batchCommandOpen && <BatchCommandDialog targets={workspaces.filter(w => w.sessionID && w.state === '已连接').map(w => ({ id: w.sessionID!, name: w.name, address: `${w.connection?.username}@${w.connection?.host}:${w.connection?.port}` }))} initial={current?.sessionID} snippets={snippets} onClose={() => setBatchCommandOpen(false)} />}
     {restoreDialog&&<WorkspaceRestoreDialog layout={restoreDialog} connections={catalog?.connections||[]} openIDs={workspaces.map(w=>w.id)} onRestore={restoreWorkspaces} onClose={()=>setRestoreDialog(undefined)}/>}
+    {workspaceSetLayout && <Suspense fallback={<div className="session-status" role="status">正在载入工作集…</div>}><WorkspaceSetsDialog layout={workspaceSetLayout} localCount={workspaces.filter(workspace => !!workspace.local).length} connections={catalog?.connections || []} onOpen={openWorkspaceSet} onClose={() => setWorkspaceSetLayout(undefined)} /></Suspense>}
     {palette && <CommandPalette commands={commands} initialScope={paletteScope} initialQuery={paletteQuery} onClose={() => { setPalette(false); setPaletteQuery(''); }} error={snippetError} />}
     {snippetInsert&&<SnippetInsertDialog snippet={snippetInsert.snippet} onClose={()=>setSnippetInsert(undefined)} onInsert={text=>active===snippetInsert.workspace&&(current?.local?!!current.local.terminal.current?.insert(text):!!current?.ssh?.current?.insert(text,snippetInsert.terminal))}/>}
     <Modal isOpen={restarting} isDismissable={false} isKeyboardDismissDisabled className="app-dialog"><ModalContent><ModalHeader>正在重启更新</ModalHeader><ModalBody><p role="status">正在等待更新进程就绪…</p></ModalBody></ModalContent></Modal>

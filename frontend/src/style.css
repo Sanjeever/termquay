@@ -734,6 +734,18 @@ button:active:not(:disabled):not([role=tab]) { filter: brightness(.93); }
 .inspection-properties dt { color: var(--color-muted); flex-shrink: 0; }
 .inspection-properties dd { overflow-wrap: anywhere; }
 .inspection-journal > pre { max-height: 30vh; margin-top: 8px; }
+.workspace-set-save, .workspace-set-rename, .workspace-set-heading, .workspace-set-confirm { display: flex; align-items: center; gap: 8px; }
+.workspace-set-save > input, .workspace-set-rename > input { min-width: 0; flex: 1; }
+.workspace-set-rename { width: 100%; }
+.workspace-set-item { padding: 12px 0; border-bottom: 1px solid var(--color-border); }
+.workspace-set-heading { flex-wrap: wrap; }
+.workspace-set-heading > strong { flex: 1; min-width: 100px; overflow-wrap: anywhere; }
+.workspace-set-entries { margin-top: 8px; }
+.workspace-set-entries > summary { color: var(--color-muted); font-size: 12px; }
+.workspace-set-entries li { display: flex; flex-direction: column; gap: 3px; padding: 6px 0; overflow-wrap: anywhere; }
+.workspace-set-entries li > strong { font-weight: 500; }
+.workspace-set-confirm { flex-wrap: wrap; margin-top: 10px; }
+.workspace-set-confirm > span { flex: 1; min-width: 200px; }
 @media (max-width: 1100px) {
   .file-dock { position: absolute; top: 0; bottom: 0; left: 0; z-index: 5; border-right: 1px solid var(--color-border); box-shadow: 12px 0 32px #0005; }
   .settings-sidebar { width: 180px; }

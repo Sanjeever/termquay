@@ -177,6 +177,10 @@ export function DeleteTunnelPreset(connectionID: string, name: string): $Cancell
     return $Call.ByID(33593236, connectionID, name);
 }
 
+export function DeleteWorkspaceSet(id: string): $CancellablePromise<void> {
+    return $Call.ByID(1457833538, id);
+}
+
 export function DisableAutomaticBackup(): $CancellablePromise<void> {
     return $Call.ByID(1583756179);
 }
@@ -347,6 +351,10 @@ export function ListTrusts(after: string): $CancellablePromise<$models.TrustPage
 
 export function ListTunnels(workspace: string): $CancellablePromise<$models.Tunnel[] | null> {
     return $Call.ByID(495421101, workspace);
+}
+
+export function ListWorkspaceSets(): $CancellablePromise<$models.WorkspaceSet[] | null> {
+    return $Call.ByID(253206);
 }
 
 export function MeasureConnectionLatency(id: string): $CancellablePromise<$models.ConnectionLatency> {
@@ -603,6 +611,10 @@ export function SaveWorkspaceDrafts(workspace: string, documents: $models.Recove
 
 export function SaveWorkspaceLayout(layout: $models.WorkspaceLayout): $CancellablePromise<void> {
     return $Call.ByID(278295598, layout);
+}
+
+export function SaveWorkspaceSet(id: string, name: string, layout: $models.WorkspaceLayout): $CancellablePromise<$models.WorkspaceSet> {
+    return $Call.ByID(2831448600, id, name, layout);
 }
 
 export function SearchRemoteFiles(workspace: string, options: files$0.SearchOptions): $CancellablePromise<files$0.SearchResult> {
