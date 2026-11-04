@@ -40,7 +40,8 @@ button:active:not(:disabled):not([role=tab]) { filter: brightness(.93); }
 [role=menuitem][data-hover=true], [role=menuitem][data-focus=true] { background: var(--color-hover); }
 [data-slot=tooltip] { background: var(--color-elevated); color: var(--color-text); border: 1px solid var(--color-border); box-shadow: var(--shadow-floating); font-size: 11px; border-radius: 6px; }
 .app-shell { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
-.workbench-header { display: flex; min-height: 46px; height: 46px; background: var(--color-material); border-bottom: 1px solid var(--color-border); user-select: none; --wails-draggable: drag; --wails-non-client-region: caption; --termquay-window-drag: drag; }
+/* Windows 原生 caption 按完整矩形命中，不能放在包含交互控件的父容器上。 */
+.workbench-header { display: flex; min-height: 46px; height: 46px; background: var(--color-material); border-bottom: 1px solid var(--color-border); user-select: none; --wails-draggable: drag; --termquay-window-drag: drag; }
 .titlebar-brand { display: flex; align-items: center; gap: 7px; flex-shrink: 0; padding: 0 12px; font-size: 12px; font-weight: 600; user-select: none; --wails-draggable: drag; --wails-non-client-region: caption; }
 .titlebar-brand > * { pointer-events: none; }
 .titlebar-drag { min-width: 80px; flex: 0 0 80px; --wails-draggable: drag; --wails-non-client-region: caption; }
@@ -61,7 +62,7 @@ button:active:not(:disabled):not([role=tab]) { filter: brightness(.93); }
 .window-maximise { --wails-non-client-region: maximize; }
 .window-close { --wails-non-client-region: close; }
 .workbench-tools { display: flex; align-items: center; padding: 0 10px; gap: 4px; }
-.workbench-tools, .window-controls, .workspace-tab, .workspace-tabs > button { --wails-draggable: no-drag; --wails-non-client-region: client; --termquay-window-drag: no-drag; }
+.workbench-tools, .window-controls, .workspace-tab, .workspace-tabs > button { --wails-draggable: no-drag; --termquay-window-drag: no-drag; }
 .workspace-tabs { display: flex; flex: 1; min-width: 0; align-items: center; gap: 4px; padding: 6px 0; overflow: auto; scrollbar-width: thin; }
 .workspace-tabs > .icon-button { margin: 0 4px; }
 .workspace-tab { position: relative; display: flex; align-self: stretch; align-items: center; border-radius: var(--radius); color: var(--color-muted); flex-shrink: 0; max-width: 240px; }
