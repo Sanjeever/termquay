@@ -100,6 +100,7 @@ export interface CommandRunItem {
     "check"?: InspectionCheckResult | null;
     "baseline"?: string;
     "error"?: string;
+    "revision": number;
 }
 
 export interface CommandRunRecord {

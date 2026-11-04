@@ -32,6 +32,7 @@ import { ListLocalShells, OpenLocalTerminal, CloseLocalTerminal } from '../bindi
 import type { LocalShell } from '../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import TerminalView, { type TerminalHandle } from './features/terminal/TerminalView';
 import type { CommandAttention } from './features/terminal/commandAttention';
+import useCommandRuns from './features/terminal/useCommandRuns';
 import useConnectionAttempt from './features/connections/useConnectionAttempt';
 import ConnectionDiagnostics from './features/connections/ConnectionDiagnostics';
 import Icon from './components/Icon';
@@ -104,6 +105,9 @@ export default function App() {
   const [fileCompareOpen, setFileCompareOpen] = useState(false);
   const [recordingOpen, setRecordingOpen] = useState(false);
   const [commandTasksOpen, setCommandTasksOpen] = useState(false);
+  const [commandTasksCreated, setCommandTasksCreated] = useState(false);
+  const commandRuns = useCommandRuns(!!catalog);
+  useEffect(() => { if (commandTasksOpen) setCommandTasksCreated(true); }, [commandTasksOpen]);
   const [dockerOpen, setDockerOpen] = useState(false);
   const [servicesOpen, setServicesOpen] = useState(false);
   const [services, setServices] = useState<TunnelPreset[]>([]);
@@ -140,6 +144,7 @@ export default function App() {
   async function flushLocalState(){if(!catalog)return;notifyLocalState();await workspaceRestore.flush();await recovery.flush();++portableGeneration.current;await SavePortableUI(capturePortableUI());setPortableError('');}
   const workbenchClose = useWorkbenchClose({
     workspaces,
+    activeTasks: commandRuns.active,
     flushLocalState,
     beforeQuit: () => { if (demoScene) exitDemo(); },
     remove,
@@ -166,7 +171,7 @@ export default function App() {
     setWorkspaces(prev => { const from = prev.findIndex(w => w.id === id); const to = prev.findIndex(w => w.id === target); if (from < 0 || to < 0 || from === to) return prev; const next = [...prev]; next.splice(to, 0, next.splice(from, 1)[0]); return next; });
   }
   function workspaceState(id: string, state: string) { setWorkspaces(prev => prev.map(w => w.id === id && w.state !== state ? { ...w, state } : w)); }
-  function workspaceAttention(id: string, attention?: CommandAttention) { setWorkspaces(prev => prev.map(w => w.id === id && w.attention !== attention ? { ...w, attention } : w)); }
+  function workspaceAttention(id: string, attention?: CommandAttention) { setWorkspaces(prev => prev.some(w => w.id === id && w.attention !== attention) ? prev.map(w => w.id === id ? { ...w, attention } : w) : prev); }
   async function recordSuccess(id: string) { if (!id) return; try { await RecordConnectionSuccess(id); setPreferences(await GetConnectionPreferences() || {}); } catch (e) { setPreferenceError(`记录最近连接失败：${errorMessage(e)}`); } }
   async function saveRDPResolution(id: string, value: string) { if (!id) return; await SetRDPResolution(id,value); setPreferences(await GetConnectionPreferences() || {}); }
   const attempt = useConnectionAttempt((id, connection, reuse, automatic, route) => {
@@ -382,7 +387,9 @@ export default function App() {
   return <>
     <div className="live-workbench" hidden={demoScene!==null}>
     <Workbench tabs={<WorkspaceTabs items={workspaces} active={active} onSelect={select} onClose={closeWorkspace} onSearch={() => { setPaletteScope('workspace'); setPalette(true); }} onNew={() => openDialog(false)} onMove={moveWorkspace} onRename={(id, name) => setWorkspaces(prev => prev.map(w => w.id === id ? { ...w, name } : w))} />} tools={tools} settings={settings}
-      status={<><span>{catalog?.session_only ? '会话存储' : '本地工作台'}</span><span>{workspaces.length} 个工作区</span><div className="status-spacer" />{recovery.error&&<button className="error" onClick={()=>{setSettingsSection('recovery');setSettings(true);}}>本地草稿保存失败</button>}{portableError&&<button className="error" onClick={()=>setDismissedPortable(0)}>界面设置未保存</button>}{(automaticBackup.error||automaticBackup.status?.error)&&<button className="error" onClick={()=>{setSettingsSection('backup');setSettings(true);}}>备份失败</button>}<Tooltip content={transfers.summary}><button className={transfers.failed || transfers.error ? 'error' : ''} aria-expanded={transfersOpen} onClick={() => setTransfersOpen(!transfersOpen)}><Icon name="transfer" width="14" />{transfers.running ? `传输 ${transfers.running} 进行中` : transfers.waiting ? '传输' : transfers.items.length ? '传输结束' : '传输'}{transfers.running > 0 && <span aria-hidden="true"> · {bytes(transfers.speed)}/s</span>}{transfers.waiting ? ` · ${transfers.waiting} 等待` : !transfers.running && transfers.items.length ? ` · ${transfers.summary}` : ''}{transfers.running > 0 && transfers.failed ? ` · ${transfers.failed} 失败` : ''}{transfers.error ? ' · 加载失败' : ''}</button></Tooltip></>}>
+      status={<><span>{catalog?.session_only ? '会话存储' : '本地工作台'}</span><span>{workspaces.length} 个工作区</span><div className="status-spacer" />{recovery.error&&<button className="error" onClick={()=>{setSettingsSection('recovery');setSettings(true);}}>本地草稿保存失败</button>}{portableError&&<button className="error" onClick={()=>setDismissedPortable(0)}>界面设置未保存</button>}{(automaticBackup.error||automaticBackup.status?.error)&&<button className="error" onClick={()=>{setSettingsSection('backup');setSettings(true);}}>备份失败</button>}
+        <button className={commandRuns.error ? 'error' : ''} aria-expanded={commandTasksOpen} onClick={() => setCommandTasksOpen(true)}><Icon name="list" width="14" />{commandRuns.waiting ? `任务 · ${commandRuns.waiting} 等待确认` : commandRuns.active ? `任务 · ${commandRuns.active} 进行中` : '任务'}{commandRuns.error ? ' · 读取失败' : ''}</button>
+        <Tooltip content={transfers.summary}><button className={transfers.failed || transfers.error ? 'error' : ''} aria-expanded={transfersOpen} onClick={() => setTransfersOpen(!transfersOpen)}><Icon name="transfer" width="14" />{transfers.running ? `传输 ${transfers.running} 进行中` : transfers.waiting ? '传输' : transfers.items.length ? '传输结束' : '传输'}{transfers.running > 0 && <span aria-hidden="true"> · {bytes(transfers.speed)}/s</span>}{transfers.waiting ? ` · ${transfers.waiting} 等待` : !transfers.running && transfers.items.length ? ` · ${transfers.summary}` : ''}{transfers.running > 0 && transfers.failed ? ` · ${transfers.failed} 失败` : ''}{transfers.error ? ' · 加载失败' : ''}</button></Tooltip></>}>
       {storageError && !catalog && <Suspense fallback={<div role="status">正在读取存储保护…</div>}><StorageAccess error={storageError} onOpened={async () => { await reload(); await recovery.refresh(); }} /></Suspense>}
       {storageError && catalog && <ErrorNotice message={storageError} />}
       {!dialog && (attempt.busy || (attempt.error && !current?.rdp)) && <div className="connection-feedback" role={attempt.error ? 'alert' : 'status'}><span className={attempt.error ? 'error' : ''}>{attempt.target} · {attempt.error || attempt.steps[attempt.steps.length - 1]?.stage || '正在连接…'}</span><div className="button-row">{!!attempt.steps.length && <Button size="sm" variant="light" onPress={() => setConnectionDiagnosticsOpen(true)}>连接诊断</Button>}{attempt.busy && <Button size="sm" variant="light" onPress={attempt.cancel}>取消连接</Button>}{!attempt.busy && <button className="icon-button" aria-label="关闭连接错误" onClick={attempt.clearError}><Icon name="close" /></button>}</div></div>}
@@ -409,7 +416,7 @@ export default function App() {
     {recordingOpen && <Suspense fallback={<div role="status">正在载入录制回放…</div>}><RecordingPlayer onClose={() => setRecordingOpen(false)} /></Suspense>}
     {batchCommandOpen && <BatchCommandDialog groups={catalog?.groups} targets={workspaces.filter(w => w.sessionID && w.state === '已连接').map(w => ({ id: w.sessionID!, name: w.name, address: `${w.connection?.username}@${w.connection?.host}:${w.connection?.port}`, connection: w.connection, preference: preferences[w.connectionID] }))} initial={current?.sessionID} snippets={snippets} onClose={() => setBatchCommandOpen(false)} />}
     {fileCompareOpen && <Suspense fallback={<div role="status">正在载入文件对比…</div>}><FileCompareDialog targets={workspaces.filter(w => !w.local && !w.rdp && w.sessionID && w.state === '已连接').map(w => ({ id: w.sessionID!, name: w.name }))} initial={current?.ssh ? current.sessionID : undefined} onTransfer={item => { transfers.accept([item]); setTransferReveal(item.id); setTransfersOpen(true); }} onClose={() => setFileCompareOpen(false)} /></Suspense>}
-    {commandTasksOpen && <Suspense fallback={<div role="status">正在载入命令任务…</div>}><CommandTasksDialog groups={catalog?.groups} targets={workspaces.filter(w => w.ssh && w.sessionID && w.state === '已连接').map(w => ({ id: w.sessionID!, name: w.name, address: `${w.connection?.username}@${w.connection?.host}:${w.connection?.port}`, connection: w.connection, preference: preferences[w.connectionID] }))} onClose={() => setCommandTasksOpen(false)} /></Suspense>}
+    {(commandTasksOpen || commandTasksCreated) && <Suspense fallback={commandTasksOpen ? <div role="status">正在载入命令任务…</div> : null}><CommandTasksDialog open={commandTasksOpen} runs={commandRuns.items} historyError={commandRuns.error} onRefresh={commandRuns.refresh} onRun={commandRuns.update} groups={catalog?.groups} targets={workspaces.filter(w => w.ssh && w.sessionID && w.state === '已连接').map(w => ({ id: w.sessionID!, name: w.name, address: `${w.connection?.username}@${w.connection?.host}:${w.connection?.port}`, connection: w.connection, preference: preferences[w.connectionID] }))} onClose={() => setCommandTasksOpen(false)} /></Suspense>}
     {dockerOpen && <Suspense fallback={<div role="status">正在载入 Docker…</div>}><DockerDialog targets={workspaces.filter(w => w.ssh && w.sessionID && w.state === '已连接').map(w => ({ id: w.sessionID!, name: w.name }))} initial={current?.ssh ? current.sessionID : undefined} fontSize={fontSize} onDirectory={(session, path) => { const target = workspaces.find(value => value.sessionID === session); if (target) { setActive(target.id); target.ssh?.current?.locateDirectory(path); setDockerOpen(false); } }} onClose={() => setDockerOpen(false)} /></Suspense>}
     {restoreDialog&&<WorkspaceRestoreDialog layout={restoreDialog} connections={catalog?.connections||[]} openIDs={workspaces.map(w=>w.id)} onRestore={restoreWorkspaces} onClose={()=>setRestoreDialog(undefined)}/>}
     {workspaceSetLayout && <Suspense fallback={<div className="session-status" role="status">正在载入工作集…</div>}><WorkspaceSetsDialog layout={workspaceSetLayout} localCount={workspaces.filter(workspace => !!workspace.local).length} connections={catalog?.connections || []} onOpen={openWorkspaceSet} onClose={() => setWorkspaceSetLayout(undefined)} /></Suspense>}

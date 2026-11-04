@@ -248,14 +248,14 @@ func (a *AppService) ServiceShutdown() (result error) {
 	}
 	a.mu.Unlock()
 	a.stopAutomaticBackup()
-	for _, run := range commandRuns {
-		<-run.done
-	}
 	for _, id := range localIDs {
 		a.CloseLocalTerminal(id)
 	}
 	for _, id := range ids {
 		a.CloseWorkspace(id)
+	}
+	for _, run := range commandRuns {
+		<-run.done
 	}
 	if a.rdp != nil {
 		a.rdp.Close()

@@ -6,6 +6,7 @@ import type { Workspace } from './workspace';
 
 export default function useWorkbenchClose(options: {
   workspaces: Workspace[];
+  activeTasks: number;
   flushLocalState(): Promise<void>;
   beforeQuit(): void;
   remove(id: string, keyboard: boolean): void;
@@ -40,7 +41,7 @@ export default function useWorkbenchClose(options: {
   nativeClose.current = () => {
     if (autoQuitting.current) return;
     latest.current.beforeQuit();
-    if (latest.current.workspaces.some(workspace => workspace.ssh?.current?.hasDirty())) {
+    if (latest.current.activeTasks || latest.current.workspaces.some(workspace => workspace.ssh?.current?.hasDirty())) {
       setQuitConfirm(true);
       return;
     }
@@ -103,5 +104,5 @@ export default function useWorkbenchClose(options: {
 
   function restart() { restartUpdate.current = true; nativeClose.current(); }
 
-  return { closing, quitConfirm, saving, error, persistenceError, restarting, requestClose, cancel, discard, save, restart };
+  return { closing, quitConfirm, saving, error, persistenceError, restarting, requestClose, cancel, discard, save, restart, activeTasks: quitConfirm ? options.activeTasks : 0, hasDirty: options.workspaces.some(workspace => (quitConfirm || workspace.id === closing) && workspace.ssh?.current?.hasDirty()) };
 }

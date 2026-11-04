@@ -32,6 +32,7 @@ type CommandRunItem struct {
 	Check    *InspectionCheckResult  `json:"check,omitempty"`
 	Baseline string                  `json:"baseline,omitempty"`
 	Error    string                  `json:"error,omitempty"`
+	Revision uint64                  `json:"revision"`
 }
 
 type CommandRunSummary struct {
@@ -130,6 +131,15 @@ func (a *AppService) commandRunChangedLocked(run *commandRun) {
 	application.Get().Event.Emit("command-run:changed", run.view.Summary)
 }
 
+func (a *AppService) commandRunItemChangedLocked(run *commandRun, index int) {
+	a.commandRunChangedLocked(run)
+	run.view.Results[index].Revision = run.view.Summary.Revision
+	application.Get().Event.Emit("command-run:item", struct {
+		ID   string         `json:"id"`
+		Item CommandRunItem `json:"item"`
+	}{run.view.Summary.ID, run.view.Results[index]})
+}
+
 func (a *AppService) executeCommandRun(ctx context.Context, run *commandRun, targets []CommandRunTarget, baselineWorkspace string) {
 	defer close(run.done)
 	defer run.cancel()
@@ -207,19 +217,25 @@ func (a *AppService) executeCommandRun(ctx context.Context, run *commandRun, tar
 						item := run.view.Results[itemIndex]
 						item.State = "执行中"
 						run.view.Results[itemIndex] = item
-						a.commandRunChangedLocked(run)
+						a.commandRunItemChangedLocked(run, itemIndex)
 						a.mu.Unlock()
 						result, err := a.RunCommandStep(ctx, targets[targetIndex].ID, step, baselines[index])
 						item.Result, item.Check = result.Command, result.Check
+						if err != nil {
+							item.Error = err.Error()
+							if step.Check != nil {
+								item.Check = &InspectionCheckResult{State: "unknown", Message: err.Error()}
+							}
+						}
 						if baseline := baselines[index]; baseline != nil {
 							item.Baseline = baseline.Workspace + " · " + baseline.Path + " · " + baseline.Revision
 						}
 						stepFailed := err != nil || item.Check != nil && item.Check.State != "pass" || item.Check == nil && (item.Result == nil || item.Result.Error != "" || item.Result.ExitCode != 0)
 						switch {
-						case err != nil:
-							item.State, item.Error = "失败", err.Error()
 						case item.Check != nil:
 							item.State = map[string]string{"pass": "通过", "fail": "不通过", "unknown": "无法判定"}[item.Check.State]
+						case item.Result != nil && item.Result.Error == "" && item.Result.ExitCode != 0:
+							item.State = "非零退出"
 						case stepFailed:
 							item.State = "失败"
 						default:
@@ -234,7 +250,7 @@ func (a *AppService) executeCommandRun(ctx context.Context, run *commandRun, tar
 						}
 						run.view.Results[itemIndex] = item
 						run.view.Summary.Completed++
-						a.commandRunChangedLocked(run)
+						a.commandRunItemChangedLocked(run, itemIndex)
 						a.mu.Unlock()
 						if stepFailed {
 							failed.Store(true)
