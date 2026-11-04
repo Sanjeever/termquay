@@ -8,13 +8,13 @@ import type { Connection } from '../../../bindings/github.com/Sanjeever/termquay
 type Measurement = { key: string; result?: ConnectionLatency; checkedAt?: number; refreshing: boolean };
 type Probe = { operation: ReturnType<typeof MeasureConnectionLatency>; cancelled: boolean };
 
-export default function useConnectionLatency(connections: Connection[], active: boolean) {
+export default function useConnectionLatency(connections: Connection[], active: boolean, visible: Connection[]) {
   const [measurements, setMeasurements] = useState<Record<string, Measurement | undefined>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const targets = useMemo(() => {
     const byID = new Map(connections.map(connection => [connection.id, connection]));
-    return new Map(connections.map(connection => {
+    return new Map(visible.map(connection => {
       const route: (string | number | undefined)[][] = [];
       let hop: Connection | undefined = connection;
       for (let index = 0; hop && index < 5; index++) {
@@ -23,8 +23,8 @@ export default function useConnectionLatency(connections: Connection[], active: 
       }
       return [connection.id, JSON.stringify(route)];
     }));
-  }, [connections]);
-  const version = useMemo(() => JSON.stringify([...targets]), [targets]);
+  }, [connections, visible]);
+  const version = useMemo(() => JSON.stringify([...targets].sort(([a], [b]) => a.localeCompare(b))), [targets]);
   const latestTargets = useRef(targets); latestTargets.current = targets;
   const running = useRef(new Map<string, Probe>());
   const dispatch = useRef<(id?: string) => void>(() => {});
@@ -88,7 +88,7 @@ export default function useConnectionLatency(connections: Connection[], active: 
     function sync() {
       const next = active && ready && !minimised && document.visibilityState === 'visible';
       if (!next) { pause(); return; }
-      if (!enabled) { enabled = true; refresh(); timer = setInterval(() => refresh(), 5000); }
+      if (!enabled) { enabled = true; refresh(); timer = setInterval(() => refresh(), 30000); }
     }
     dispatch.current = refresh;
     resume.current = pump;
