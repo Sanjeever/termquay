@@ -19,6 +19,7 @@ export const shortcutDefinitions = [
   { id: 'zoomIn', label: '放大终端字号', scope: 'terminal', key: '' },
   { id: 'zoomOut', label: '缩小终端字号', scope: 'terminal', key: '' },
   { id: 'zoomReset', label: '复位终端字号', scope: 'terminal', key: '' },
+  { id: 'completion', label: '触发代码补全', scope: 'editor', key: 'Alt+Slash' },
 ] as const;
 export type ShortcutID = typeof shortcutDefinitions[number]['id'];
 export type Shortcuts = Record<ShortcutID, string>;

@@ -19,6 +19,12 @@ export function editorTheme(dark: boolean) {
     '.cm-line': { padding: '0 12px' },
     '.cm-foldGutter': { width: '14px' },
     '.cm-minimap-gutter': { background: 'var(--color-background)', borderLeft: '1px solid var(--color-border)' },
+    '.cm-tooltip': { background:'var(--color-elevated)',color:'var(--color-text)',border:'1px solid var(--color-border-strong)',borderRadius:'6px' },
+    '.cm-tooltip-autocomplete ul li[aria-selected]': { background:'var(--color-selected)',color:'var(--color-text)' },
+    '.cm-completionInfo,.editor-word-help': { padding:'8px 10px',maxWidth:'360px',fontFamily:'var(--font-ui)',fontSize:'12px' },
+    '.cm-diagnostic-error': { borderLeftColor:'var(--color-danger)' },
+    '.cm-diagnostic-warning': { borderLeftColor:'var(--color-warning)' },
+    '.cm-panel-lint': { background:'var(--color-surface)',color:'var(--color-text)',maxHeight:'160px' },
   }, { dark }), syntaxHighlighting(HighlightStyle.define([
     { tag: tags.keyword, color: dark ? '#c586c0' : '#8a287b' },
     { tag: [tags.propertyName, tags.attributeName], color: dark ? '#9cdcfe' : '#0451a5' },
