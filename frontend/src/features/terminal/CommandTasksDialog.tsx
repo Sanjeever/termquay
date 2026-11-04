@@ -1,17 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
-import { MergeView } from '@codemirror/merge';
-import { EditorState } from '@codemirror/state';
-import { EditorView, lineNumbers } from '@codemirror/view';
 import SelectControl from '../../components/SelectControl';
 import { DeleteCommandTask, ListCommandTasks, RunRemoteCommand, SaveCommandTask, ExportCommandResults } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { CommandStep, CommandTask } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import type { CommandResult } from '../../../bindings/github.com/Sanjeever/termquay/internal/ssh/models';
 import { errorMessage } from '../../lib/errors';
 import { expandSnippet, snippetParameters } from '../../lib/snippets';
-import { useAppearance } from '../settings/AppearanceProvider';
-import { editorTheme } from '../files/editorTheme';
-import '../../styles/file-compare.css';
+import ReadonlyDiffView from '../files/ReadonlyDiffView';
 import CommandTargets, { type CommandTarget } from './CommandTargets';
 import type { Group } from '../../../bindings/github.com/Sanjeever/termquay/internal/store/models';
 import { runCommandTask } from './commandTaskRunner';
@@ -43,8 +38,6 @@ export default function CommandTasksDialog({ targets, groups: catalogGroups, onC
   const [waitingBatch, setWaitingBatch] = useState(false);
   const batchApproval = useRef<(approved: boolean) => void>();
   const [exportSelection, setExportSelection] = useState(new Set<string>());
-  const host = useRef<HTMLDivElement>(null);
-  const { dark } = useAppearance();
   const dirty = JSON.stringify(task) !== baseline;
   const names = [...new Set(task.steps.flatMap(step => snippetParameters(step.script)))];
   const expanded = task.steps.map(step => ({ ...step, ...expandSnippet(step.script, parameters) }));
@@ -108,12 +101,6 @@ export default function CommandTasksDialog({ targets, groups: catalogGroups, onC
   }
   const comparable = results.filter(item => item.result);
   const left = results.find(item => item.key === comparison[0]), right = results.find(item => item.key === comparison[1]);
-  useEffect(() => {
-    if (!host.current || !left?.result || !right?.result) return;
-    const extensions = [EditorState.readOnly.of(true), EditorView.editable.of(false), lineNumbers(), editorTheme(dark)];
-    const view = new MergeView({ parent: host.current, a: { doc: left.result[output], extensions: [...extensions, EditorView.contentAttributes.of({ 'aria-label': '左侧执行结果' })] }, b: { doc: right.result[output], extensions: [...extensions, EditorView.contentAttributes.of({ 'aria-label': '右侧执行结果' })] }, highlightChanges: true, gutter: true });
-    return () => view.destroy();
-  }, [left, right, output, dark]);
   const groups = new Map<string, Result[]>();
   results.forEach(result => {
     const key = group === 'exit' ? result.result ? `退出码 ${result.result.exit_code}` : result.state : group === 'output' && result.result ? JSON.stringify([result.result.exit_code, result.result.stdout, result.result.stderr, result.result.truncated, result.result.error]) : result.target.id;
@@ -132,7 +119,9 @@ export default function CommandTasksDialog({ targets, groups: catalogGroups, onC
     {error && <p className="error" role="alert">{error}</p>}{expansionError && <p className="error" role="alert">{expansionError.error || '替换后命令超过 32 KiB'}</p>}
     {!!results.length && <><label className="form-field">结果分组<SelectControl value={group} onChange={event => setGroup(event.target.value)}><option value="target">按主机</option><option value="exit">按退出码</option><option value="output">按相同输出</option></SelectControl></label>{Array.from(groups.values(), (items, index) => <details key={index} open={group === 'target'}><summary>{group === 'target' ? items[0].target.name : group === 'exit' ? items[0].result ? `退出码 ${items[0].result.exit_code}` : items[0].state : `输出组 ${index + 1}`} · {items.length} 项</summary><table><thead><tr><th>主机</th><th>步骤</th><th>状态</th><th>退出码</th><th>耗时</th><th>输出</th></tr></thead><tbody>{items.map(item => <tr key={item.key}><td>{item.target.name}</td><td>{item.step}</td><td>{item.state}</td><td>{item.result?.exit_code ?? '—'}</td><td>{item.result ? `${(item.result.duration_ms / 1000).toFixed(2)}s` : '—'}</td><td><details><summary>查看</summary>{(item.error || item.result?.error) && <p className="error">{item.error || item.result?.error}</p>}<pre>{item.result?.stdout}</pre><pre className="error">{item.result?.stderr}</pre>{item.result?.truncated && <p>输出已截断</p>}</details></td></tr>)}</tbody></table></details>)}</>}
     {!!results.length && <details><summary>选择并导出执行结果</summary>{results.map(item => <label className="checkbox-label" key={item.key}><input type="checkbox" checked={exportSelection.has(item.key)} onChange={event => setExportSelection(previous => { const next = new Set(previous); if (event.target.checked) next.add(item.key); else next.delete(item.key); return next; })} />{item.target.name} · {item.step} · {item.state}</label>)}<Button size="sm" variant="light" isDisabled={busy || !exportSelection.size} onPress={() => { ExportCommandResults(results.filter(item => exportSelection.has(item.key)).map(item => ({ target: item.target.name, address: item.target.address, step: item.step, state: item.state, result: item.result, error: item.error || '' }))).catch(e => setError(errorMessage(e))); }}>导出所选结果</Button></details>}
-    {comparable.length > 1 && <><div className="file-compare-sides">{comparison.map((value, index) => <label className="form-field" key={index}>{index ? '右侧结果' : '左侧结果'}<SelectControl value={value} onChange={event => setComparison(previous => previous.map((key, i) => index === i ? event.target.value : key) as [string, string])}><option value="">选择结果</option>{comparable.map(item => <option key={item.key} value={item.key}>{item.target.name} · {item.step}</option>)}</SelectControl></label>)}</div><SelectControl aria-label="对比输出通道" value={output} onChange={event => setOutput(event.target.value as 'stdout' | 'stderr')}><option value="stdout">stdout</option><option value="stderr">stderr</option></SelectControl><div className="conflict-editors" ref={host} /></>}
+    {comparable.length > 1 && <><div className="file-compare-sides">{comparison.map((value, index) => <label className="form-field" key={index}>{index ? '右侧结果' : '左侧结果'}<SelectControl value={value} onChange={event => setComparison(previous => previous.map((key, i) => index === i ? event.target.value : key) as [string, string])}><option value="">选择结果</option>{comparable.map(item => <option key={item.key} value={item.key}>{item.target.name} · {item.step}</option>)}</SelectControl></label>)}</div><SelectControl aria-label="对比输出通道" value={output} onChange={event => setOutput(event.target.value as 'stdout' | 'stderr')}><option value="stdout">stdout</option><option value="stderr">stderr</option></SelectControl>
+      <ReadonlyDiffView left={left?.result?.[output]} right={right?.result?.[output]} leftLabel="左侧执行结果" rightLabel="右侧执行结果" />
+    </>}
   </ModalBody><ModalFooter><Button variant="light" isDisabled={busy} onPress={() => requestChoose('close')}>关闭</Button>{task.id && <Button color="danger" variant="light" isDisabled={busy} onPress={() => setDeleting(true)}>删除任务</Button>}<Button variant="light" isDisabled={busy || loading || !task.name.trim() || invalid || !dirty} onPress={() => void save()}>保存任务</Button>{running.current ? <Button color="danger" variant="light" onPress={cancel}>请求取消</Button> : <Button color="primary" isDisabled={busy || loading || !selected.size || invalid || !!expansionError} onPress={() => void run()}>在 {selected.size} 个工作区执行</Button>}</ModalFooter>
   </ModalContent>
     <Modal isOpen={!!discard} onClose={() => setDiscard(undefined)} className="app-dialog"><ModalContent><ModalHeader>任务尚未保存</ModalHeader><ModalFooter><Button variant="light" onPress={() => setDiscard(undefined)}>返回编辑</Button><Button color="danger" onPress={() => { const next = discard; setDiscard(undefined); if (next === 'close') onClose(); else if (next) choose(next); }}>放弃修改</Button></ModalFooter></ModalContent></Modal>

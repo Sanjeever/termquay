@@ -1,13 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
-import { MergeView } from '@codemirror/merge';
-import { EditorState } from '@codemirror/state';
 import { GetFileHistory, SetFileHistory, ClearFileHistory, ReadFileVersion, RunFileAction } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { FileHistory } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import type { Document } from '../../../bindings/github.com/Sanjeever/termquay/internal/files/models';
 import type { CommandResult } from '../../../bindings/github.com/Sanjeever/termquay/internal/ssh/models';
-import { useAppearance } from '../settings/AppearanceProvider';
-import { editorTheme } from './editorTheme';
+import ReadonlyDiffView from './ReadonlyDiffView';
 import { errorMessage } from '../../lib/errors';
 import SelectControl from '../../components/SelectControl';
 
@@ -22,10 +19,8 @@ export default function FileHistoryDialog({ workspace, target, document, dirty, 
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [confirmation, setConfirmation] = useState<'reload' | 'clear' | 'restore'>();
-  const host = useRef<HTMLDivElement>(null);
   const mounted = useRef(true);
   const requests = useRef(new Set<{ cancel(): void }>());
-  const { dark } = useAppearance();
   useEffect(() => {
     mounted.current = true; const request = GetFileHistory(workspace, document.path);
     request.then(value => { if (mounted.current) { setHistory(value); setEnabled(value.enabled); setValidate(value.validate); setReload(value.reload); } }).catch(e => { if (mounted.current) setError(errorMessage(e)); });
@@ -37,12 +32,6 @@ export default function FileHistoryDialog({ workspace, target, document, dirty, 
     request.then(value => { if (!ended) setVersion(value); }).catch(e => { if (!ended) setError(errorMessage(e)); });
     return () => { ended = true; request.cancel(); };
   }, [workspace, document.path, selected]);
-  useEffect(() => {
-    if (!version || !host.current) return;
-    const extensions = [EditorState.readOnly.of(true), editorTheme(dark)];
-    const view = new MergeView({ parent: host.current, a: { doc: version.content, extensions }, b: { doc: document.content, extensions }, highlightChanges: true, gutter: true });
-    return () => view.destroy();
-  }, [version, document.content, dark]);
   const changed = history && (history.enabled !== enabled || history.validate !== validate || history.reload !== reload);
   async function operation<T>(request: Promise<T> & { cancel(): void }, apply: (value: T) => void) {
     setBusy(true); setError(''); requests.current.add(request);
@@ -58,7 +47,9 @@ export default function FileHistoryDialog({ workspace, target, document, dirty, 
     <div className="file-compare-sides"><label className="form-field">验证命令<textarea rows={3} value={validate} maxLength={8192} disabled={!history || busy} onChange={event => setValidate(event.target.value)} spellCheck={false} /></label><label className="form-field">reload 命令<textarea rows={3} value={reload} maxLength={8192} disabled={!history || busy} onChange={event => setReload(event.target.value)} spellCheck={false} /></label></div>
     <div className="button-row"><Button size="sm" isDisabled={!changed || busy} onPress={() => void operation(SetFileHistory(workspace, document.path, enabled, validate, reload), () => setHistory(previous => ({ enabled, validate, reload, versions: previous?.versions || [] })))}>保存设置</Button><Button size="sm" variant="light" isDisabled={busy || !history || !!changed || !validate.trim() || dirty} onPress={() => execute('validate')}>验证已保存文件</Button><Button size="sm" variant="light" isDisabled={busy || !history || !!changed || !reload.trim() || dirty} onPress={() => setConfirmation('reload')}>reload</Button></div>
     {result && <section><p className={result.error || result.exit_code !== 0 ? 'error' : 'session-status'}>{result.error || `退出码 ${result.exit_code} · ${(result.duration_ms / 1000).toFixed(2)}s`}{result.truncated && ' · 输出已截断'}</p><pre>{result.stdout}</pre><pre className="error">{result.stderr}</pre></section>}
-    {!!history?.versions?.length && <><SelectControl aria-label="历史版本" value={selected} disabled={busy} onChange={event => setSelected(event.target.value)}><option value="">选择历史版本</option>{[...history.versions].reverse().map(item => <option key={item.id} value={item.id}>{new Date(item.time).toLocaleString()} · {item.size} 字节</option>)}</SelectControl><div className="conflict-editors" ref={host} />{version && <div className="button-row"><span className="muted">左侧历史版本 · 右侧当前草稿</span><Button size="sm" isDisabled={busy} onPress={() => dirty ? setConfirmation('restore') : restore()}>将此版本载入草稿</Button></div>}</>}
+    {!!history?.versions?.length && <><SelectControl aria-label="历史版本" value={selected} disabled={busy} onChange={event => setSelected(event.target.value)}><option value="">选择历史版本</option>{[...history.versions].reverse().map(item => <option key={item.id} value={item.id}>{new Date(item.time).toLocaleString()} · {item.size} 字节</option>)}</SelectControl>
+      <ReadonlyDiffView left={version?.content} right={document.content} leftLabel="历史版本" rightLabel="当前草稿" />
+      {version && <div className="button-row"><span className="muted">左侧历史版本 · 右侧当前草稿</span><Button size="sm" isDisabled={busy} onPress={() => dirty ? setConfirmation('restore') : restore()}>将此版本载入草稿</Button></div>}</>}
     {confirmation && <section className="inspection-detail"><p>{confirmation === 'reload' ? '确认在当前 SSH 目标执行 reload？' : confirmation === 'clear' ? '确认清除本文件全部本机历史与操作设置？' : '确认用历史版本替换未保存草稿？'}</p>{confirmation === 'reload' && <pre>{reload}</pre>}<div className="button-row"><Button size="sm" variant="light" onPress={() => setConfirmation(undefined)}>取消</Button><Button size="sm" color="danger" isDisabled={busy} onPress={() => { const action = confirmation; setConfirmation(undefined); if (action === 'reload') execute('reload'); else if (action === 'restore') restore(); else void operation(ClearFileHistory(workspace, document.path), () => { setHistory({ enabled: false, validate: '', reload: '', versions: [] }); setEnabled(false); setValidate(''); setReload(''); setSelected(''); }); }}>确认</Button></div></section>}
   </ModalBody><ModalFooter><Button variant="light" isDisabled={busy || !history} onPress={() => setConfirmation('clear')}>清除历史与设置</Button><Button variant="light" isDisabled={busy} onPress={onClose}>关闭</Button></ModalFooter></ModalContent></Modal>;
 }

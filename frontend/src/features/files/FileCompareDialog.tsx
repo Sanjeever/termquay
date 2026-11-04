@@ -1,16 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
-import { MergeView } from '@codemirror/merge';
-import { EditorState } from '@codemirror/state';
-import { EditorView, lineNumbers } from '@codemirror/view';
 import SelectControl from '../../components/SelectControl';
 import { ChooseComparisonFile, CopyRemoteFile, ReadRemoteFileEncoded } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { Transfer } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import type { Document } from '../../../bindings/github.com/Sanjeever/termquay/internal/files/models';
 import { errorMessage } from '../../lib/errors';
-import { useAppearance } from '../settings/AppearanceProvider';
-import { editorTheme } from './editorTheme';
-import '../../styles/file-compare.css';
+import ReadonlyDiffView from './ReadonlyDiffView';
 import TransferBrowser from './TransferBrowser';
 
 type Side = { workspace: string; path: string; encoding: string; document?: Document };
@@ -22,10 +17,8 @@ export default function FileCompareDialog({ targets, initial, onTransfer, onClos
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [overwrite, setOverwrite] = useState(false);
-  const host = useRef<HTMLDivElement>(null);
   const requests = useRef(new Set<{ cancel(): void }>());
   const mounted = useRef(true);
-  const { dark } = useAppearance();
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; requests.current.forEach(request => request.cancel()); }; }, []);
   function update(index: number, value: Partial<Side>) { setSides(previous => previous.map((side, i) => i === index ? { ...side, ...value, document: undefined } : side) as [Side, Side]); }
   async function read(index: number) {
@@ -36,12 +29,6 @@ export default function FileCompareDialog({ targets, initial, onTransfer, onClos
     catch (e) { if (mounted.current) setError(errorMessage(e)); }
     finally { requests.current.delete(request); if (mounted.current) setBusy(false); }
   }
-  useEffect(() => {
-    if (!host.current || !sides[0].document || !sides[1].document) return;
-    const extensions = [EditorState.readOnly.of(true), EditorView.editable.of(false), lineNumbers(), editorTheme(dark)];
-    const view = new MergeView({ parent: host.current, a: { doc: sides[0].document.content, extensions: [...extensions, EditorView.contentAttributes.of({ 'aria-label': '左侧文件' })] }, b: { doc: sides[1].document.content, extensions: [...extensions, EditorView.contentAttributes.of({ 'aria-label': '右侧文件' })] }, highlightChanges: true, gutter: true });
-    return () => view.destroy();
-  }, [sides[0].document, sides[1].document, dark]);
   async function copy() {
     setBusy(true); setError('');
     const request = CopyRemoteFile(sides[0].workspace, sides[0].path, sides[1].workspace, sides[1].path, overwrite);
@@ -59,7 +46,7 @@ export default function FileCompareDialog({ targets, initial, onTransfer, onClos
       <label className="form-field">编码<SelectControl disabled={busy} value={side.encoding} onChange={event => update(index, { encoding: event.target.value })}>{['UTF-8', 'GBK', 'GB18030'].map(encoding => <option key={encoding}>{encoding}</option>)}</SelectControl></label>
       <Button size="sm" variant="light" isDisabled={busy || !!side.workspace && !side.path.startsWith('/')} onPress={() => void read(index)}>{side.workspace ? '读取文件' : '选择文件'}</Button>
     </div>)}</div>
-    {error && <p className="error" role="alert">{error}</p>}<div className="conflict-editors" ref={host} />
+    {error && <p className="error" role="alert">{error}</p>}<ReadonlyDiffView left={sides[0].document?.content} right={sides[1].document?.content} leftLabel="左侧文件" rightLabel="右侧文件" />
     {!!sides[0].workspace && !!sides[1].workspace && <label className="checkbox-label"><input type="checkbox" disabled={busy} checked={overwrite} onChange={event => setOverwrite(event.target.checked)} />允许覆盖目标普通文件</label>}
   </ModalBody><ModalFooter><Button variant="light" isDisabled={busy} onPress={onClose}>关闭</Button>{!!sides[0].workspace && !!sides[1].workspace && <Button color="primary" isLoading={busy} isDisabled={!sides.every(side => side.path.startsWith('/')) || !targets.some(target => target.id === sides[0].workspace) || !targets.some(target => target.id === sides[1].workspace)} onPress={() => void copy()}>复制来源到目标</Button>}</ModalFooter></ModalContent></Modal>;
 }
