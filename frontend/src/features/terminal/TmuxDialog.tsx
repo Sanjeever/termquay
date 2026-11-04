@@ -4,6 +4,7 @@ import { Button, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader
 import { ListTmuxSessions } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { TmuxSession } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import { shellQuote } from './shellIntegration';
+import ErrorNotice from '../../components/ErrorNotice';
 
 export default function TmuxDialog({ workspace, onInsert, onClose }: { workspace: string; onInsert(command: string): boolean; onClose(): void }) {
   const [items, setItems] = useState<TmuxSession[]>([]);
@@ -17,7 +18,7 @@ export default function TmuxDialog({ workspace, onInsert, onClose }: { workspace
   function insert(command: string) { if (onInsert(command)) onClose(); else setError('当前终端不可输入'); }
   return <Modal isOpen onClose={onClose} className="app-dialog"><ModalContent><ModalHeader>tmux 会话</ModalHeader><ModalBody>
     <div className="button-row"><Button size="sm" variant="light" isLoading={busy} onPress={() => void load()}>刷新会话</Button><Button size="sm" variant="light" onPress={() => insert('tmux detach-client')}>分离当前会话</Button></div>
-    {error && <p role="alert" className="error">{error}</p>}
+    <ErrorNotice message={error} onDismiss={()=>setError('')}/>
     <ul className="snapshot-list">{items.map(item => <li key={item.id}><span>{item.name}<small className="muted"> {item.attached ? '已附着' : '未附着'}</small></span><Button size="sm" variant="light" onPress={() => insert(`tmux attach-session -t ${shellQuote(item.id)}`)}>附着</Button></li>)}</ul>
     <form id="tmux-new" onSubmit={event => { event.preventDefault(); if (name.trim()) insert(`tmux new-session -s ${shellQuote(name.trim())}`); }}><Input label="新会话名称" labelPlacement="outside" value={name} onValueChange={setName} maxLength={128} autoComplete="off" /></form>
   </ModalBody><ModalFooter><Button variant="light" onPress={onClose}>关闭</Button><Button color="primary" type="submit" form="tmux-new" isDisabled={!name.trim() || /[.:\x00-\x1f]/.test(name)}>新建会话</Button></ModalFooter></ModalContent></Modal>;

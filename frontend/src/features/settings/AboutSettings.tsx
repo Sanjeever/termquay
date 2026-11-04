@@ -5,6 +5,7 @@ import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Progr
 import Markdown from 'react-markdown';
 import { GetLicenseFiles, GetLicenseText } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import SelectControl from '../../components/SelectControl';
+import ErrorNotice from '../../components/ErrorNotice';
 import type useUpdates from './useUpdates';
 import appIcon from '../../../../build/appicon.svg';
 
@@ -45,7 +46,8 @@ export default function AboutSettings({ updates, onRestart, activeWorkspaces, ac
     </div>
     {status && phase[status.state] && <p role="status" className="muted">{phase[status.state]}</p>}
     {status?.state === 'downloading' && <Progress aria-label="更新下载进度" value={status.total ? status.downloaded / status.total * 100 : 0} isIndeterminate={!status.total} size="sm" className="update-progress" />}
-    {(error || updates.error || status?.error) && <p role="alert" className="error">{error || updates.error || status?.error}</p>}
+    <ErrorNotice message={error} onDismiss={()=>setError('')}/>
+    <ErrorNotice message={updates.error || status?.error || ''}/>
     {status?.checked_at && <p className="muted update-checked">上次检查 · {new Date(status.checked_at).toLocaleString()}</p>}
     {licenses && <div className="license-view"><SelectControl aria-label="许可文件" value={license} onChange={event => setLicense(event.target.value)}>{licenses.map(name => <option key={name} value={name}>{name}</option>)}</SelectControl><pre tabIndex={0} aria-label="许可原文">{licenseText}</pre></div>}
     <Modal isOpen={confirm} onClose={() => setConfirm(false)} scrollBehavior="inside" className="app-dialog">

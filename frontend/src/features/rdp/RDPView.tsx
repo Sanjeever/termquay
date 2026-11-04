@@ -1,4 +1,6 @@
 import SelectControl from '../../components/SelectControl';
+import ErrorNotice from '../../components/ErrorNotice';
+import { errorMessage } from '../../lib/errors';
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Button, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Popover, PopoverTrigger, PopoverContent, Switch } from '@heroui/react';
 import { Events } from '@wailsio/runtime';
@@ -26,6 +28,9 @@ const RDPView = forwardRef<RDPHandle, { grant?: Grant; target: string; environme
   const container = useRef<HTMLDivElement>(null);
   const ui = useRef<UserInteraction>();
   const [error, setError] = useState('');
+  const [actionError, setActionError] = useState<{ source: string; message: string }>();
+  function actionFailed(source: string, error: unknown) { setActionError({source,message:errorMessage(error)}); }
+  function actionSucceeded(source: string) { setActionError(previous=>previous?.source===source?undefined:previous); }
   const [status, setStatus] = useState('正在装载桌面组件');
   const [clipboard, setClipboard] = useState(options.clipboard);
   const [activeClipboard, setActiveClipboard] = useState(false);
@@ -152,17 +157,17 @@ const RDPView = forwardRef<RDPHandle, { grant?: Grant; target: string; environme
       <label>本地缩放<SelectControl aria-label="本地缩放" value={scale} onChange={e => setScale(e.target.value as 'fit'|'real')}><option value="fit">适合窗口</option><option value="real">实际像素</option></SelectControl></label>
       <Popover isOpen={optionsOpen} onOpenChange={setOptionsOpen} portalContainer={view.current || undefined} placement="bottom-start"><PopoverTrigger><Button size="sm" variant="light">桌面选项</Button></PopoverTrigger><PopoverContent role="dialog" aria-label="桌面选项" className="rdp-options-panel">
       <label>应用快捷键<SelectControl aria-label="RDP 应用快捷键归属" title="操作系统截获的组合键仍由系统处理" value={keyboardTarget} onChange={e => { setKeyboardTarget(e.target.value as 'local'|'remote'); setOptionsOpen(false); focusDesktop(); }}><option value="local">本机优先</option><option value="remote">发送远端</option></SelectControl></label>
-      <label>远端分辨率<SelectControl aria-label="远程分辨率" disabled={status!=='已连接'} value={resolution} onChange={async e => { const value=e.target.value; try { await onResolution(value); setResolution(value); } catch(e) { setError(detail(e)); } }}><option value="dynamic">适应窗口</option><option value="1280x800">1280 × 800</option><option value="1920x1080">1920 × 1080</option></SelectControl></label>
+      <label>远端分辨率<SelectControl aria-label="远程分辨率" disabled={status!=='已连接'} value={resolution} onChange={async e => { const value=e.target.value; try { await onResolution(value); setResolution(value); actionSucceeded('resolution'); } catch(e) { actionFailed('resolution',e); } }}><option value="dynamic">适应窗口</option><option value="1280x800">1280 × 800</option><option value="1920x1080">1920 × 1080</option></SelectControl></label>
       <div className="rdp-clipboard-option"><span>文本剪贴板</span><Switch size="sm" aria-label="文本剪贴板" isSelected={clipboard} onValueChange={setClipboard} /></div>
       {clipboard !== activeClipboard && <Button size="sm" variant="bordered" isDisabled={busy} onPress={onRetry}>应用并重新连接</Button>}
       </PopoverContent></Popover>
-      {activeClipboard && <><Button size="sm" variant="light" isDisabled={status!=='已连接'} onPress={() => { ui.current?.sendClipboardData().then(focusDesktop).catch(e => setError(detail(e))); }}>粘贴到远端</Button><Button size="sm" variant="light" isDisabled={status!=='已连接'} onPress={() => { ui.current?.saveRemoteClipboardData().then(focusDesktop).catch(e => setError(detail(e))); }}>复制到本机</Button></>}
-      <Button size="sm" variant="light" onPress={() => { const operation = document.fullscreenElement ? document.exitFullscreen() : view.current?.requestFullscreen(); operation?.then(focusDesktop).catch(e => setError(detail(e))); }}>切换全屏</Button>
+      {activeClipboard && <><Button size="sm" variant="light" isDisabled={status!=='已连接'} onPress={() => { ui.current?.sendClipboardData().then(()=>{actionSucceeded('clipboard');focusDesktop();}).catch(e => actionFailed('clipboard',e)); }}>粘贴到远端</Button><Button size="sm" variant="light" isDisabled={status!=='已连接'} onPress={() => { ui.current?.saveRemoteClipboardData().then(()=>{actionSucceeded('clipboard');focusDesktop();}).catch(e => actionFailed('clipboard',e)); }}>复制到本机</Button></>}
+      <Button size="sm" variant="light" onPress={() => { const operation = document.fullscreenElement ? document.exitFullscreen() : view.current?.requestFullscreen(); operation?.then(()=>{actionSucceeded('fullscreen');focusDesktop();}).catch(e => actionFailed('fullscreen',e)); }}>切换全屏</Button>
       <Button size="sm" variant="light" onPress={() => finish('已断开')}>断开</Button>
       {fullscreen && <Button size="sm" variant="light" onPress={() => { setToolbarCollapsed(true); focusDesktop(); }}>收起工具栏</Button>}
     </div>
     <div className="rdp-canvas" ref={container} hidden={status !== '已连接' || !grant} />
-    {error && status === '已连接' && <div className="session-status error" role="alert">{error}</div>}
+    {status === '已连接' && <ErrorNotice message={actionError?.message || ''} onDismiss={()=>setActionError(undefined)}/>}
     {(failure || !grant || ready.ended) ? <div className="rdp-failure" role="status"><h2>{failure ? '连接未完成' : ready.ended ? status : pending?'正在连接':'尚未连接'}</h2><p className="muted">{target}</p><div className="button-row"><Button size="sm" color="primary" isDisabled={busy} onPress={onRetry}>{!grant&&!failure?'连接':'重试'}</Button><Button size="sm" variant="bordered" isDisabled={busy} onPress={onEdit}>编辑连接</Button></div><label className="checkbox-label"><input type="checkbox" disabled={busy} checked={clipboard} onChange={e => setClipboard(e.target.checked)} />文本剪贴板</label>{(failure || error) && <details><summary>技术详情</summary><p className="error" role="alert">{failure || error}</p></details>}</div> : <div className="session-status"><span>{status}</span>{error && <details><summary>技术详情</summary><span role="alert" className="error">{error}</span></details>}</div>}
   </div>;
 });
