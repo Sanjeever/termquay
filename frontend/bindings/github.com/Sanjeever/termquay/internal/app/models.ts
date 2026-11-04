@@ -33,6 +33,18 @@ export interface BackupSelection {
     "settings": boolean;
 }
 
+export interface BackupSettings {
+    "configured": boolean;
+    "url": string;
+    "username": string;
+    "directory": string;
+    "password_saved": boolean;
+    "recovery_saved": boolean;
+    "device_id": string;
+    "device_name": string;
+    "selection": BackupSelection;
+}
+
 export interface BuildInfo {
     "version": string;
     "commit": string;

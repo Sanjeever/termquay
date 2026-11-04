@@ -33,6 +33,10 @@ export function AssignCredential(connectionIDs: string[] | null, credentialID: s
     return $Call.ByID(2755519190, connectionIDs, credentialID);
 }
 
+export function BackupNow(): $CancellablePromise<string> {
+    return $Call.ByID(229675384);
+}
+
 export function BackupWebDAV(options: backup$0.WebDAVOptions, password: string, includeCredentials: boolean): $CancellablePromise<string> {
     return $Call.ByID(2089117433, options, password, includeCredentials);
 }
@@ -51,6 +55,10 @@ export function CancelTransfer(id: string): $CancellablePromise<void> {
 
 export function CancelUpdate(): $CancellablePromise<void> {
     return $Call.ByID(33469453);
+}
+
+export function CheckSavedWebDAV(): $CancellablePromise<void> {
+    return $Call.ByID(2741362148);
 }
 
 export function CheckUpdate(): $CancellablePromise<void> {
@@ -209,6 +217,10 @@ export function GetAutomaticBackupStatus(): $CancellablePromise<$models.Automati
     return $Call.ByID(2326168153);
 }
 
+export function GetBackupSettings(): $CancellablePromise<$models.BackupSettings> {
+    return $Call.ByID(804346713);
+}
+
 export function GetCatalog(): $CancellablePromise<$models.Catalog> {
     return $Call.ByID(3198086081);
 }
@@ -275,6 +287,10 @@ export function ListCredentialReferences(): $CancellablePromise<$models.Credenti
 
 export function ListLocalShells(): $CancellablePromise<$models.LocalShell[] | null> {
     return $Call.ByID(3912183842);
+}
+
+export function ListSavedSnapshots(): $CancellablePromise<backup$0.RemoteSnapshot[] | null> {
+    return $Call.ByID(174467334);
 }
 
 export function ListSnapshots(options: backup$0.WebDAVOptions): $CancellablePromise<backup$0.RemoteSnapshot[] | null> {
@@ -477,6 +493,10 @@ export function RunRemoteCommand(workspace: string, script: string, timeoutSecon
     return $Call.ByID(1951620378, workspace, script, timeoutSeconds);
 }
 
+export function SaveBackupSettings(options: backup$0.WebDAVOptions, password: string, deviceName: string, selection: $models.BackupSelection): $CancellablePromise<void> {
+    return $Call.ByID(3551534060, options, password, deviceName, selection);
+}
+
 export function SaveConnection(c: store$0.Connection, auth: ssh$0.Request): $CancellablePromise<store$0.Connection> {
     return $Call.ByID(2029120419, c, auth);
 }
@@ -531,6 +551,10 @@ export function SelectSSHCertificate(): $CancellablePromise<string> {
 
 export function SelectSSHImport(): $CancellablePromise<$models.SSHImportPreview> {
     return $Call.ByID(2190083921);
+}
+
+export function SetAutomaticBackupEnabled(enabled: boolean): $CancellablePromise<void> {
+    return $Call.ByID(1380621752, enabled);
 }
 
 export function SetConnectionPreference(id: string, favorite: boolean, environment: string): $CancellablePromise<void> {

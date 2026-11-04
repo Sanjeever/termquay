@@ -34,16 +34,8 @@ type RemoteSnapshot struct {
 }
 
 func (o WebDAVOptions) client(ctx context.Context) (*gowebdav.Client, error) {
-	u, err := url.Parse(o.URL)
-	if err != nil {
-		return nil, errors.New("WebDAV 地址无效")
-	}
-	loopback := net.ParseIP(u.Hostname())
-	if u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Scheme != "https" && !(u.Scheme == "http" && loopback != nil && loopback.IsLoopback())) {
-		return nil, errors.New("WebDAV 必须使用 HTTPS（本机隔离测试允许回环 HTTP）")
-	}
-	if o.Directory == "" || strings.HasPrefix(o.Directory, "/") || path.Clean(o.Directory) != o.Directory || o.Directory == "." || strings.HasPrefix(o.Directory, "..") {
-		return nil, errors.New("WebDAV 备份目录必须是有效相对路径")
+	if err := o.Validate(); err != nil {
+		return nil, err
 	}
 	c := gowebdav.NewAuthClient(o.URL, gowebdav.NewEmptyAuth())
 	c.SetTimeout(30 * time.Second)
@@ -57,6 +49,81 @@ func (o WebDAVOptions) client(ctx context.Context) (*gowebdav.Client, error) {
 		}
 	})
 	return c, nil
+}
+
+func (o WebDAVOptions) Validate() error {
+	u, err := url.Parse(o.URL)
+	if err != nil {
+		return errors.New("WebDAV 地址无效")
+	}
+	loopback := net.ParseIP(u.Hostname())
+	if u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Scheme != "https" && !(u.Scheme == "http" && loopback != nil && loopback.IsLoopback())) {
+		return errors.New("WebDAV 必须使用 HTTPS（本机隔离测试允许回环 HTTP）")
+	}
+	if o.Directory == "" || strings.HasPrefix(o.Directory, "/") || path.Clean(o.Directory) != o.Directory || o.Directory == "." || strings.HasPrefix(o.Directory, "..") {
+		return errors.New("WebDAV 备份目录必须是有效相对路径")
+	}
+	return nil
+}
+
+func (o WebDAVOptions) Check(ctx context.Context) (result error) {
+	var id [16]byte
+	if _, err := rand.Read(id[:]); err != nil {
+		return err
+	}
+	device := "termquay-check-" + hex.EncodeToString(id[:])
+	c, err := o.client(ctx)
+	if err != nil {
+		return err
+	}
+	if err := c.MkdirAll(o.Directory, 0700); err != nil {
+		return fmt.Errorf("创建备份目录失败：%w", err)
+	}
+	if _, err := c.ReadDir(o.Directory); err != nil {
+		return fmt.Errorf("读取备份目录失败：%w", err)
+	}
+	dir := path.Join(o.Directory, device)
+	if err := c.Mkdir(dir, 0700); err != nil {
+		return fmt.Errorf("创建检查目录失败：%w", err)
+	}
+	defer func() {
+		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+		defer cancel()
+		cleanup, err := o.client(cleanupCtx)
+		if err == nil {
+			err = cleanup.RemoveAll(dir)
+		}
+		if err != nil {
+			result = errors.Join(result, fmt.Errorf("清理检查目录失败：%w", err))
+		}
+	}()
+	remote := path.Join(dir, "check.json.age")
+	if err := o.uploadSnapshot(ctx, c, remote, id[:]); err != nil {
+		return fmt.Errorf("上传并发布检查文件失败：%w", err)
+	}
+	data, err := o.Read(ctx, remote)
+	if err != nil {
+		return fmt.Errorf("读取检查文件失败：%w", err)
+	}
+	if !bytes.Equal(data, id[:]) {
+		return errors.New("检查文件读回内容不一致")
+	}
+	if err := o.uploadSnapshot(ctx, c, remote, id[:]); err == nil {
+		return errors.New("WebDAV 允许覆盖同名备份，无法安全使用")
+	} else {
+		var status gowebdav.StatusError
+		if !errors.As(err, &status) || (status.Status != http.StatusPreconditionFailed && status.Status != http.StatusConflict) {
+			return fmt.Errorf("验证同名发布保护失败：%w", err)
+		}
+	}
+	data, err = o.Read(ctx, remote)
+	if err != nil {
+		return fmt.Errorf("验证同名拒绝后的检查文件失败：%w", err)
+	}
+	if !bytes.Equal(data, id[:]) {
+		return errors.New("同名拒绝后检查文件内容变化")
+	}
+	return nil
 }
 
 func (o WebDAVOptions) Test(ctx context.Context) error {
@@ -143,6 +210,9 @@ func (o WebDAVOptions) List(ctx context.Context) ([]RemoteSnapshot, error) {
 	}
 	devices, err := c.ReadDir(o.Directory)
 	if err != nil {
+		if gowebdav.IsErrNotFound(err) {
+			return []RemoteSnapshot{}, nil
+		}
 		return nil, err
 	}
 	if len(devices) > 1000 {
@@ -150,7 +220,7 @@ func (o WebDAVOptions) List(ctx context.Context) ([]RemoteSnapshot, error) {
 	}
 	result := []RemoteSnapshot{}
 	for _, device := range devices {
-		if !device.IsDir() {
+		if !device.IsDir() || strings.HasPrefix(device.Name(), "termquay-check-") {
 			continue
 		}
 		entries, err := c.ReadDir(path.Join(o.Directory, device.Name()))

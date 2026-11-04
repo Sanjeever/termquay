@@ -22,17 +22,18 @@ type automaticBackupConfig struct {
 	Options   backup.WebDAVOptions `json:"options"`
 	Password  string               `json:"password"`
 	Selection BackupSelection      `json:"selection"`
+	Paused    bool                 `json:"paused,omitempty"`
 }
 
 func (a *AppService) startAutomaticBackupLocked(config *automaticBackupConfig) {
 	a.automaticConfig = config
 	a.automaticLoaded = true
-	a.automaticStatus.Enabled = config != nil
+	a.automaticStatus.Enabled = config != nil && !config.Paused
 	a.automaticStatus.Error = ""
 	if a.automaticTaskCancel != nil {
 		a.automaticTaskCancel()
 	}
-	if config == nil {
+	if config == nil || config.Paused {
 		a.automaticStatus.Pending = false
 		a.automaticStatus.URL = ""
 		return
@@ -55,7 +56,7 @@ func (a *AppService) startAutomaticBackupLocked(config *automaticBackupConfig) {
 func (a *AppService) queueAutomaticBackup() {
 	a.automaticMu.Lock()
 	defer a.automaticMu.Unlock()
-	if a.automaticConfig == nil {
+	if a.automaticConfig == nil || a.automaticConfig.Paused {
 		return
 	}
 	a.automaticStatus.Pending = true
@@ -110,44 +111,24 @@ func (a *AppService) EnableAutomaticBackup(ctx context.Context, options backup.W
 	if len(selection.ConnectionIDs) > 0 {
 		return errors.New("自动备份覆盖全部连接，请取消连接筛选")
 	}
-	if err := options.Test(ctx); err != nil {
+	if err := options.Check(ctx); err != nil {
 		return err
 	}
 	config := &automaticBackupConfig{Options: options, Password: password, Selection: selection}
-	encoded, err := json.Marshal(config)
-	if err != nil {
-		return err
-	}
-	a.storeMu.Lock()
-	if err = a.openStorage(); err == nil {
-		a.store.SetChangeListener(a.queueAutomaticBackup)
-		err = a.store.SetSecretSetting("automatic_backup", string(encoded))
-	}
-	a.storeMu.Unlock()
-	if err != nil {
-		return err
-	}
-	a.automaticMu.Lock()
-	defer a.automaticMu.Unlock()
-	a.startAutomaticBackupLocked(config)
-	return nil
+	a.backupMu.Lock()
+	defer a.backupMu.Unlock()
+	return a.saveBackupConfig(config)
 }
 
 func (a *AppService) DisableAutomaticBackup() error {
-	a.storeMu.Lock()
-	if err := a.openStorage(); err != nil {
-		a.storeMu.Unlock()
-		return err
-	}
-	err := a.store.SetSecretSetting("automatic_backup", "")
-	a.storeMu.Unlock()
+	a.backupMu.Lock()
+	defer a.backupMu.Unlock()
+	config, err := a.savedBackupConfig()
 	if err != nil {
 		return err
 	}
-	a.automaticMu.Lock()
-	defer a.automaticMu.Unlock()
-	a.startAutomaticBackupLocked(nil)
-	return nil
+	config.Paused = true
+	return a.saveBackupConfig(&config)
 }
 
 func (a *AppService) runAutomaticBackup(ctx context.Context) {
@@ -171,7 +152,7 @@ func (a *AppService) runAutomaticBackup(ctx context.Context) {
 		}
 		a.automaticMu.Lock()
 		config := a.automaticConfig
-		if config == nil {
+		if config == nil || config.Paused {
 			a.automaticMu.Unlock()
 			continue
 		}

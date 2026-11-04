@@ -9,6 +9,7 @@ export {
 export type {
     AutomaticBackupStatus,
     BackupSelection,
+    BackupSettings,
     BuildInfo,
     Catalog,
     ConnectionLatency,
