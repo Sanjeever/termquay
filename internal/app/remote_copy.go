@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Sanjeever/termquay/internal/files"
+	terminal "github.com/Sanjeever/termquay/internal/ssh"
 	"github.com/pkg/sftp"
 )
 
@@ -40,7 +41,15 @@ func (a *AppService) CopyRemoteFile(ctx context.Context, sourceID, sourcePath, t
 	if !info.Mode().IsRegular() || info.Mode()&(os.ModeSetuid|os.ModeSetgid|os.ModeSticky) != 0 {
 		return Transfer{}, errors.New("跨工作区复制支持无特殊权限位的普通文件")
 	}
-	run := func(ctx context.Context, report func(int64, int64)) (result error) {
+	run := a.remoteCopyOperation(sourceID, sourcePath, targetID, targetPath, overwrite, sourceOwner, targetOwner, info, nil)
+	return a.startTransfer(targetID, path.Base(sourcePath)+" → "+path.Base(targetPath), "copy", info.Size(), run, transferSpec{workspace: targetID, remote: sourcePath, local: targetPath, direction: "copy"})
+}
+
+func (a *AppService) remoteCopyOperation(sourceID, sourcePath, targetID, targetPath string, overwrite bool, sourceOwner, targetOwner *terminal.Terminal, info os.FileInfo, expected *transferExpectation) func(context.Context, func(int64, int64)) error {
+	return func(ctx context.Context, report func(int64, int64)) (result error) {
+		if !info.Mode().IsRegular() || info.Mode()&(os.ModeSetuid|os.ModeSetgid|os.ModeSticky) != 0 {
+			return errors.New("复制支持无特殊权限位的普通文件")
+		}
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 		a.mu.Lock()
@@ -86,6 +95,11 @@ func (a *AppService) CopyRemoteFile(ctx context.Context, sourceID, sourcePath, t
 		before, err := d.Lstat(targetPath)
 		if err != nil && !os.IsNotExist(err) {
 			return err
+		}
+		if expected != nil {
+			if expected.targetExists && (before == nil || !files.SameSyncNode(files.SyncInfo(before), expected.target)) || !expected.targetExists && before != nil {
+				return errors.New("目标自预览后已变化")
+			}
 		}
 		if before != nil && (!overwrite || !before.Mode().IsRegular()) {
 			return errors.New("同名目标已存在或不是普通文件")
@@ -158,6 +172,9 @@ func (a *AppService) CopyRemoteFile(ctx context.Context, sourceID, sourcePath, t
 		if err = output.Close(); err != nil {
 			return err
 		}
+		if err = d.Chtimes(temporary, info.ModTime(), info.ModTime()); err != nil {
+			return err
+		}
 		current, err = s.Lstat(sourcePath)
 		if err != nil {
 			return err
@@ -181,5 +198,4 @@ func (a *AppService) CopyRemoteFile(ctx context.Context, sourceID, sourcePath, t
 		}
 		return d.Rename(temporary, targetPath)
 	}
-	return a.startTransfer(targetID, path.Base(sourcePath)+" → "+path.Base(targetPath), "copy", info.Size(), run, transferSpec{workspace: targetID, remote: sourcePath, local: targetPath, direction: "copy"})
 }

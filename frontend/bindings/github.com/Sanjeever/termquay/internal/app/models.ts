@@ -473,6 +473,13 @@ export interface TransferBatch {
     "errors": string[] | null;
 }
 
+export interface TransferDirectory {
+    "path": string;
+    "parent": string;
+    "entries": files$0.Entry[] | null;
+    "truncated": boolean;
+}
+
 export interface TrustPage {
     "items": TrustRecord[] | null;
     "next": string;

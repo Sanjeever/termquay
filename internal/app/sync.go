@@ -25,11 +25,12 @@ type DirectorySyncPreview struct {
 	Exclude   []string          `json:"exclude,omitempty"`
 }
 type directorySyncPlan struct {
-	preview        DirectorySyncPreview
-	workspace      string
-	source, target map[string]files.SyncNode
-	expires        time.Time
-	executing      bool
+	preview         DirectorySyncPreview
+	workspace       string
+	sourceWorkspace string
+	source, target  map[string]files.SyncNode
+	expires         time.Time
+	executing       bool
 }
 
 func (a *AppService) PreviewDirectorySync(ctx context.Context, workspace, direction, local, remote string) (DirectorySyncPreview, error) {
@@ -181,6 +182,10 @@ func (a *AppService) ExecuteDirectorySync(id string, selected []string) (Transfe
 	}
 	p.executing = true
 	a.mu.Unlock()
+	local, remote := p.preview.Local, p.preview.Remote
+	if p.sourceWorkspace != "" {
+		local, remote = remote, local
+	}
 	view, err := a.startTransfer(p.workspace, fmt.Sprintf("目录同步（%d 项）", len(entries)), p.preview.Direction, total, func(ctx context.Context, report func(int64, int64)) error {
 		if time.Now().After(p.expires) {
 			return errors.New("同步预览已过期，请重新预览")
@@ -199,7 +204,7 @@ func (a *AppService) ExecuteDirectorySync(id string, selected []string) (Transfe
 			report(completed, total)
 		}
 		return nil
-	}, transferSpec{workspace: p.workspace, direction: "sync", local: p.preview.Local, remote: p.preview.Remote, syncPlanID: id})
+	}, transferSpec{workspace: p.workspace, direction: "sync", local: local, remote: remote, syncPlanID: id})
 	if err != nil {
 		a.mu.Lock()
 		p.executing = false
@@ -208,6 +213,9 @@ func (a *AppService) ExecuteDirectorySync(id string, selected []string) (Transfe
 	return view, err
 }
 func (a *AppService) syncEntry(ctx context.Context, p *directorySyncPlan, entry files.SyncEntry, report func(int64, int64)) error {
+	if p.sourceWorkspace != "" {
+		return a.remoteSyncEntry(ctx, p, entry, report)
+	}
 	local := filepath.Join(p.preview.Local, filepath.FromSlash(entry.Path))
 	remote := path.Join(p.preview.Remote, entry.Path)
 	resolved, err := filepath.EvalSymlinks(p.preview.Local)

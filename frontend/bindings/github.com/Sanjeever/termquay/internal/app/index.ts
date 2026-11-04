@@ -63,6 +63,7 @@ export type {
     TmuxSession,
     Transfer,
     TransferBatch,
+    TransferDirectory,
     TrustPage,
     TrustRecord,
     TrustReview,

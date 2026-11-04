@@ -11,11 +11,13 @@ import { errorMessage } from '../../lib/errors';
 import { useAppearance } from '../settings/AppearanceProvider';
 import { editorTheme } from './editorTheme';
 import '../../styles/file-compare.css';
+import TransferBrowser from './TransferBrowser';
 
 type Side = { workspace: string; path: string; encoding: string; document?: Document };
 type Target = { id: string; name: string };
 
 export default function FileCompareDialog({ targets, initial, onTransfer, onClose }: { targets: Target[]; initial?: string; onTransfer(transfer: Transfer): void; onClose(): void }) {
+  const [browsing, setBrowsing] = useState(true);
   const [sides, setSides] = useState<[Side, Side]>([{ workspace: initial || '', path: '', encoding: 'UTF-8' }, { workspace: '', path: '', encoding: 'UTF-8' }]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -48,7 +50,9 @@ export default function FileCompareDialog({ targets, initial, onTransfer, onClos
     catch (e) { if (mounted.current) setError(errorMessage(e)); }
     finally { requests.current.delete(request); if (mounted.current) setBusy(false); }
   }
+  if (browsing) return <TransferBrowser targets={targets} initial={initial} onTransfer={onTransfer} onCompare={() => setBrowsing(false)} onClose={onClose} />;
   return <Modal isOpen onClose={onClose} size="5xl" className="app-dialog file-conflict-dialog" isDismissable={!busy}><ModalContent><ModalHeader>文件对比与复制</ModalHeader><ModalBody>
+    <Button size="sm" variant="light" isDisabled={busy} onPress={() => setBrowsing(true)}>返回文件管理</Button>
     <div className="file-compare-sides">{sides.map((side, index) => <div key={index}>
       <label className="form-field">{index === 0 ? '来源' : '目标'}<SelectControl disabled={busy} value={side.workspace} onChange={event => update(index, { workspace: event.target.value, path: '' })}><option value="">本地文件</option>{targets.map(target => <option key={target.id} value={target.id}>{target.name}</option>)}</SelectControl></label>
       <label className="form-field">文件路径<input value={side.path} readOnly={!side.workspace} disabled={busy} onChange={event => update(index, { path: event.target.value })} /></label>

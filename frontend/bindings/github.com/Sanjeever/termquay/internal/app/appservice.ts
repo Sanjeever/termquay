@@ -48,6 +48,10 @@ export function BackupWebDAVWithSelection(options: backup$0.WebDAVOptions, passw
     return $Call.ByID(1198278701, options, password, selection);
 }
 
+export function BrowseTransferDirectory(workspace: string, directory: string): $CancellablePromise<$models.TransferDirectory> {
+    return $Call.ByID(2404688278, workspace, directory);
+}
+
 export function CancelDirectorySyncPreview(id: string): $CancellablePromise<void> {
     return $Call.ByID(3885577300, id);
 }
@@ -528,6 +532,10 @@ export function PreviewPuTTYImport(): $CancellablePromise<$models.SSHImportPrevi
     return $Call.ByID(1003398261);
 }
 
+export function PreviewRemoteDirectoryCopy(sourceID: string, sourcePath: string, targetID: string, targetPath: string, exclude: string[] | null): $CancellablePromise<$models.DirectorySyncPreview> {
+    return $Call.ByID(321240938, sourceID, sourcePath, targetID, targetPath, exclude);
+}
+
 export function PreviewRestore(options: backup$0.WebDAVOptions, path: string, password: string): $CancellablePromise<$models.RestorePreview> {
     return $Call.ByID(2148574416, options, path, password);
 }
@@ -538,6 +546,10 @@ export function PreviewSSHImport(text: string): $CancellablePromise<$models.SSHI
 
 export function PreviewSavedRestore(path: string, password: string): $CancellablePromise<$models.RestorePreview> {
     return $Call.ByID(827587197, path, password);
+}
+
+export function PreviewTransferCopy(sourceWorkspace: string, sourcePath: string, targetWorkspace: string, targetPath: string, selected: string[] | null, exclude: string[] | null): $CancellablePromise<$models.DirectorySyncPreview> {
+    return $Call.ByID(1375116584, sourceWorkspace, sourcePath, targetWorkspace, targetPath, selected, exclude);
 }
 
 export function ProbeNetworkTCP(workspace: string, source: string, host: string, port: number): $CancellablePromise<number> {

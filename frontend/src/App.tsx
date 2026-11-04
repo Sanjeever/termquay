@@ -317,7 +317,7 @@ export default function App() {
     { id: 'batch-command', label: '多主机执行命令', kind: 'command', run: () => setBatchCommandOpen(true) },
     { id: 'command-tasks', label: '管理与执行多主机任务', kind: 'command', run: () => setCommandTasksOpen(true) },
     { id: 'docker', label: 'Docker 容器工作区', kind: 'command', run: () => setDockerOpen(true) },
-    { id: 'file-compare', label: '文件对比与跨工作区复制', kind: 'command', run: () => setFileCompareOpen(true) },
+    { id: 'file-compare', label: '文件管理、对比与跨工作区复制', kind: 'command', run: () => setFileCompareOpen(true) },
     ...(current?.ssh ? [{ id: 'sudo-edit', label: '以 sudo 编辑文件', kind: 'command' as const, run: () => current.ssh?.current?.sudoEdit() }] : []),
     { id: 'diagnostics', label: '导出脱敏诊断信息', kind: 'command', run: () => { ExportDiagnostics().catch(e => setPreferenceError(errorMessage(e))); } },
     ...(attempt.steps.length ? [{ id: 'connection-diagnostics', label: '查看上次 SSH 连接诊断', kind: 'command' as const, run: () => setConnectionDiagnosticsOpen(true) }] : []),
