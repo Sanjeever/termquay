@@ -75,6 +75,7 @@ type Terminal struct {
 	logMu           sync.Mutex
 	log             *terminalLog
 	logClosed       bool
+	completionLog   completionLogFilter
 	connectionOwner bool
 }
 

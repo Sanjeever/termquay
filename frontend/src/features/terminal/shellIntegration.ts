@@ -26,7 +26,7 @@ export function shellSetupForHost(shell: 'bash' | 'zsh', host: string) {
   return shellSetup[shell].replace('__termquay_enabled=1', `__termquay_enabled=1\n  __termquay_host=${shellQuote(authority)}`).replace(/"\$HOSTNAME"|"\$HOST"/g, '"$__termquay_host"').replace('"$PWD";', '"$__termquay_path";').replace('local code=$?;', prompt);
 }
 
-export function addShellIntegration(term: Terminal, onDirectory: (path: string, host: string) => void, onExit: (code: string) => void, onFile: (path: string, line: number) => void) {
+export function addShellIntegration(term: Terminal, onDirectory: (path: string, host: string) => void, onExit: (code: string) => void, onFile: (path: string, line: number) => void, onCommand?: (kind: string) => void, onCompletion?: (data: string) => void) {
   const marks: IMarker[] = [];
   let output: IMarker | undefined;
   let completed: { start: IMarker; end: IMarker } | undefined;
@@ -43,11 +43,13 @@ export function addShellIntegration(term: Terminal, onDirectory: (path: string, 
   const command = term.parser.registerOscHandler(133, data => {
     if (term.buffer.active.type !== 'normal') return true;
     const [kind, status] = data.split(';', 2);
+    onCommand?.(kind);
     if (kind === 'A') marker();
     if (kind === 'C') output = marker();
     if (kind === 'D') { const end = marker(); if (output && end) completed = { start: output, end }; output = undefined; if (/^\d{1,3}$/.test(status || '')) onExit(status); }
     return true;
   });
+  const completion = term.parser.registerOscHandler(777, data => { if (term.buffer.active.type === 'normal') onCompletion?.(data); return true; });
   const files = term.registerLinkProvider({ provideLinks(y, callback) {
     const line = term.buffer.active.getLine(y - 1);
     if (!line || term.buffer.active.type !== 'normal') { callback(undefined); return; }
@@ -59,6 +61,6 @@ export function addShellIntegration(term: Terminal, onDirectory: (path: string, 
   return {
     previous() { const before = term.buffer.active.viewportY; const mark = marks.filter(m => !m.isDisposed && m.line < before).slice(-1)[0]; if (mark) term.scrollToLine(mark.line); },
     selectOutput() { if (completed && !completed.start.isDisposed && !completed.end.isDisposed) term.selectLines(completed.start.line, Math.max(completed.start.line, completed.end.line - 1)); },
-    dispose() { cwd.dispose(); command.dispose(); files.dispose(); marks.forEach(m => m.dispose()); },
+    dispose() { cwd.dispose(); command.dispose(); completion.dispose(); files.dispose(); marks.forEach(m => m.dispose()); },
   };
 }

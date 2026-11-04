@@ -84,6 +84,7 @@ func (t *Terminal) LogStatus() TerminalLogStatus {
 func (t *Terminal) recordOutput(data []byte) {
 	t.logMu.Lock()
 	defer t.logMu.Unlock()
+	data = t.completionLog.filter(data)
 	log := t.log
 	if log == nil || log.file == nil {
 		return
