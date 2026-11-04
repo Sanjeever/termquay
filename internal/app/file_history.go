@@ -15,6 +15,7 @@ import (
 )
 
 const fileHistoryLimit = 16 << 20
+const maxFileHistories = 64
 
 type FileVersion struct {
 	ID       string    `json:"id"`
@@ -27,6 +28,10 @@ type FileHistory struct {
 	Validate string        `json:"validate"`
 	Reload   string        `json:"reload"`
 	Versions []FileVersion `json:"versions"`
+}
+type storedFileHistory struct {
+	FileHistory
+	Automatic bool `json:"automatic,omitempty"`
 }
 
 func (a *AppService) fileHistoryKey(workspace, remote string) (string, error) {
@@ -42,7 +47,7 @@ func (a *AppService) fileHistoryKey(workspace, remote string) (string, error) {
 	sum := sha256.Sum256([]byte(owner.target + "\x00" + owner.identity + "\x00" + remote))
 	return hex.EncodeToString(sum[:]), nil
 }
-func (a *AppService) fileHistories() (map[string]FileHistory, error) {
+func (a *AppService) fileHistories() (map[string]storedFileHistory, error) {
 	if err := a.openStorage(); err != nil {
 		return nil, err
 	}
@@ -50,7 +55,7 @@ func (a *AppService) fileHistories() (map[string]FileHistory, error) {
 	if err != nil {
 		return nil, err
 	}
-	items := map[string]FileHistory{}
+	items := map[string]storedFileHistory{}
 	if value != "" {
 		err = json.Unmarshal([]byte(value), &items)
 	}
@@ -64,7 +69,10 @@ func (a *AppService) GetFileHistory(workspace, remote string) (FileHistory, erro
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
 	items, err := a.fileHistories()
-	return items[key], err
+	if item, exists := items[key]; exists {
+		return item.FileHistory, err
+	}
+	return FileHistory{Enabled: true}, err
 }
 func (a *AppService) SetFileHistory(workspace, remote string, enabled bool, validate, reload string) error {
 	if len(validate) > 8192 || len(reload) > 8192 || strings.ContainsRune(validate+reload, 0) {
@@ -80,10 +88,17 @@ func (a *AppService) SetFileHistory(workspace, remote string, enabled bool, vali
 	if err != nil {
 		return err
 	}
-	if _, exists := items[key]; !exists && len(items) >= 64 {
-		return errors.New("配置历史最多管理 64 个文件，请先清除此文件以外的历史设置")
+	configured := 0
+	for _, item := range items {
+		if !item.Automatic {
+			configured++
+		}
+	}
+	if item, exists := items[key]; (!exists || item.Automatic) && configured >= maxFileHistories {
+		return errors.New("最多自定义 64 个文件的历史或操作设置，请先清除其他文件的设置")
 	}
 	item := items[key]
+	item.Automatic = false
 	item.Enabled = enabled
 	item.Validate = validate
 	item.Reload = reload
@@ -127,7 +142,10 @@ func (a *AppService) recordFileVersion(workspace string, document files.Document
 	if err != nil {
 		return err
 	}
-	item := items[key]
+	item, exists := items[key]
+	if !exists {
+		item = storedFileHistory{FileHistory: FileHistory{Enabled: true}, Automatic: true}
+	}
 	if !item.Enabled {
 		return nil
 	}
@@ -147,9 +165,13 @@ func (a *AppService) recordFileVersion(workspace string, document files.Document
 	removed := []string{}
 	for {
 		total := 0
+		count := 0
 		oldestKey := ""
 		var oldest time.Time
 		for id, history := range items {
+			if len(history.Versions) > 0 {
+				count++
+			}
 			for _, v := range history.Versions {
 				total += v.Size
 			}
@@ -158,7 +180,7 @@ func (a *AppService) recordFileVersion(workspace string, document files.Document
 				oldest = history.Versions[0].Time
 			}
 		}
-		if len(items[key].Versions) <= 10 && total <= fileHistoryLimit {
+		if len(items[key].Versions) <= 10 && total <= fileHistoryLimit && count <= maxFileHistories {
 			break
 		}
 		if len(items[key].Versions) > 10 {
@@ -167,7 +189,11 @@ func (a *AppService) recordFileVersion(workspace string, document files.Document
 		history := items[oldestKey]
 		removed = append(removed, "file_version:"+history.Versions[0].ID)
 		history.Versions = history.Versions[1:]
-		items[oldestKey] = history
+		if history.Automatic && len(history.Versions) == 0 {
+			delete(items, oldestKey)
+		} else {
+			items[oldestKey] = history
+		}
 	}
 	index, err := json.Marshal(items)
 	if err != nil {

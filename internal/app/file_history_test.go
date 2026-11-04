@@ -16,8 +16,8 @@ func TestFileHistoryEncryptedDedupAndEviction(t *testing.T) {
 	a := testAppStore(t)
 	a.workspaces["workspace"] = &workspaceOwner{target: "test@example.invalid:22", identity: "test-fingerprint"}
 	const remote = "/tmp/test-config"
-	if err := a.SetFileHistory("workspace", remote, true, "", ""); err != nil {
-		t.Fatal(err)
+	if history, err := a.GetFileHistory("workspace", remote); err != nil || !history.Enabled {
+		t.Fatal("新文件未默认启用历史", err)
 	}
 	var first string
 	for index := 0; index < 11; index++ {
@@ -64,6 +64,29 @@ func TestFileHistoryEncryptedDedupAndEviction(t *testing.T) {
 	}
 	if raw, err := a.store.Setting("file_version:" + last); err != nil || raw != "" {
 		t.Fatal("清除历史未删除正文", err)
+	}
+	if err := a.SetFileHistory("workspace", remote, false, "echo validate-test", ""); err != nil {
+		t.Fatal(err)
+	}
+	for index := 0; index <= maxFileHistories; index++ {
+		if err := a.recordFileVersion("workspace", files.Document{Path: fmt.Sprintf("/tmp/auto-%d", index), Content: "history-placeholder", Revision: "test"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	oldest, err := a.GetFileHistory("workspace", "/tmp/auto-0")
+	if err != nil || len(oldest.Versions) != 0 {
+		t.Fatal("超出文件限额未淘汰最旧历史", err)
+	}
+	if err := a.recordFileVersion("workspace", files.Document{Path: remote, Content: "disabled-placeholder", Revision: "test"}); err != nil {
+		t.Fatal(err)
+	}
+	history, err = a.GetFileHistory("workspace", remote)
+	if err != nil || history.Enabled || history.Validate != "echo validate-test" || len(history.Versions) != 0 {
+		t.Fatal("自动淘汰改变了显式设置", err)
+	}
+	items, err := a.fileHistories()
+	if err != nil || len(items) != maxFileHistories+1 {
+		t.Fatal("自动历史未清理空索引", err)
 	}
 }
 
