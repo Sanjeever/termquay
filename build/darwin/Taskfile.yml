@@ -159,8 +159,7 @@ tasks:
   create:app:bundle:
     summary: Creates an `.app` bundle
     cmds:
-      # A reused bundle can acquire Finder metadata in synced folders. Build a
-      # fresh bundle so codesign never has to replace a contaminated signature.
+      # 重建应用包并清除扩展属性，避免 Finder 元数据导致签名失败。
       - test -n "{{.BIN_DIR}}" && test -n "{{.APP_NAME}}" && rm -rf -- "{{.BIN_DIR}}/{{.APP_NAME}}.app"
       - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/MacOS"
       - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources"

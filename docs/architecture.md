@@ -14,7 +14,7 @@ SSH、SFTP、终端模拟、编辑器和 RDP 分别复用成熟协议库及组�
 
 本地终端由 Go 持有原生 PTY 与进程，复用终端视图和消费确认，不经过 SSH。进程生命周期属于工作区，布局恢复不自动启动本地进程。
 
-Docker 工作区由 Go 经已验证 SSH 连接转发远端 Unix socket，使用 Docker HTTP API，不调用本地或远端 Docker CLI，也不安装 agent。列表、详情和日志受共享请求并发、响应字节、条目与超时限制；日志复用 Moby stdcopy，在解复用前校验帧大小，防止远端帧声明引入无界分配。容器终端使用 Docker exec 的 TTY 升级通道，复用终端解析消费确认，按工作区归属、限额与超时管理；关闭窗口或工作区释放本机资源，不承诺终止远端进程。挂载信息与宿主机文件系统分开，容器终端禁止宿主机路径补全。socket 转发的未完成 SSH 打开请求持续占用限额，取消不视作底层请求已完成。
+Docker 工作区由 Go 经已验证 SSH 连接转发远端 Unix socket，使用 Docker HTTP API，不调用本地或远端 Docker CLI，也不安装 agent。列表、详情和日志须限制请求并发、响应字节、条目与超时；日志在解复用前校验帧大小，防止远端帧声明引入无界分配。容器终端复用终端解析消费确认，按工作区管理限额与超时；关闭窗口或工作区释放本机资源，不承诺终止远端进程。容器与宿主机文件系统分开，容器终端禁止宿主机路径补全。socket 转发的未完成 SSH 打开请求持续占用限额，取消不视作底层请求已完成。实现与边界见 [Docker 客户端](../internal/docker/client.go) 和 [工作区服务](../internal/app/docker.go)。
 
 Docker 单容器启停和重启由用户核对目标与容器身份后确认，不自动提权或重试。资源采样按详情实际可见性串行发起，缺失或失败指标不能冒充零或实时数据；网络与磁盘计数明确表示累计量。
 
@@ -22,7 +22,7 @@ Docker 单容器启停和重启由用户核对目标与容器身份后确认，�
 
 ## 通信、背压与生命周期
 
-asciicast 录制属于用户主动开启的本机输出存档，复用现有 Shell 通信过滤，流式编码时间、输出与尺寸事件，有大小及事件数量边界。录制失败可见并停止存档，交互终端继续运行。回放使用独立的按需播放器，不接入终端输入或网络执行路径；导入先检查文件、事件与尺寸边界，隐藏或最小化暂停，关闭释放播放器与正文引用。记录正文不进入布局、草稿或常规备份。
+终端录制是用户主动开启的本机输出存档，流式写入并限制大小与事件数，Shell 集成通信须过滤。录制失败可见并停止存档，交互终端继续运行。离线回放与终端输入、网络执行路径隔离，导入先校验文件、事件与尺寸边界，隐藏或最小化暂停，关闭释放资源。正文不进入布局、草稿或常规备份。格式与操作见 [终端工具](development.md#终端工具与命令片段)。
 
 - 控制操作使用 Wails 服务绑定，低频状态使用事件，终端字节使用有序、有界的 Streams。接口与类型从 Go 生成绑定，不能手工维护两套跨语言定义。
 - Streams 队列有界不足以保证端到端背压。xterm.js 的写入会排队，必须在解析完成回调中确认已消费字节，上游收到确认后再继续。输出积压不能阻塞独立的输入接收路径，不能静默丢弃未解析输出。
@@ -40,9 +40,9 @@ RDP 图形队列与 WASM 内存也属于资源边界，其上界需要持续真�
 
 终端标签达到上限时要求用户先关闭结束标签，再重连，避免隐式丢弃用于排查的旧输出。窗格移动、合并与最大化保持终端和编辑器实例及其内容连续，不能因改变 React 父级或 key 而卸载重建。
 
-前端就绪后的正常退出先交回界面协调，处理远端草稿并等待本地持久写入，再允许原生关闭。持久存储中尚未设置的本地草稿恢复默认开启，保留已保存的关闭选择；会话存储默认关闭。正文使用现有 AEAD 设置加密，按工作区合并、串行写入并限制大小、文档数和保留期。保存失败必须可见，不能把本机恢复副本当作远端保存成功；退出时忽略本地写入错误需要显式选择。会话存储仍不保证跨重启恢复。
+前端就绪后的正常退出先交回界面协调，处理远端草稿并等待本地持久写入，再允许原生关闭。本地草稿正文使用现有 AEAD 设置加密，按工作区合并、串行写入并限制大小、文档数和保留期。保存失败必须可见，不能把本机恢复副本当作远端保存成功；退出时忽略本地写入错误需要显式选择。默认启用规则与操作见 [草稿恢复](development.md#本地草稿与布局恢复)，会话存储不保证跨重启恢复。
 
-命名工作集复用布局模型，作为带版本的本机设置保存多套 SSH/RDP 入口，不包含秘密、授权、PTY、终端输出或文件正文。用户可显式将其加入加密备份，入口按所选连接筛选，空工作集不携带。保存数量、布局大小与总存储有界，未知版本或无效数据必须报错。打开工作集为每项分配新的界面 ID 并追加断开工作区，保留已有会话及草稿；手动连接后才建立网络与读取文件，不能借工作集恢复旧 PTY、回放命令或绕过保存配置目标变化的核对。
+命名工作集复用布局模型，只保存 SSH/RDP 入口，不包含秘密、授权、PTY、终端输出或文件正文；数量、布局大小与总存储有界，未知版本或无效数据必须报错。打开时分配新的界面 ID 并追加断开工作区，保留既有会话与草稿，避免复用旧会话或误关联草稿；手动连接后才建立网络与读取文件，不能恢复旧 PTY、回放命令或绕过保存配置目标变化的核对。操作见 [布局与工作集](development.md#本地草稿与布局恢复)，迁移范围见 [备份与恢复](development.md#备份与恢复)。
 
 ## 身份、凭据与本地数据
 
@@ -64,7 +64,7 @@ SSH 首次连接由用户核对并确认主机指纹，已知密钥变化必须�
 
 ## 远端文件与监控
 
-普通及 sudo 文件默认开启本机加密版本历史，保留已有按文件设置；保存前读取并核对远端原版本，历史与索引在一次本地事务写入，失败阻止远端写入。历史按连接实际目标、用户、链上身份与路径隔离，正文记录有全局、文件数和每文件边界，超限淘汰最旧版本并清理空的自动索引，保留显式关闭与验证/reload 设置。自定义设置数量单独有界，不因自动历史占满而拒绝新增文件保存。历史不进入快照，回退先载入草稿，后续保存沿用远端版本核对和提权授权。验证、保存与服务 reload 分别由用户显式触发，reload 展示命令并确认；不因编辑或恢复历史自动执行远端命令。
+普通及 sudo 文件保存前读取并核对远端原版本；启用历史时，版本与索引在一次本地事务写入，失败阻止远端写入。历史按实际目标、用户、链上身份与路径隔离，使用本机密钥加密，正文记录有全局、文件数和每文件边界。超限淘汰最旧版本，保留显式关闭与验证/reload 设置；自定义设置单独限额，避免自动历史占满后阻止新增文件保存。历史不进入快照，回退先载入草稿，后续保存沿用远端版本核对和提权授权。验证、保存与服务 reload 分别显式触发，reload 展示命令并确认；不因编辑或恢复历史自动执行远端命令。默认启用规则与操作见 [文件编辑](development.md#文件编辑)，边界见 [历史服务](../internal/app/file_history.go)。
 
 手动目录同步先扫描与预览，再显式执行选中差异。比较相对路径、大小和秒级修改时间，不删除目标多余文件，不跟随符号链接；执行前及发布前复核源/目标，普通 SFTP 检查与重命名之间仍无原子 CAS 保证。扫描与计划有条数、层数、路径字节、时长和并行计划限额；目录作为一项队列任务逐文件流式执行，失败报告已完成数量并要求重新预览剩余差异，不自动重放旧计划。
 
@@ -122,7 +122,7 @@ WebDAV 使用追加式快照，不覆盖或自动清理历史。备份目录由�
 
 恢复顺序是解密、验证版本与引用、展示差异、用户确认、事务替换分组、连接和凭据。提交必须对应预览的同一份已解密数据，预览失效或本地配置已变化时拒绝提交。全量替换前在应用数据目录的 `restore-backups` 保存包含已保存凭据、片段和可迁移设置的加密保护副本，失败阻止替换；优先使用本机已保存备份密码，否则使用本次解锁密码，不自动清理。会话存储也将保护副本写入持久应用目录，避免随临时数据库删除。凭据使用目标设备主密钥重新加密，失败不能部分覆盖现有数据。
 
-完整恢复替换连接与凭据集合，即便快照未携带凭据；选择性导入将所选连接及依赖的跳板、分组与凭据重新分配 ID 后作为独立副本追加，避免改写已有连接的引用。可选配置范围以 [备份选择模型](../internal/app/backup_selection.go) 为准，操作见 [备份与恢复](development.md#备份与恢复)。新配置默认勾选现有工作配置类别，凭据须显式选择携带，旧备份设置不扩大范围并保留暂停状态；预览展示项目数量和需要重新核对的本地路径。
+完整恢复替换连接与凭据集合，即便快照未携带凭据；选择性导入将所选连接及依赖的跳板、分组与凭据重新分配 ID 后作为独立副本追加，避免改写已有连接的引用。预览展示项目数量和需要重新核对的本地路径。可选字段以 [备份选择模型](../internal/app/backup_selection.go) 为准，初始值以 [备份设置](../internal/app/backup_settings.go) 为准；操作、默认选择及已有配置保留规则见 [备份与恢复](development.md#备份与恢复)。
 
 导入副本须同步映射预设、偏好及工作集的连接引用，为任务、工作集与日志规则分配新 ID，并处理工作集与日志规则同名；全量替换模式按所选类别替换本机配置。秘密设置使用目标设备主密钥重新加密，与连接在同一事务提交；预览后相关设置改变时拒绝提交。恢复的隧道暂停自动启动；私钥文件路径供预览，恢复时清除，需目标设备重新选择；最近连接记录不迁移。WebDAV 登录配置、草稿、主机与证书信任保留。私钥内容是否携带由用户选择，引用本机路径不代表内容已备份。
 
@@ -146,7 +146,7 @@ WebDAV 使用追加式快照，不覆盖或自动清理历史。备份目录由�
 | --- | --- | --- |
 | 工作区、布局与退出 | [app.go](../internal/app/app.go)、[lifecycle.go](../internal/app/lifecycle.go)、[workspace.go](../internal/app/workspace.go)、[App.tsx](../frontend/src/App.tsx)、[前端工作区与退出协调](../frontend/src/features/workspaces)、[工作台布局](../frontend/src/components/layout) | `lifecycle_test.go`、`workspace_test.go`、`workspace_state_test.go`、前端 `workspaceLayout.test.ts`、原生关闭与重载验证 |
 | 版本发布与应用更新 | [assets.go](../assets.go)、[version.go](../internal/app/version.go)、[update.go](../internal/app/update.go)、[internal/update](../internal/update)、[发布工作流](../.github/workflows/release.yml)、[版本工具](../scripts/version.mjs) | `internal/update/provider_test.go`、`scripts/version.test.mjs`、原生替换与重启验收 |
-| SSH、PTY 与消费确认 | [internal/ssh](../internal/ssh)、[ssh_connect.go](../internal/app/ssh_connect.go)、[terminal_sessions.go](../internal/app/terminal_sessions.go)、[TerminalView](../frontend/src/features/terminal/TerminalView.tsx) | `internal/ssh/terminal_test.go` |
+| SSH、PTY 与消费确认 | [internal/ssh](../internal/ssh)、[ssh_connect.go](../internal/app/ssh_connect.go)、[terminal_sessions.go](../internal/app/terminal_sessions.go)、[TerminalView](../frontend/src/features/terminal/TerminalView.tsx) | [terminal_test.go](../internal/ssh/terminal_test.go)、[自动重连路径变化缺陷](development.md#已确认的待修复缺陷) |
 | 本地 Shell 与 PTY | [local_terminal.go](../internal/app/local_terminal.go)、[TerminalView](../frontend/src/features/terminal/TerminalView.tsx) | 各平台原生进程、输入与关闭验证 |
 | 目录延迟探测 | [latency.go](../internal/app/latency.go)、[internal/ssh/latency.go](../internal/ssh/latency.go)、[前端调度](../frontend/src/features/connections/useConnectionLatency.ts) | `latency_test.go` 验证本地 TCP、代理请求合并、取消与并发边界；真实代理、跳板路径与前端可见性调度仍需验证 |
 | 文件、草稿与传输 | [internal/files](../internal/files)、[files.go](../internal/app/files.go)、[transfer.go](../internal/app/transfer.go)、[前端文件工作区](../frontend/src/features/files) | `internal/files/service_test.go`、`transfer_test.go`、原生传输流程 |
