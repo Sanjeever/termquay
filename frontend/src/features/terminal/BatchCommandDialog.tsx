@@ -6,11 +6,13 @@ import { RunRemoteCommand } from '../../../bindings/github.com/Sanjeever/termqua
 import type { CommandResult } from '../../../bindings/github.com/Sanjeever/termquay/internal/ssh/models';
 import type { Snippet } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import { expandSnippet, snippetParameters } from '../../lib/snippets';
+import CommandTargets, { type CommandTarget } from './CommandTargets';
+import type { Group } from '../../../bindings/github.com/Sanjeever/termquay/internal/store/models';
 
-type Target = { id: string; name: string; address: string };
+type Target = CommandTarget;
 type Result = { target: Target; state: string; result?: CommandResult; error?: string };
 
-export default function BatchCommandDialog({ targets, initial, snippets, onClose }: { targets: Target[]; initial?: string; snippets: Snippet[]; onClose(): void }) {
+export default function BatchCommandDialog({ targets, groups, initial, snippets, onClose }: { targets: Target[]; groups?: Group[]; initial?: string; snippets: Snippet[]; onClose(): void }) {
   const [selected, setSelected] = useState(new Set(initial ? [initial] : []));
   const [body, setBody] = useState('');
   const [parameters, setParameters] = useState<Record<string, string>>({});
@@ -44,7 +46,7 @@ export default function BatchCommandDialog({ targets, initial, snippets, onClose
     if (mounted.current) { setBusy(false); setResults(previous => previous.map(result => result.state === '等待' ? { ...result, state: '未执行' } : result)); }
   }
   return <Modal isOpen onClose={() => { cancel(); onClose(); }} size="3xl" className="app-dialog" scrollBehavior="inside" isDismissable={!busy}><ModalContent><ModalHeader>多主机命令</ModalHeader><ModalBody>
-    <div className="batch-targets">{targets.map(target => <label key={target.id}><input type="checkbox" disabled={busy} checked={selected.has(target.id)} onChange={event => setSelected(previous => { const next = new Set(previous); if (event.target.checked) next.add(target.id); else next.delete(target.id); return next; })} /><span>{target.name}<small className="muted">{target.address}</small></span></label>)}{!targets.length && <p className="muted">暂无已连接 SSH 工作区</p>}</div>
+    <CommandTargets targets={targets} groups={groups} selected={selected} onChange={setSelected} busy={busy} />
     {!!snippets.length && <label className="form-field">命令片段<SelectControl value="" disabled={busy} onChange={event => { const snippet = snippets.find(value => value.id === event.target.value); if (snippet) { setBody(snippet.body); setParameters({}); } }}><option value="">选择片段</option>{snippets.map(snippet => <option key={snippet.id} value={snippet.id}>{snippet.name}</option>)}</SelectControl></label>}
     <label className="form-field">命令<textarea className="command-source" aria-label="多主机命令" rows={5} value={body} maxLength={32768} disabled={busy} onChange={event => setBody(event.target.value)} spellCheck={false}/></label>
     {names.map(name => <label className="form-field" key={name}>{name}<input value={parameters[name] || ''} disabled={busy} maxLength={4096} onChange={event => setParameters({ ...parameters, [name]: event.target.value })}/></label>)}

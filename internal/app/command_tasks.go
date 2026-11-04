@@ -4,7 +4,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	terminal "github.com/Sanjeever/termquay/internal/ssh"
+	"github.com/wailsapp/wails/v3/pkg/application"
+	"os"
 	"strings"
+	"time"
 )
 
 type CommandStep struct {
@@ -14,10 +18,14 @@ type CommandStep struct {
 }
 
 type CommandTask struct {
-	ID            string        `json:"id"`
-	Name          string        `json:"name"`
-	Steps         []CommandStep `json:"steps"`
-	StopOnFailure bool          `json:"stop_on_failure"`
+	ID                string        `json:"id"`
+	Name              string        `json:"name"`
+	Steps             []CommandStep `json:"steps"`
+	StopOnFailure     bool          `json:"stop_on_failure"`
+	Concurrency       int           `json:"concurrency,omitempty"`
+	BatchSize         int           `json:"batch_size,omitempty"`
+	FirstHostApproval bool          `json:"first_host_approval,omitempty"`
+	StopAllOnFailure  bool          `json:"stop_all_on_failure,omitempty"`
 }
 
 func (a *AppService) commandTasks() ([]CommandTask, error) {
@@ -88,6 +96,9 @@ func (a *AppService) SaveCommandTask(task CommandTask) (CommandTask, error) {
 }
 
 func validateCommandTask(task CommandTask) error {
+	if task.Concurrency < 0 || task.Concurrency > 3 || task.BatchSize < 0 || task.BatchSize > 64 {
+		return errors.New("并发须为 1 至 3，批次大小须为 1 至 64；0 沿用默认值")
+	}
 	if task.Name == "" || len(task.Name) > 128 || len(task.Steps) == 0 || len(task.Steps) > 16 {
 		return errors.New("任务名称须为 1 至 128 字节，步骤须为 1 至 16 项")
 	}
@@ -97,6 +108,37 @@ func validateCommandTask(task CommandTask) error {
 		}
 	}
 	return nil
+}
+
+type CommandExportResult struct {
+	Target  string                  `json:"target"`
+	Address string                  `json:"address"`
+	Step    string                  `json:"step"`
+	State   string                  `json:"state"`
+	Result  *terminal.CommandResult `json:"result,omitempty"`
+	Error   string                  `json:"error,omitempty"`
+}
+
+func (a *AppService) ExportCommandResults(results []CommandExportResult) error {
+	if len(results) == 0 || len(results) > 1024 {
+		return errors.New("导出结果须为 1 至 1024 项")
+	}
+	report := struct {
+		CreatedAt time.Time             `json:"created_at"`
+		Results   []CommandExportResult `json:"results"`
+	}{time.Now().UTC(), results}
+	data, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return err
+	}
+	if len(data) > 16<<20 {
+		return errors.New("导出结果超过 16 MiB，请减少结果数量")
+	}
+	filename, err := application.Get().Dialog.SaveFile().SetMessage("导出所选执行结果（包含命令输出）").SetFilename("termquay-command-results.json").PromptForSingleSelection()
+	if err != nil || filename == "" {
+		return err
+	}
+	return os.WriteFile(filename, data, 0600)
 }
 
 func (a *AppService) DeleteCommandTask(id string) error {

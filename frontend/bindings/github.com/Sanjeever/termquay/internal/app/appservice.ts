@@ -252,6 +252,10 @@ export function ExecuteDirectorySync(id: string, selected: string[] | null): $Ca
     return $Call.ByID(1166658499, id, selected);
 }
 
+export function ExportCommandResults(results: $models.CommandExportResult[] | null): $CancellablePromise<void> {
+    return $Call.ByID(2404801317, results);
+}
+
 export function ExportDiagnostics(): $CancellablePromise<void> {
     return $Call.ByID(1245918448);
 }

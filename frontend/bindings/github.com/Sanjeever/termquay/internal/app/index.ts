@@ -13,6 +13,7 @@ export type {
     BackupSettings,
     BuildInfo,
     Catalog,
+    CommandExportResult,
     CommandStep,
     CommandTask,
     CompletionPath,

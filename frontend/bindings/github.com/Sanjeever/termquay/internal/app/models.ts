@@ -71,6 +71,15 @@ export interface Catalog {
     "session_only": boolean;
 }
 
+export interface CommandExportResult {
+    "target": string;
+    "address": string;
+    "step": string;
+    "state": string;
+    "result"?: ssh$0.CommandResult | null;
+    "error"?: string;
+}
+
 export interface CommandStep {
     "name": string;
     "script": string;
@@ -82,6 +91,10 @@ export interface CommandTask {
     "name": string;
     "steps": CommandStep[] | null;
     "stop_on_failure": boolean;
+    "concurrency"?: number;
+    "batch_size"?: number;
+    "first_host_approval"?: boolean;
+    "stop_all_on_failure"?: boolean;
 }
 
 export interface CompletionPath {
