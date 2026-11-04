@@ -1,82 +1,140 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Button, Input } from '@heroui/react';
-import { BackupWebDAVWithSelection, ConfirmRestoreSelection, ExportLocalSnapshot, PreviewLocalRestore, SavePortableUI, GetPortableUI, GetCatalog, ListSnapshots, PreviewRestore, TestWebDAV } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
-import type { RemoteSnapshot, WebDAVOptions } from '../../../bindings/github.com/Sanjeever/termquay/internal/backup/models';
-import type { BackupSelection, RestorePreview } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
+import { BackupNow, CheckSavedWebDAV, ExportLocalSnapshot, GetBackupCoverage, GetBackupSettings, OpenRestoreBackupDirectory, SaveBackupSettings, SavePortableUI, SetAutomaticBackupEnabled } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
+import type { BackupCoverage, BackupSelection, BackupSettings as BackupPreferences } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
+import type { WebDAVOptions } from '../../../bindings/github.com/Sanjeever/termquay/internal/backup/models';
 import type { Connection } from '../../../bindings/github.com/Sanjeever/termquay/internal/store/models';
-import { applyPortableUI, capturePortableUI } from './portable';
-import { EnableAutomaticBackup, DisableAutomaticBackup } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
+import { capturePortableUI } from './portable';
 import type useAutomaticBackup from './useAutomaticBackup';
+import BackupHistory from './BackupHistory';
+import RestoreBackupDialog from './RestoreBackupDialog';
 
-export default function BackupSettings({ onRestore, automaticBackup }: { onRestore(): void; automaticBackup: ReturnType<typeof useAutomaticBackup> }) {
-  const [snapshots, setSnapshots] = useState<RemoteSnapshot[]>([]);
-  const [preview, setPreview] = useState<RestorePreview>();
-  const [error, setError] = useState('');
-  const [result, setResult] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-  const [connections, setConnections] = useState<Connection[]>([]);
+export default function BackupSettings({ onRestore, onEditConnection, connections, automaticBackup }: {
+  onRestore(): void; onEditConnection(id: string): void; connections: Connection[]; automaticBackup: ReturnType<typeof useAutomaticBackup>;
+}) {
+  const [preferences, setPreferences] = useState<BackupPreferences>();
+  const [coverage, setCoverage] = useState<BackupCoverage[]>([]);
+  const [locationEditing, setLocationEditing] = useState(false);
+  const [backupEditing, setBackupEditing] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [checked, setChecked] = useState(false);
+  const [busy, setBusy] = useState('');
+  const [error, setError] = useState<{ area: string; message: string }>();
+  const [restoring, setRestoring] = useState<string>();
+  const [historyRevision, setHistoryRevision] = useState(0);
   const [allConnections, setAllConnections] = useState(true);
   const [connectionIDs, setConnectionIDs] = useState<string[]>([]);
-  const [restoreIDs, setRestoreIDs] = useState<string[]>([]);
-  const [restoreSettings, setRestoreSettings] = useState(true);
   const [search, setSearch] = useState('');
-  useEffect(() => { GetCatalog().then(value => setConnections(value.connections || [])).catch(e => setError(String(e))); }, []);
+  const localForm = useRef<HTMLFormElement>(null);
+  const mounted = useRef(true);
 
-  async function run(form: HTMLFormElement, action: string, path = '') {
-    const data = new FormData(form);
-    const options: WebDAVOptions = { url: String(data.get('url')), username: String(data.get('username')), password: String(data.get('password')), directory: String(data.get('directory')) };
-    setError(''); setResult(''); setBusy(true);
-    try {
-      const selection: BackupSelection = { connection_ids: allConnections ? [] : connectionIDs, credentials: data.get('credentials') === 'on', snippets: data.get('snippets') === 'on', settings: data.get('settings') === 'on' };
-      if (['backup', 'local-export', 'automatic-enable'].includes(action)) { if (!allConnections && !connectionIDs.length) throw new Error('请选择要备份的连接'); if (selection.settings) await SavePortableUI(capturePortableUI()); }
-      switch (action) {
-        case 'test': await TestWebDAV(options); setResult('WebDAV 连接正常'); break;
-        case 'automatic-enable': await EnableAutomaticBackup(options, String(data.get('recovery')), selection); await automaticBackup.refresh(); break;
-        case 'automatic-disable': await DisableAutomaticBackup(); await automaticBackup.refresh(); break;
-        case 'list': setSnapshots(await ListSnapshots(options)??[]); setLoaded(true); break;
-        case 'backup': {
-          const remote = await BackupWebDAVWithSelection(options, String(data.get('recovery')), selection);
-          setResult(`快照已保存：${remote}`); setSnapshots(await ListSnapshots(options)??[]); setLoaded(true); break;
-        }
-        case 'local-export': { const filename = await ExportLocalSnapshot(String(data.get('recovery')), selection); if (filename) setResult(`快照已导出：${filename}`); break; }
-        case 'preview': setRestoreIDs([]); setPreview(await PreviewRestore(options, path, String(data.get('recovery')))); break;
-        case 'local-preview': { const value = await PreviewLocalRestore(String(data.get('recovery'))); setRestoreIDs([]); setPreview(value.id ? value : undefined); break; }
-        case 'restore': case 'import': await ConfirmRestoreSelection(preview!.id, restoreIDs, action === 'restore', restoreSettings); setPreview(undefined); setResult(action === 'restore' ? '恢复完成' : '所选连接已导入为独立副本'); if (restoreSettings) applyPortableUI(await GetPortableUI()); onRestore(); break;
-      }
-    } catch (e) { setError(String(e)); }
-    finally { setBusy(false); options.password = ''; }
+  useEffect(() => {
+    mounted.current = true;
+    const request = GetBackupSettings();
+    request.then(value => { if (mounted.current) { setPreferences(value); setLocationEditing(!value.configured); setBackupEditing(!value.recovery_saved); } }).catch(error => { if (mounted.current) setError({ area: 'location', message: String(error) }); });
+    return () => { mounted.current = false; request.cancel(); };
+  }, []);
+  useEffect(() => {
+    let disposed = false;
+    const request = GetBackupCoverage();
+    request.then(value => { if (!disposed) setCoverage(value || []); }).catch(error => { if (!disposed) setError({ area: 'backup', message: String(error) }); });
+    return () => { disposed = true; request.cancel(); };
+  }, [connections]);
+
+  async function run(area: string, task: () => Promise<void>) {
+    if (busy) return;
+    setBusy(area); setError(undefined);
+    try { await task(); }
+    catch (error) { if (mounted.current) setError({ area, message: String(error) }); }
+    finally { if (mounted.current) setBusy(''); }
   }
-
-  return <section className="settings-panel">
+  async function refreshPreferences() {
+    const value = await GetBackupSettings();
+    if (mounted.current) setPreferences(value);
+    await automaticBackup.refresh();
+  }
+  function options(): WebDAVOptions {
+    return { url: preferences!.url, username: preferences!.username, directory: preferences!.directory, password: '' };
+  }
+  async function saveLocation(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const target: WebDAVOptions = { url: String(data.get('url')).trim(), username: String(data.get('username')), directory: String(data.get('directory')).trim(), password: String(data.get('password') || '') };
+    await run('location', async () => {
+      await SaveBackupSettings(target, '', preferences!.device_name, preferences!.selection);
+      await refreshPreferences(); setLocationEditing(false); setChecked(false); setHistoryRevision(value => value + 1);
+    });
+    target.password = '';
+  }
+  async function saveBackup(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    await run('backup', async () => {
+      const password = String(data.get('recovery') || '');
+      if (password && password !== String(data.get('confirmation') || '')) throw new Error('两次输入的备份密码不一致');
+      const selection: BackupSelection = { connection_ids: [], credentials: data.get('credentials') === 'on', snippets: data.get('snippets') === 'on', settings: data.get('settings') === 'on' };
+      if (selection.settings) await SavePortableUI(capturePortableUI());
+      await SaveBackupSettings(options(), password, String(data.get('device_name')), selection);
+      await refreshPreferences(); setBackupEditing(false); setChangingPassword(false); setHistoryRevision(value => value + 1);
+    });
+    data.set('recovery', ''); data.set('confirmation', '');
+  }
+  async function exportFile() {
+    const form = localForm.current;
+    if (!form || !form.reportValidity()) return;
+    const data = new FormData(form);
+    await run('files', async () => {
+      if (!allConnections && !connectionIDs.length) throw new Error('请选择要导出的连接');
+      const selection: BackupSelection = { connection_ids: allConnections ? [] : connectionIDs, credentials: data.get('credentials') === 'on', snippets: data.get('snippets') === 'on', settings: data.get('settings') === 'on' };
+      if (selection.settings) await SavePortableUI(capturePortableUI());
+      await ExportLocalSnapshot(String(data.get('password') || ''), selection);
+    });
+    const password = form.elements.namedItem('password') as HTMLInputElement;
+    password.value = '';
+  }
+  const status = automaticBackup.status;
+  const automaticLabel = status?.running ? '正在备份' : status?.pending ? '等待备份' : status?.enabled ? '已开启' : '已暂停';
+  return <section className="settings-panel backup-settings">
     <h2>备份恢复</h2>
-    <form onSubmit={(e) => e.preventDefault()}>
-      <h3>WebDAV</h3>
-      <Input name="url" type="url" label="地址" labelPlacement="outside" placeholder="https://" size="sm" isRequired isDisabled={busy} />
-      <Input name="username" label="用户名" labelPlacement="outside" placeholder="用户名" size="sm" autoComplete="off" isDisabled={busy} />
-      <Input name="password" label="WebDAV 密码" labelPlacement="outside" placeholder="密码" type="password" size="sm" autoComplete="off" isDisabled={busy} />
-      <Input name="directory" label="备份目录" labelPlacement="outside" placeholder="相对路径" defaultValue="termquay/backups" size="sm" isRequired isDisabled={busy} />
-      <h3>快照</h3>
-      <Input name="recovery" label="独立备份密码" labelPlacement="outside" placeholder="独立备份密码" type="password" size="sm" autoComplete="off" isDisabled={busy} />
-      <label className="checkbox-label"><input type="checkbox" name="credentials" /> 携带连接密码与私钥内容</label>
-      <label className="checkbox-label"><input type="checkbox" name="snippets" defaultChecked />命令片段</label><label className="checkbox-label"><input type="checkbox" name="settings" defaultChecked />外观与快捷键</label>
-      <details><summary>选择备份连接</summary><label className="checkbox-label"><input type="checkbox" checked={allConnections} onChange={event => setAllConnections(event.target.checked)} disabled={busy}/>全部连接</label>{!allConnections && <><input aria-label="筛选备份连接" placeholder="搜索连接" value={search} onChange={event => setSearch(event.target.value)}/><div className="backup-connection-list">{connections.filter(c => `${c.name} ${c.host}`.toLowerCase().includes(search.toLowerCase())).slice(0,200).map(c => <label className="checkbox-label" key={c.id}><input type="checkbox" disabled={busy} checked={connectionIDs.includes(c.id)} onChange={event => setConnectionIDs(previous => event.target.checked ? [...previous,c.id] : previous.filter(id => id !== c.id))}/>{c.name}<small className="muted">{c.host}</small></label>)}</div><p className="muted">已选 {connectionIDs.length} 项，跳板及所属分组随连接导出</p></>}</details>
-      <div className="button-row"><Button size="sm" variant="bordered" isDisabled={busy} onPress={event => void run((event.target as HTMLElement).closest('form')!, 'local-export')}>导出加密文件</Button><Button size="sm" variant="light" isDisabled={busy} onPress={event => void run((event.target as HTMLElement).closest('form')!, 'local-preview')}>从文件预览恢复</Button></div>
-      <div className="button-row">{[['test', '测试连接'], ['list', '读取快照'], ['backup', '创建快照']].map(([action, label]) => <Button key={action} size="sm" isDisabled={busy} onPress={(event) => { const form = (event.target as HTMLElement).closest('form')!; if (form.reportValidity()) void run(form, action); }}>{label}</Button>)}</div>
-      <div className="automatic-backup"><div className="button-row"><span>{automaticBackup.status?.running ? '自动备份进行中' : automaticBackup.status?.pending ? '自动备份等待中' : automaticBackup.status?.enabled ? '自动备份已开启' : '自动备份已关闭'}</span><Button size="sm" variant="light" isDisabled={busy || !allConnections} onPress={event => { const form = (event.target as HTMLElement).closest('form')!; if (form.reportValidity()) void run(form, 'automatic-enable'); }}>{automaticBackup.status?.enabled ? '更新自动备份配置' : '启用自动备份'}</Button>{automaticBackup.status?.enabled && <Button size="sm" variant="light" isDisabled={busy} onPress={event => void run((event.target as HTMLElement).closest('form')!, 'automatic-disable')}>关闭</Button>}</div>{automaticBackup.status?.url && automaticBackup.status.enabled && <p className="file-path">{automaticBackup.status.url}</p>}{automaticBackup.status?.last_success && <p className="muted">最近成功 {new Date(automaticBackup.status.last_success).toLocaleString()}</p>}{(automaticBackup.error || automaticBackup.status?.error) && <p role="alert" className="error">{automaticBackup.error || automaticBackup.status?.error}</p>}<p className="muted">启用后加密保存 WebDAV 凭据与独立备份密码。连接、片段或界面设置变化后合并备份，失败保留状态，等待下次修改或重新启用。</p></div>
-      {result && <p role="status" className="operation-result">{result}</p>}
-      {error && <p role="alert" className="error">{error}</p>}
-      <h3>远端快照</h3>{loaded && snapshots.length === 0 && <p className="muted">暂无快照</p>}
-      <ul className="snapshot-list">{snapshots.map((s) => <li key={s.path}><div><code>{s.path}</code><span>{Math.ceil(s.size / 1024)} KiB</span></div><Button size="sm" variant="light" isDisabled={busy} onPress={(e) => void run((e.target as HTMLElement).closest('form')!, 'preview', s.path)}>预览恢复</Button></li>)}</ul>
-      {preview && <div className="restore-preview">
-        <h3>恢复预览</h3><p>{preview.device_id} · {new Date(preview.created_at).toLocaleString()}</p>
-        <p>凭据 {preview.credentials} 项</p>
-        {!!preview.settings?.length && <label className="checkbox-label"><input type="checkbox" checked={restoreSettings} disabled={busy} onChange={event => setRestoreSettings(event.target.checked)}/>恢复 {preview.settings.map(key => ({snippets:'命令片段',appearance:'外观',shortcuts:'快捷键'} as Record<string,string>)[key] || key).join('、')}</label>}
-        {([['新增', preview.added], ['更新', preview.updated], ['移除', preview.removed]] as const).map(([title, names]) => <div key={title}><strong>{title} {names?.length??0}</strong>{names?.map((name, i) => <div key={i}>{name}</div>)}</div>)}
-        <details><summary>选择导入连接 · {restoreIDs.length} 项</summary><div className="backup-connection-list">{(preview.connections || []).map(connection => <label className="checkbox-label" key={connection.id}><input type="checkbox" checked={restoreIDs.includes(connection.id)} disabled={busy} onChange={event => setRestoreIDs(previous => event.target.checked ? [...previous,connection.id] : previous.filter(id => id !== connection.id))}/>{connection.name}<small className="muted">{connection.host}</small></label>)}</div></details>
-        <p>替换全部会覆盖当前连接、分组与凭据。导入所选会创建独立副本，包含依赖的跳板；信任记录保留。</p>
-        <div className="button-row"><Button size="sm" color="primary" isDisabled={busy || !restoreIDs.length} onPress={event => void run((event.target as HTMLElement).closest('form')!, 'import')}>导入所选连接</Button><Button size="sm" color="danger" variant="light" isDisabled={busy} onPress={(e) => void run((e.target as HTMLElement).closest('form')!, 'restore')}>替换全部</Button><Button size="sm" variant="light" onPress={() => setPreview(undefined)}>取消</Button></div>
-      </div>}
-    </form>
+    <section className="backup-section">
+      <div className="backup-section-heading"><h3>备份位置</h3>{preferences?.configured && !locationEditing && <Button size="sm" variant="light" isDisabled={!!busy} onPress={() => setLocationEditing(true)}>修改</Button>}</div>
+      {!preferences && !error && <p role="status" className="muted">正在读取设置…</p>}
+      {preferences && (locationEditing ? <form onSubmit={event => void saveLocation(event)}>
+        <Input name="url" type="url" label="WebDAV 地址" labelPlacement="outside" placeholder="https://" defaultValue={preferences.url} size="sm" isRequired isDisabled={!!busy}/>
+        <Input name="directory" label="备份目录" labelPlacement="outside" defaultValue={preferences.directory} size="sm" isRequired isDisabled={!!busy}/>
+        <div className="backup-form-columns"><Input name="username" label="用户名" labelPlacement="outside" defaultValue={preferences.username} autoComplete="off" size="sm" isDisabled={!!busy}/><Input name="password" label="WebDAV 登录密码" labelPlacement="outside" placeholder={preferences.password_saved ? '已保存，留空沿用' : ''} type="password" autoComplete="off" size="sm" isDisabled={!!busy}/></div>
+        <div className="button-row"><Button size="sm" type="submit" color="primary" isLoading={busy === 'location'} isDisabled={!!busy}>保存位置</Button>{preferences.configured && <Button size="sm" variant="light" isDisabled={!!busy} onPress={() => setLocationEditing(false)}>取消</Button>}</div>
+      </form> : <><dl className="backup-location"><div><dt>地址</dt><dd>{preferences.url.replace(/\/$/, '')}/{preferences.directory}</dd></div>{preferences.username && <div><dt>用户</dt><dd>{preferences.username}</dd></div>}</dl><Button size="sm" variant="bordered" isLoading={busy === 'location'} isDisabled={!!busy} onPress={() => void run('location', async () => { await CheckSavedWebDAV(); setChecked(true); })}>{checked ? '读写与发布检查通过' : '检查连接'}</Button></>)}
+      {error?.area === 'location' && <p role="alert" className="error">{error.message}</p>}
+    </section>
+
+    {preferences && <section className="backup-section">
+      <div className="backup-section-heading"><h3>本机备份</h3>{!backupEditing && <Button size="sm" variant="light" isDisabled={!!busy || !preferences.configured} onPress={() => setBackupEditing(true)}>修改</Button>}</div>
+      {backupEditing ? <form onSubmit={event => void saveBackup(event)}>
+        <Input name="device_name" label="设备名称" labelPlacement="outside" defaultValue={preferences.device_name} size="sm" maxLength={100} isRequired isDisabled={!!busy}/>
+        <Input name="recovery" label={preferences.recovery_saved ? '更换备份加密密码' : '备份加密密码'} labelPlacement="outside" placeholder={preferences.recovery_saved ? '已保存，留空沿用' : ''} type="password" autoComplete="new-password" size="sm" isRequired={!preferences.recovery_saved} isDisabled={!!busy} onValueChange={value => setChangingPassword(!!value)}/>
+        {changingPassword && <Input name="confirmation" label="再次输入备份加密密码" labelPlacement="outside" type="password" autoComplete="new-password" size="sm" isRequired isDisabled={!!busy}/>}
+        {changingPassword && preferences.recovery_saved && <p className="muted">旧备份仍需原密码解锁。</p>}
+        <fieldset className="backup-content-options" disabled={!!busy}><legend>备份内容 · 全部连接</legend><label className="checkbox-label"><input type="checkbox" name="credentials" defaultChecked={preferences.selection.credentials}/>携带已保存密码与私钥</label><label className="checkbox-label"><input type="checkbox" name="snippets" defaultChecked={preferences.selection.snippets}/>命令片段</label><label className="checkbox-label"><input type="checkbox" name="settings" defaultChecked={preferences.selection.settings}/>外观与快捷键</label></fieldset>
+        <div className="button-row"><Button size="sm" type="submit" color="primary" isLoading={busy === 'backup'} isDisabled={!!busy || !preferences.configured}>保存备份设置</Button>{preferences.recovery_saved && <Button size="sm" variant="light" isDisabled={!!busy} onPress={() => { setBackupEditing(false); setChangingPassword(false); }}>取消</Button>}</div>
+      </form> : <dl className="backup-location"><div><dt>设备</dt><dd>{preferences.device_name}</dd></div><div><dt>内容</dt><dd>全部连接{preferences.selection.credentials ? '、已保存密码与私钥' : '（不携带凭据）'}{preferences.selection.snippets && '、命令片段'}{preferences.selection.settings && '、外观与快捷键'}</dd></div></dl>}
+      <div className="backup-automatic-row"><label className="checkbox-label"><input type="checkbox" role="switch" aria-label="自动备份" checked={!!status?.enabled} disabled={!!busy || !preferences.configured || !preferences.recovery_saved || backupEditing || locationEditing} onChange={event => { const enabled = event.target.checked; void run('backup', async () => { await SetAutomaticBackupEnabled(enabled); await automaticBackup.refresh(); }); }}/>自动备份<span className="muted">{automaticLabel}</span></label><Button size="sm" variant="bordered" isLoading={busy === 'backup' || !!status?.running} isDisabled={!!busy || !!status?.running || !preferences.configured || !preferences.recovery_saved || backupEditing || locationEditing} onPress={() => void run('backup', async () => { if (preferences.selection.settings) await SavePortableUI(capturePortableUI()); await BackupNow(); await automaticBackup.refresh(); setHistoryRevision(value => value + 1); })}>{status?.error ? '重试备份' : '立即备份'}</Button></div>
+      <p className="muted backup-last-success">{status?.last_success ? `最近成功 ${new Date(status.last_success).toLocaleString()}` : '尚无成功备份记录'}</p>
+      {!!coverage.length && <details className="backup-coverage"><summary>需要补齐或在目标设备配置的认证 · {coverage.length} 个连接</summary><ul>{coverage.map(item => <li key={item.connection_id}><div><strong>{item.name}</strong><span className="muted">{item.reason}</span></div>{item.can_save && <Button size="sm" variant="light" isDisabled={!!busy} onPress={() => onEditConnection(item.connection_id)}>补齐凭据</Button>}</li>)}</ul></details>}
+      {(error?.area === 'backup' || automaticBackup.error || status?.error) && <p role="alert" className="error">{error?.area === 'backup' ? error.message : automaticBackup.error || status?.error}</p>}
+    </section>}
+
+    {preferences?.configured && !locationEditing && <BackupHistory key={`${preferences.url}\n${preferences.username}\n${preferences.directory}`} deviceID={preferences.device_id} deviceName={preferences.device_name} recoverySaved={preferences.recovery_saved} revision={`${historyRevision}:${status?.last_success || ''}`} onRestore={path => setRestoring(path)}/>}
+
+    {preferences && <details className="backup-local-files"><summary>本地加密文件</summary><form ref={localForm} onSubmit={event => { event.preventDefault(); void exportFile(); }}>
+      <Input name="password" label="导出加密密码" labelPlacement="outside" placeholder={preferences.recovery_saved ? '留空使用已保存密码' : ''} type="password" autoComplete="new-password" size="sm" isDisabled={!!busy}/>
+      <fieldset className="backup-content-options" disabled={!!busy}><legend>导出内容</legend><label className="checkbox-label"><input type="checkbox" name="credentials" defaultChecked={preferences.selection.credentials}/>携带已保存密码与私钥</label><label className="checkbox-label"><input type="checkbox" name="snippets" defaultChecked={preferences.selection.snippets}/>命令片段</label><label className="checkbox-label"><input type="checkbox" name="settings" defaultChecked={preferences.selection.settings}/>外观与快捷键</label></fieldset>
+      <label className="checkbox-label"><input type="checkbox" checked={allConnections} disabled={!!busy} onChange={event => setAllConnections(event.target.checked)}/>全部连接</label>
+      {!allConnections && <><Input aria-label="筛选导出连接" placeholder="搜索连接" size="sm" value={search} onValueChange={setSearch}/><div className="backup-connection-list">{connections.filter(connection => `${connection.name} ${connection.host}`.toLowerCase().includes(search.toLowerCase())).map(connection => <label className="checkbox-label" key={connection.id}><input type="checkbox" disabled={!!busy || (!connectionIDs.includes(connection.id) && connectionIDs.length >= 256)} checked={connectionIDs.includes(connection.id)} onChange={event => setConnectionIDs(previous => event.target.checked ? [...previous, connection.id] : previous.filter(id => id !== connection.id))}/>{connection.name}<small className="muted">{connection.host}</small></label>)}</div><span className="muted">已选 {connectionIDs.length}/256，包含依赖跳板和分组</span></>}
+      <div className="button-row"><Button size="sm" variant="bordered" type="submit" isLoading={busy === 'files'} isDisabled={!!busy}>导出加密文件</Button><Button size="sm" variant="light" isDisabled={!!busy} onPress={() => setRestoring('')}>从文件恢复</Button></div>
+    </form></details>}
+    <Button className="backup-protection-directory" size="sm" variant="light" isDisabled={!!busy} onPress={() => void run('files', async () => { await OpenRestoreBackupDirectory(); })}>打开恢复保护副本目录</Button>
+    {error?.area === 'files' && <p role="alert" className="error">{error.message}</p>}
+    {restoring !== undefined && <RestoreBackupDialog path={restoring} recoverySaved={!!preferences?.recovery_saved} hasConnections={!!connections.length} onClose={() => setRestoring(undefined)} onRestored={() => { onRestore(); setHistoryRevision(value => value + 1); }} onError={message => setError({ area: 'files', message })}/>}
   </section>;
 }
