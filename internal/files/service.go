@@ -157,10 +157,10 @@ func readRaw(client *sftp.Client, remote string) (Document, []byte, error) {
 		return Document{}, nil, err
 	}
 	if !info.Mode().IsRegular() {
-		return Document{}, nil, errors.New("编辑器支持普通文件，符号链接需使用实际目标路径")
+		return Document{}, nil, &ReadError{Code: "file_not_regular", Message: "编辑器支持普通文件，符号链接需使用实际目标路径"}
 	}
 	if info.Size() > MaxEditSize {
-		return Document{}, nil, errors.New("在线编辑文件不能超过 2 MiB，请下载后编辑")
+		return Document{}, nil, &ReadError{Code: "file_too_large", Message: "在线编辑文件不能超过 2 MiB，请下载后编辑"}
 	}
 	f, err := client.Open(remote)
 	if err != nil {
@@ -172,7 +172,7 @@ func readRaw(client *sftp.Client, remote string) (Document, []byte, error) {
 		return Document{}, nil, err
 	}
 	if len(data) > MaxEditSize {
-		return Document{}, nil, errors.New("文件超过在线编辑限制")
+		return Document{}, nil, &ReadError{Code: "file_too_large", Message: "文件超过在线编辑限制，请下载后编辑"}
 	}
 	sum := sha256.Sum256(data)
 	attributes, ok := info.Sys().(*sftp.FileStat)

@@ -22,7 +22,7 @@ func Run(assets fs.FS, appIcons fs.ReadFileFS, build BuildInfo, licenses fs.Read
 		Name: "TermQuay", Description: "TermQuay 远程连接工作台",
 		Icon:       appIcon,
 		ShouldQuit: service.canQuit,
-		Services:   []application.Service{application.NewService(service)},
+		Services:   []application.Service{application.NewServiceWithOptions(service, application.ServiceOptions{MarshalError: marshalServiceError})},
 		Assets:     application.AssetOptions{Handler: application.AssetFileServerFS(assets)},
 		Mac:        application.MacOptions{ApplicationShouldTerminateAfterLastWindowClosed: true},
 	})

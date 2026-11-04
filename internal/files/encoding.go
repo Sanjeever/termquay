@@ -11,6 +11,13 @@ import (
 	"golang.org/x/text/encoding/simplifiedchinese"
 )
 
+type ReadError struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+func (e *ReadError) Error() string { return e.Message }
+
 func textEncoding(name string) (string, encoding.Encoding, error) {
 	switch strings.ToUpper(name) {
 	case "", "UTF-8":
@@ -22,11 +29,14 @@ func textEncoding(name string) (string, encoding.Encoding, error) {
 	case "GB18030":
 		return "GB18030", simplifiedchinese.GB18030, nil
 	default:
-		return "", nil, errors.New("不支持的文件编码")
+		return "", nil, &ReadError{Code: "file_encoding", Message: "不支持的文件编码"}
 	}
 }
 
 func DecodeText(data []byte, charset string) (content, name string, bom bool, err error) {
+	if bytes.IndexByte(data, 0) >= 0 {
+		return "", "", false, &ReadError{Code: "file_binary", Message: "文件包含二进制内容，请下载后打开"}
+	}
 	name, codec, err := textEncoding(charset)
 	if err != nil {
 		return "", "", false, err
@@ -37,22 +47,22 @@ func DecodeText(data []byte, charset string) (content, name string, bom bool, er
 			data = data[3:]
 		}
 		if !utf8.Valid(data) {
-			return "", "", false, errors.New("文件不是 UTF-8 文本，请选择编码重新打开")
+			return "", "", false, &ReadError{Code: "file_encoding", Message: "无法以 UTF-8 打开此文件，请选择其他编码"}
 		}
 		content = string(data)
 	} else {
 		decoded, decodeErr := codec.NewDecoder().Bytes(data)
 		if decodeErr != nil {
-			return "", "", false, fmt.Errorf("无法用 %s 解码文件: %w", name, decodeErr)
+			return "", "", false, &ReadError{Code: "file_encoding", Message: fmt.Sprintf("无法用 %s 解码文件: %v", name, decodeErr)}
 		}
 		roundTrip, encodeErr := codec.NewEncoder().Bytes(decoded)
 		if encodeErr != nil || !bytes.Equal(roundTrip, data) {
-			return "", "", false, fmt.Errorf("文件含无效的 %s 字节，请选择正确编码", name)
+			return "", "", false, &ReadError{Code: "file_encoding", Message: fmt.Sprintf("文件含无效的 %s 字节，请选择正确编码", name)}
 		}
 		content = string(decoded)
 	}
-	if strings.IndexByte(content, 0) >= 0 || len(content) > MaxEditSize {
-		return "", "", false, errors.New("文件包含二进制内容或解码后超过 2 MiB")
+	if len(content) > MaxEditSize {
+		return "", "", false, &ReadError{Code: "file_too_large", Message: "解码后的文件超过 2 MiB，请下载后编辑"}
 	}
 	return content, name, bom, nil
 }

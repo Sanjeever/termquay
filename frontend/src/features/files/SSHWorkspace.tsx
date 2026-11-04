@@ -1,8 +1,8 @@
-import { errorMessage } from "../../lib/errors";
+import { errorCode, errorMessage } from "../../lib/errors";
 import { forwardRef, lazy, Suspense, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Button, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
 import { Stream } from '@wailsio/runtime';
-import { ReadRemoteFile, ReadRemoteFileEncoded, DownloadFileDraft, SaveRemoteFile, CreateTerminal, CloseTerminal, WorkspaceRecoveryDrafts, CloseWorkspace, RegisterWorkspaceView, ReleaseWorkspaceView, SetWorkspaceDirty } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
+import { ReadRemoteFile, ReadRemoteFileEncoded, DownloadFileDraft, StartDownload, SaveRemoteFile, CreateTerminal, CloseTerminal, WorkspaceRecoveryDrafts, CloseWorkspace, RegisterWorkspaceView, ReleaseWorkspaceView, SetWorkspaceDirty } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import SelectControl from '../../components/SelectControl';
 import { documentFormat, formatKey, editorEncodings } from './editorFormat';
 import type { Document, Entry } from '../../../bindings/github.com/Sanjeever/termquay/internal/files/models';
@@ -10,6 +10,7 @@ import TerminalView, { type TerminalAction, type TerminalHandle } from '../termi
 import FileBrowser from './FileBrowser';
 import MonitorPanel from '../monitor/MonitorPanel';
 import Icon from '../../components/Icon';
+import ErrorNotice from '../../components/ErrorNotice';
 import ResizeHandle from '../../components/layout/ResizeHandle';
 import type { RecoveryDraftInput, SSHLayout } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import WorkspacePanes from './WorkspacePanes';
@@ -45,7 +46,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   const [restoring,setRestoring]=useState(!!initialLayout);
   const [restoreReady,setRestoreReady]=useState(!initialLayout);
   const [restoreEpoch,setRestoreEpoch]=useState(0);
-  const [pendingErrors,setPendingErrors]=useState<Record<string,string>>({});
+  const [pendingErrors,setPendingErrors]=useState<Record<string,{ message:string; code:string; encoding:string }>>({});
   const restoreApplied=useRef(!initialLayout);
   const terminalOwners=useRef(new Map([[sessionID,sessionID]]));
   const [directory,setDirectory]=useState(initialLayout?.directory||'');
@@ -130,7 +131,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   }, [id]);
   useEffect(() => {
     let ended = false;
-    const owner = Stream('workspace'); owner.onopen = () => { if(ended)return; owner.send(new TextEncoder().encode(sessionID)); setError(''); stateCallback.current('已连接'); }; owner.onclose = () => { if (!ended) { setError('SSH 工作区已断开'); stateCallback.current('已断开'); } };
+    const owner = Stream('workspace'); owner.onopen = () => { if(ended)return; owner.send(new TextEncoder().encode(sessionID)); stateCallback.current('已连接'); }; owner.onclose = () => { if (!ended) stateCallback.current('已断开'); };
     if(previousInstance.current !== sessionID){
       previousInstance.current = sessionID;terminalOwners.current.set(sessionID,sessionID); setTerminals(prev=>[...prev,sessionID].slice(-16)); setActive(sessionID);
       updateDrafts(prev=>prev.map(d=>({...d,needsReview:true,error:'连接已更新，正在核对远端版本'})));
@@ -146,7 +147,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
       const planned=(initialLayout.tabs||[]).map((tab,index)=>({tab,key:initialIDs[index]})).filter(t=>t.tab.kind==='terminal');
       if(!planned.length)await CloseTerminal(sessionID);
       for(let index=1;index<planned.length;index++){try{const result=await CreateTerminal(sessionID);if(stopped){CloseTerminal(result.id);return;}terminalOwners.current.set(result.id,sessionID);setTerminals(prev=>[...prev,result.id]);const old=planned[index].key;setSecondary(prev=>prev.map(id=>id===old?result.id:id));setSelection(prev=>prev.map(id=>id===old?result.id:id) as [string,string]);}catch(e){if(!stopped)setError(`部分终端未能恢复：${errorMessage(e)}`);break;}}
-      for(const path of paths){if(stopped)return;const request=ReadRemoteFileEncoded(sessionID,path,draftsRef.current.find(d=>d.path===path)?.encoding || 'UTF-8');reads.current.set(path,request);try{const doc=await request;if(stopped)return;updateDrafts(prev=>{const old=prev.find(d=>d.path===path);return old?prev.map(d=>d.path===path?{...d,revision:doc.revision,saved:doc.content,savedFormat:formatKey(doc),needsReview:!!d.recovery,error:d.recovery?'恢复草稿，请先对比与合并':'',saving:false}:d):[...prev,{...doc,saved:doc.content,savedFormat:formatKey(doc),error:'',saving:false}];});}catch(e){if(stopped)return;setPendingErrors(prev=>({...prev,[path]:errorMessage(e)}));updateDrafts(prev=>prev.map(d=>d.path===path?{...d,error:errorMessage(e),needsReview:true}:d));}finally{if(reads.current.get(path)===request)reads.current.delete(path);}}
+      for(const path of paths){if(stopped)return;const encoding=draftsRef.current.find(d=>d.path===path)?.encoding || 'UTF-8';const request=ReadRemoteFileEncoded(sessionID,path,encoding);reads.current.set(path,request);try{const doc=await request;if(stopped||reads.current.get(path)!==request)return;updateDrafts(prev=>{const old=prev.find(d=>d.path===path);return old?prev.map(d=>d.path===path?{...d,revision:doc.revision,saved:doc.content,savedFormat:formatKey(doc),needsReview:!!d.recovery,error:d.recovery?'恢复草稿，请先对比与合并':'',saving:false}:d):[...prev,{...doc,saved:doc.content,savedFormat:formatKey(doc),error:'',saving:false}];});}catch(e){if(stopped||reads.current.get(path)!==request)return;setPendingErrors(prev=>({...prev,[path]:{message:errorMessage(e),code:errorCode(e),encoding}}));updateDrafts(prev=>prev.map(d=>d.path===path?{...d,error:errorMessage(e),needsReview:true}:d));}finally{if(reads.current.get(path)===request)reads.current.delete(path);}}
       if(!stopped){setActivePane(initialLayout.active_pane);const first=(bodies||[])[0];if(first){setActive(first.path);setConflict(first.path);}}
     }catch(e){if(!stopped)setError(errorMessage(e));}finally{if(!stopped)setRestoring(false);}})();
     return()=>{stopped=true;bodyRequest.cancel();};
@@ -159,13 +160,14 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   }
   async function openPath(path:string, encoding = 'UTF-8'){
     if(restoring||!restoreReady)throw new Error('请等待或重试本地草稿载入');
-    if (draftsRef.current.some(d => d.path === path)) { setActive(path); return; }
+    if (draftsRef.current.some(d => d.path === path)) { setActive(path); return true; }
     if (reads.current.has(path)) return;
     if(!fileOrder.includes(path)&&fileOrder.length+reads.current.size>=64)throw new Error('打开文件达到上限（64 个）');
     setFileOrder(prev=>prev.includes(path)?prev:[...prev,path]); setActive(path);
+    setPendingErrors(prev=>{const next={...prev};delete next[path];return next;});
     const request = ReadRemoteFileEncoded(sessionID, path, encoding); reads.current.set(path, request);
-    try { const doc = await request; if (disposed.current || instance.current!==sessionID) return; updateDrafts(prev => [...prev, { ...doc, saved: doc.content, savedFormat: formatKey(doc), error: '', saving: false }]);setFileOrder(prev=>prev.includes(path)?prev:[...prev,path]); if(split&&activePane===1&&!fileOrder.includes(path)){setSecondary(prev=>[...prev,path]);setSelection(prev=>[prev[0],path]);}else setActive(path); }
-    catch(e) { setPendingErrors(prev=>({...prev,[path]:errorMessage(e)})); throw e; }
+    try { const doc = await request; if (disposed.current || instance.current!==sessionID || reads.current.get(path)!==request) return false; updateDrafts(prev => [...prev, { ...doc, saved: doc.content, savedFormat: formatKey(doc), error: '', saving: false }]);setFileOrder(prev=>prev.includes(path)?prev:[...prev,path]); if(split&&activePane===1&&!fileOrder.includes(path)){setSecondary(prev=>[...prev,path]);setSelection(prev=>[prev[0],path]);}else setActive(path); return true; }
+    catch(e) { if (!disposed.current && instance.current===sessionID && reads.current.get(path)===request) setPendingErrors(prev=>({...prev,[path]:{message:errorMessage(e),code:errorCode(e),encoding}})); return false; }
     finally { if(reads.current.get(path)===request)reads.current.delete(path); }
   }
   async function save(path: string): Promise<boolean> {
@@ -192,6 +194,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
     const draft = draftsRef.current.find(d => d.path === path);
     if (draft?.saving) return;
     if (!discard && draft && (isDirty(draft))) { setClosing(path); return; }
+    const request = reads.current.get(path); reads.current.delete(path); request?.cancel();
     updateDrafts(prev => prev.filter(d => d.path !== path));setFileOrder(prev=>prev.filter(p=>p!==path)); setSecondary(prev=>prev.filter(p=>p!==path));setPendingErrors(prev=>{const next={...prev};delete next[path];return next;}); setClosing('');
   }
   function requestReload(path: string, encoding: string) {
@@ -202,8 +205,8 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   }
   async function reread(path: string, encoding = reopenEncoding) {
     setError(''); const request = ReadRemoteFileEncoded(sessionID, path, encoding); reads.current.set(path, request);
-    try { const doc = await request; if (!disposed.current && instance.current===sessionID) { updateDrafts(prev => prev.map(d => d.path === path ? { ...doc, saved: doc.content, savedFormat: formatKey(doc), reloadEpoch:(d.reloadEpoch||0)+1, saving: false, error: '' } : d)); setRereading(''); } }
-    catch (e) { if (!disposed.current && instance.current===sessionID) setError(errorMessage(e)); } finally { if(reads.current.get(path)===request)reads.current.delete(path); }
+    try { const doc = await request; if (!disposed.current && instance.current===sessionID && reads.current.get(path)===request) { updateDrafts(prev => prev.map(d => d.path === path ? { ...doc, saved: doc.content, savedFormat: formatKey(doc), reloadEpoch:(d.reloadEpoch||0)+1, saving: false, error: '' } : d)); setRereading(''); } }
+    catch (e) { if (!disposed.current && instance.current===sessionID && reads.current.get(path)===request) { updateDrafts(prev=>prev.map(d=>d.path===path?{...d,error:errorMessage(e)}:d)); setRereading(''); } } finally { if(reads.current.get(path)===request)reads.current.delete(path); }
   }
   const closingDraft = drafts.find(d => d.path === closing);
   function activate(path: string) { setActive(path); requestAnimationFrame(() => focusTab(path)); }
@@ -219,14 +222,27 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
     <div className="file-dock" hidden={!filesShown} style={{ width: filesWidth }}><FileBrowser id={sessionID} connectionID={connectionID} initialDirectory={initialLayout?.directory} onDirectory={setDirectory} directoryRequest={directoryRequest} followDirectory={followDirectory} onFollowDirectory={() => setFollowDirectory(value => !value)} onTerminalDirectory={locateInTerminal} visible={visible && filesShown} onOpen={open} onClose={() => { toggleFiles(); filesToggle.current?.focus(); }} /></div>
     {filesShown && !narrow && <ResizeHandle label="文件面板宽度" value={filesWidth} min={200} max={420} onChange={setFilesWidth} />}
     <div className="ssh-center" ref={center}>
-      {error && <div className="connection-feedback error" role="alert">{error}</div>}
+      <ErrorNotice message={error} onDismiss={() => setError('')} className="connection-feedback" />
       {!restoreReady&&!restoring&&<Button size="sm" onPress={()=>{restoreApplied.current=false;setRestoreEpoch(v=>v+1);}}>重试载入本地草稿</Button>}
       {restoring&&<div className="session-status" role="status">正在恢复文件与终端入口…</div>}
       {!tabIDs.length && <div className="workspace-empty">从标签栏新建终端或打开文件</div>}
       <WorkspacePanes split={split} maximized={maximized} ratio={ratio} onRatio={setRatio}>
       {[0, 1].map(pane => <PaneTabs key={`pane-${pane}`} pane={pane} newShortcut={shortcutLabel(shortcuts.newTerminal)} closeShortcut={shortcutLabel(shortcuts.closeContent)} items={tabs.filter(t => paneFor(t.id) === pane)} selected={paneSelected[pane]} focused={pane === activePane} hidden={(!split && pane === 1) || (maximized && pane !== activePane)} column={maximized || pane === 0 ? 1 : 3} creating={creating || restoring || terminals.length >= 16} onSelect={activate} onClose={closeTab} onNew={() => void newTerminal(pane)} />)}
       {terminals.map(terminal => <div className={`terminal-tab ${activePane===paneFor(terminal)?'focused-pane':''}`} data-tab-id={terminal} hidden={!shown(terminal)} style={{gridColumn:maximized?1:paneFor(terminal)===0?1:3,gridRow:2}} onFocusCapture={()=>setActivePane(paneFor(terminal))} key={terminal}><TerminalView ref={handle => { if (handle) terminalHandles.current.set(terminal, handle); else terminalHandles.current.delete(terminal); }} id={terminal} workspace={terminalOwners.current.get(terminal) || sessionID} host={target.slice(target.lastIndexOf('@')+1,target.lastIndexOf(':')).replace(/^\[|\]$/g,'')} onDirectory={(path, host) => terminalDirectory(terminal, path, host)} onFile={openTerminalFile} onSnippets={()=>{setActive(terminal);onSnippets();}} onConnectionChange={()=>changeCallback.current()} visible={visible && shown(terminal)} focusOnShow={activePane===paneFor(terminal)} fontSize={fontSize} /></div>)}
-      {fileOrder.filter(path=>!drafts.some(d=>d.path===path)).map(path=><div key={path} className="editor-tab pending-file" data-tab-id={path} hidden={!shown(path)} style={{gridColumn:maximized?1:paneFor(path)===0?1:3,gridRow:2}}><p className="file-path">{path}</p>{pendingErrors[path]&&<p role="alert" className="error">{pendingErrors[path]}</p>}<SelectControl aria-label="以指定编码打开文件" value="" disabled={restoring} onChange={e=>{if(e.target.value)void openPath(path,e.target.value).catch(()=>{});}}><option value="" disabled>以编码打开…</option>{editorEncodings.map(([value,label])=><option key={value} value={value}>{label}</option>)}</SelectControl></div>)}
+      {fileOrder.filter(path=>!drafts.some(d=>d.path===path)).map(path=>{
+        const failure = pendingErrors[path];
+        const retry = (encoding: string) => { void openPath(path,encoding).catch(e=>setError(errorMessage(e))); };
+        return <div key={path} className="editor-tab pending-file" data-tab-id={path} hidden={!shown(path)} style={{gridColumn:maximized?1:paneFor(path)===0?1:3,gridRow:2}}>
+          <p className="file-path">{path}</p>
+          {failure ? <ErrorNotice message={failure.message}/> : <p role="status" className="muted">正在读取文件…</p>}
+          <div className="button-row">
+            {failure?.code === 'file_encoding' && <SelectControl aria-label="以指定编码打开文件" value="" disabled={restoring||!restoreReady} onChange={e=>{if(e.target.value)retry(e.target.value);}}><option value="" disabled>选择编码…</option>{editorEncodings.map(([value,label])=><option key={value} value={value}>{label}</option>)}</SelectControl>}
+            {failure && !['file_encoding','file_binary','file_too_large','file_not_regular'].includes(failure.code) && <Button size="sm" variant="bordered" isDisabled={restoring||!restoreReady} onPress={()=>retry(failure.encoding)}>重试读取</Button>}
+            {failure && failure.code !== 'file_not_regular' && <Button size="sm" variant="light" onPress={()=>{void StartDownload(sessionID,path,false).catch(e=>setError(errorMessage(e)));}}>下载原文件</Button>}
+            <Button size="sm" variant="light" onPress={()=>close(path)}>关闭文件</Button>
+          </div>
+        </div>;
+      })}
       {drafts.map(d => <div key={d.path} className={`editor-tab ${activePane===paneFor(d.path)?'focused-pane':''}`} data-tab-id={d.path} hidden={!shown(d.path)} style={{gridColumn:maximized?1:paneFor(d.path)===0?1:3,gridRow:2}} onFocusCapture={()=>setActivePane(paneFor(d.path))}>
         {d.error && <div className="file-save-error"><p role="alert" className="error">{d.error}</p><div className="button-row"><Button size="sm" variant="light" isDisabled={d.saving} onPress={()=>setConflict(d.path)}>对比与合并</Button><Button size="sm" variant="light" onPress={() => setRereading(d.path)}>重新读取</Button><Button size="sm" variant="light" onPress={() => { navigator.clipboard.writeText(d.content).catch(e => setError(errorMessage(e))); }}>复制草稿</Button></div></div>}
         <Suspense fallback={<div className="view-loading" role="status">正在载入编辑器…</div>}><CodeEditor path={d.path} jumpTo={fileJump?.path === d.path ? fileJump : undefined} content={d.content} format={documentFormat(d)} saving={d.saving} dirty={isDirty(d)} reloadEpoch={d.reloadEpoch} visible={visible && shown(d.path)} focusOnShow={activePane===paneFor(d.path)} onChange={(value,format) => updateDrafts(prev => prev.map(item => item.path === d.path ? { ...item, ...format, content: value } : item))} onSave={() => void save(d.path)} onReload={encoding=>requestReload(d.path,encoding)} onDownload={()=>void DownloadFileDraft({...d,...documentFormat(d)}).catch(e=>updateDrafts(prev=>prev.map(item=>item.path===d.path?{...item,error:errorMessage(e)}:item)))} /></Suspense>
