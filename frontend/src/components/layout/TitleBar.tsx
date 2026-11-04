@@ -10,7 +10,20 @@ export default function TitleBar({ tabs, tools, onError }: {
   const [maximised, setMaximised] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [focused, setFocused] = useState(true);
-  const dragReady = useRef(false);
+  const dragStart = useRef<{ x: number; y: number }>();
+  useEffect(() => {
+    if (!mac) return;
+    const stop = () => { dragStart.current = undefined; };
+    const move = (event: globalThis.MouseEvent) => {
+      const start = dragStart.current;
+      if (event.buttons !== 1 || fullscreen) { stop(); return; }
+      if (start && Math.hypot(event.clientX - start.x, event.clientY - start.y) >= 3) { stop(); System.invoke('wails:drag'); }
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', stop);
+    window.addEventListener('blur', stop);
+    return () => { stop(); window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', stop); window.removeEventListener('blur', stop); };
+  }, [mac, fullscreen]);
   useEffect(() => {
     let disposed = false;
     const update = () => {
@@ -41,9 +54,7 @@ export default function TitleBar({ tabs, tools, onError }: {
     else if (System.IsLinux()) run(() => Window.ToggleMaximise());
   }
   return <header className={`workbench-header${mac ? ' mac-titlebar' : ''}${fullscreen ? ' fullscreen-titlebar' : ''}${focused ? '' : ' inactive-titlebar'}`} onDoubleClick={doubleClick}
-    onMouseDown={event => { if (mac) dragReady.current = !fullscreen && event.button === 0 && event.detail === 1 && draggable(event); }}
-    onMouseMove={event => { if (mac && dragReady.current && event.buttons === 1) { dragReady.current = false; System.invoke('wails:drag'); } }}
-    onMouseUp={() => { dragReady.current = false; }} onMouseLeave={() => { dragReady.current = false; }}>
+    onMouseDown={event => { if (mac) dragStart.current = !fullscreen && event.button === 0 && event.detail === 1 && draggable(event) ? { x: event.clientX, y: event.clientY } : undefined; }}>
     <div className="titlebar-brand" title="TermQuay"><img src={appIcon} alt="" width="18" height="18" draggable={false} /><span>TermQuay</span></div>
     {tabs}
     <div className="titlebar-drag" aria-hidden="true" />
