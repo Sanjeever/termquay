@@ -1,8 +1,9 @@
 import { errorMessage } from "../../lib/errors";
 import { useEffect, useRef, useState } from 'react';
 
-export default function useSSHReconnect(session: string, state: string, busy: boolean, reconnect: () => Promise<{ ok: boolean; retryable: boolean }>) {
-  const [enabled, setEnabled] = useState(false);
+export default function useSSHReconnect(session: string, state: string, busy: boolean, reconnect: () => Promise<{ ok: boolean; retryable: boolean }>, eligible: boolean) {
+  const [selected, setSelected] = useState<boolean>();
+  const enabled = eligible && (selected ?? true);
   const [attempts, setAttempts] = useState(0);
   const [status, setStatus] = useState('');
   const latest = useRef({ enabled, state, busy, reconnect }); latest.current = { enabled, state, busy, reconnect };
@@ -11,7 +12,7 @@ export default function useSSHReconnect(session: string, state: string, busy: bo
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useEffect(() => { setAttempts(0); setStatus(''); }, [session]);
   useEffect(() => {
-    if (state === '已连接') { setAttempts(0); setStatus(''); return; }
+    if (!enabled || state === '已连接') { setAttempts(0); setStatus(''); return; }
     if (!enabled || state !== '已断开' || busy || attempts >= 3 || running.current) return;
     const delay = [2, 5, 15][attempts];
     setStatus(`${delay} 秒后重连 · ${attempts + 1}/3`);
@@ -27,5 +28,5 @@ export default function useSSHReconnect(session: string, state: string, busy: bo
     }, delay * 1000);
     return () => clearTimeout(timer);
   }, [enabled, state, busy, attempts, session]);
-  return { enabled, status, toggle() { setEnabled(value => !value); setAttempts(0); setStatus(''); } };
+  return { enabled, status, toggle() { setSelected(value => !(value ?? true)); setAttempts(0); setStatus(''); } };
 }
