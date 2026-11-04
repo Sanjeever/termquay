@@ -7,7 +7,7 @@ TermQuay 采用 Apache-2.0。各依赖保留其原有许可证、版权与声明
 - [前端锁文件](frontend/pnpm-lock.yaml) 固定前端依赖。[前端收集清单](build/licenses/frontend/packages.json) 记录收集时的生产依赖元数据，目录内保存包附带的许可文件。以下按用途说明许可，具体版本以锁文件和收集清单分别核对。
 - Wails 与前端运行时采用 MIT；React、HeroUI、xterm.js、CodeMirror 及大部分前端依赖采用 MIT。具体条款以各依赖原文为准。
 - 终端搜索与链接使用 `@xterm/addon-search`、`@xterm/addon-web-links`，均采用 MIT；许可原文随包保存在前端许可目录。
-- 带时间轴终端录制使用 `maze.io/x/asciicast`（MIT），离线回放使用 `asciinema-player`（Apache-2.0）；录制编码与播放器均在本机运行。Go 与 npm 包附带的许可原文已收集，播放器预构建 WASM 的传递依赖核对见发行前待办。
+- 带时间轴终端录制使用 `maze.io/x/asciicast`（MIT），离线回放使用 `asciinema-player`（Apache-2.0）；录制编码与播放器均在本机运行。Go 与 npm 包附带的许可原文已收集。[播放器 WASM 材料](build/licenses/asciinema-player/3.17.0/) 保存锁定源码的 normal/build 依赖清单及许可原文、npm 来源证明与签名验证结果、构建配置和内嵌制品摘要；清单可能包含未链接的依赖，未执行可复现重建。
 - 快速连接使用 `github.com/google/shlex` 解析引号与词法，采用 Apache-2.0；不执行解析内容。许可原文保存在 Go 许可目录。
 - 文件冲突对比使用 `@codemirror/merge`，采用 MIT；许可原文保存在前端许可目录。
 - 代码缩略图使用 `@replit/codemirror-minimap`。已核对发布包及对应源码提交的 `package.json`，均声明 MIT；许可目录保存原始包元数据和标准 MIT 条款。作者信息沿用原始元数据，未补写上游没有提供的版权年份或权利人。高亮标签使用的 `@lezer/highlight` 已收集许可原文。
@@ -36,5 +36,3 @@ macOS 应用包和其他平台安装包分发时，需随包携带本文件、�
 下方标题是 [发行检查](scripts/release-check.mjs) 的待办入口；标题后留空表示无登记待办，新增事项会阻止标签发布。
 
 ## 发行前待办
-
-- 新增 `asciinema-player` 的预构建 WASM 需按源码版本补充传递依赖与制品来源核对，并更新 `build/licenses/review.json` 中 Go 和前端锁文件输入；本轮包内许可收集不替代该项发行审计。

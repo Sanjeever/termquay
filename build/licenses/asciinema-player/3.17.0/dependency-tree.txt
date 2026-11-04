@@ -1,0 +1,45 @@
+vt-js v0.1.0 (asciinema-player/src/vt)
+├── avt v0.16.0
+│   ├── rgb v0.8.50
+│   │   └── bytemuck v1.18.0
+│   └── unicode-width v0.1.14
+├── serde v1.0.203
+│   └── serde_derive v1.0.203 (proc-macro)
+│       ├── proc-macro2 v1.0.84
+│       │   └── unicode-ident v1.0.6
+│       ├── quote v1.0.36
+│       │   └── proc-macro2 v1.0.84 (*)
+│       └── syn v2.0.66
+│           ├── proc-macro2 v1.0.84 (*)
+│           ├── quote v1.0.36 (*)
+│           └── unicode-ident v1.0.6
+├── serde-wasm-bindgen v0.6.5
+│   ├── js-sys v0.3.61
+│   │   └── wasm-bindgen v0.2.106
+│   │       ├── cfg-if v1.0.0
+│   │       ├── once_cell v1.17.1
+│   │       ├── serde v1.0.203 (*)
+│   │       ├── serde_json v1.0.93
+│   │       │   ├── itoa v1.0.5
+│   │       │   ├── ryu v1.0.12
+│   │       │   └── serde v1.0.203 (*)
+│   │       ├── wasm-bindgen-macro v0.2.106 (proc-macro)
+│   │       │   ├── quote v1.0.36 (*)
+│   │       │   └── wasm-bindgen-macro-support v0.2.106
+│   │       │       ├── bumpalo v3.12.0
+│   │       │       ├── proc-macro2 v1.0.84 (*)
+│   │       │       ├── quote v1.0.36 (*)
+│   │       │       ├── syn v2.0.66 (*)
+│   │       │       └── wasm-bindgen-shared v0.2.106
+│   │       │           └── unicode-ident v1.0.6
+│   │       └── wasm-bindgen-shared v0.2.106
+│   │           └── unicode-ident v1.0.6
+│   │       [build-dependencies]
+│   │       └── rustversion v1.0.22 (proc-macro)
+│   ├── serde v1.0.203 (*)
+│   └── wasm-bindgen v0.2.106 (*)
+├── talc v5.0.3
+│   ├── allocator-api2 v0.4.0
+│   └── lock_api v0.4.14
+│       └── scopeguard v1.2.0
+└── wasm-bindgen v0.2.106 (*)

@@ -136,6 +136,10 @@
     "version": "v0.41.0"
   },
   {
+    "module": "golang.org/x/net",
+    "version": "v0.60.0"
+  },
+  {
     "module": "golang.org/x/sys",
     "version": "v0.48.0"
   },

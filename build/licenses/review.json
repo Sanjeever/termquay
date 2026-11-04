@@ -1,11 +1,20 @@
 {
   "inputs": {
-    "go.mod": "8aeb9cee99df804503250f74807fb343cd3ede4bf20dac894b48ac4fec5a3e86",
-    "go.sum": "199d587abd9bdb8d3f49c38ee1683a38d6b712bdd7fb9ec71d2260469d8175b1",
-    "frontend/pnpm-lock.yaml": "cebb50cde1903c7ad20f157de424f535d6e260e381a176ebda1ff9808c41ed4c",
+    "go.mod": "ec11aba0aabc60700f1672b4c90f329b4b9e47abda6a1fc4619bb92c109b254d",
+    "go.sum": "89cb51a6ca1fb4a451a33af3f02568592f5a766c90c1617663eccacd382e2725",
+    "frontend/pnpm-lock.yaml": "f7070767aa79d2ca0260b9dff81dc696cfc3e421f90cced8e5252981a0d79948",
     "frontend/patches/@devolutions__iron-remote-desktop@0.11.0.patch": "53b4e282385f535f908c6399947350bff05c762c268b5060a9bba9d998fa0168"
   },
   "wasm_source_commit": "e45f68c7e52297ca50d33b44c0ace36c9940fbe6",
+  "asciinema_player": {
+    "version": "3.17.0",
+    "source_commit": "8ba9c54008ed1f25d2914abe31ea118dbf7da2e4",
+    "materials": "build/licenses/asciinema-player/3.17.0",
+    "verification": "gh attestation verify asciinema-player.tgz --bundle provenance-bundle.json --repo asciinema/asciinema-player --signer-workflow asciinema/asciinema-player/.github/workflows/release.yml --digest-alg sha512 --format json",
+    "wasm_sha256": "687c86d9026dda465e9adf8e4cfda8e30fa118e8ad3c5f3395055686f8923eb9",
+    "rust_dependency_count": 27,
+    "reviewed_at": "2026-11-04"
+  },
   "npm_declared_mit": {
     "minimap": "eb03174ce67e177bb86297c84c0389491350ff21",
     "use_composed_ref": "ea2c9d969f2f90a349f4c99338b806423824cea2"

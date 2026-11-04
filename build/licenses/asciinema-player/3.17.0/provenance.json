@@ -1,0 +1,22 @@
+{
+  "name": "asciinema-player",
+  "version": "3.17.0",
+  "source_repository": "https://github.com/asciinema/asciinema-player",
+  "source_commit": "8ba9c54008ed1f25d2914abe31ea118dbf7da2e4",
+  "integrity": "sha512-JbjNJmA2TLIeYNaOEja+kVSzXadKoqpIzVVmfBGNj2DmdtE/vExBCnkE8NYEcpaQcDvUYg8Ltt0urT80frACmw==",
+  "tarball_sha256": "d03ef67fc2f32a7aa5177c0b64650c7c8fd234ef2d3e4b34886632bb3dd58c5c",
+  "attestations_url": "https://registry.npmjs.org/-/npm/v1/attestations/asciinema-player@3.17.0",
+  "workflow": {
+    "ref": "refs/tags/v3.17.0",
+    "repository": "https://github.com/asciinema/asciinema-player",
+    "path": ".github/workflows/release.yml"
+  },
+  "invocation": "https://github.com/asciinema/asciinema-player/actions/runs/28432183973/attempts/1",
+  "wasm_container": "dist/opts-Dj5f5MR1.js",
+  "wasm_container_sha256": "4b2901a6854cd08582e20cbfa03676a0cfa95fe2c46352bc54a448186298f2f6",
+  "wasm_sha256": "687c86d9026dda465e9adf8e4cfda8e30fa118e8ad3c5f3395055686f8923eb9",
+  "wasm_bytes": 54607,
+  "build": "上游 release.yml 通过 Nix 运行 npm ci 与 npm run build；Rollup 内嵌 WASM，构建配置固定 Rust 1.85.0，并用 wasm-opt -O4 优化。未执行可复现重建。",
+  "dependency_count": 27,
+  "missing_license_files": []
+}

@@ -1,0 +1,363 @@
+{
+  "source_commit": "8ba9c54008ed1f25d2914abe31ea118dbf7da2e4",
+  "target": "wasm32-unknown-unknown",
+  "scope": "vt-js 默认特性的 normal/build 依赖，可能包含未链接到制品的依赖",
+  "packages": [
+    {
+      "name": "allocator-api2",
+      "version": "0.4.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Zakarum <zaq.dev@icloud.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/asciinema-player/3.17.0/crates/allocator-api2/0.4.0/LICENSE-APACHE",
+        "build/licenses/asciinema-player/3.17.0/crates/allocator-api2/0.4.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "avt",
+      "version": "0.16.0",
+      "license": "Apache-2.0",
+      "authors": [
+        "Marcin Kulik <m@ku1ik.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/asciinema-player/3.17.0/crates/avt/0.16.0/LICENSE"
+      ]
+    },
+    {
+      "name": "bumpalo",
+      "version": "3.12.0",
+      "license": "MIT/Apache-2.0",
+      "authors": [
+        "Nick Fitzgerald <fitzgen@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/asciinema-player/3.17.0/crates/bumpalo/3.12.0/LICENSE-APACHE",
+        "build/licenses/asciinema-player/3.17.0/crates/bumpalo/3.12.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "bytemuck",
+      "version": "1.18.0",
+      "license": "Zlib OR Apache-2.0 OR MIT",
+      "authors": [
+        "Lokathor <zefria@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/asciinema-player/3.17.0/crates/bytemuck/1.18.0/LICENSE-APACHE",
+        "build/licenses/asciinema-player/3.17.0/crates/bytemuck/1.18.0/LICENSE-MIT",
+        "build/licenses/asciinema-player/3.17.0/crates/bytemuck/1.18.0/LICENSE-ZLIB"
+      ]
+    },
+    {
+      "name": "cfg-if",
+      "version": "1.0.0",
+      "license": "MIT/Apache-2.0",
+      "authors": [
+        "Alex Crichton <alex@alexcrichton.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/asciinema-player/3.17.0/crates/cfg-if/1.0.0/LICENSE-APACHE",
+        "build/licenses/asciinema-player/3.17.0/crates/cfg-if/1.0.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "itoa",
+      "version": "1.0.5",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/asciinema-player/3.17.0/crates/itoa/1.0.5/LICENSE-APACHE",
+        "build/licenses/asciinema-player/3.17.0/crates/itoa/1.0.5/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "js-sys",
+      "version": "0.3.61",
+      "license": "MIT/Apache-2.0",
+      "authors": [
+        "The wasm-bindgen Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/asciinema-player/3.17.0/crates/js-sys/0.3.61/LICENSE-APACHE",
+        "build/licenses/asciinema-player/3.17.0/crates/js-sys/0.3.61/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "lock_api",
+      "version": "0.4.14",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Amanieu d'Antras <amanieu@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/asciinema-player/3.17.0/crates/lock_api/0.4.14/LICENSE-APACHE",
+        "build/licenses/asciinema-player/3.17.0/crates/lock_api/0.4.14/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "once_cell",
+      "version": "1.17.1",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Aleksey Kladov <aleksey.kladov@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/asciinema-player/3.17.0/crates/once_cell/1.17.1/LICENSE-APACHE",
+        "build/licenses/asciinema-player/3.17.0/crates/once_cell/1.17.1/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "proc-macro2",
+      "version": "1.0.84",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>",
+        "Alex Crichton <alex@alexcrichton.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/asciinema-player/3.17.0/crates/proc-macro2/1.0.84/LICENSE-APACHE",
+        "build/licenses/asciinema-player/3.17.0/crates/proc-macro2/1.0.84/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "quote",
+      "version": "1.0.36",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/asciinema-player/3.17.0/crates/quote/1.0.36/LICENSE-APACHE",
+        "build/licenses/asciinema-player/3.17.0/crates/quote/1.0.36/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "rgb",
+      "version": "0.8.50",
+      "license": "MIT",
+      "authors": [
+        "Kornel Lesiński <kornel@geekhood.net>",
+        "James Forster <james.forsterer@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/asciinema-player/3.17.0/crates/rgb/0.8.50/LICENSE"
+      ]
+    },
+    {
+      "name": "rustversion",
+      "version": "1.0.22",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/asciinema-player/3.17.0/crates/rustversion/1.0.22/LICENSE-APACHE",
+        "build/licenses/asciinema-player/3.17.0/crates/rustversion/1.0.22/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "ryu",
+      "version": "1.0.12",
+      "license": "Apache-2.0 OR BSL-1.0",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/asciinema-player/3.17.0/crates/ryu/1.0.12/LICENSE-APACHE",
+        "build/licenses/asciinema-player/3.17.0/crates/ryu/1.0.12/LICENSE-BOOST"
+      ]
+    },
+    {
+      "name": "scopeguard",
+      "version": "1.2.0",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "bluss"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/asciinema-player/3.17.0/crates/scopeguard/1.2.0/LICENSE-APACHE",
+        "build/licenses/asciinema-player/3.17.0/crates/scopeguard/1.2.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "serde",
+      "version": "1.0.203",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Erick Tryzelaar <erick.tryzelaar@gmail.com>",
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/asciinema-player/3.17.0/crates/serde/1.0.203/LICENSE-APACHE",
+        "build/licenses/asciinema-player/3.17.0/crates/serde/1.0.203/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "serde_derive",
+      "version": "1.0.203",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Erick Tryzelaar <erick.tryzelaar@gmail.com>",
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/asciinema-player/3.17.0/crates/serde_derive/1.0.203/LICENSE-APACHE",
+        "build/licenses/asciinema-player/3.17.0/crates/serde_derive/1.0.203/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "serde_json",
+      "version": "1.0.93",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "Erick Tryzelaar <erick.tryzelaar@gmail.com>",
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/asciinema-player/3.17.0/crates/serde_json/1.0.93/LICENSE-APACHE",
+        "build/licenses/asciinema-player/3.17.0/crates/serde_json/1.0.93/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "serde-wasm-bindgen",
+      "version": "0.6.5",
+      "license": "MIT",
+      "authors": [
+        "Ingvar Stepanyan <me@rreverser.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/asciinema-player/3.17.0/crates/serde-wasm-bindgen/0.6.5/LICENSE"
+      ]
+    },
+    {
+      "name": "syn",
+      "version": "2.0.66",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/asciinema-player/3.17.0/crates/syn/2.0.66/LICENSE-APACHE",
+        "build/licenses/asciinema-player/3.17.0/crates/syn/2.0.66/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "talc",
+      "version": "5.0.3",
+      "license": "MIT",
+      "authors": [
+        "Shaun Beautement"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/asciinema-player/3.17.0/crates/talc/5.0.3/LICENSE.md"
+      ]
+    },
+    {
+      "name": "unicode-ident",
+      "version": "1.0.6",
+      "license": "(MIT OR Apache-2.0) AND Unicode-DFS-2016",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/asciinema-player/3.17.0/crates/unicode-ident/1.0.6/LICENSE-APACHE",
+        "build/licenses/asciinema-player/3.17.0/crates/unicode-ident/1.0.6/LICENSE-MIT",
+        "build/licenses/asciinema-player/3.17.0/crates/unicode-ident/1.0.6/LICENSE-UNICODE"
+      ]
+    },
+    {
+      "name": "unicode-width",
+      "version": "0.1.14",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "kwantam <kwantam@gmail.com>",
+        "Manish Goregaokar <manishsmail@gmail.com>"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/asciinema-player/3.17.0/crates/unicode-width/0.1.14/COPYRIGHT",
+        "build/licenses/asciinema-player/3.17.0/crates/unicode-width/0.1.14/LICENSE-APACHE",
+        "build/licenses/asciinema-player/3.17.0/crates/unicode-width/0.1.14/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "wasm-bindgen",
+      "version": "0.2.106",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "The wasm-bindgen Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/asciinema-player/3.17.0/crates/wasm-bindgen/0.2.106/LICENSE-APACHE",
+        "build/licenses/asciinema-player/3.17.0/crates/wasm-bindgen/0.2.106/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "wasm-bindgen-macro",
+      "version": "0.2.106",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "The wasm-bindgen Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/asciinema-player/3.17.0/crates/wasm-bindgen-macro/0.2.106/LICENSE-APACHE",
+        "build/licenses/asciinema-player/3.17.0/crates/wasm-bindgen-macro/0.2.106/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "wasm-bindgen-macro-support",
+      "version": "0.2.106",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "The wasm-bindgen Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/asciinema-player/3.17.0/crates/wasm-bindgen-macro-support/0.2.106/LICENSE-APACHE",
+        "build/licenses/asciinema-player/3.17.0/crates/wasm-bindgen-macro-support/0.2.106/LICENSE-MIT"
+      ]
+    },
+    {
+      "name": "wasm-bindgen-shared",
+      "version": "0.2.106",
+      "license": "MIT OR Apache-2.0",
+      "authors": [
+        "The wasm-bindgen Developers"
+      ],
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "license_files": [
+        "build/licenses/asciinema-player/3.17.0/crates/wasm-bindgen-shared/0.2.106/LICENSE-APACHE",
+        "build/licenses/asciinema-player/3.17.0/crates/wasm-bindgen-shared/0.2.106/LICENSE-MIT"
+      ]
+    }
+  ]
+}
