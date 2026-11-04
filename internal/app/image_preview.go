@@ -171,6 +171,9 @@ func readImageBytes(reader io.Reader) ([]byte, error) {
 }
 
 func (a *AppService) publishImage(ctx context.Context, workspace string, owner *workspaceOwner, data []byte) (ImagePreview, error) {
+	if err := ctx.Err(); err != nil {
+		return ImagePreview{}, err
+	}
 	config, format, err := image.DecodeConfig(bytes.NewReader(data))
 	if err != nil {
 		return ImagePreview{}, errors.New("无法识别图片，预览支持 PNG、JPEG、GIF 和 WebP")
@@ -217,7 +220,7 @@ func (a *AppService) publishImage(ctx context.Context, workspace string, owner *
 	a.imagePreviews[id] = &imagePreviewData{workspace: workspace, data: data, width: config.Width, height: config.Height, mime: mime, expiry: time.AfterFunc(30*time.Second, func() { a.ReleaseImagePreview(id) })}
 	a.imageBytes += int64(len(data))
 	a.imagePixels += pixels
-	return ImagePreview{ID: id, URL: imagePreviewRoute + id, Width: config.Width, Height: config.Height, Size: size, Format: format}, nil
+	return ImagePreview{ID: id, URL: imagePreviewRoute, Width: config.Width, Height: config.Height, Size: size, Format: format}, nil
 }
 
 func (a *AppService) ReleaseImagePreview(id string) {
@@ -253,13 +256,17 @@ func (a *AppService) imageAssetHandler(next http.Handler) http.Handler {
 			next.ServeHTTP(writer, request)
 			return
 		}
+		if request.URL.Path != imagePreviewRoute {
+			http.NotFound(writer, request)
+			return
+		}
 		if request.Method != http.MethodGet && request.Method != http.MethodHead {
 			writer.Header().Set("Allow", "GET, HEAD")
 			writer.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
 		a.imageMu.Lock()
-		image := a.imagePreviews[strings.TrimPrefix(request.URL.Path, imagePreviewRoute)]
+		image := a.imagePreviews[request.Header.Get("X-TermQuay-Image")]
 		if image != nil && image.expiry != nil {
 			image.expiry.Stop()
 			image.expiry = nil
@@ -272,6 +279,7 @@ func (a *AppService) imageAssetHandler(next http.Handler) http.Handler {
 		writer.Header().Set("Content-Type", image.mime)
 		writer.Header().Set("Content-Length", strconv.Itoa(len(image.data)))
 		writer.Header().Set("Cache-Control", "no-store")
+		writer.Header().Set("Vary", "X-TermQuay-Image")
 		writer.Header().Set("X-Content-Type-Options", "nosniff")
 		writer.Header().Set("Content-Security-Policy", "default-src 'none'; sandbox")
 		writer.Header().Set("Cross-Origin-Resource-Policy", "same-origin")

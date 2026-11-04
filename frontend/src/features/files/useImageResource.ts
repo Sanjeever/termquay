@@ -22,7 +22,7 @@ export default function useImageResource(workspace:string,path:string,visible:bo
         const metadata=await request;
         if(ended){release(metadata.id);return;}
         token=metadata.id;
-        const response=await fetch(metadata.url,{signal:abort.signal,cache:'no-store',credentials:'same-origin'});
+        const response=await fetch(metadata.url,{signal:abort.signal,cache:'no-store',credentials:'same-origin',headers:{'X-TermQuay-Image':metadata.id}});
         if(!response.ok)throw new Error(`图片内容读取失败：HTTP ${response.status}`);
         const blob=await response.blob();
         if(ended)return;
