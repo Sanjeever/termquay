@@ -5,7 +5,7 @@ import { EditorState } from '@codemirror/state';
 import { EditorView, lineNumbers } from '@codemirror/view';
 import SelectControl from '../../components/SelectControl';
 import { DeleteCommandTask, ListCommandTasks, RunRemoteCommand, SaveCommandTask } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
-import type { CommandTask } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
+import type { CommandStep, CommandTask } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import type { CommandResult } from '../../../bindings/github.com/Sanjeever/termquay/internal/ssh/models';
 import { errorMessage } from '../../lib/errors';
 import { expandSnippet, snippetParameters } from '../../lib/snippets';
@@ -15,11 +15,12 @@ import '../../styles/file-compare.css';
 
 type Target = { id: string; name: string; address: string };
 type Result = { key: string; target: Target; step: string; state: string; result?: CommandResult; error?: string };
-const emptyTask = (): CommandTask => ({ id: '', name: '', steps: [{ name: '步骤 1', script: '', timeout_seconds: 60 }], stop_on_failure: true });
+type TaskDraft = CommandTask & { steps: CommandStep[] };
+const emptyTask = (): TaskDraft => ({ id: '', name: '', steps: [{ name: '步骤 1', script: '', timeout_seconds: 60 }], stop_on_failure: true });
 
 export default function CommandTasksDialog({ targets, onClose }: { targets: Target[]; onClose(): void }) {
   const [tasks, setTasks] = useState<CommandTask[]>([]);
-  const [task, setTask] = useState<CommandTask>(emptyTask);
+  const [task, setTask] = useState<TaskDraft>(emptyTask);
   const [baseline, setBaseline] = useState(() => JSON.stringify(emptyTask()));
   const [selected, setSelected] = useState(new Set<string>());
   const [parameters, setParameters] = useState<Record<string, string>>({});
@@ -50,9 +51,9 @@ export default function CommandTasksDialog({ targets, onClose }: { targets: Targ
     request.then(values => { if (mounted.current) setTasks(values || []); }).catch(e => { if (mounted.current) setError(errorMessage(e)); }).finally(() => { if (mounted.current) setLoading(false); });
     return () => { mounted.current = false; request.cancel(); cancel(); };
   }, []);
-  function choose(value: CommandTask) { setTask(value); setBaseline(JSON.stringify(value)); setParameters({}); setError(''); }
+  function choose(value: CommandTask) { if (!value.steps?.length) { setError('命令任务缺少步骤'); return; } const draft = { ...value, steps: value.steps }; setTask(draft); setBaseline(JSON.stringify(draft)); setParameters({}); setError(''); }
   function requestChoose(value: CommandTask | 'close') { if (dirty) setDiscard(value); else if (value === 'close') onClose(); else choose(value); }
-  function updateStep(index: number, patch: Partial<CommandTask['steps'][number]>) { setTask(previous => ({ ...previous, steps: previous.steps.map((step, i) => i === index ? { ...step, ...patch } : step) })); }
+  function updateStep(index: number, patch: Partial<CommandStep>) { setTask(previous => ({ ...previous, steps: previous.steps.map((step, i) => i === index ? { ...step, ...patch } : step) })); }
   async function save() {
     setBusy(true); setError('');
     try { const value = await SaveCommandTask(task); if (mounted.current) { setTasks(previous => [...previous.filter(item => item.id !== value.id), value]); choose(value); } }
