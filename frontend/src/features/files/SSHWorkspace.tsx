@@ -21,15 +21,17 @@ import { shortcutLabel, type Shortcuts } from '../../lib/shortcuts';
 import { shellQuote } from '../terminal/shellIntegration';
 import useSSHReconnect from '../connections/useSSHReconnect';
 import { isImagePath } from './fileTypes';
+import { ReadSudoFile, SaveSudoFile } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
+import SudoAuthorizationDialog, { type SudoAuthorization } from './SudoAuthorizationDialog';
 
 const TextDocument = lazy(() => import('./TextDocument'));
 const ImagePreview = lazy(() => import('./ImagePreview'));
 const FileConflictView = lazy(() => import('./FileConflictView'));
 
-type Draft = Document & { saved: string; savedFormat?: string; reloadEpoch?: number; error: string; saving: boolean; needsReview?: boolean; recovery?:boolean };
+type Draft = Document & { saved: string; savedFormat?: string; reloadEpoch?: number; error: string; saving: boolean; needsReview?: boolean; recovery?:boolean; sudo?: boolean };
 function isDirty(draft: Draft) { return !!draft.recovery || draft.content !== draft.saved || !!draft.savedFormat && formatKey(draft) !== draft.savedFormat; }
 function savedEncoding(draft: Draft) { return draft.savedFormat ? JSON.parse(draft.savedFormat).encoding as string : draft.encoding || 'UTF-8'; }
-export type SSHWorkspaceHandle = { workspaceAction(action: 'switchPane' | 'closeContent' | 'newTerminal'): boolean; layout():SSHLayout; hasDirty():boolean; recoveryDrafts():RecoveryDraftInput[]|null; insertionTarget():string; insert(text:string,target:string):boolean; focus(): void; saveAll(): Promise<boolean>; prepareReconnect(): Promise<boolean>; showFiles(): void; locateDirectory(path: string): void; toggleMonitor(): void; toggleFocus(): void; terminalAction(action: TerminalAction): void };
+export type SSHWorkspaceHandle = { sudoEdit(): void; workspaceAction(action: 'switchPane' | 'closeContent' | 'newTerminal'): boolean; layout():SSHLayout; hasDirty():boolean; recoveryDrafts():RecoveryDraftInput[]|null; insertionTarget():string; insert(text:string,target:string):boolean; focus(): void; saveAll(): Promise<boolean>; prepareReconnect(): Promise<boolean>; showFiles(): void; locateDirectory(path: string): void; toggleMonitor(): void; toggleFocus(): void; terminalAction(action: TerminalAction): void };
 
 const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   id: string; sessionID: string; connectionID: string; target: string; environment: string; state: string; shortcuts: Shortcuts; initialLayout?:SSHLayout; visible: boolean; fontSize?: number; onDirtyChange(dirty: boolean): void; onState(state: string): void; onStateChange():void; onReconnect(): void; onAutomaticReconnect(): Promise<{ ok: boolean; retryable: boolean }>; onCancelReconnect(): void; onSnippets(): void; busy: boolean;
@@ -64,7 +66,51 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   const [closing, setClosing] = useState('');
   const [rereading, setRereading] = useState('');
   const [reopenEncoding, setReopenEncoding] = useState('UTF-8');
-  const [conflict, setConflict] = useState('');
+  const [conflict, applyConflict] = useState('');
+  const [sudoPrompt, setSudoPrompt] = useState<{ path: string; encoding: string; operation: 'open' | 'read' | 'save' }>();
+  const sudoAnswer = useRef<(value?: SudoAuthorization) => void>();
+  const [sudoConflict, setSudoConflict] = useState<Document>();
+  function authorizeSudo(path: string, encoding: string, operation: 'open' | 'read' | 'save') {
+    if (sudoAnswer.current) return Promise.resolve(undefined);
+    return new Promise<SudoAuthorization | undefined>(resolve => { sudoAnswer.current = resolve; setSudoPrompt({ path, encoding, operation }); });
+  }
+  function answerSudo(value?: SudoAuthorization) { const answer = sudoAnswer.current; sudoAnswer.current = undefined; setSudoPrompt(undefined); answer?.(value); }
+  useEffect(() => () => { sudoAnswer.current?.(); sudoAnswer.current = undefined; }, [sessionID]);
+  async function setConflict(path: string) {
+    if (!path) { applyConflict(''); setSudoConflict(undefined); return; }
+    const draft = draftsRef.current.find(d => d.path === path);
+    if (draft?.sudo) {
+      const authorization = await authorizeSudo(path, savedEncoding(draft), 'read');
+      if (!authorization || disposed.current || instance.current !== sessionID) return;
+      const request = ReadSudoFile(sessionID, path, authorization.encoding, authorization.password);
+      reads.current.set(path, request);
+      try { const doc = await request; if (!disposed.current && instance.current === sessionID && reads.current.get(path) === request) { setSudoConflict(doc); applyConflict(path); } }
+      catch (e) { if (!disposed.current) setError(errorMessage(e)); }
+      finally { if (reads.current.get(path) === request) reads.current.delete(path); }
+    } else { setSudoConflict(undefined); applyConflict(path); }
+  }
+  async function openSudo(path = active && !terminals.includes(active) ? active : directory + '/') {
+    if (restoring || !restoreReady || state !== '已连接') return;
+    const authorization = await authorizeSudo(path, 'UTF-8', 'open');
+    if (!authorization || disposed.current || instance.current !== sessionID) return;
+    path = authorization.path;
+    if (reads.current.has(path) || saves.current.has(path)) return;
+    if (!fileOrder.includes(path) && new Set([...fileOrder, ...reads.current.keys()]).size >= 64) { setError('打开文件达到上限（64 个）'); return; }
+    const request = ReadSudoFile(sessionID, path, authorization.encoding, authorization.password);
+    reads.current.set(path, request);
+    try {
+      const doc = await request;
+      if (disposed.current || instance.current !== sessionID || reads.current.get(path) !== request) return;
+      const existing = draftsRef.current.find(d => d.path === path);
+      const needsReview = !!existing && isDirty(existing);
+      updateDrafts(previous => [...previous.filter(d => d.path !== path), { ...doc, ...(needsReview ? { content: existing!.content, ...documentFormat(existing!) } : {}), sudo: true, saved: doc.content, savedFormat: formatKey(doc), needsReview, saving: false, error: needsReview ? '请先对比与合并' : '' }]);
+      setFileViews(previous => ({ ...previous, [path]: 'text' }));
+      setPendingErrors(previous => { const next = { ...previous }; delete next[path]; return next; });
+      setFileOrder(previous => previous.includes(path) ? previous : [...previous, path]); setActive(path);
+      if (needsReview) { setSudoConflict(doc); applyConflict(path); }
+    } catch (e) { if (!disposed.current) setError(errorMessage(e)); }
+    finally { if (reads.current.get(path) === request) reads.current.delete(path); }
+  }
   const [creating, setCreating] = useState(false);
   const [filesOpen, setFilesOpen] = useState(initialLayout?.files_open??(localStorage.getItem('termquay.layout.files-open') !== 'false'));
   const [filesWidth, setFilesWidth] = useState(initialLayout?.files_width??Math.max(200, Math.min(420, Number(localStorage.getItem('termquay.layout.files-width') || localStorage.getItem('termquay.layout.sidebar-width')) || 248)));
@@ -190,7 +236,11 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
     updateDrafts(prev => prev.map(d => d.path === path ? { ...d, saving: true, error: '' } : d));
     const operation = (async () => {
       try {
-        const result = await SaveRemoteFile(sessionID, { path, content: draft.content, revision: draft.revision, ...documentFormat(draft) });
+        const authorization = draft.sudo ? await authorizeSudo(path, draft.encoding || 'UTF-8', 'save') : undefined;
+        if (draft.sudo && !authorization) { updateDrafts(prev => prev.map(d => d.path === path ? { ...d, saving: false } : d)); return false; }
+        if (disposed.current || instance.current !== sessionID) return false;
+        const document = { path, content: draft.content, revision: draft.revision, ...documentFormat(draft) };
+        const result = authorization ? await SaveSudoFile(sessionID, document, authorization.password) : await SaveRemoteFile(sessionID, document);
         if (disposed.current || instance.current!==sessionID) return false;
         updateDrafts(prev => prev.map(d => d.path === path ? { ...d, saved: result.content, savedFormat: formatKey(result), revision: result.revision, saving: false } : d));
         const current = draftsRef.current.find(d => d.path === path);
@@ -200,7 +250,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
     })();
     saves.current.set(path, operation); return operation;
   }
-  useImperativeHandle(ref, () => ({ workspaceAction, layout,hasDirty:()=>draftsRef.current.some(d=>isDirty(d)), recoveryDrafts:()=>restoreReady?draftsRef.current.filter(d=>isDirty(d)).map(d=>({path:d.path,content:d.content,encoding:d.encoding,line_ending:d.line_ending,bom:d.bom})):null,insertionTarget:()=>terminalHandles.current.has(active)?active:'',insert:(text,target)=>target===active?terminalHandles.current.get(target)?.insert(text)||false:false, focus:()=>focusTab(), showFiles, locateDirectory: path => { showFiles(); setDirectoryRequest(previous => ({path, sequence: (previous?.sequence || 0) + 1, locate: true})); }, toggleMonitor, terminalAction: action => terminalHandles.current.get(active)?.action(action), toggleFocus: () => setFocus(prev => !prev), async prepareReconnect(){if(terminals.length>=16){setError('保留终端达到上限（16 个），请先关闭结束标签');return false;}if(saves.current.size||creating||preparing||restoring){setError('请等待当前保存、恢复或终端创建完成');return false;}setPreparing(true);try{await CloseWorkspace(sessionID);return !disposed.current;}finally{setPreparing(false);}}, async saveAll() { for (const draft of draftsRef.current) { if (!await save(draft.path)) { setActive(draft.path); return false; } } return !draftsRef.current.some(d => isDirty(d)); } }));
+  useImperativeHandle(ref, () => ({ sudoEdit: () => { void openSudo(); }, workspaceAction, layout,hasDirty:()=>draftsRef.current.some(d=>isDirty(d)), recoveryDrafts:()=>restoreReady?draftsRef.current.filter(d=>isDirty(d)).map(d=>({path:d.path,content:d.content,encoding:d.encoding,line_ending:d.line_ending,bom:d.bom})):null,insertionTarget:()=>terminalHandles.current.has(active)?active:'',insert:(text,target)=>target===active?terminalHandles.current.get(target)?.insert(text)||false:false, focus:()=>focusTab(), showFiles, locateDirectory: path => { showFiles(); setDirectoryRequest(previous => ({path, sequence: (previous?.sequence || 0) + 1, locate: true})); }, toggleMonitor, terminalAction: action => terminalHandles.current.get(active)?.action(action), toggleFocus: () => setFocus(prev => !prev), async prepareReconnect(){if(terminals.length>=16){setError('保留终端达到上限（16 个），请先关闭结束标签');return false;}if(saves.current.size||creating||preparing||restoring||sudoPrompt){setError('请等待当前保存、恢复或终端创建完成');return false;}setPreparing(true);try{await CloseWorkspace(sessionID);return !disposed.current;}finally{setPreparing(false);}}, async saveAll() { for (const draft of draftsRef.current) { if (!await save(draft.path)) { setActive(draft.path); return false; } } return !draftsRef.current.some(d => isDirty(d)); } }));
 
   function close(path: string, discard = false) {
     const draft = draftsRef.current.find(d => d.path === path);
@@ -219,8 +269,11 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
     if (draft && isDirty(draft)) setRereading(path); else void reread(path, encoding);
   }
   async function reread(path: string, encoding = reopenEncoding) {
-    setError(''); const request = ReadRemoteFileEncoded(sessionID, path, encoding); reads.current.set(path, request);
-    try { const doc = await request; if (!disposed.current && instance.current===sessionID && reads.current.get(path)===request) { updateDrafts(prev => prev.map(d => d.path === path ? { ...doc, saved: doc.content, savedFormat: formatKey(doc), reloadEpoch:(d.reloadEpoch||0)+1, saving: false, error: '' } : d)); setRereading(''); } }
+    const sudo = draftsRef.current.find(d => d.path === path)?.sudo;
+    const authorization = sudo ? await authorizeSudo(path, encoding, 'read') : undefined;
+    if (sudo && !authorization || disposed.current || instance.current !== sessionID) return;
+    setError(''); const request = authorization ? ReadSudoFile(sessionID, path, encoding, authorization.password) : ReadRemoteFileEncoded(sessionID, path, encoding); reads.current.set(path, request);
+    try { const doc = await request; if (!disposed.current && instance.current===sessionID && reads.current.get(path)===request) { updateDrafts(prev => prev.map(d => d.path === path ? { ...doc, sudo, saved: doc.content, savedFormat: formatKey(doc), reloadEpoch:(d.reloadEpoch||0)+1, saving: false, error: '' } : d)); setRereading(''); } }
     catch (e) { if (!disposed.current && instance.current===sessionID && reads.current.get(path)===request) { updateDrafts(prev=>prev.map(d=>d.path===path?{...d,error:errorMessage(e)}:d)); setRereading(''); } } finally { if(reads.current.get(path)===request)reads.current.delete(path); }
   }
   const closingDraft = drafts.find(d => d.path === closing);
@@ -253,6 +306,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
           <div className="button-row">
             {failure?.code === 'file_encoding' && <SelectControl aria-label="以指定编码打开文件" value="" disabled={restoring||!restoreReady} onChange={e=>{if(e.target.value)retry(e.target.value);}}><option value="" disabled>选择编码…</option>{editorEncodings.map(([value,label])=><option key={value} value={value}>{label}</option>)}</SelectControl>}
             {failure && !['file_encoding','file_binary','file_too_large','file_not_regular'].includes(failure.code) && <Button size="sm" variant="bordered" isDisabled={restoring||!restoreReady} onPress={()=>retry(failure.encoding)}>重试读取</Button>}
+            {failure && <Button size="sm" variant="light" isDisabled={restoring || !restoreReady || state !== '已连接'} onPress={() => void openSudo(path)}>以 sudo 打开</Button>}
             {failure && failure.code !== 'file_not_regular' && <Button size="sm" variant="light" onPress={()=>{void StartDownload(sessionID,path).catch(e=>setError(errorMessage(e)));}}>下载原文件</Button>}
             {failure?.code==='file_binary'&&<Button size="sm" variant="light" onPress={()=>{void openPath(path,'UTF-8','image').catch(e=>setError(errorMessage(e)));}}>预览图片</Button>}
             <Button size="sm" variant="light" onPress={()=>close(path)}>关闭文件</Button>
@@ -268,7 +322,8 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
     </div>
     <MonitorPanel id={sessionID} visible={visible && monitorShown} onDirectory={path => { showFiles(); setDirectoryRequest(previous => ({ path, sequence: (previous?.sequence || 0) + 1, locate: true })); }} onFile={path => openTerminalFile(path, 1)} onClose={() => { toggleMonitor(); monitorToggle.current?.focus(); }} />
     </div>
-    {conflict && drafts.find(d=>d.path===conflict) && <Suspense fallback={<div className="session-status" role="status">正在载入差异视图…</div>}><FileConflictView key={`${sessionID}:${conflict}`} sessionID={sessionID} path={conflict} content={drafts.find(d=>d.path===conflict)!.content} encoding={savedEncoding(drafts.find(d=>d.path===conflict)!)} lineEnding={drafts.find(d=>d.path===conflict)!.line_ending || 'LF'} onClose={()=>setConflict('')} onApply={(content,remote)=>{updateDrafts(prev=>prev.map(d=>d.path===conflict?{...d,content,saved:remote.content,savedFormat:formatKey(remote),revision:remote.revision,needsReview:false,recovery:false,error:''}:d));setConflict('');}} /></Suspense>}
+    {conflict && drafts.find(d=>d.path===conflict) && <Suspense fallback={<div className="session-status" role="status">正在载入差异视图…</div>}><FileConflictView key={`${sessionID}:${conflict}`} sessionID={sessionID} path={conflict} content={drafts.find(d=>d.path===conflict)!.content} encoding={savedEncoding(drafts.find(d=>d.path===conflict)!)} lineEnding={drafts.find(d=>d.path===conflict)!.line_ending || 'LF'} remoteDocument={sudoConflict} onClose={()=>setConflict('')} onApply={(content,remote)=>{updateDrafts(prev=>prev.map(d=>d.path===conflict?{...d,content,saved:remote.content,savedFormat:formatKey(remote),revision:remote.revision,needsReview:false,recovery:false,error:''}:d));setConflict('');}} /></Suspense>}
+    {sudoPrompt && <SudoAuthorizationDialog {...sudoPrompt} target={target} onAnswer={answerSudo} />}
     <Modal isOpen={!!closingDraft} onClose={() => !closingDraft?.saving && setClosing('')} className="app-dialog"><ModalContent><ModalHeader>保存文件修改？</ModalHeader><ModalBody><p className="file-path">{closing}</p>{closingDraft?.error && <p className="error" role="alert">{closingDraft.error}</p>}</ModalBody><ModalFooter><Button variant="light" isDisabled={closingDraft?.saving} onPress={() => setClosing('')}>取消</Button><Button color="danger" variant="light" isDisabled={closingDraft?.saving} onPress={() => close(closing, true)}>放弃修改</Button><Button color="primary" isLoading={closingDraft?.saving} onPress={async () => { if (await save(closing)) close(closing, true); }}>保存并关闭</Button></ModalFooter></ModalContent></Modal>
     <Modal isOpen={!!rereading} onClose={() => setRereading('')} className="app-dialog"><ModalContent><ModalHeader>重新读取远端文件</ModalHeader><ModalBody><p className="file-path">{rereading}</p><p>将覆盖此文件的本地草稿。请先复制需要保留的内容。</p></ModalBody><ModalFooter><Button variant="light" onPress={() => setRereading('')}>取消</Button><Button color="danger" onPress={() => void reread(rereading)}>放弃草稿并重新读取</Button></ModalFooter></ModalContent></Modal>
   </div>;

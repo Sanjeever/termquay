@@ -1,0 +1,109 @@
+package app
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/Sanjeever/termquay/internal/files"
+)
+
+const sudoFilePrelude = `set -eu
+test "$(uname -s)" = Linux || { echo 'sudo 编辑仅支持 Linux' >&2; exit 1; }
+test -f "$file" && test ! -L "$file" || { echo '请选择普通文件的实际路径' >&2; exit 1; }
+test "$(realpath -e -- "$file")" = "$file" || { echo '请使用不经过符号链接的实际路径' >&2; exit 1; }
+test "$(stat -c %s -- "$file")" -le 2097152 || { echo '文件超过 2 MiB' >&2; exit 1; }
+revision() {
+  hash=$(sha256sum < "$file")
+  printf '%s:%s' "${hash%% *}" "$(stat -c '%d:%i:%s:%Y:%f:%u:%g' -- "$file")"
+}
+`
+
+func sudoQuote(value string) string { return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'" }
+
+func (a *AppService) sudoFile(ctx context.Context, id, remote, password, script string, payload []byte, charset string) (files.Document, error) {
+	if err := validateRemotePaths([]string{remote}); err != nil {
+		return files.Document{}, err
+	}
+	if strings.ContainsAny(remote, "\x00\r\n") {
+		return files.Document{}, errors.New("sudo 文件路径不能包含换行或空字符")
+	}
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
+	defer cancel()
+	a.mu.Lock()
+	owner := a.workspaces[id]
+	if a.commandSlots == nil {
+		a.commandSlots = make(chan struct{}, 4)
+	}
+	slots := a.commandSlots
+	a.mu.Unlock()
+	if owner == nil {
+		return files.Document{}, errors.New("SSH 工作区已关闭")
+	}
+	stop := context.AfterFunc(owner.ctx, cancel)
+	defer stop()
+	select {
+	case slots <- struct{}{}:
+	case <-ctx.Done():
+		return files.Document{}, ctx.Err()
+	}
+	defer func() { <-slots }()
+	data, err := owner.terminal.Sudo(ctx, "file="+sudoQuote(remote)+"\n"+sudoFilePrelude+script, password, payload, files.MaxEditSize+512)
+	if err != nil {
+		return files.Document{}, err
+	}
+	header, content, ok := bytes.Cut(data, []byte{'\n'})
+	if !ok || len(header) > 256 {
+		return files.Document{}, errors.New("sudo 文件版本响应无效")
+	}
+	if len(content) > files.MaxEditSize {
+		return files.Document{}, errors.New("文件超过编辑大小限制")
+	}
+	text, encoding, bom, err := files.DecodeText(content, charset)
+	if err != nil {
+		return files.Document{}, err
+	}
+	return files.Document{Path: remote, Content: text, Revision: string(header), Encoding: encoding, BOM: bom, LineEnding: files.LineEnding(text)}, nil
+}
+
+func (a *AppService) ReadSudoFile(ctx context.Context, id, remote, charset, password string) (files.Document, error) {
+	return a.sudoFile(ctx, id, remote, password, `before=$(revision)
+printf '%s\n' "$before"
+head -c 2097153 -- "$file"
+test "$before" = "$(revision)" || { echo '读取期间文件已变化' >&2; exit 1; }
+`, nil, charset)
+}
+
+func (a *AppService) SaveSudoFile(ctx context.Context, id string, document files.Document, password string) (files.Document, error) {
+	data, err := files.EncodeDocument(document)
+	if err != nil {
+		return files.Document{}, err
+	}
+	if data == nil {
+		data = []byte{}
+	}
+	if len(document.Revision) == 0 || len(document.Revision) > 256 {
+		return files.Document{}, errors.New("文件版本无效，请重新读取")
+	}
+	script := "expected=" + sudoQuote(document.Revision) + "\n" + `test "$expected" = "$(revision)" || { echo '远端文件已变化，请先对比与合并' >&2; exit 1; }
+mode=$(stat -c %a -- "$file")
+test "$((0$mode & 07000))" -eq 0 || { echo '不支持含特殊权限位的文件' >&2; exit 1; }
+parent=$(dirname -- "$file")
+parent_mode=$(stat -c %a -- "$parent")
+test "$((0$parent_mode & 0022))" -eq 0 || { echo '目标目录允许其他用户改写' >&2; exit 1; }
+umask 077
+staging=$(mktemp -d -- "$parent/.termquay-sudo-XXXXXXXXXX")
+trap 'rm -f -- "$staging/data"; rmdir -- "$staging"' EXIT
+cp --attributes-only --preserve=all -- "$file" "$staging/data"
+cat > "$staging/data"
+test "$(stat -c %s -- "$staging/data")" -eq ` + fmt.Sprint(len(data)) + ` || { echo '文件写入不完整' >&2; exit 1; }
+test "$expected" = "$(revision)" || { echo '写入期间远端文件已变化' >&2; exit 1; }
+mv -fT -- "$staging/data" "$file"
+printf '%s\n' "$(revision)"
+head -c 2097153 -- "$file"
+`
+	return a.sudoFile(ctx, id, document.Path, password, script, data, document.Encoding)
+}

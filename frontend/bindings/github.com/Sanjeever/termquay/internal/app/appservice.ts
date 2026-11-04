@@ -517,6 +517,10 @@ export function ReadRemoteLog(workspace: string, remote: string, offset: number,
     return $Call.ByID(1834492222, workspace, remote, offset, backward);
 }
 
+export function ReadSudoFile(id: string, remote: string, charset: string, password: string): $CancellablePromise<files$0.Document> {
+    return $Call.ByID(4059759733, id, remote, charset, password);
+}
+
 export function ReconnectSavedSSH(id: string): $CancellablePromise<$models.SSHReconnectResult> {
     return $Call.ByID(1910439376, id);
 }
@@ -603,6 +607,10 @@ export function SaveRemoteFile(id: string, document: files$0.Document): $Cancell
 
 export function SaveSnippet(value: $models.Snippet): $CancellablePromise<$models.Snippet> {
     return $Call.ByID(464348616, value);
+}
+
+export function SaveSudoFile(id: string, document: files$0.Document, password: string): $CancellablePromise<files$0.Document> {
+    return $Call.ByID(3363949564, id, document, password);
 }
 
 export function SaveSyncPreset(preset: $models.SyncPreset): $CancellablePromise<void> {

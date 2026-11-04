@@ -309,6 +309,7 @@ export default function App() {
     { id: 'transfers', label: '查看传输任务', kind: 'command', run: () => setTransfersOpen(true) },
     { id: 'batch-command', label: '多主机执行命令', kind: 'command', run: () => setBatchCommandOpen(true) },
     { id: 'file-compare', label: '文件对比与跨工作区复制', kind: 'command', run: () => setFileCompareOpen(true) },
+    ...(current?.ssh ? [{ id: 'sudo-edit', label: '以 sudo 编辑文件', kind: 'command' as const, run: () => current.ssh?.current?.sudoEdit() }] : []),
     { id: 'diagnostics', label: '导出脱敏诊断信息', kind: 'command', run: () => { ExportDiagnostics().catch(e => setPreferenceError(errorMessage(e))); } },
     { id: 'settings', label: '打开设置', shortcut: shortcutLabel(shortcuts.settings), kind: 'command', run: () => setSettings(true) },
     { id: 'about', label: '关于 TermQuay', kind: 'command', run: () => { setSettingsSection('about'); setSettings(true); } },

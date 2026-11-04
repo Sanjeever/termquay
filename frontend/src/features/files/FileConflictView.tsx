@@ -11,16 +11,16 @@ import { useAppearance } from '../settings/AppearanceProvider';
 import { editorTheme } from './editorTheme';
 import { editorLanguage } from './editorLanguage';
 
-export default function FileConflictView({ sessionID, path, content, encoding, lineEnding, onApply, onClose }: { sessionID: string; path: string; content: string; encoding: string; lineEnding: string; onApply(content: string, remote: Document): void; onClose(): void }) {
+export default function FileConflictView({ sessionID, path, content, encoding, lineEnding, remoteDocument, onApply, onClose }: { sessionID: string; path: string; content: string; encoding: string; lineEnding: string; remoteDocument?: Document; onApply(content: string, remote: Document): void; onClose(): void }) {
   const host = useRef<HTMLDivElement>(null);
   const merge = useRef<MergeView>();
-  const [remote, setRemote] = useState<Document>();
+  const [remote, setRemote] = useState<Document | undefined>(remoteDocument);
   const [error, setError] = useState('');
   const snapshot = useRef(content);
   const { appearance, dark } = useAppearance();
   const themes = useRef([new Compartment(), new Compartment()]);
   const languages = useRef([new Compartment(),new Compartment()]);
-  useEffect(() => { let ended=false; const request=ReadRemoteFileEncoded(sessionID,path,encoding); request.then(doc=>{if(!ended)setRemote(doc);}).catch(e=>{if(!ended)setError(errorMessage(e));}); return()=>{ended=true;request.cancel();}; }, [sessionID,path,encoding]);
+  useEffect(() => { if (remoteDocument) { setRemote(remoteDocument); return; } let ended=false; const request=ReadRemoteFileEncoded(sessionID,path,encoding); request.then(doc=>{if(!ended)setRemote(doc);}).catch(e=>{if(!ended)setError(errorMessage(e));}); return()=>{ended=true;request.cancel();}; }, [sessionID,path,encoding,remoteDocument]);
   useEffect(() => {
     if(!remote||!host.current)return;
     const view=new MergeView({parent:host.current,a:{doc:snapshot.current,extensions:[languages.current[0].of([]),lineNumbers(),history(),keymap.of([{key:'Mod-s',run:()=>true},...defaultKeymap,...historyKeymap]),EditorView.lineWrapping,themes.current[0].of(editorTheme(dark)),EditorView.contentAttributes.of({'aria-label':'合并本地草稿'})]},b:{doc:remote.content,extensions:[languages.current[1].of([]),lineNumbers(),EditorState.readOnly.of(true),EditorView.editable.of(false),EditorView.lineWrapping,themes.current[1].of(editorTheme(dark)),EditorView.contentAttributes.of({'aria-label':'最新远端内容'})]},highlightChanges:true,gutter:true});
