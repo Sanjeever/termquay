@@ -26,7 +26,7 @@ import { CloseTerminal, ResizeTerminal } from '../../../bindings/github.com/Sanj
 import { CloseLocalTerminal, ResizeLocalTerminal } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import '@xterm/xterm/css/xterm.css';
 
-export type TerminalAction = 'find' | 'terminalCompletion' | 'copy' | 'paste' | 'selectAll' | 'clear' | 'zoomIn' | 'zoomOut' | 'zoomReset';
+export type TerminalAction = 'find' | 'terminalCompletion' | 'commandHelp' | 'copy' | 'paste' | 'selectAll' | 'clear' | 'zoomIn' | 'zoomOut' | 'zoomReset';
 export type TerminalHandle = { ended():boolean; action(action: TerminalAction): void; insert(text: string): boolean };
 const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string; host?:string; local?: boolean; visible: boolean; fontSize: number; demoOutput?: string; focusOnShow?:boolean; onConnectionChange?():void; onSnippets(): void; onDirectory?(path: string, host: string): void; onFile?(path: string, line: number): void }>(function TerminalView({ id, workspace, host='localhost', local=false, visible, fontSize, demoOutput, focusOnShow=true, onConnectionChange, onSnippets, onDirectory, onFile }, ref) {
   const container = useRef<HTMLDivElement>(null);
@@ -77,7 +77,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
     for(let offset=0;offset<bytes.length;offset+=32768){const chunk=bytes.subarray(offset,offset+32768);const frame=new Uint8Array(chunk.length+1);frame.set(chunk,1);stream.send(frame);}
     return true;
   }
-  function openIntegration(){completion.dismiss();setSetupToken(Array.from(crypto.getRandomValues(new Uint8Array(32)),byte=>byte.toString(16).padStart(2,'0')).join(''));setIntegrationOpen(true);}
+  function openIntegration(){completion.dismiss();setPathCompletion(false);setSetupToken(Array.from(crypto.getRandomValues(new Uint8Array(32)),byte=>byte.toString(16).padStart(2,'0')).join(''));setIntegrationOpen(true);}
   function confirmPaste(){if(nextIntegration.current){clearError('completion');completion.activate(nextIntegration.current.token,nextIntegration.current.paths);nextIntegration.current=undefined;}terminal.current?.paste(paste||'');setPaste(undefined);terminal.current?.focus();}
   function insert(text: string):boolean {
     if (demoOutput !== undefined) { reportError('input','演示终端不执行命令'); return false; }
@@ -93,6 +93,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
     const term = terminal.current; if (!term) return;
     if (name === 'find') setSearchOpen(true);
     if (name === 'terminalCompletion') {clearError('completion');term.focus();completion.request();return;}
+    if (name === 'commandHelp') {const command=completion.view?.context.command?.name;completion.dismiss();setHelp({command});return;}
     if (name === 'copy') navigator.clipboard.writeText(term.getSelection()).then(()=>clearError('clipboard')).catch(e => reportError('clipboard',e));
     if (name === 'paste' && demoOutput === undefined) navigator.clipboard.readText().then(value=>{clearError('clipboard');insert(value);}).catch(e => reportError('clipboard',e));
     if (name === 'selectAll') term.selectAll();
@@ -183,10 +184,10 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
   function closeSearch() { setSearchOpen(false); search.current?.clearDecorations(); terminal.current?.focus(); }
   return <div className="terminal-view" onPasteCapture={e => { if (!(e.target as HTMLElement).closest('.xterm')) return; e.preventDefault(); e.stopPropagation(); insert(e.clipboardData.getData('text/plain')); }}>
     <div className="terminal-tools"><Tooltip content="命令片段"><button className="icon-button" aria-label="命令片段" disabled={demoOutput !== undefined} onClick={onSnippets}><Icon name="list" width="14" /></button></Tooltip><Tooltip content="终端查找"><button className="icon-button" aria-label="终端查找" onClick={() => action('find')}><Icon name="search" width="14" /></button></Tooltip>
-      <Dropdown><DropdownTrigger><Tooltip content="终端操作"><button className="icon-button" aria-label="终端操作"><Icon name="more" width="14" /></button></Tooltip></DropdownTrigger><DropdownMenu aria-label="终端操作" disabledKeys={demoOutput !== undefined ? ['paste','export','log','tmux','integration'] : []} onAction={key => { if(demoOutput !== undefined && ['paste','export','log','tmux','integration'].includes(String(key)))return; if (key === 'keyword') setKeywordOpen(value => !value); else if (key === 'export') void exportBuffer(); else if (key === 'log') { if (log?.recording) void pauseLog(); else setLogConfirm(true); } else if (key === 'tmux') setTmuxOpen(true); else if (key === 'integration') openIntegration(); else if(key==='help'){completion.dismiss();setHelp({});} else if (key === 'previousCommand') integration.current?.previous(); else if (key === 'commandOutput') integration.current?.selectOutput(); else action(key as TerminalAction); }}>
+      <Dropdown><DropdownTrigger><Tooltip content="终端操作"><button className="icon-button" aria-label="终端操作"><Icon name="more" width="14" /></button></Tooltip></DropdownTrigger><DropdownMenu aria-label="终端操作" disabledKeys={demoOutput !== undefined ? ['paste','export','log','tmux','integration'] : []} onAction={key => { if(demoOutput !== undefined && ['paste','export','log','tmux','integration'].includes(String(key)))return; if (key === 'keyword') setKeywordOpen(value => !value); else if (key === 'export') void exportBuffer(); else if (key === 'log') { if (log?.recording) void pauseLog(); else setLogConfirm(true); } else if (key === 'tmux') setTmuxOpen(true); else if (key === 'integration') openIntegration();  else if (key === 'previousCommand') integration.current?.previous(); else if (key === 'commandOutput') integration.current?.selectOutput(); else action(key as TerminalAction); }}>
         <DropdownItem key="copy">复制</DropdownItem><DropdownItem key="paste">粘贴</DropdownItem><DropdownItem key="selectAll">全选</DropdownItem><DropdownItem key="find">查找</DropdownItem><DropdownItem key="clear">清空显示</DropdownItem><DropdownItem key="zoomIn">放大字号</DropdownItem><DropdownItem key="zoomOut">缩小字号</DropdownItem><DropdownItem key="zoomReset">复位字号</DropdownItem>
         <DropdownItem key="previousCommand">跳到上一条命令</DropdownItem><DropdownItem key="commandOutput">选择上次命令输出</DropdownItem><DropdownItem key="integration" isDisabled={!connected}>启用当前 Shell 集成…</DropdownItem>
-        <DropdownItem key="terminalCompletion" isDisabled={!connected||demoOutput!==undefined}>命令补全</DropdownItem><DropdownItem key="help">POSIX 命令参考…</DropdownItem>
+        <DropdownItem key="terminalCompletion" isDisabled={!connected||demoOutput!==undefined}>命令补全</DropdownItem><DropdownItem key="commandHelp">POSIX 命令参考…</DropdownItem>
         <DropdownItem key="tmux" className={local?'hidden':''} isDisabled={local||!connected}>tmux 会话…</DropdownItem>
         <DropdownItem key="keyword">临时关键词高亮</DropdownItem><DropdownItem key="export">导出当前缓冲区</DropdownItem><DropdownItem key="log" className={local?'hidden':''} isDisabled={local||!connected}>{log?.recording ? '暂停日志记录' : log?.directory ? '继续日志记录…' : '记录终端输出…'}</DropdownItem>
       </DropdownMenu></Dropdown>

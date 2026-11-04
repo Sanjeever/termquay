@@ -24,9 +24,13 @@ type CompletionPaths struct {
 	Truncated bool             `json:"truncated"`
 }
 
+func invalidCompletionText(value string) bool {
+	return strings.ContainsFunc(value, func(char rune) bool { return char < 0x20 || char == 0x7f })
+}
+
 func (a *AppService) CompleteTerminalPath(ctx context.Context, workspace, terminal, directory, prefix string, directoriesOnly bool) (CompletionPaths, error) {
 	result := CompletionPaths{Entries: []CompletionPath{}}
-	if !strings.HasPrefix(directory, "/") || len(directory) > 4096 || len(prefix) > 1024 || strings.Contains(prefix, "/") || strings.ContainsAny(directory+prefix, "\x00\r\n\x1b") {
+	if !strings.HasPrefix(directory, "/") || len(directory) > 4096 || len(prefix) > 1024 || strings.Contains(prefix, "/") || invalidCompletionText(directory+prefix) {
 		return result, errors.New("补全路径无效")
 	}
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
@@ -84,16 +88,16 @@ func (a *AppService) CompleteTerminalPath(ctx context.Context, workspace, termin
 		for _, entry := range entries {
 			scanned++
 			name := entry.Name()
-			if name == "." || name == ".." || name != path.Base(name) || len(name) > 1024 || !utf8.ValidString(name) || strings.ContainsAny(name, "\x00\r\n\x1b\t") || !strings.HasPrefix(name, prefix) || strings.HasPrefix(name, ".") && !strings.HasPrefix(prefix, ".") {
+			if name == "." || name == ".." || name != path.Base(name) || len(name) > 1024 || !utf8.ValidString(name) || invalidCompletionText(name) || !strings.HasPrefix(name, prefix) || strings.HasPrefix(name, ".") && !strings.HasPrefix(prefix, ".") {
 				continue
 			}
 			isDirectory := entry.IsDir()
 			if entry.Mode()&fs.ModeSymlink != 0 {
 				target, statErr := stat(name)
-				if statErr != nil {
+				if statErr != nil && !errors.Is(statErr, fs.ErrNotExist) {
 					return result, statErr
 				}
-				isDirectory = target.IsDir()
+				isDirectory = statErr == nil && target.IsDir()
 			}
 			if directoriesOnly && !isDirectory {
 				continue

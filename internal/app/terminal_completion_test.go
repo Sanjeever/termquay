@@ -35,6 +35,16 @@ func TestCompleteTerminalPath(t *testing.T) {
 	if _, err = app.CompleteTerminalPath(context.Background(), "other", "terminal", directory, "", false); err == nil {
 		t.Fatal("accepted unrelated workspace")
 	}
+	if err = os.Symlink("missing", filepath.Join(directory, "dangling")); err != nil {
+		t.Fatal(err)
+	}
+	result, err = app.CompleteTerminalPath(context.Background(), "terminal", "terminal", directory, "dangling", false)
+	if err != nil || len(result.Entries) != 1 || result.Entries[0].Directory {
+		t.Fatalf("dangling link: %+v %v", result, err)
+	}
+	if _, err = app.CompleteTerminalPath(context.Background(), "terminal", "terminal", directory, "\a", false); err == nil {
+		t.Fatal("accepted terminal control character in prefix")
+	}
 }
 
 func TestTerminalCompletionPortableShortcuts(t *testing.T) {

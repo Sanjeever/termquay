@@ -43,7 +43,7 @@ func validatePortableUI(values map[string]string) error {
 				return errors.New("快捷键设置无效")
 			}
 			seen := map[string][]string{}
-			terminalActions := []string{"find", "terminalCompletion", "copy", "paste", "selectAll", "clear", "zoomIn", "zoomOut", "zoomReset"}
+			terminalActions := []string{"find", "terminalCompletion", "commandHelp", "copy", "paste", "selectAll", "clear", "zoomIn", "zoomOut", "zoomReset"}
 			reserved := regexp.MustCompile(`^Mod\+(Key[ACFVXYZSWQ]|Tab|Arrow\w+)$|^(Alt\+(Tab|F4)|Mod\+Alt\+Tab|Mod\+Shift\+KeyW)$`)
 			assignedInput := map[string]string{"closeTab": "Mod+KeyW", "closeWorkspace": "Mod+Shift+KeyW", "copy": "Mod+KeyC", "paste": "Mod+KeyV", "find": "Mod+KeyF"}
 			for name, shortcut := range shortcuts {

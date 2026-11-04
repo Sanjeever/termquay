@@ -24,6 +24,11 @@ __termquay_unhex() {
 }
 __termquay_prompt_state() {
   [ "$$" = "$__termquay_owner" ] || return
+  local marker=$'\e]133;B\a'
+  case "$PS1" in
+    *"$marker"*) ;;
+    *) if [ "$__termquay_shell" = bash ]; then PS1="$PS1"'\['"$marker"'\]'; else PS1="$PS1"'%{'"$marker"'%}'; fi ;;
+  esac
   __termquay_saved_line=; __termquay_saved_point=
   __termquay_emit "P;$__termquay_shell"
 }

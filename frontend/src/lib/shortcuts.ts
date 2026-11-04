@@ -13,6 +13,7 @@ export const shortcutDefinitions = [
   { id: 'newTerminal', label: '新建终端', scope: 'app', key: mac ? 'Mod+KeyT' : 'Mod+Alt+KeyT' },
   { id: 'find', label: '终端查找', scope: 'terminal', key: mac ? 'Mod+KeyF' : 'Mod+Shift+KeyF' },
   { id: 'terminalCompletion', label: '触发终端补全', scope: 'terminal', key: 'Alt+Slash' },
+  { id: 'commandHelp', label: 'POSIX 命令参考', scope: 'terminal', key: '' },
   { id: 'copy', label: '复制终端选择', scope: 'terminal', key: mac ? 'Mod+KeyC' : 'Mod+Shift+KeyC' },
   { id: 'paste', label: '粘贴到终端', scope: 'terminal', key: mac ? 'Mod+KeyV' : 'Mod+Shift+KeyV' },
   { id: 'clear', label: '清空终端显示', scope: 'terminal', key: 'Mod+Shift+KeyL' },
