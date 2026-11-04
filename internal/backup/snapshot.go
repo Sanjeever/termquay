@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"filippo.io/age"
@@ -15,11 +16,13 @@ import (
 const MaxSnapshot = 16 << 20
 
 type Snapshot struct {
-	Version   int               `json:"version"`
-	DeviceID  string            `json:"device_id"`
-	CreatedAt time.Time         `json:"created_at"`
-	Data      store.Data        `json:"data"`
-	Settings  map[string]string `json:"settings,omitempty"`
+	Version             int               `json:"version"`
+	DeviceID            string            `json:"device_id"`
+	CreatedAt           time.Time         `json:"created_at"`
+	Data                store.Data        `json:"data"`
+	Settings            map[string]string `json:"settings,omitempty"`
+	DeviceName          string            `json:"device_name,omitempty"`
+	CredentialsIncluded *bool             `json:"credentials_included,omitempty"`
 }
 
 func Encrypt(d store.Data, deviceID, password string) ([]byte, error) {
@@ -27,11 +30,19 @@ func Encrypt(d store.Data, deviceID, password string) ([]byte, error) {
 }
 
 func EncryptWithSettings(d store.Data, deviceID, password string, settings map[string]string) ([]byte, error) {
+	return EncryptSnapshot(Snapshot{DeviceID: deviceID, CreatedAt: time.Now().UTC(), Data: d, Settings: settings}, password)
+}
+
+func EncryptSnapshot(snap Snapshot, password string) ([]byte, error) {
+	d, deviceID, settings := snap.Data, snap.DeviceID, snap.Settings
 	if err := d.Validate(); err != nil {
 		return nil, err
 	}
 	if deviceID == "" || password == "" {
 		return nil, errors.New("设备标识和备份密码不能为空")
+	}
+	if err := validateMetadata(snap); err != nil {
+		return nil, err
 	}
 	version := 1
 	for _, c := range d.Connections {
@@ -66,10 +77,14 @@ func EncryptWithSettings(d store.Data, deviceID, password string, settings map[s
 			version = 7
 		}
 	}
+	if snap.DeviceName != "" || snap.CredentialsIncluded != nil {
+		version = 8
+	}
 	if err := validateSettings(settings); err != nil {
 		return nil, err
 	}
-	plain, err := json.Marshal(Snapshot{Version: version, DeviceID: deviceID, CreatedAt: time.Now().UTC(), Data: d, Settings: settings})
+	snap.Version = version
+	plain, err := json.Marshal(snap)
 	if err != nil {
 		return nil, err
 	}
@@ -124,8 +139,14 @@ func Decrypt(encrypted []byte, password string) (Snapshot, error) {
 	if err = decoder.Decode(&extra); err != io.EOF {
 		return snap, errors.New("快照尾部包含额外数据")
 	}
-	if snap.Version < 1 || snap.Version > 7 {
+	if snap.Version < 1 || snap.Version > 8 {
 		return snap, errors.New("不支持的快照版本")
+	}
+	if snap.Version < 8 && (snap.DeviceName != "" || snap.CredentialsIncluded != nil) {
+		return snap, errors.New("旧快照不能包含设备名称或凭据携带标记")
+	}
+	if err := validateMetadata(snap); err != nil {
+		return snap, err
 	}
 	if snap.Version < 5 && len(snap.Settings) > 0 {
 		return snap, errors.New("旧快照不能包含可迁移设置")
@@ -176,6 +197,16 @@ func Decrypt(encrypted []byte, password string) (Snapshot, error) {
 		return snap, errors.New("快照元数据不完整")
 	}
 	return snap, snap.Data.Validate()
+}
+
+func validateMetadata(snap Snapshot) error {
+	if snap.CreatedAt.IsZero() || len(snap.DeviceName) > 200 || strings.ContainsAny(snap.DeviceName, "\r\n\x00") {
+		return errors.New("快照创建时间或设备名称无效")
+	}
+	if snap.CredentialsIncluded != nil && !*snap.CredentialsIncluded && len(snap.Data.Credentials) > 0 {
+		return errors.New("快照凭据携带标记与内容不一致")
+	}
+	return nil
 }
 
 func validateSettings(settings map[string]string) error {

@@ -49,6 +49,10 @@ export function CancelDirectorySyncPreview(id: string): $CancellablePromise<void
     return $Call.ByID(3885577300, id);
 }
 
+export function CancelRestorePreview(id: string): $CancellablePromise<void> {
+    return $Call.ByID(643796714, id);
+}
+
 export function CancelTransfer(id: string): $CancellablePromise<void> {
     return $Call.ByID(3293823215, id);
 }
@@ -115,6 +119,10 @@ export function ConfirmRestore(id: string): $CancellablePromise<void> {
 
 export function ConfirmRestoreSelection(id: string, connectionIDs: string[] | null, replace: boolean, restoreSettings: boolean): $CancellablePromise<void> {
     return $Call.ByID(4234329002, id, connectionIDs, replace, restoreSettings);
+}
+
+export function ConfirmRestoreWithOptions(id: string, connectionIDs: string[] | null, replace: boolean, settingKeys: string[] | null): $CancellablePromise<void> {
+    return $Call.ByID(547805890, id, connectionIDs, replace, settingKeys);
 }
 
 export function ConfirmSSHImport(id: string, choices: $models.SSHImportChoice[] | null): $CancellablePromise<void> {
@@ -217,6 +225,14 @@ export function GetAutomaticBackupStatus(): $CancellablePromise<$models.Automati
     return $Call.ByID(2326168153);
 }
 
+export function GetBackupCoverage(): $CancellablePromise<$models.BackupCoverage[] | null> {
+    return $Call.ByID(2559806534);
+}
+
+export function GetBackupDeviceAliases(): $CancellablePromise<{ [_ in string]?: string } | null> {
+    return $Call.ByID(1583267754);
+}
+
 export function GetBackupSettings(): $CancellablePromise<$models.BackupSettings> {
     return $Call.ByID(804346713);
 }
@@ -255,6 +271,10 @@ export function GetPortableUI(): $CancellablePromise<{ [_ in string]?: string } 
 
 export function GetSSHChallenge(id: string): $CancellablePromise<$models.SSHChallenge | null> {
     return $Call.ByID(548734497, id);
+}
+
+export function GetSnapshotDetails(path: string, password: string): $CancellablePromise<$models.SnapshotDetails> {
+    return $Call.ByID(2881406116, path, password);
 }
 
 export function GetSyncPresets(connectionID: string): $CancellablePromise<$models.SyncPreset[] | null> {
@@ -345,6 +365,10 @@ export function OpenRDPRoute(host: string, port: number, gateway: string): $Canc
     return $Call.ByID(142069701, host, port, gateway);
 }
 
+export function OpenRestoreBackupDirectory(): $CancellablePromise<void> {
+    return $Call.ByID(230676473);
+}
+
 export function OpenSavedRDP(id: string): $CancellablePromise<$models.RDPLaunch> {
     return $Call.ByID(249660857, id);
 }
@@ -403,6 +427,10 @@ export function PreviewRestore(options: backup$0.WebDAVOptions, path: string, pa
 
 export function PreviewSSHImport(text: string): $CancellablePromise<$models.SSHImportPreview> {
     return $Call.ByID(3591011117, text);
+}
+
+export function PreviewSavedRestore(path: string, password: string): $CancellablePromise<$models.RestorePreview> {
+    return $Call.ByID(827587197, path, password);
 }
 
 export function ProbeRDP(host: string, port: number): $CancellablePromise<$models.RDPProbe> {
@@ -555,6 +583,10 @@ export function SelectSSHImport(): $CancellablePromise<$models.SSHImportPreview>
 
 export function SetAutomaticBackupEnabled(enabled: boolean): $CancellablePromise<void> {
     return $Call.ByID(1380621752, enabled);
+}
+
+export function SetBackupDeviceAlias(deviceID: string, name: string): $CancellablePromise<void> {
+    return $Call.ByID(2569537390, deviceID, name);
 }
 
 export function SetConnectionPreference(id: string, favorite: boolean, environment: string): $CancellablePromise<void> {

@@ -24,24 +24,28 @@ type Catalog struct {
 }
 
 type RestorePreview struct {
-	ID          string             `json:"id"`
-	DeviceID    string             `json:"device_id"`
-	CreatedAt   time.Time          `json:"created_at"`
-	Added       []string           `json:"added"`
-	Updated     []string           `json:"updated"`
-	Removed     []string           `json:"removed"`
-	Credentials int                `json:"credentials"`
-	Connections []store.Connection `json:"connections"`
-	Settings    []string           `json:"settings"`
+	ID                  string             `json:"id"`
+	DeviceID            string             `json:"device_id"`
+	DeviceName          string             `json:"device_name"`
+	CredentialsIncluded *bool              `json:"credentials_included"`
+	CredentialUpdated   []string           `json:"credential_updated"`
+	CreatedAt           time.Time          `json:"created_at"`
+	Added               []string           `json:"added"`
+	Updated             []string           `json:"updated"`
+	Removed             []string           `json:"removed"`
+	Credentials         int                `json:"credentials"`
+	Connections         []store.Connection `json:"connections"`
+	Settings            []string           `json:"settings"`
 }
 
 type pendingRestore struct {
-	id           string
-	data         store.Data
-	base         store.Data
-	expires      time.Time
-	settings     map[string]string
-	settingsBase map[string]string
+	id             string
+	data           store.Data
+	base           store.Data
+	expires        time.Time
+	settingsBase   map[string]string
+	sourceSettings map[string]string
+	password       string
 }
 
 func (a *AppService) openStorage() error {
@@ -625,7 +629,11 @@ func (a *AppService) createSnapshot(password string, selection BackupSelection) 
 			settings[key] = value
 		}
 	}
-	encrypted, err := backup.EncryptWithSettings(d, device, password, settings)
+	name, err := a.deviceName()
+	if err != nil {
+		return nil, "", err
+	}
+	encrypted, err := backup.EncryptSnapshot(backup.Snapshot{DeviceID: device, DeviceName: name, CreatedAt: time.Now().UTC(), Data: d, Settings: settings, CredentialsIncluded: &selection.Credentials}, password)
 	return encrypted, device, err
 }
 
@@ -660,7 +668,11 @@ func (a *AppService) PreviewRestore(ctx context.Context, options backup.WebDAVOp
 	if err != nil {
 		return RestorePreview{}, err
 	}
-	return a.prepareRestore(snap)
+	preview, err := a.prepareRestore(snap)
+	if err == nil {
+		a.preview.password = password
+	}
+	return preview, err
 }
 
 func (a *AppService) prepareRestore(snap backup.Snapshot) (RestorePreview, error) {
@@ -674,9 +686,9 @@ func (a *AppService) prepareRestore(snap backup.Snapshot) (RestorePreview, error
 		return RestorePreview{}, err
 	}
 	id := base64.RawURLEncoding.EncodeToString(randomBytes(24))
-	p := RestorePreview{ID: id, DeviceID: snap.DeviceID, CreatedAt: snap.CreatedAt, Added: []string{}, Updated: []string{}, Removed: []string{}, Credentials: len(snap.Data.Credentials)}
+	p := RestorePreview{ID: id, DeviceID: snap.DeviceID, DeviceName: snap.DeviceName, CredentialsIncluded: snap.CredentialsIncluded, CreatedAt: snap.CreatedAt, Added: []string{}, Updated: []string{}, Removed: []string{}, Credentials: len(snap.Data.Credentials), CredentialUpdated: []string{}}
 	p.Connections = snap.Data.Connections
-	settings, base, err := a.restoreSettings(snap.Settings)
+	_, base, err := a.restoreSettings(snap.Settings)
 	if err != nil {
 		return RestorePreview{}, err
 	}
@@ -685,6 +697,14 @@ func (a *AppService) prepareRestore(snap backup.Snapshot) (RestorePreview, error
 	}
 	sort.Strings(p.Settings)
 	old := map[string]store.Connection{}
+	oldCredentials := map[string]store.Credential{}
+	newCredentials := map[string]store.Credential{}
+	for _, credential := range current.Credentials {
+		oldCredentials[credential.ID] = credential
+	}
+	for _, credential := range snap.Data.Credentials {
+		newCredentials[credential.ID] = credential
+	}
 	for _, c := range current.Connections {
 		old[c.ID] = c
 	}
@@ -695,12 +715,16 @@ func (a *AppService) prepareRestore(snap backup.Snapshot) (RestorePreview, error
 		} else if !reflect.DeepEqual(before, c) {
 			p.Updated = append(p.Updated, c.Name)
 		}
+		if ok && !reflect.DeepEqual(oldCredentials[before.CredentialID], newCredentials[c.CredentialID]) {
+			p.CredentialUpdated = append(p.CredentialUpdated, c.Name)
+		}
 		delete(old, c.ID)
 	}
 	for _, c := range old {
 		p.Removed = append(p.Removed, c.Name)
 	}
-	a.preview = &pendingRestore{id: id, data: snap.Data, base: current, expires: time.Now().Add(5 * time.Minute), settings: settings, settingsBase: base}
+	sort.Strings(p.Removed)
+	a.preview = &pendingRestore{id: id, data: snap.Data, base: current, expires: time.Now().Add(5 * time.Minute), settingsBase: base, sourceSettings: snap.Settings}
 	return p, nil
 }
 
@@ -709,9 +733,21 @@ func (a *AppService) ConfirmRestore(id string) error {
 }
 
 func (a *AppService) ConfirmRestoreSelection(id string, connectionIDs []string, replace, restoreSettings bool) error {
+	keys := []string{}
+	if restoreSettings {
+		keys = []string{"snippets", "appearance", "shortcuts"}
+	}
+	return a.ConfirmRestoreWithOptions(id, connectionIDs, replace, keys)
+}
+
+func (a *AppService) ConfirmRestoreWithOptions(id string, connectionIDs []string, replace bool, settingKeys []string) error {
 	a.backupMu.Lock()
 	defer a.backupMu.Unlock()
-	if a.preview == nil || a.preview.id != id || time.Now().After(a.preview.expires) {
+	if a.preview == nil || a.preview.id != id {
+		return errors.New("恢复预览已失效，请重新预览")
+	}
+	if time.Now().After(a.preview.expires) {
+		a.preview = nil
 		return errors.New("恢复预览已失效，请重新预览")
 	}
 	a.storeMu.Lock()
@@ -728,8 +764,22 @@ func (a *AppService) ConfirmRestoreSelection(id string, connectionIDs []string, 
 	}
 	data := a.preview.data
 	settings := map[string]string{}
-	if restoreSettings {
-		for key, expected := range a.preview.settingsBase {
+	selectedSettings := map[string]string{}
+	for _, key := range settingKeys {
+		if key != "snippets" && key != "appearance" && key != "shortcuts" {
+			return errors.New("恢复设置包含未知选项")
+		}
+		if value, ok := a.preview.sourceSettings[key]; ok {
+			selectedSettings[key] = value
+		}
+	}
+	if len(selectedSettings) > 0 {
+		for sourceKey := range selectedSettings {
+			key := "portable_ui"
+			if sourceKey == "snippets" {
+				key = "snippets"
+			}
+			expected := a.preview.settingsBase[key]
 			value, err := a.store.Setting(key)
 			if err != nil {
 				return err
@@ -738,7 +788,10 @@ func (a *AppService) ConfirmRestoreSelection(id string, connectionIDs []string, 
 				return errors.New("本机设置在预览后发生变化，请重新预览")
 			}
 		}
-		settings = a.preview.settings
+		settings, _, err = a.restoreSettings(selectedSettings)
+		if err != nil {
+			return err
+		}
 	}
 	if !replace {
 		selected, err := selectSnapshotData(data, connectionIDs)
@@ -747,9 +800,22 @@ func (a *AppService) ConfirmRestoreSelection(id string, connectionIDs []string, 
 		}
 		data = mergeSnapshotCopies(current, selected)
 	}
+	if replace {
+		if err := a.protectRestore(current); err != nil {
+			return err
+		}
+	}
 	if err := a.store.ReplaceWithSettings(data, settings); err != nil {
 		return err
 	}
 	a.preview = nil
 	return nil
+}
+
+func (a *AppService) CancelRestorePreview(id string) {
+	a.backupMu.Lock()
+	defer a.backupMu.Unlock()
+	if a.preview != nil && a.preview.id == id {
+		a.preview = nil
+	}
 }

@@ -28,6 +28,7 @@ type WebDAVOptions struct {
 }
 
 type RemoteSnapshot struct {
+	DeviceID string    `json:"device_id"`
 	Path     string    `json:"path"`
 	Size     int64     `json:"size"`
 	Modified time.Time `json:"modified"`
@@ -108,7 +109,7 @@ func (o WebDAVOptions) Check(ctx context.Context) (result error) {
 	if !bytes.Equal(data, id[:]) {
 		return errors.New("检查文件读回内容不一致")
 	}
-	if err := o.uploadSnapshot(ctx, c, remote, id[:]); err == nil {
+	if err := o.uploadSnapshot(ctx, c, remote, []byte("conflicting-check-file")); err == nil {
 		return errors.New("WebDAV 允许覆盖同名备份，无法安全使用")
 	} else {
 		var status gowebdav.StatusError
@@ -229,7 +230,7 @@ func (o WebDAVOptions) List(ctx context.Context) ([]RemoteSnapshot, error) {
 		}
 		for _, entry := range entries {
 			if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".json.age") {
-				result = append(result, RemoteSnapshot{Path: path.Join(o.Directory, device.Name(), entry.Name()), Size: entry.Size(), Modified: entry.ModTime()})
+				result = append(result, RemoteSnapshot{DeviceID: device.Name(), Path: path.Join(o.Directory, device.Name(), entry.Name()), Size: entry.Size(), Modified: entry.ModTime()})
 				if len(result) > 10000 {
 					return nil, errors.New("快照超过 10000 个")
 				}

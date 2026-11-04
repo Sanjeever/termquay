@@ -4,11 +4,14 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/Sanjeever/termquay/internal/backup"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 	"github.com/Sanjeever/termquay/internal/store"
 )
@@ -178,12 +181,24 @@ func TestRestorePreservesLocalSettingsAndRejectsStalePreview(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a.preview = &pendingRestore{id: "preview", data: store.Data{Groups: []store.Group{{ID: "new", Name: "恢复分组"}}}, base: before, expires: time.Now().Add(time.Minute)}
+	a.preview = &pendingRestore{id: "preview", data: store.Data{Groups: []store.Group{{ID: "new", Name: "恢复分组"}}}, base: before, expires: time.Now().Add(time.Minute), password: "test-restore-password"}
 	if err = a.ConfirmRestore("other"); err == nil {
 		t.Fatal("确认了其他预览")
 	}
 	if err = a.ConfirmRestore("preview"); err != nil {
 		t.Fatal(err)
+	}
+	files, err := filepath.Glob(filepath.Join(a.store.Directory(), "restore-backups", "*.json.age"))
+	if err != nil || len(files) != 1 {
+		t.Fatal("恢复前未保存唯一保护副本", err)
+	}
+	encrypted, err := os.ReadFile(files[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	protected, err := backup.Decrypt(encrypted, "test-restore-password")
+	if err != nil || !reflect.DeepEqual(protected.Data, before) {
+		t.Fatal("保护副本未保留恢复前数据", err)
 	}
 	setting, err := a.store.SecretSetting("webdav")
 	if err != nil || setting != "test-private-setting" {

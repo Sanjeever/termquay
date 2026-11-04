@@ -26,6 +26,13 @@ export interface AutomaticBackupStatus {
     "error": string;
 }
 
+export interface BackupCoverage {
+    "connection_id": string;
+    "name": string;
+    "reason": string;
+    "can_save": boolean;
+}
+
 export interface BackupSelection {
     "connection_ids": string[] | null;
     "credentials": boolean;
@@ -174,6 +181,9 @@ export interface RemotePathResult {
 export interface RestorePreview {
     "id": string;
     "device_id": string;
+    "device_name": string;
+    "credentials_included": boolean | null;
+    "credential_updated": string[] | null;
     "created_at": string;
     "added": string[] | null;
     "updated": string[] | null;
@@ -229,6 +239,16 @@ export interface SSHReconnectResult {
     "result": OpenResult;
     "error": string;
     "retryable": boolean;
+}
+
+export interface SnapshotDetails {
+    "device_id": string;
+    "device_name": string;
+    "created_at": string;
+    "connections": number;
+    "credentials": number;
+    "credentials_included": boolean | null;
+    "settings": string[] | null;
 }
 
 export interface Snippet {

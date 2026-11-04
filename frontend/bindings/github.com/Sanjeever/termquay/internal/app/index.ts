@@ -8,6 +8,7 @@ export {
 
 export type {
     AutomaticBackupStatus,
+    BackupCoverage,
     BackupSelection,
     BackupSettings,
     BuildInfo,
@@ -35,6 +36,7 @@ export type {
     SSHImportRow,
     SSHLayout,
     SSHReconnectResult,
+    SnapshotDetails,
     Snippet,
     SyncContentComparison,
     SyncPreset,

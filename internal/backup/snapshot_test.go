@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/Sanjeever/termquay/internal/store"
 )
@@ -35,7 +36,8 @@ func TestCrossDeviceRestore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	encrypted, err := Encrypt(data, "device-a", "test-recovery-passphrase")
+	includeCredentials := true
+	encrypted, err := EncryptSnapshot(Snapshot{DeviceID: "device-a", DeviceName: "测试设备 A", CreatedAt: time.Now().UTC(), Data: data, CredentialsIncluded: &includeCredentials}, "test-recovery-passphrase")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,6 +47,9 @@ func TestCrossDeviceRestore(t *testing.T) {
 	snap, err := Decrypt(encrypted, "test-recovery-passphrase")
 	if err != nil {
 		t.Fatal(err)
+	}
+	if snap.Version != 8 || snap.DeviceName != "测试设备 A" || snap.CredentialsIncluded == nil || !*snap.CredentialsIncluded {
+		t.Fatal("设备名称或凭据携带标记未保留")
 	}
 	if err = b.Replace(snap.Data); err != nil {
 		t.Fatal(err)

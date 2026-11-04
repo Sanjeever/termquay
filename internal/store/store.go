@@ -129,12 +129,15 @@ func (d Data) Validate() error {
 }
 
 type Store struct {
-	db      *sql.DB
-	aead    cipher.AEAD
-	changed func()
+	directory string
+	db        *sql.DB
+	aead      cipher.AEAD
+	changed   func()
 }
 
 func (s *Store) SetChangeListener(changed func()) { s.changed = changed }
+
+func (s *Store) Directory() string { return s.directory }
 
 func Open(dir string, key []byte) (*Store, error) {
 	block, err := aes.NewCipher(key)
@@ -161,7 +164,7 @@ func Open(dir string, key []byte) (*Store, error) {
 		return nil, err
 	}
 	db.SetMaxOpenConns(1)
-	s := &Store{db: db, aead: aead}
+	s := &Store{db: db, aead: aead, directory: dir}
 	var version int
 	if err = db.QueryRow("PRAGMA user_version").Scan(&version); err != nil {
 		db.Close()
