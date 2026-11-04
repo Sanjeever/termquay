@@ -1,3 +1,4 @@
+import Tooltip from '../../components/Tooltip';
 import { errorMessage } from "../../lib/errors";
 import { useEffect, useState } from 'react';
 import { Browser } from '@wailsio/runtime';
@@ -34,7 +35,7 @@ export default function AboutSettings({ updates, onRestart, activeWorkspaces, ac
   return <div className="settings-section about-section">
     <img src={appIcon} alt="TermQuay 应用图标" width="64" height="64" /><h2>TermQuay</h2>
     <div className="settings-row"><span>版本</span><span>{status?.build.version ?? '…'}{status?.build.development && ' · 开发版'}</span></div>
-    {status?.build.commit && <div className="settings-row"><span>构建提交</span><code title={status.build.commit}>{status.build.commit.slice(0, 12)}</code></div>}
+    {status?.build.commit && <div className="settings-row"><span>构建提交</span><Tooltip content={status.build.commit}><code>{status.build.commit.slice(0, 12)}</code></Tooltip></div>}
     <div className="settings-row"><span>许可证</span><span className="muted">Apache License 2.0</span></div>
     <div className="settings-row"><Switch size="sm" isSelected={status?.enabled ?? false} isDisabled={!status || status.build.development || !!busy} onValueChange={enabled => void updates.setEnabled(enabled)}>自动检查更新</Switch></div>
     <div className="update-actions">

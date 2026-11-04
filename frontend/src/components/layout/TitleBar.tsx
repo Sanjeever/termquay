@@ -1,3 +1,4 @@
+import Tooltip from '../Tooltip';
 import { errorMessage } from "../../lib/errors";
 import { useEffect, useRef, useState, type ReactNode, type MouseEvent } from 'react';
 import { Events, System, Window } from '@wailsio/runtime';
@@ -56,14 +57,14 @@ export default function TitleBar({ tabs, tools, onError }: {
   }
   return <header className={`workbench-header${mac ? ' mac-titlebar' : ''}${fullscreen ? ' fullscreen-titlebar' : ''}${focused ? '' : ' inactive-titlebar'}`} onDoubleClick={doubleClick}
     onMouseDown={event => { if (mac) dragStart.current = !fullscreen && event.button === 0 && event.detail === 1 && draggable(event) ? { x: event.clientX, y: event.clientY } : undefined; }}>
-    <div className="titlebar-brand" title="TermQuay"><img src={appIcon} alt="" width="18" height="18" draggable={false} /><span>TermQuay</span></div>
+    <div className="titlebar-brand"><img src={appIcon} alt="" width="18" height="18" draggable={false} /><span>TermQuay</span></div>
     {tabs}
     <div className="titlebar-drag" aria-hidden="true" />
     <div className="workbench-tools">{tools}</div>
     {!mac && !fullscreen && <div className="window-controls" role="group" aria-label="窗口控制">
-      <button className="window-minimise" aria-label="最小化" title="最小化" onClick={() => run(() => Window.Minimise())}><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M1 6.5h10" /></svg></button>
-      <button className="window-maximise" aria-label={maximised ? '还原窗口' : '最大化'} title={maximised ? '还原窗口' : '最大化'} onClick={() => run(() => Window.ToggleMaximise())}><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">{maximised ? <path d="M3.5 3.5v-2h7v7h-2M1.5 3.5h7v7h-7z" /> : <path d="M1.5 1.5h9v9h-9z" />}</svg></button>
-      <button className="window-close" aria-label="关闭窗口" title="关闭窗口" onClick={() => run(() => Window.Close())}><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="m1.5 1.5 9 9m0-9-9 9" /></svg></button>
+      <Tooltip content="最小化"><button className="window-minimise" aria-label="最小化" onClick={() => run(() => Window.Minimise())}><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M1 6.5h10" /></svg></button></Tooltip>
+      <Tooltip content={maximised ? '还原窗口' : '最大化'}><button className="window-maximise" aria-label={maximised ? '还原窗口' : '最大化'} onClick={() => run(() => Window.ToggleMaximise())}><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">{maximised ? <path d="M3.5 3.5v-2h7v7h-2M1.5 3.5h7v7h-7z" /> : <path d="M1.5 1.5h9v9h-9z" />}</svg></button></Tooltip>
+      <Tooltip content="关闭窗口"><button className="window-close" aria-label="关闭窗口" onClick={() => run(() => Window.Close())}><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="m1.5 1.5 9 9m0-9-9 9" /></svg></button></Tooltip>
     </div>}
   </header>;
 }

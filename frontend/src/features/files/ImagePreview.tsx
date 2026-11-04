@@ -1,3 +1,4 @@
+import Tooltip from '../../components/Tooltip';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@heroui/react';
 import useImageResource from './useImageResource';
@@ -20,6 +21,6 @@ export default function ImagePreview({workspace,path,visible,onDownload,onText}:
     <div className={`image-stage${zoom==='fit'?' image-fit':''}`} ref={stage} tabIndex={0} data-image-preview aria-label="图片预览" onKeyDown={event=>{if(event.isDefaultPrevented()||event.nativeEvent.isComposing)return;if(event.key==='+'||event.key==='='){event.preventDefault();scale(25);}if(event.key==='-'){event.preventDefault();scale(-25);}if(event.key==='0'){event.preventDefault();setZoom('fit');}}}>
       {image.resource&&!image.error?<img src={image.resource.url} alt={path.split('/').pop()||'远端图片'} draggable={false} style={zoom==='fit'?undefined:{width:Math.round(width*zoom/100),maxWidth:'none',maxHeight:'none'}} onLoad={event=>setNatural({width:event.currentTarget.naturalWidth,height:event.currentTarget.naturalHeight})} onError={image.decodeFailed}/>:!image.error&&<span className="muted" role="status">正在读取图片…</span>}
     </div>
-    <div className="editor-status"><span className="editor-path" title={path}>{path}</span>{metadata&&<><span>{width} × {height}</span><span>{bytes(metadata.size)}</span><span>{metadata.format==='gif'?'GIF · 首帧':metadata.format.toUpperCase()}</span></>}</div>
+    <div className="editor-status"><Tooltip content={path}><span className="editor-path">{path}</span></Tooltip>{metadata&&<><span>{width} × {height}</span><span>{bytes(metadata.size)}</span><span>{metadata.format==='gif'?'GIF · 首帧':metadata.format.toUpperCase()}</span></>}</div>
   </div>;
 }

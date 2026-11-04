@@ -2,6 +2,7 @@ import { autocompletion, completeAnyWord, completeFromList, completionKeymap, sn
 import { syntaxTree } from '@codemirror/language';
 import { EditorState, Prec, type Extension } from '@codemirror/state';
 import { hoverTooltip, keymap } from '@codemirror/view';
+import { tooltipDelay } from '../../components/Tooltip';
 import type { EditorLanguageID } from './editorLanguage';
 import { editorDiagnostics } from './editorDiagnostics';
 
@@ -60,7 +61,7 @@ export function editorIntelligence(language: EditorLanguageID, onDiagnosticError
       const text = descriptions.get(before+after);
       if (!text) return null;
       return {pos:pos-before.length,end:pos+after.length,above:true,create(){const dom=document.createElement('div');dom.className='editor-word-help';dom.textContent=text;return {dom};}};
-    }),
+    }, { hoverTime: tooltipDelay, hideOnChange: true }),
     diagnostics&&(language==='json'||language==='yaml')?editorDiagnostics(language,onDiagnosticError):[],
   ];
 }

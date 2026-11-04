@@ -1,3 +1,4 @@
+import Tooltip from '../../components/Tooltip';
 import { Component, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -35,7 +36,7 @@ function MarkdownCode({className,children}:{className?:string;children?:ReactNod
     }).catch(error=>{if(!ended)setError(`高亮加载失败：${errorMessage(error)}`);});
     return()=>{ended=true;};
   },[id,text]);
-  return <code className={className} title={error||undefined} data-highlight-error={error?true:undefined}>{tokens?.text===text&&tokens.language===id?tokens.parts:text}</code>;
+  return <Tooltip content={error||undefined}><code className={className} data-highlight-error={error?true:undefined}>{tokens?.text===text&&tokens.language===id?tokens.parts:text}</code></Tooltip>;
 }
 
 function MarkdownImage({workspace,path,src,alt,visible,allowed,onAllow}:{workspace:string;path:string;src?:string;alt?:string;visible:boolean;allowed:ReadonlySet<string>;onAllow(address:string):void}) {

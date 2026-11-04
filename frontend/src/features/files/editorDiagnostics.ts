@@ -1,5 +1,6 @@
 import { linter, lintGutter, type Diagnostic } from '@codemirror/lint';
 import { ViewPlugin } from '@codemirror/view';
+import { tooltipDelay } from '../../components/Tooltip';
 
 type Job = { id:number; text:string; resolve(value:Diagnostic[]):void };
 export function editorDiagnostics(language:'json'|'yaml', onError:(message:string)=>void) {
@@ -35,7 +36,7 @@ export function editorDiagnostics(language:'json'|'yaml', onError:(message:strin
       const job={id:++sequence,text:view.state.doc.toString(),resolve};
       if (disposed) {resolve([]);return;}
       if (active) {queued?.resolve([]);queued=job;} else send(job);
-    }),{delay:500}),lintGutter(),
+    }),{delay:500}),lintGutter({hoverTime:tooltipDelay}),
     ViewPlugin.define(()=>({destroy(){disposed=true;worker?.terminate();active?.resolve([]);queued?.resolve([]);active=queued=undefined;}})),
   ];
 }

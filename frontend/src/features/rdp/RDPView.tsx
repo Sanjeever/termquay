@@ -1,3 +1,4 @@
+import Tooltip from '../../components/Tooltip';
 import SelectControl from '../../components/SelectControl';
 import ErrorNotice from '../../components/ErrorNotice';
 import { errorMessage } from '../../lib/errors';
@@ -150,7 +151,7 @@ const RDPView = forwardRef<RDPHandle, { grant?: Grant; target: string; environme
   useEffect(() => { container.current?.querySelector('iron-remote-desktop')?.setAttribute('scale', scale); }, [scale, status]);
 
   return <div className="rdp-view" ref={view} data-keyboard-target={keyboardTarget}>
-    <div className="workspace-toolbar" hidden={fullscreen && toolbarCollapsed}><span className="session-target" title={target}>{target}</span>{environment && <span className={`connection-environment ${environment}`}>{({production:'生产',staging:'预发布',development:'开发'} as Record<string,string>)[environment]}</span>}<span className="session-state">{pending ? '正在连接' : status}</span></div>
+    <div className="workspace-toolbar" hidden={fullscreen && toolbarCollapsed}><Tooltip content={target}><span className="session-target">{target}</span></Tooltip>{environment && <span className={`connection-environment ${environment}`}>{({production:'生产',staging:'预发布',development:'开发'} as Record<string,string>)[environment]}</span>}<span className="session-state">{pending ? '正在连接' : status}</span></div>
     {fullscreen && toolbarCollapsed && <button className="rdp-toolbar-reveal" aria-label="显示远程桌面工具栏" onClick={() => { setToolbarCollapsed(false); requestAnimationFrame(() => view.current?.querySelector<HTMLElement>('.rdp-toolbar button')?.focus()); }}>显示工具栏</button>}
     <div className="rdp-toolbar" hidden={status !== '已连接' || !grant || (fullscreen && toolbarCollapsed)}>
       <Dropdown><DropdownTrigger><Button size="sm" variant="light" isDisabled={status !== '已连接'}>组合键</Button></DropdownTrigger><DropdownMenu aria-label="远端组合键" onAction={key => { if (key === 'secure') ui.current?.ctrlAltDel(); else ui.current?.metaKey(); focusDesktop(); }}><DropdownItem key="secure">Ctrl + Alt + Del</DropdownItem><DropdownItem key="windows">Windows 键</DropdownItem></DropdownMenu></Dropdown>
