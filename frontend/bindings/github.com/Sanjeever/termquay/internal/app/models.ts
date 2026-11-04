@@ -259,6 +259,7 @@ export interface MonitorEvent {
 }
 
 export interface OpenResult {
+    "route"?: SSHRouteHop[] | null;
     "steps": ssh$0.ConnectionStep[] | null;
     "id": string;
     "fingerprint": string;
@@ -399,6 +400,18 @@ export interface SSHReconnectResult {
     "result": OpenResult;
     "error": string;
     "retryable": boolean;
+}
+
+export interface SSHRouteHop {
+    "host": string;
+    "port": number;
+    "username": string;
+    "jump_id": string;
+    "proxy_address": string;
+    "auth_method": string;
+    "identity_agent": string;
+    "mfa": boolean;
+    "certificate": string;
 }
 
 export interface SnapshotDetails {

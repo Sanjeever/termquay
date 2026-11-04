@@ -1,7 +1,7 @@
 import { errorMessage } from "../../lib/errors";
 import { useEffect, useRef, useState } from 'react';
 import { OpenTerminal, OpenSavedTerminalInteractive, GetSSHChallenge, GetSSHConnectionProgress, AnswerSSHChallenge, ProbeRDPRoute, TrustSSHHost, TrustRDPCertificateRoute, OpenRDPRoute, OpenSavedRDPRoute, OpenSystemRDP, OpenSavedSystemRDP, CloseWorkspace, CloseRDP } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
-import type { SSHChallenge } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
+import type { SSHChallenge, SSHRouteHop } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import { ReconnectSavedSSH } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { Connection } from '../../../bindings/github.com/Sanjeever/termquay/internal/store/models';
 import type { Request, ConnectionStep } from '../../../bindings/github.com/Sanjeever/termquay/internal/ssh/models';
@@ -11,7 +11,7 @@ import type { RDPOptions } from '../rdp/RDPView';
 
 type Attempt = { cancelled: boolean; progressEpoch: number; workspaceID?: string; operation?: { cancel(): void }; resolve?: (accept: boolean) => void };
 
-export default function useConnectionAttempt(onSSH: (id: string, connection: Connection, reuse?: string, automatic?: boolean) => void, beginRDP: (connection: Connection, reuse?: string, options?: RDPOptions) => string, onRDP: (id: string, grant: Grant, username: string, password: string, domain: string) => Promise<void>, failRDP: (id: string, error: string) => void, cancelRDP: (id: string) => void, remove: (id: string) => void) {
+export default function useConnectionAttempt(onSSH: (id: string, connection: Connection, reuse?: string, automatic?: boolean, route?: SSHRouteHop[]) => void, beginRDP: (connection: Connection, reuse?: string, options?: RDPOptions) => string, onRDP: (id: string, grant: Grant, username: string, password: string, domain: string) => Promise<void>, failRDP: (id: string, error: string) => void, cancelRDP: (id: string) => void, remove: (id: string) => void) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [target, setTarget] = useState('');
@@ -28,7 +28,7 @@ export default function useConnectionAttempt(onSSH: (id: string, connection: Con
   useEffect(() => () => cancel(), []);
   function confirm(accept: boolean) { current.current?.resolve?.(accept); setTrust(undefined); }
 
-  async function start(connection: Connection, auth?: Request, reuse?: string, options?: RDPOptions, automatic = false) {
+  async function start(connection: Connection, auth?: Request, reuse?: string, options?: RDPOptions, automatic = false, expectedRoute: SSHRouteHop[] = []) {
     if (current.current) return false;
     const attempt: Attempt = { cancelled: false, progressEpoch: 0, workspaceID: reuse };
     current.current = attempt; setBusy(true); setWorkspaceID(reuse||'');setError(''); setTarget(connection.name || connection.host);
@@ -41,12 +41,12 @@ export default function useConnectionAttempt(onSSH: (id: string, connection: Con
     const ask = (fingerprint: string, reason?: string,host=connection.host,port=connection.port) => new Promise<boolean>(resolve => { attempt.resolve = resolve; setTrust({ host, port, protocol: connection.protocol, fingerprint, reason }); });
     try {
       if (automatic) {
-        const operation = ReconnectSavedSSH(connection.id); attempt.operation = operation;
+        const operation = ReconnectSavedSSH(connection.id, expectedRoute); attempt.operation = operation;
         const result = await operation; owned = result.result.id; check();
         setSteps(result.steps?.length ? result.steps : result.result.steps || []);
         if (result.error) { retryable.current = result.retryable; throw new Error(result.error); }
         setConnectedWorkspace(result.result.id);
-        onSSH(result.result.id, connection, reuse, true); owned = '';
+        onSSH(result.result.id, connection, reuse, true, result.result.route); owned = '';
       } else if (connection.protocol === 'ssh') {
         authID.current = crypto.randomUUID();
         if (auth) auth.auth_id = authID.current;
@@ -62,7 +62,7 @@ export default function useConnectionAttempt(onSSH: (id: string, connection: Con
           operation = open(); attempt.operation = operation; result = await operation; attempt.progressEpoch++; owned = result.id; check(); setSteps(result.steps || []);
         }
         setConnectedWorkspace(result.id);
-        onSSH(result.id, connection, reuse); owned = '';
+        onSSH(result.id, connection, reuse, false, result.route); owned = '';
       } else if (options?.client === 'system') {
         if(options.gateway)throw new Error('系统 RDP 客户端不能使用应用内 SSH 跳板');
         const operation = auth ? OpenSystemRDP(connection, auth, options.resolution, options.clipboard) : OpenSavedSystemRDP(connection.id, options.resolution, options.clipboard);

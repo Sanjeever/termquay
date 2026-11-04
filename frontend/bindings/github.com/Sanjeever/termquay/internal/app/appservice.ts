@@ -628,8 +628,8 @@ export function ReadSudoFile(id: string, remote: string, charset: string, passwo
     return $Call.ByID(4059759733, id, remote, charset, password);
 }
 
-export function ReconnectSavedSSH(id: string): $CancellablePromise<$models.SSHReconnectResult> {
-    return $Call.ByID(1910439376, id);
+export function ReconnectSavedSSH(id: string, expected: $models.SSHRouteHop[] | null): $CancellablePromise<$models.SSHReconnectResult> {
+    return $Call.ByID(1910439376, id, expected);
 }
 
 export function RecordConnectionSuccess(id: string): $CancellablePromise<void> {

@@ -14,7 +14,10 @@ type SSHReconnectResult struct {
 	Retryable bool                      `json:"retryable"`
 }
 
-func (a *AppService) ReconnectSavedSSH(ctx context.Context, id string) SSHReconnectResult {
+func (a *AppService) ReconnectSavedSSH(ctx context.Context, id string, expected []SSHRouteHop) SSHReconnectResult {
+	if len(expected) == 0 || len(expected) > 5 {
+		return SSHReconnectResult{Error: "缺少原连接路径，请手动连接"}
+	}
 	r, c, err := a.savedRequest(id)
 	if err != nil {
 		return SSHReconnectResult{Error: err.Error()}
@@ -22,7 +25,7 @@ func (a *AppService) ReconnectSavedSSH(ctx context.Context, id string) SSHReconn
 	if c.Protocol != "ssh" || r.MFA || r.AuthMethod == "keyboard_interactive" {
 		return SSHReconnectResult{Error: "此连接需要手动认证"}
 	}
-	result, err := a.OpenTerminal(ctx, r)
+	result, err := a.openTerminal(ctx, r, expected)
 	if err == nil && result.TrustRequired {
 		return SSHReconnectResult{Error: "主机身份需要手动确认", Steps: result.Steps}
 	}

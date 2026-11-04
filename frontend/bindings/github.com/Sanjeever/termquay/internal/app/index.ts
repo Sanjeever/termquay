@@ -55,6 +55,7 @@ export type {
     SSHImportRow,
     SSHLayout,
     SSHReconnectResult,
+    SSHRouteHop,
     SnapshotDetails,
     Snippet,
     StorageStatus,

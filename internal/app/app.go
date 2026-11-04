@@ -18,6 +18,7 @@ import (
 )
 
 type OpenResult struct {
+	Route         []SSHRouteHop             `json:"route,omitempty"`
 	Steps         []terminal.ConnectionStep `json:"steps"`
 	ID            string                    `json:"id"`
 	Fingerprint   string                    `json:"fingerprint"`

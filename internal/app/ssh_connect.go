@@ -13,6 +13,10 @@ import (
 )
 
 func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (result OpenResult, failure error) {
+	return a.openTerminal(ctx, r, nil)
+}
+
+func (a *AppService) openTerminal(ctx context.Context, r terminal.Request, expected []SSHRouteHop) (result OpenResult, failure error) {
 	if r.ProxyAddress != "" && r.JumpID != "" {
 		return OpenResult{}, errors.New("目标不能同时配置跳板与连接代理，请在首个跳板配置代理")
 	}
@@ -40,6 +44,12 @@ func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (resu
 	chain, err := a.resolveSSHChain(r)
 	if err != nil {
 		return OpenResult{}, err
+	}
+	route := sshRoute(chain)
+	if expected != nil {
+		if err := validateReconnectRoute(route, expected); err != nil {
+			return OpenResult{}, err
+		}
 	}
 	for i := range chain {
 		chain[i] = terminal.WithConnectionProgress(chain[i], i+1, len(chain), progress.record)
@@ -161,7 +171,7 @@ func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (resu
 		}
 		a.mu.Unlock()
 	})
-	return OpenResult{ID: id}, nil
+	return OpenResult{ID: id, Route: route}, nil
 }
 
 func (a *AppService) TrustHost(host string, port int, fingerprint string) error {

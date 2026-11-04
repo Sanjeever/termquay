@@ -157,10 +157,10 @@ export default function App() {
   function workspaceState(id: string, state: string) { setWorkspaces(prev => prev.map(w => w.id === id && w.state !== state ? { ...w, state } : w)); }
   async function recordSuccess(id: string) { if (!id) return; try { await RecordConnectionSuccess(id); setPreferences(await GetConnectionPreferences() || {}); } catch (e) { setPreferenceError(`记录最近连接失败：${errorMessage(e)}`); } }
   async function saveRDPResolution(id: string, value: string) { if (!id) return; await SetRDPResolution(id,value); setPreferences(await GetConnectionPreferences() || {}); }
-  const attempt = useConnectionAttempt((id, connection, reuse, automatic) => {
+  const attempt = useConnectionAttempt((id, connection, reuse, automatic, route) => {
     if(reuse&&!latestWorkspaces.current.some(w=>w.id===reuse))throw new Error('工作区已关闭');
     if(!reuse&&latestWorkspaces.current.length>=16)throw new Error('打开工作区达到上限（16 个）');
-    setWorkspaces(prev => reuse?prev.map(w=>w.id===reuse?{...w,sessionID:id,connection,connectionID:connection.id,restored:false}:w):[...prev, { id, sessionID:id, connection, connectionID: connection.id, name: connection.name, ssh: createRef<SSHWorkspaceHandle>() }]); if (!automatic) select(reuse||id);
+    setWorkspaces(prev => reuse?prev.map(w=>w.id===reuse?{...w,sessionID:id,connection,route,connectionID:connection.id,restored:false}:w):[...prev, { id, sessionID:id, connection,route, connectionID: connection.id, name: connection.name, ssh: createRef<SSHWorkspaceHandle>() }]); if (!automatic) select(reuse||id);
     void recordSuccess(connection.id);
   }, (connection, reuse, options = {clipboard:false,resolution:preferences[connection.id]?.rdp_resolution || 'dynamic'}) => {
     if(!reuse&&latestWorkspaces.current.length>=16)throw new Error('打开工作区达到上限（16 个）');
@@ -272,11 +272,13 @@ export default function App() {
   function reconnectSSH(w:Workspace){const saved=catalog?.connections.find(c=>c.id===w.connectionID);if(saved&&saved.protocol!=='ssh'){setPreferenceError('保存配置的协议已改变，请新建工作区');return;}if(saved&&w.restored&&w.connection&&!sameTarget(saved,w.connection)){setPreferenceError('保存配置目标已改变，请重新填写恢复入口后确认连接');return;}if(saved)void connect(saved,undefined,w.id);else if(w.connection)setDialog({connection:{...w.connection,id:'',credential_id:''},temporary:true,workspaceID:w.id});}
   function canAutomaticallyReconnectSSH(w: Workspace) {
     const saved = catalog?.connections.find(c => c.id === w.connectionID);
-    if (!saved || !w.connection || !sameTarget(saved, w.connection)) return false;
+    if (!saved || !w.connection || !sameTarget(saved, w.connection) || !w.route?.length) return false;
     let hop: Connection | undefined = saved;
     for (let depth = 0; hop && depth < 5; depth++) {
+      const original = w.route[w.route.length - 1 - depth];
+      if (!original || hop.protocol !== 'ssh' || hop.host !== original.host || hop.port !== original.port || hop.username !== original.username || (hop.jump_id || '') !== original.jump_id || (hop.proxy_address || '') !== original.proxy_address || (hop.auth_method || '') !== original.auth_method || (hop.identity_agent || '') !== original.identity_agent || !!hop.mfa !== original.mfa || (hop.certificate || '') !== original.certificate) return false;
       if (hop.mfa || hop.auth_method === 'keyboard_interactive') return false;
-      if (!hop.jump_id) return true;
+      if (!hop.jump_id) return depth + 1 === w.route.length;
       const jumpID = hop.jump_id;
       hop = catalog?.connections.find(c => c.id === jumpID);
     }
@@ -286,7 +288,7 @@ export default function App() {
     if (!canAutomaticallyReconnectSSH(w)) return { ok: false, retryable: false };
     const saved = catalog!.connections.find(c => c.id === w.connectionID)!;
     if (!await w.ssh?.current?.prepareReconnect()) return { ok: false, retryable: false };
-    const ok = await attempt.start(saved, undefined, w.id, undefined, true);
+    const ok = await attempt.start(saved, undefined, w.id, undefined, true, w.route);
     return { ok, retryable: attempt.canRetry() };
   }
   async function restoreWorkspaces(entries:WorkspaceLayoutEntry[], preferredActive=restoreDialog?.active){await recovery.flush();const currentIDs=new Set(latestWorkspaces.current.map(w=>w.id));const values=entries.filter(e=>!currentIDs.has(e.id));if(values.length+currentIDs.size>16)throw new Error('打开工作区达到上限（16 个）');const restored:Workspace[]=values.map(e=>{const c:Connection={...e.target,id:e.connection_id,group_id:'',credential_id:''};return {id:e.id,connectionID:e.connection_id,connection:c,name:e.name,state:'未连接',restored:true,...(c.protocol==='ssh'?{ssh:createRef<SSHWorkspaceHandle>(),restore:e.ssh||undefined}:{rdp:{connection:c,options:{clipboard:false,resolution:preferences[c.id]?.rdp_resolution||'dynamic'}},view:createRef<RDPHandle>()})};});setWorkspaces(prev=>[...prev,...restored]);if(restored.length)select(restored.some(w=>w.id===preferredActive)?preferredActive!:restored[0].id);}

@@ -7,6 +7,38 @@ import (
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 )
 
+type SSHRouteHop struct {
+	Host          string `json:"host"`
+	Port          int    `json:"port"`
+	Username      string `json:"username"`
+	JumpID        string `json:"jump_id"`
+	ProxyAddress  string `json:"proxy_address"`
+	AuthMethod    string `json:"auth_method"`
+	IdentityAgent string `json:"identity_agent"`
+	MFA           bool   `json:"mfa"`
+	Certificate   string `json:"certificate"`
+}
+
+func sshRoute(chain []terminal.Request) []SSHRouteHop {
+	route := make([]SSHRouteHop, 0, len(chain))
+	for _, r := range chain {
+		route = append(route, SSHRouteHop{r.Host, r.Port, r.Username, r.JumpID, r.ProxyAddress, r.AuthMethod, r.IdentityAgent, r.MFA, r.Certificate})
+	}
+	return route
+}
+
+func validateReconnectRoute(route, expected []SSHRouteHop) error {
+	if len(expected) == 0 || len(expected) > 5 || !slices.Equal(route, expected) {
+		return errors.New("连接目标、跳板路径或认证配置已改变，请手动连接")
+	}
+	for _, hop := range route {
+		if hop.MFA || hop.AuthMethod == "keyboard_interactive" {
+			return errors.New("跳板链需要手动认证")
+		}
+	}
+	return nil
+}
+
 func (a *AppService) resolveSSHChain(target terminal.Request) ([]terminal.Request, error) {
 	chain := []terminal.Request{target}
 	if target.JumpID == "" {
