@@ -1,3 +1,4 @@
+import { errorMessage } from "../../lib/errors";
 import { useEffect, useRef, useState } from 'react';
 import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
 import { Events } from '@wailsio/runtime';
@@ -38,7 +39,7 @@ export default function UploadDialog({ workspaces, onSubmitted }: { workspaces: 
       try {
         const value = await ChooseUploadFiles(id, directory);
         if (mounted.current) accept(value); else if (value.id) await DiscardUpload(value.id);
-      } catch (e) { if (mounted.current) setError(String(e)); }
+      } catch (e) { if (mounted.current) setError(errorMessage(e)); }
       finally { choosing.current = false; }
     }
     window.addEventListener('termquay:choose-upload', choose);
@@ -53,7 +54,7 @@ export default function UploadDialog({ workspaces, onSubmitted }: { workspaces: 
       if (preview) await DiscardUpload(preview.id);
       pending.current?.cancel(); pending.current = undefined;
       setPreview(undefined); setListing(undefined); setError(''); setBrowsing(false);
-    } catch (e) { setError(String(e)); }
+    } catch (e) { setError(errorMessage(e)); }
   }
   async function browse(path: string) {
     if (!preview || busy) return;
@@ -63,7 +64,7 @@ export default function UploadDialog({ workspaces, onSubmitted }: { workspaces: 
     try {
       const value = await request;
       if (pending.current === request) { setListing(value); setDirectory(value.path); }
-    } catch (e) { if (pending.current === request) setError(String(e)); }
+    } catch (e) { if (pending.current === request) setError(errorMessage(e)); }
     finally { if (pending.current === request) { pending.current = undefined; setBrowsing(false); } }
   }
   const files = preview?.files || [];
@@ -79,7 +80,7 @@ export default function UploadDialog({ workspaces, onSubmitted }: { workspaces: 
         if (items.length) { onSubmitted(items); setSubmitted(count => count + items.length); }
         if (result.pending.id) { setPreview(result.pending); setDirectory(result.pending.directory); }
         else { setPreview(undefined); setListing(undefined); }
-      } catch (e) { setError(String(e)); }
+      } catch (e) { setError(errorMessage(e)); }
       finally { setBusy(false); }
     }}><ModalHeader>{preview ? `上传 ${files.length} 个文件` : '无法准备上传'}</ModalHeader><ModalBody>
       {preview && <>

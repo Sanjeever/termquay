@@ -1,3 +1,4 @@
+import { errorMessage } from "../../lib/errors";
 import { useEffect, useRef, useState } from 'react';
 import { Button, Input } from '@heroui/react';
 import { GetBackupDeviceAliases, GetSnapshotDetails, ListSavedSnapshots, SetBackupDeviceAlias } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
@@ -30,7 +31,7 @@ export default function BackupHistory({ deviceID, deviceName, recoverySaved, rev
     Promise.all([listing, names]).then(([items, names]) => {
       if (disposed) return;
       setItems(items || []); setAliases(names || {});
-    }).catch(error => { if (!disposed) setError(String(error)); }).finally(() => { if (!disposed) setLoading(false); });
+    }).catch(error => { if (!disposed) setError(errorMessage(error)); }).finally(() => { if (!disposed) setLoading(false); });
     return () => { disposed = true; listing.cancel(); names.cancel(); };
   }, [revision, refresh]);
 
@@ -57,7 +58,7 @@ export default function BackupHistory({ deviceID, deviceName, recoverySaved, rev
           setDetails(previous => ({ ...previous, [path]: value }));
         } catch (error) {
           if (disposed) return;
-          setDetailErrors(previous => ({ ...previous, [path]: String(error) }));
+          setDetailErrors(previous => ({ ...previous, [path]: errorMessage(error) }));
         }
       }
     }
@@ -71,7 +72,7 @@ export default function BackupHistory({ deviceID, deviceName, recoverySaved, rev
     try {
       await SetBackupDeviceAlias(aliasEdit.id, aliasEdit.name);
       setAliases(previous => ({ ...previous, [aliasEdit.id]: aliasEdit.name.trim() })); setAliasEdit(undefined);
-    } catch (error) { setError(String(error)); }
+    } catch (error) { setError(errorMessage(error)); }
     finally { setSavingAlias(false); }
   }
   return <section className="backup-section">

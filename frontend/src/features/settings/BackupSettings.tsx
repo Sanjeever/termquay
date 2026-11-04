@@ -1,3 +1,4 @@
+import { errorMessage } from "../../lib/errors";
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Button, Input } from '@heroui/react';
 import { BackupNow, CheckSavedWebDAV, ExportLocalSnapshot, GetBackupCoverage, GetBackupSettings, OpenRestoreBackupDirectory, SaveBackupSettings, SavePortableUI, SetAutomaticBackupEnabled } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
@@ -31,13 +32,13 @@ export default function BackupSettings({ onRestore, onEditConnection, connection
   useEffect(() => {
     mounted.current = true;
     const request = GetBackupSettings();
-    request.then(value => { if (mounted.current) { setPreferences(value); setLocationEditing(!value.configured); setBackupEditing(!value.recovery_saved); } }).catch(error => { if (mounted.current) setError({ area: 'location', message: String(error) }); });
+    request.then(value => { if (mounted.current) { setPreferences(value); setLocationEditing(!value.configured); setBackupEditing(!value.recovery_saved); } }).catch(error => { if (mounted.current) setError({ area: 'location', message: errorMessage(error) }); });
     return () => { mounted.current = false; request.cancel(); };
   }, []);
   useEffect(() => {
     let disposed = false;
     const request = GetBackupCoverage();
-    request.then(value => { if (!disposed) setCoverage(value || []); }).catch(error => { if (!disposed) setError({ area: 'backup', message: String(error) }); });
+    request.then(value => { if (!disposed) setCoverage(value || []); }).catch(error => { if (!disposed) setError({ area: 'backup', message: errorMessage(error) }); });
     return () => { disposed = true; request.cancel(); };
   }, [connections]);
 
@@ -45,7 +46,7 @@ export default function BackupSettings({ onRestore, onEditConnection, connection
     if (busy) return;
     setBusy(area); setError(undefined);
     try { await task(); }
-    catch (error) { if (mounted.current) setError({ area, message: String(error) }); }
+    catch (error) { if (mounted.current) setError({ area, message: errorMessage(error) }); }
     finally { if (mounted.current) setBusy(''); }
   }
   async function refreshPreferences() {

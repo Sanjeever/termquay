@@ -1,3 +1,4 @@
+import { errorMessage } from "../../lib/errors";
 import { useEffect, useState } from 'react';
 import { Browser } from '@wailsio/runtime';
 import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Progress, Switch } from '@heroui/react';
@@ -21,12 +22,12 @@ export default function AboutSettings({ updates, onRestart, activeWorkspaces, ac
     if (!licenses) return;
     let ended = false;
     setLicenseText('');
-    GetLicenseText(license).then(text => { if (!ended) setLicenseText(text); }).catch(error => { if (!ended) setError(String(error)); });
+    GetLicenseText(license).then(text => { if (!ended) setLicenseText(text); }).catch(error => { if (!ended) setError(errorMessage(error)); });
     return () => { ended = true; };
   }, [license, licenses]);
   function openURL(value: string) {
-    try { const url = new URL(value); if (!['http:', 'https:'].includes(url.protocol)) throw new Error('仅支持 HTTP(S) 链接'); void Browser.OpenURL(url).catch(error => setError(String(error))); }
-    catch (error) { setError(String(error)); }
+    try { const url = new URL(value); if (!['http:', 'https:'].includes(url.protocol)) throw new Error('仅支持 HTTP(S) 链接'); void Browser.OpenURL(url).catch(error => setError(errorMessage(error))); }
+    catch (error) { setError(errorMessage(error)); }
   }
   const phase: Record<string, string> = { checking: '正在检查更新', downloading: '正在下载更新', verifying: '正在校验更新', installing: '正在准备更新', ready: '更新已就绪', 'up-to-date': '已是最新版本' };
   return <div className="settings-section about-section">
@@ -40,7 +41,7 @@ export default function AboutSettings({ updates, onRestart, activeWorkspaces, ac
       {status?.version && <Button size="sm" color="primary" isDisabled={!!busy} onPress={() => setConfirm(true)}>{status.state === 'ready' ? '重启并更新' : `新版本 v${status.version}`}</Button>}
       {busy && status?.state === 'downloading' && <Button size="sm" variant="light" onPress={() => void updates.cancel()}>取消下载</Button>}
       <Button size="sm" variant="light" onPress={() => openURL(status?.url || releasesURL)}>发布页面</Button>
-      <Button size="sm" variant="light" onPress={() => { if (licenses) setLicenses(undefined); else GetLicenseFiles().then(values => setLicenses(values ?? [])).catch(error => setError(String(error))); }}>开源许可</Button>
+      <Button size="sm" variant="light" onPress={() => { if (licenses) setLicenses(undefined); else GetLicenseFiles().then(values => setLicenses(values ?? [])).catch(error => setError(errorMessage(error))); }}>开源许可</Button>
     </div>
     {status && phase[status.state] && <p role="status" className="muted">{phase[status.state]}</p>}
     {status?.state === 'downloading' && <Progress aria-label="更新下载进度" value={status.total ? status.downloaded / status.total * 100 : 0} isIndeterminate={!status.total} size="sm" className="update-progress" />}

@@ -1,3 +1,4 @@
+import { errorMessage } from "../../lib/errors";
 import SelectControl from '../../components/SelectControl';
 import { useEffect,useRef, useState } from 'react';
 import { Button, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
@@ -26,7 +27,7 @@ export default function ConnectionDialog({ connection, temporary, groups, connec
   const [route,setRoute]=useState(connection?.jump_id?'jump':connection?.proxy_address?'proxy':'direct');
   const connectionIndex=new Map(connections.map(value=>[value.id,value]));
   const jumpCandidates=connections.filter(value=>{if(value.protocol!=='ssh')return false;let current:Connection|undefined=value;let depth=0;const seen=new Set<string>();while(current){if(current.id===saved?.id||seen.has(current.id)||depth++>=4)return false;seen.add(current.id);current=connectionIndex.get(current.jump_id||'');}return true;});
-  useEffect(()=>{let ended=false;ListCredentialReferences().then(values=>{if(!ended)setReferences(values||[]);}).catch(e=>{if(!ended)setError(String(e));});return()=>{ended=true;};},[]);
+  useEffect(()=>{let ended=false;ListCredentialReferences().then(values=>{if(!ended)setReferences(values||[]);}).catch(e=>{if(!ended)setError(errorMessage(e));});return()=>{ended=true;};},[]);
   useEffect(()=>{setReferenceID('');},[protocol]);
   const [privateKey,setPrivateKey]=useState<PrivateKeySelection>();
   const privateKeyRef=useRef(privateKey);privateKeyRef.current=privateKey;
@@ -55,7 +56,7 @@ export default function ConnectionDialog({ connection, temporary, groups, connec
     if (!passwordLoading || !connection) return;
     let active = true;
     const request = GetConnectionPassword(connection.id);
-    request.then(value => { if (active) { originalPassword.current = value; setPassword(value); } }).catch(e => { if (active) setError(`读取密码失败：${String(e)}`); }).finally(() => { if (active) setPasswordLoading(false); });
+    request.then(value => { if (active) { originalPassword.current = value; setPassword(value); } }).catch(e => { if (active) setError(`读取密码失败：${errorMessage(e)}`); }).finally(() => { if (active) setPasswordLoading(false); });
     return () => { active = false; request.cancel(); originalPassword.current = ''; };
   }, []);
 
@@ -63,7 +64,7 @@ export default function ConnectionDialog({ connection, temporary, groups, connec
     if (!quickAddress.trim() || parsing) return;
     setParsing(true); setError('');
     try { const value = await ParseQuickConnection(quickAddress); clearSecrets(); setProtocol('ssh'); setAuthKind('password'); setReplace(true); setParsed(prev => ({ value, epoch: (prev?.epoch || 0) + 1 })); setTargetReady(true); }
-    catch (e) { setError(String(e)); }
+    catch (e) { setError(errorMessage(e)); }
     finally { setParsing(false); }
   }
 
@@ -84,14 +85,14 @@ export default function ConnectionDialog({ connection, temporary, groups, connec
         if (request.password === originalPassword.current) request.password = '';
         setSaving(true); const result = referenceID ? await SaveConnectionWithCredential(config, request, referenceID) : await SaveConnection(config, request); setSaved(result); setStored(true); onSaved();
         try { const latest = (await GetConnectionPreferences())?.[result.id]; await SetConnectionPreference(result.id, !!latest?.favorite, String(data.get('environment') || '')); if (protocol === 'rdp') { await SetRDPResolution(result.id, rdpResolution); await SetRDPClient(result.id, rdpClient); } }
-        catch (e) { setError(`配置已保存，偏好保存失败：${String(e)}`); return; }
+        catch (e) { setError(`配置已保存，偏好保存失败：${errorMessage(e)}`); return; }
         onSaved(); setSaving(false);
         if (mode === 'save') { onClose(); return; }
         clearSecrets();
         request.password = ''; request.private_key = ''; request.passphrase = '';
         if (await onConnect(result, undefined, {clipboard:rdpClipboard,resolution:rdpResolution,client:rdpClient,gateway:rdpClient==='internal'?rdpGateway:''})) onClose();
       } else if (await onConnect(config, request, {clipboard:rdpClipboard,resolution:rdpResolution,client:rdpClient,gateway:rdpClient==='internal'?rdpGateway:''})) onClose();
-    } catch (e) { setError(String(e)); }
+    } catch (e) { setError(errorMessage(e)); }
     finally { setSaving(false); clearSecrets(); request.password = ''; request.private_key = ''; request.passphrase = ''; }
   }
   function clearSecrets() {
@@ -115,10 +116,10 @@ export default function ConnectionDialog({ connection, temporary, groups, connec
       {referenceID ? <p className="muted">复用所选{authKind==='private_key'?'私钥':'密码'}凭据</p> : saved?.credential_id && !replace ? <div className="saved-credential"><span>已保存凭据</span><Button size="sm" variant="light" isDisabled={busy || saving} onPress={() => setReplace(true)}>更换凭据</Button></div> : authKind === 'keyboard_interactive' && protocol === 'ssh' ? <label className="form-field">认证方式<SelectControl value={authKind} disabled={busy || saving} onChange={event => { clearSecrets(); setAuthKind(event.target.value); }}><option value="password">密码</option><option value="private_key">私钥</option><option value="agent">SSH Agent</option><option value="keyboard_interactive">交互认证 / 验证码</option></SelectControl></label> : <>
         {saved?.credential_id && authKind === 'private_key' && <div className="muted">留空沿用已保存凭据</div>}
         {protocol === 'ssh' && <label className="form-field connection-auth">认证方式<SelectControl value={authKind} disabled={busy || saving} onChange={e => {clearSecrets();setAuthKind(e.target.value);}}><option value="password">密码</option><option value="private_key">私钥</option><option value="agent">SSH Agent</option><option value="keyboard_interactive">交互认证 / 验证码</option></SelectControl></label>}
-        {protocol==='ssh'&&authKind==='agent'?<Input name="identity_agent" label="Agent 地址（可选）" labelPlacement="outside" defaultValue={saved?.identity_agent} isDisabled={busy||saving} size="sm"/>:protocol === 'ssh' && authKind === 'private_key' ? <><label className="form-field">私钥来源<SelectControl value={keySource} disabled={busy || saving} onChange={e => { clearSecrets(); setKeySource(e.target.value); }}><option value="file">本机文件</option><option value="paste">粘贴内容</option></SelectControl></label>{keySource === 'file' ? <div className="button-row"><Button size="sm" variant="bordered" isDisabled={busy||saving} onPress={async()=>{try{const selection=await SelectPrivateKey();if(selection.id){clearSecrets();setPrivateKey(selection);}}catch(e){setError(String(e));}}}>选择私钥文件</Button>{privateKey&&<span className="file-path">{privateKey.name}</span>}</div> : <label className="form-field">私钥内容<textarea key={`key-${credentialEpoch}`} name="private_key" rows={3} disabled={busy || saving} spellCheck={false} autoComplete="off" /></label>}<Input key={`passphrase-${credentialEpoch}`} name="passphrase" label="私钥口令" labelPlacement="outside" placeholder="可选" type="password" size="sm" autoComplete="off" isDisabled={busy || saving} /></> : <Input key={`password-${credentialEpoch}`} name="password" label="密码" labelPlacement="outside" placeholder={passwordLoading ? '正在读取…' : '密码'} type={showPassword ? 'text' : 'password'} value={password} onValueChange={setPassword} size="sm" autoComplete="off" isDisabled={busy || saving || passwordLoading} endContent={<button type="button" className="password-toggle" aria-label={showPassword ? '隐藏密码' : '显示密码'} aria-pressed={showPassword} onClick={() => setShowPassword(value => !value)}><Icon name={showPassword ? 'eyeOff' : 'eye'} width="17" /></button>} />}
+        {protocol==='ssh'&&authKind==='agent'?<Input name="identity_agent" label="Agent 地址（可选）" labelPlacement="outside" defaultValue={saved?.identity_agent} isDisabled={busy||saving} size="sm"/>:protocol === 'ssh' && authKind === 'private_key' ? <><label className="form-field">私钥来源<SelectControl value={keySource} disabled={busy || saving} onChange={e => { clearSecrets(); setKeySource(e.target.value); }}><option value="file">本机文件</option><option value="paste">粘贴内容</option></SelectControl></label>{keySource === 'file' ? <div className="button-row"><Button size="sm" variant="bordered" isDisabled={busy||saving} onPress={async()=>{try{const selection=await SelectPrivateKey();if(selection.id){clearSecrets();setPrivateKey(selection);}}catch(e){setError(errorMessage(e));}}}>选择私钥文件</Button>{privateKey&&<span className="file-path">{privateKey.name}</span>}</div> : <label className="form-field">私钥内容<textarea key={`key-${credentialEpoch}`} name="private_key" rows={3} disabled={busy || saving} spellCheck={false} autoComplete="off" /></label>}<Input key={`passphrase-${credentialEpoch}`} name="passphrase" label="私钥口令" labelPlacement="outside" placeholder="可选" type="password" size="sm" autoComplete="off" isDisabled={busy || saving} /></> : <Input key={`password-${credentialEpoch}`} name="password" label="密码" labelPlacement="outside" placeholder={passwordLoading ? '正在读取…' : '密码'} type={showPassword ? 'text' : 'password'} value={password} onValueChange={setPassword} size="sm" autoComplete="off" isDisabled={busy || saving || passwordLoading} endContent={<button type="button" className="password-toggle" aria-label={showPassword ? '隐藏密码' : '显示密码'} aria-pressed={showPassword} onClick={() => setShowPassword(value => !value)}><Icon name={showPassword ? 'eyeOff' : 'eye'} width="17" /></button>} />}
       </>}
       {protocol === 'ssh' && authKind !== 'keyboard_interactive' && <label className="checkbox-label"><input type="checkbox" checked={mfa} disabled={busy || saving} onChange={event => setMFA(event.target.checked)} />继续交互认证（MFA）</label>}
-      {protocol==='ssh'&&authKind==='private_key'&&<details><summary>SSH 用户证书</summary><div className="connection-options-fields"><Button size="sm" variant="light" isDisabled={busy||saving} onPress={async()=>{try{const value=await SelectSSHCertificate();if(value)setCertificate(value);}catch(e){setError(String(e));}}}>选择证书文件</Button><label className="form-field">用户证书<textarea aria-label="SSH 用户证书" rows={3} value={certificate} maxLength={65536} onChange={event=>setCertificate(event.target.value)} disabled={busy||saving} spellCheck={false}/></label></div></details>}
+      {protocol==='ssh'&&authKind==='private_key'&&<details><summary>SSH 用户证书</summary><div className="connection-options-fields"><Button size="sm" variant="light" isDisabled={busy||saving} onPress={async()=>{try{const value=await SelectSSHCertificate();if(value)setCertificate(value);}catch(e){setError(errorMessage(e));}}}>选择证书文件</Button><label className="form-field">用户证书<textarea aria-label="SSH 用户证书" rows={3} value={certificate} maxLength={65536} onChange={event=>setCertificate(event.target.value)} disabled={busy||saving} spellCheck={false}/></label></div></details>}
       {!temporary&&!!references.length&&<details><summary>复用已有凭据</summary><label className="form-field">凭据<SelectControl aria-label="复用已有凭据" value={referenceID} disabled={busy||saving} onChange={event=>{const value=references.find(reference=>reference.id===event.target.value);clearSecrets();setReferenceID(event.target.value);setAuthKind(value?.kind||saved?.auth_method||'password');}}><option value="">当前连接独立配置</option>{references.filter(reference=>protocol==='ssh'||reference.kind==='password').map(reference=><option key={reference.id} value={reference.id}>{reference.names?.[0]||'未关联凭据'} · {reference.kind==='password'?'密码':'私钥'} · {reference.connection_ids?.length||0} 个连接</option>)}</SelectControl></label></details>}
       {!temporary && <details className="connection-options" open={!!preference?.environment}><summary>环境</summary><div className="connection-options-fields">
       <label className="form-field">环境<SelectControl name="environment" defaultValue={preference?.environment || ''} disabled={busy || saving}><option value="">未设置</option><option value="production">生产</option><option value="staging">预发布</option><option value="development">开发</option></SelectControl></label>

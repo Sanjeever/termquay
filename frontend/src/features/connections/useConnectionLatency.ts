@@ -1,3 +1,4 @@
+import { errorMessage } from "../../lib/errors";
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Events, Window } from '@wailsio/runtime';
 import { MeasureConnectionLatency } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
@@ -53,7 +54,7 @@ export default function useConnectionLatency(connections: Connection[], active: 
         probe.operation.then(result => {
           if (!disposed && !probe.cancelled) setMeasurements(previous => ({ ...previous, [id]: { key, result, checkedAt: Date.now(), refreshing: false } }));
         }).catch(error => {
-          if (!disposed && !probe.cancelled) setMeasurements(previous => ({ ...previous, [id]: { key, result: { status: 'error', milliseconds: 0, error: String(error) }, checkedAt: Date.now(), refreshing: false } }));
+          if (!disposed && !probe.cancelled) setMeasurements(previous => ({ ...previous, [id]: { key, result: { status: 'error', milliseconds: 0, error: errorMessage(error) }, checkedAt: Date.now(), refreshing: false } }));
         }).finally(() => {
           running.current.delete(id);
           resume.current();
@@ -99,7 +100,7 @@ export default function useConnectionLatency(connections: Connection[], active: 
     document.addEventListener('visibilitychange', sync);
     Window.IsMinimised().then(value => {
       if (!disposed) { if (!ready) minimised = value; ready = true; setError(''); sync(); }
-    }).catch(error => { if (!disposed) setError(`读取窗口状态失败：${String(error)}`); });
+    }).catch(error => { if (!disposed) setError(`读取窗口状态失败：${errorMessage(error)}`); });
     return () => {
       disposed = true;
       pause();

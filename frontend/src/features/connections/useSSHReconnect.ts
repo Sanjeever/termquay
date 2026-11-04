@@ -1,3 +1,4 @@
+import { errorMessage } from "../../lib/errors";
 import { useEffect, useRef, useState } from 'react';
 
 export default function useSSHReconnect(session: string, state: string, busy: boolean, reconnect: () => Promise<{ ok: boolean; retryable: boolean }>) {
@@ -21,7 +22,7 @@ export default function useSSHReconnect(session: string, state: string, busy: bo
         const result = await latest.current.reconnect();
         if (!mounted.current || !latest.current.enabled) return;
         if (!result.ok) { setAttempts(result.retryable ? attempts + 1 : 3); setStatus(result.retryable && attempts < 2 ? '等待重试' : '自动重连已停止，请手动连接'); }
-      } catch (e) { if (mounted.current) { setAttempts(3); setStatus(String(e)); } }
+      } catch (e) { if (mounted.current) { setAttempts(3); setStatus(errorMessage(e)); } }
       finally { running.current = false; }
     }, delay * 1000);
     return () => clearTimeout(timer);

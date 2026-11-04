@@ -1,3 +1,4 @@
+import { errorMessage } from "../../lib/errors";
 import { useEffect, useRef, useState } from 'react';
 import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
 import SelectControl from '../../components/SelectControl';
@@ -35,7 +36,7 @@ export default function BatchCommandDialog({ targets, initial, snippets, onClose
         const target = chosen[cursor++]; update(target.id, { state: '执行中' });
         const request = RunRemoteCommand(target.id, command, timeout); pending.current.set(target.id, request);
         try { const result = await request; update(target.id, { result, state: result.error ? '失败' : result.exit_code === 0 ? '完成' : '非零退出' }); }
-        catch (e) { update(target.id, { state: cancelled.current ? '已请求取消' : '失败', error: String(e) }); }
+        catch (e) { update(target.id, { state: cancelled.current ? '已请求取消' : '失败', error: errorMessage(e) }); }
         finally { pending.current.delete(target.id); }
       }
     }

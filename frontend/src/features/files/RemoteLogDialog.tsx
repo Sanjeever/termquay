@@ -1,3 +1,4 @@
+import { errorMessage } from "../../lib/errors";
 import { useEffect, useRef, useState } from 'react';
 import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
 import { ReadRemoteLog } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
@@ -25,7 +26,7 @@ export default function RemoteLogDialog({ workspace, path, visible, onClose }: {
         if (text.length > 512 * 1024) { setSlice(value); } else setSlice({ ...value, start: before.start, content: text });
       } else setSlice(value);
       if (kind !== 'older') requestAnimationFrame(() => content.current?.scrollTo({ top: content.current.scrollHeight }));
-    } catch (e) { if (mounted.current && pending.current === request) { setError(String(e)); setFollow(false); } }
+    } catch (e) { if (mounted.current && pending.current === request) { setError(errorMessage(e)); setFollow(false); } }
     finally { if (pending.current === request) { pending.current = undefined; if (mounted.current) setBusy(false); } }
   }
   useEffect(() => { mounted.current = true; void load('refresh'); return () => { mounted.current = false; pending.current?.cancel(); pending.current = undefined; }; }, [workspace, path]);

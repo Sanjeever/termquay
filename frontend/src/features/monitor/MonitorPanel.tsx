@@ -1,3 +1,4 @@
+import { errorMessage } from "../../lib/errors";
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@heroui/react';
 import { Events } from '@wailsio/runtime';
@@ -25,9 +26,9 @@ export default function MonitorPanel({ id, visible, onClose, demoSamples }: { id
     if (!visible || demoSamples) return;
     let disposed = false; setSample(undefined); setError(''); setNow(Date.now());
     const off = Events.On('monitor:sample', event => { const update = event.data as { id: string; sample: Sample | null; error: string }; if (update.id !== id || disposed) return; recordSample(history.current, update.sample, update.sample ? new Date(update.sample.time).getTime() : Date.now()); setSample(update.sample || undefined); setError(update.error); setNow(Date.now()); });
-    operations.current = operations.current.then(async () => { if (!disposed) await SubscribeMonitor(id); }).catch(e => { if (!disposed) setError(String(e)); });
+    operations.current = operations.current.then(async () => { if (!disposed) await SubscribeMonitor(id); }).catch(e => { if (!disposed) setError(errorMessage(e)); });
     const timer = window.setInterval(() => setNow(Date.now()), 3000);
-    return () => { disposed = true; off(); clearInterval(timer); operations.current = operations.current.then(() => UnsubscribeMonitor(id)).catch(e => { if (!disposed) setError(String(e)); }); };
+    return () => { disposed = true; off(); clearInterval(timer); operations.current = operations.current.then(() => UnsubscribeMonitor(id)).catch(e => { if (!disposed) setError(errorMessage(e)); }); };
   }, [id, visible, retry, demoSamples]);
   const stale = sample && now - new Date(sample.time).getTime() > 10000;
   const points = historyPoints(history.current);

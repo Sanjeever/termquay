@@ -1,3 +1,4 @@
+import { errorMessage } from "../../lib/errors";
 import { forwardRef, lazy, Suspense, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Button, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
 import { Stream } from '@wailsio/runtime';
@@ -103,13 +104,13 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
     setActive(terminal); terminalHandles.current.get(terminal)?.insert(`cd -- ${shellQuote(path)}`);
     requestAnimationFrame(() => focusTab(terminal));
   }
-  async function openTerminalFile(path: string, line: number) { try { setFileJump({ path, line, sequence: Date.now() }); await openPath(path); } catch (e) { setError(String(e)); } }
+  async function openTerminalFile(path: string, line: number) { try { setFileJump({ path, line, sequence: Date.now() }); await openPath(path); } catch (e) { setError(errorMessage(e)); } }
   useEffect(()=>{if(!paneSelected[activePane]&&paneSelected[1-activePane])setActivePane(1-activePane);},[paneSelected[0],paneSelected[1],activePane]);
   function setActive(path:string){const pane=paneFor(path);setActivePane(pane);setSelection(prev=>pane===0?[path,prev[1]]:[prev[0],path]);}
   function shown(path:string){return path===paneSelected[paneFor(path)]&&(!maximized||paneFor(path)===activePane);}
   function focusTab(path=active){if(document.querySelector('[role=dialog][data-open=true]'))return;center.current?.querySelector<HTMLElement>(`[data-tab-id="${CSS.escape(path)}"] .terminal-search > input, [data-tab-id="${CSS.escape(path)}"] .xterm-helper-textarea, [data-tab-id="${CSS.escape(path)}"] .cm-content`)?.focus();}
   function moveActive(){if(!active)return;const target=1-paneFor(active);setSplit(true);setMaximized(false);setSecondary(prev=>target===1?[...prev,active]:prev.filter(p=>p!==active));setSelection(prev=>target===0?[active,prev[1]]:[prev[0],active]);setActivePane(target);requestAnimationFrame(()=>focusTab(active));}
-  async function newTerminal(pane=activePane){if(creating||restoring||terminals.length>=16)return;setCreating(true);try{const result=await CreateTerminal(sessionID);if(disposed.current||instance.current!==sessionID){CloseTerminal(result.id);return;}terminalOwners.current.set(result.id,sessionID);setTerminals(prev=>[...prev,result.id]);if(pane===1){setSplit(true);setSecondary(prev=>[...prev,result.id]);}setSelection(prev=>pane===0?[result.id,prev[1]]:[prev[0],result.id]);setActivePane(pane);setMaximized(false);}catch(e){setError(String(e));}finally{setCreating(false);}}
+  async function newTerminal(pane=activePane){if(creating||restoring||terminals.length>=16)return;setCreating(true);try{const result=await CreateTerminal(sessionID);if(disposed.current||instance.current!==sessionID){CloseTerminal(result.id);return;}terminalOwners.current.set(result.id,sessionID);setTerminals(prev=>[...prev,result.id]);if(pane===1){setSplit(true);setSecondary(prev=>[...prev,result.id]);}setSelection(prev=>pane===0?[result.id,prev[1]]:[prev[0],result.id]);setActivePane(pane);setMaximized(false);}catch(e){setError(errorMessage(e));}finally{setCreating(false);}}
   function layout():SSHLayout{if(restoring&&initialLayout)return initialLayout;const live=terminals.filter(t=>terminalOwners.current.get(t)===sessionID&&!terminalHandles.current.get(t)?.ended()).slice(-8);const ordered=[...live,...fileOrder];return {tabs:ordered.map(path=>({kind:live.includes(path)?'terminal':'file',path:live.includes(path)?'':path,pane:paneFor(path)})),selected:[ordered.indexOf(paneSelected[0]),ordered.indexOf(paneSelected[1])],active_pane:activePane,split,maximized,ratio,directory,files_open:filesOpen,files_width:Math.round(filesWidth),monitor_open:monitorOpen,focus};}
 
   function showFiles() { setFocus(false); if (narrow) setNarrowPanel('files'); else setFilesOpen(true); }
@@ -124,7 +125,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   useEffect(() => {
     disposed.current = false;
     viewReady.current = RegisterWorkspaceView(id);
-    viewReady.current.then(()=>{if(disposed.current)ReleaseWorkspaceView(id);}).catch(e=>{if(!disposed.current)setError(String(e));});
+    viewReady.current.then(()=>{if(disposed.current)ReleaseWorkspaceView(id);}).catch(e=>{if(!disposed.current)setError(errorMessage(e));});
     return () => { disposed.current = true; ReleaseWorkspaceView(id).catch(() => {}); };
   }, [id]);
   useEffect(() => {
@@ -133,7 +134,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
     if(previousInstance.current !== sessionID){
       previousInstance.current = sessionID;terminalOwners.current.set(sessionID,sessionID); setTerminals(prev=>[...prev,sessionID].slice(-16)); setActive(sessionID);
       updateDrafts(prev=>prev.map(d=>({...d,needsReview:true,error:'连接已更新，正在核对远端版本'})));
-      void (async()=>{for(const draft of draftsRef.current){if(ended)return;const request=ReadRemoteFileEncoded(sessionID,draft.path,savedEncoding(draft));reads.current.set(draft.path,request);try{const current=await request;if(ended)return;updateDrafts(prev=>prev.map(d=>d.path===draft.path?d.recovery?{...d,saved:current.content,savedFormat:formatKey(current),revision:current.revision,needsReview:true,error:'恢复草稿，请先对比与合并'}:current.content===d.saved&&(!d.savedFormat||formatKey(current)===d.savedFormat)?{...d,revision:current.revision,needsReview:false,error:''}:{...d,needsReview:true,error:'远端内容已变化，请对比后合并或重新读取'}:d));}catch(e){if(!ended)updateDrafts(prev=>prev.map(d=>d.path===draft.path?{...d,needsReview:true,error:String(e)}:d));}finally{if(reads.current.get(draft.path)===request)reads.current.delete(draft.path);}}})();
+      void (async()=>{for(const draft of draftsRef.current){if(ended)return;const request=ReadRemoteFileEncoded(sessionID,draft.path,savedEncoding(draft));reads.current.set(draft.path,request);try{const current=await request;if(ended)return;updateDrafts(prev=>prev.map(d=>d.path===draft.path?d.recovery?{...d,saved:current.content,savedFormat:formatKey(current),revision:current.revision,needsReview:true,error:'恢复草稿，请先对比与合并'}:current.content===d.saved&&(!d.savedFormat||formatKey(current)===d.savedFormat)?{...d,revision:current.revision,needsReview:false,error:''}:{...d,needsReview:true,error:'远端内容已变化，请对比后合并或重新读取'}:d));}catch(e){if(!ended)updateDrafts(prev=>prev.map(d=>d.path===draft.path?{...d,needsReview:true,error:errorMessage(e)}:d));}finally{if(reads.current.get(draft.path)===request)reads.current.delete(draft.path);}}})();
     }
     return () => { ended = true; for (const read of reads.current.values()) read.cancel(); reads.current.clear(); owner.close(); CloseWorkspace(sessionID).catch(() => {}); };
   }, [sessionID]);
@@ -144,13 +145,13 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
       updateDrafts(prev=>[...prev,...(bodies||[]).filter(d=>!prev.some(old=>old.path===d.path)).map(d=>({path:d.path,content:d.content,encoding:d.encoding,line_ending:d.line_ending,bom:d.bom,revision:'',saved:'',saving:false,error:'恢复草稿，连接后需对比最新远端内容',needsReview:true,recovery:true}))]);setRestoreReady(true);
       const planned=(initialLayout.tabs||[]).map((tab,index)=>({tab,key:initialIDs[index]})).filter(t=>t.tab.kind==='terminal');
       if(!planned.length)await CloseTerminal(sessionID);
-      for(let index=1;index<planned.length;index++){try{const result=await CreateTerminal(sessionID);if(stopped){CloseTerminal(result.id);return;}terminalOwners.current.set(result.id,sessionID);setTerminals(prev=>[...prev,result.id]);const old=planned[index].key;setSecondary(prev=>prev.map(id=>id===old?result.id:id));setSelection(prev=>prev.map(id=>id===old?result.id:id) as [string,string]);}catch(e){if(!stopped)setError(`部分终端未能恢复：${String(e)}`);break;}}
-      for(const path of paths){if(stopped)return;const request=ReadRemoteFileEncoded(sessionID,path,draftsRef.current.find(d=>d.path===path)?.encoding || 'UTF-8');reads.current.set(path,request);try{const doc=await request;if(stopped)return;updateDrafts(prev=>{const old=prev.find(d=>d.path===path);return old?prev.map(d=>d.path===path?{...d,revision:doc.revision,saved:doc.content,savedFormat:formatKey(doc),needsReview:!!d.recovery,error:d.recovery?'恢复草稿，请先对比与合并':'',saving:false}:d):[...prev,{...doc,saved:doc.content,savedFormat:formatKey(doc),error:'',saving:false}];});}catch(e){if(stopped)return;setPendingErrors(prev=>({...prev,[path]:String(e)}));updateDrafts(prev=>prev.map(d=>d.path===path?{...d,error:String(e),needsReview:true}:d));}finally{if(reads.current.get(path)===request)reads.current.delete(path);}}
+      for(let index=1;index<planned.length;index++){try{const result=await CreateTerminal(sessionID);if(stopped){CloseTerminal(result.id);return;}terminalOwners.current.set(result.id,sessionID);setTerminals(prev=>[...prev,result.id]);const old=planned[index].key;setSecondary(prev=>prev.map(id=>id===old?result.id:id));setSelection(prev=>prev.map(id=>id===old?result.id:id) as [string,string]);}catch(e){if(!stopped)setError(`部分终端未能恢复：${errorMessage(e)}`);break;}}
+      for(const path of paths){if(stopped)return;const request=ReadRemoteFileEncoded(sessionID,path,draftsRef.current.find(d=>d.path===path)?.encoding || 'UTF-8');reads.current.set(path,request);try{const doc=await request;if(stopped)return;updateDrafts(prev=>{const old=prev.find(d=>d.path===path);return old?prev.map(d=>d.path===path?{...d,revision:doc.revision,saved:doc.content,savedFormat:formatKey(doc),needsReview:!!d.recovery,error:d.recovery?'恢复草稿，请先对比与合并':'',saving:false}:d):[...prev,{...doc,saved:doc.content,savedFormat:formatKey(doc),error:'',saving:false}];});}catch(e){if(stopped)return;setPendingErrors(prev=>({...prev,[path]:errorMessage(e)}));updateDrafts(prev=>prev.map(d=>d.path===path?{...d,error:errorMessage(e),needsReview:true}:d));}finally{if(reads.current.get(path)===request)reads.current.delete(path);}}
       if(!stopped){setActivePane(initialLayout.active_pane);const first=(bodies||[])[0];if(first){setActive(first.path);setConflict(first.path);}}
-    }catch(e){if(!stopped)setError(String(e));}finally{if(!stopped)setRestoring(false);}})();
+    }catch(e){if(!stopped)setError(errorMessage(e));}finally{if(!stopped)setRestoring(false);}})();
     return()=>{stopped=true;bodyRequest.cancel();};
   },[sessionID,restoreEpoch]);
-  useEffect(() => { dirtyCallback.current(dirty); viewReady.current?.then(()=>{if(!disposed.current)return SetWorkspaceDirty(id,currentDirty.current);}).catch(e => {if(!disposed.current)setError(String(e));}); }, [dirty, id]);
+  useEffect(() => { dirtyCallback.current(dirty); viewReady.current?.then(()=>{if(!disposed.current)return SetWorkspaceDirty(id,currentDirty.current);}).catch(e => {if(!disposed.current)setError(errorMessage(e));}); }, [dirty, id]);
   useEffect(() => { const handler = (event: BeforeUnloadEvent) => { if (draftsRef.current.some(d => isDirty(d))) { event.preventDefault(); event.returnValue = ''; } }; window.addEventListener('beforeunload', handler); return () => window.removeEventListener('beforeunload', handler); }, []);
 
   async function open(entry: Entry) {
@@ -164,7 +165,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
     setFileOrder(prev=>prev.includes(path)?prev:[...prev,path]); setActive(path);
     const request = ReadRemoteFileEncoded(sessionID, path, encoding); reads.current.set(path, request);
     try { const doc = await request; if (disposed.current || instance.current!==sessionID) return; updateDrafts(prev => [...prev, { ...doc, saved: doc.content, savedFormat: formatKey(doc), error: '', saving: false }]);setFileOrder(prev=>prev.includes(path)?prev:[...prev,path]); if(split&&activePane===1&&!fileOrder.includes(path)){setSecondary(prev=>[...prev,path]);setSelection(prev=>[prev[0],path]);}else setActive(path); }
-    catch(e) { setPendingErrors(prev=>({...prev,[path]:String(e)})); throw e; }
+    catch(e) { setPendingErrors(prev=>({...prev,[path]:errorMessage(e)})); throw e; }
     finally { if(reads.current.get(path)===request)reads.current.delete(path); }
   }
   async function save(path: string): Promise<boolean> {
@@ -180,7 +181,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
         updateDrafts(prev => prev.map(d => d.path === path ? { ...d, saved: result.content, savedFormat: formatKey(result), revision: result.revision, saving: false } : d));
         const current = draftsRef.current.find(d => d.path === path);
         return !!current && !isDirty(current);
-      } catch (e) { if (!disposed.current) updateDrafts(prev => prev.map(d => d.path === path ? { ...d, saving: false, error: String(e) } : d)); return false; }
+      } catch (e) { if (!disposed.current) updateDrafts(prev => prev.map(d => d.path === path ? { ...d, saving: false, error: errorMessage(e) } : d)); return false; }
       finally { saves.current.delete(path); }
     })();
     saves.current.set(path, operation); return operation;
@@ -202,7 +203,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   async function reread(path: string, encoding = reopenEncoding) {
     setError(''); const request = ReadRemoteFileEncoded(sessionID, path, encoding); reads.current.set(path, request);
     try { const doc = await request; if (!disposed.current && instance.current===sessionID) { updateDrafts(prev => prev.map(d => d.path === path ? { ...doc, saved: doc.content, savedFormat: formatKey(doc), reloadEpoch:(d.reloadEpoch||0)+1, saving: false, error: '' } : d)); setRereading(''); } }
-    catch (e) { if (!disposed.current && instance.current===sessionID) setError(String(e)); } finally { if(reads.current.get(path)===request)reads.current.delete(path); }
+    catch (e) { if (!disposed.current && instance.current===sessionID) setError(errorMessage(e)); } finally { if(reads.current.get(path)===request)reads.current.delete(path); }
   }
   const closingDraft = drafts.find(d => d.path === closing);
   function activate(path: string) { setActive(path); requestAnimationFrame(() => focusTab(path)); }
@@ -227,8 +228,8 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
       {terminals.map(terminal => <div className={`terminal-tab ${activePane===paneFor(terminal)?'focused-pane':''}`} data-tab-id={terminal} hidden={!shown(terminal)} style={{gridColumn:maximized?1:paneFor(terminal)===0?1:3,gridRow:2}} onFocusCapture={()=>setActivePane(paneFor(terminal))} key={terminal}><TerminalView ref={handle => { if (handle) terminalHandles.current.set(terminal, handle); else terminalHandles.current.delete(terminal); }} id={terminal} workspace={terminalOwners.current.get(terminal) || sessionID} host={target.slice(target.lastIndexOf('@')+1,target.lastIndexOf(':')).replace(/^\[|\]$/g,'')} onDirectory={(path, host) => terminalDirectory(terminal, path, host)} onFile={openTerminalFile} onSnippets={()=>{setActive(terminal);onSnippets();}} onConnectionChange={()=>changeCallback.current()} visible={visible && shown(terminal)} focusOnShow={activePane===paneFor(terminal)} fontSize={fontSize} /></div>)}
       {fileOrder.filter(path=>!drafts.some(d=>d.path===path)).map(path=><div key={path} className="editor-tab pending-file" data-tab-id={path} hidden={!shown(path)} style={{gridColumn:maximized?1:paneFor(path)===0?1:3,gridRow:2}}><p className="file-path">{path}</p>{pendingErrors[path]&&<p role="alert" className="error">{pendingErrors[path]}</p>}<SelectControl aria-label="以指定编码打开文件" value="" disabled={restoring} onChange={e=>{if(e.target.value)void openPath(path,e.target.value).catch(()=>{});}}><option value="" disabled>以编码打开…</option>{editorEncodings.map(([value,label])=><option key={value} value={value}>{label}</option>)}</SelectControl></div>)}
       {drafts.map(d => <div key={d.path} className={`editor-tab ${activePane===paneFor(d.path)?'focused-pane':''}`} data-tab-id={d.path} hidden={!shown(d.path)} style={{gridColumn:maximized?1:paneFor(d.path)===0?1:3,gridRow:2}} onFocusCapture={()=>setActivePane(paneFor(d.path))}>
-        {d.error && <div className="file-save-error"><p role="alert" className="error">{d.error}</p><div className="button-row"><Button size="sm" variant="light" isDisabled={d.saving} onPress={()=>setConflict(d.path)}>对比与合并</Button><Button size="sm" variant="light" onPress={() => setRereading(d.path)}>重新读取</Button><Button size="sm" variant="light" onPress={() => { navigator.clipboard.writeText(d.content).catch(e => setError(String(e))); }}>复制草稿</Button></div></div>}
-        <Suspense fallback={<div className="view-loading" role="status">正在载入编辑器…</div>}><CodeEditor path={d.path} jumpTo={fileJump?.path === d.path ? fileJump : undefined} content={d.content} format={documentFormat(d)} saving={d.saving} dirty={isDirty(d)} reloadEpoch={d.reloadEpoch} visible={visible && shown(d.path)} focusOnShow={activePane===paneFor(d.path)} onChange={(value,format) => updateDrafts(prev => prev.map(item => item.path === d.path ? { ...item, ...format, content: value } : item))} onSave={() => void save(d.path)} onReload={encoding=>requestReload(d.path,encoding)} onDownload={()=>void DownloadFileDraft({...d,...documentFormat(d)}).catch(e=>updateDrafts(prev=>prev.map(item=>item.path===d.path?{...item,error:String(e)}:item)))} /></Suspense>
+        {d.error && <div className="file-save-error"><p role="alert" className="error">{d.error}</p><div className="button-row"><Button size="sm" variant="light" isDisabled={d.saving} onPress={()=>setConflict(d.path)}>对比与合并</Button><Button size="sm" variant="light" onPress={() => setRereading(d.path)}>重新读取</Button><Button size="sm" variant="light" onPress={() => { navigator.clipboard.writeText(d.content).catch(e => setError(errorMessage(e))); }}>复制草稿</Button></div></div>}
+        <Suspense fallback={<div className="view-loading" role="status">正在载入编辑器…</div>}><CodeEditor path={d.path} jumpTo={fileJump?.path === d.path ? fileJump : undefined} content={d.content} format={documentFormat(d)} saving={d.saving} dirty={isDirty(d)} reloadEpoch={d.reloadEpoch} visible={visible && shown(d.path)} focusOnShow={activePane===paneFor(d.path)} onChange={(value,format) => updateDrafts(prev => prev.map(item => item.path === d.path ? { ...item, ...format, content: value } : item))} onSave={() => void save(d.path)} onReload={encoding=>requestReload(d.path,encoding)} onDownload={()=>void DownloadFileDraft({...d,...documentFormat(d)}).catch(e=>updateDrafts(prev=>prev.map(item=>item.path===d.path?{...item,error:errorMessage(e)}:item)))} /></Suspense>
       </div>)}
       </WorkspacePanes>
     </div>

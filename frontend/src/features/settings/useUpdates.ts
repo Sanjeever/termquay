@@ -1,3 +1,4 @@
+import { errorMessage } from "../../lib/errors";
 import { useEffect, useRef, useState } from 'react';
 import { Events } from '@wailsio/runtime';
 import { CancelUpdate, CheckUpdate, DownloadUpdate, GetUpdateStatus, SetUpdateCheck, StartUpdates } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
@@ -18,7 +19,7 @@ export default function useUpdates(ready: boolean) {
         if (ready) await StartUpdates();
         const status = await GetUpdateStatus();
         if (!ended) { setStatus(status); setError(''); }
-      } catch (error) { if (!ended) setError(String(error)); }
+      } catch (error) { if (!ended) setError(errorMessage(error)); }
     }
     void initialise();
     return () => { ended = true; mounted.current = false; off(); };
@@ -27,13 +28,13 @@ export default function useUpdates(ready: boolean) {
     if (running.current) return;
     running.current = true; setPending(true); setError('');
     try { await action(); }
-    catch (error) { if (mounted.current) setError(String(error)); }
+    catch (error) { if (mounted.current) setError(errorMessage(error)); }
     finally {
       try { const status = await GetUpdateStatus(); if (mounted.current) setStatus(status); }
-      catch (error) { if (mounted.current) setError(String(error)); }
+      catch (error) { if (mounted.current) setError(errorMessage(error)); }
       running.current = false;
       if (mounted.current) setPending(false);
     }
   }
-  return { status, error, pending, check: () => run(CheckUpdate), download: () => run(DownloadUpdate), cancel: () => CancelUpdate().catch(error => setError(String(error))), setEnabled: (enabled: boolean) => run(() => SetUpdateCheck(enabled)) };
+  return { status, error, pending, check: () => run(CheckUpdate), download: () => run(DownloadUpdate), cancel: () => CancelUpdate().catch(error => setError(errorMessage(error))), setEnabled: (enabled: boolean) => run(() => SetUpdateCheck(enabled)) };
 }

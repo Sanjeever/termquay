@@ -1,3 +1,4 @@
+import { errorMessage } from "../../lib/errors";
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
 import { Stream, Events, Browser } from '@wailsio/runtime';
 import { Button, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from '@heroui/react';
@@ -41,9 +42,9 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
   const [log, setLog] = useState<TerminalLogStatus>();
   const [keywordOpen, setKeywordOpen] = useState(false);
   const [keyword, setKeyword] = useState('');
-  async function exportBuffer() { try { const buffer = terminal.current?.buffer.active; if (!buffer) return; const lines: string[] = []; for (let y = 0; y < buffer.length; y++) lines.push(buffer.getLine(y)?.translateToString(true) || ''); await ExportTerminalBuffer(lines.join('\n')); } catch (e) { setError(String(e)); } }
-  async function pauseLog() { try { setLog(await PauseTerminalLog(id)); } catch (e) { setError(String(e)); } }
-  useEffect(() => { if (!log?.recording || !connected) return; let ended = false; let timer: ReturnType<typeof setTimeout>; async function load() { try { const value = await GetTerminalLogStatus(id); if (!ended) { setLog(value); if (value.error) setError(`日志记录停止：${value.error}`); } } catch (e) { if (!ended) setError(String(e)); } finally { if (!ended) timer = setTimeout(load, 2000); } } timer = setTimeout(load, 2000); return () => { ended = true; clearTimeout(timer); }; }, [id, log?.recording, connected]);
+  async function exportBuffer() { try { const buffer = terminal.current?.buffer.active; if (!buffer) return; const lines: string[] = []; for (let y = 0; y < buffer.length; y++) lines.push(buffer.getLine(y)?.translateToString(true) || ''); await ExportTerminalBuffer(lines.join('\n')); } catch (e) { setError(errorMessage(e)); } }
+  async function pauseLog() { try { setLog(await PauseTerminalLog(id)); } catch (e) { setError(errorMessage(e)); } }
+  useEffect(() => { if (!log?.recording || !connected) return; let ended = false; let timer: ReturnType<typeof setTimeout>; async function load() { try { const value = await GetTerminalLogStatus(id); if (!ended) { setLog(value); if (value.error) setError(`日志记录停止：${value.error}`); } } catch (e) { if (!ended) setError(errorMessage(e)); } finally { if (!ended) timer = setTimeout(load, 2000); } } timer = setTimeout(load, 2000); return () => { ended = true; clearTimeout(timer); }; }, [id, log?.recording, connected]);
   const [shell, setShell] = useState<'bash' | 'zsh'>('bash');
   const shellSetup=shellSetupForHost(shell,host);
   const integration = useRef<ReturnType<typeof addShellIntegration>>();
@@ -64,8 +65,8 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
   function action(name: TerminalAction) {
     const term = terminal.current; if (!term) return;
     if (name === 'find') setSearchOpen(true);
-    if (name === 'copy') navigator.clipboard.writeText(term.getSelection()).catch(e => setError(String(e)));
-    if (name === 'paste' && demoOutput === undefined) navigator.clipboard.readText().then(insert).catch(e => setError(String(e)));
+    if (name === 'copy') navigator.clipboard.writeText(term.getSelection()).catch(e => setError(errorMessage(e)));
+    if (name === 'paste' && demoOutput === undefined) navigator.clipboard.readText().then(insert).catch(e => setError(errorMessage(e)));
     if (name === 'selectAll') term.selectAll();
     if (name === 'clear') term.clear();
     if (name === 'zoomIn') setZoom(v => Math.min(36 - fontSize, v + 1));
@@ -84,7 +85,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
     const finder = new SearchAddon({highlightLimit:searchHighlightLimit}); term.loadAddon(finder); search.current = finder;
     term.loadAddon(new WebLinksAddon((event, uri) => {
       if (demoOutput !== undefined || !(event.ctrlKey || event.metaKey)) return;
-      const url = new URL(uri); if (url.protocol === 'http:' || url.protocol === 'https:') Browser.OpenURL(url).catch(e => setError(String(e)));
+      const url = new URL(uri); if (url.protocol === 'http:' || url.protocol === 'https:') Browser.OpenURL(url).catch(e => setError(errorMessage(e)));
     }));
     terminal.current = term;
     integration.current = addShellIntegration(term, (path, host) => { setCwd(path); callbacks.current.onDirectory?.(path, host); }, setExitCode, (path, line) => callbacks.current.onFile?.(path, line));
@@ -110,7 +111,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
     const stream = Stream(local ? 'local-terminal' : 'terminal');
     inputStream.current=stream;
     let disposed = false;
-    const fail = (e: unknown) => { if (!disposed) setError(String(e)); };
+    const fail = (e: unknown) => { if (!disposed) setError(errorMessage(e)); };
     stream.onopen = () => { stream.send(new TextEncoder().encode(id)); setConnected(true); stateCallback.current?.();fitVisible(); if (shown.current&&focusRequested.current&&!document.querySelector('[role=dialog][data-open=true]')) term.focus(); };
     stream.onmessage = (event) => {
       const bytes = new Uint8Array(event.data);
@@ -160,8 +161,8 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
     {keywordOpen && <div className="terminal-search"><input aria-label="临时高亮关键词" placeholder="高亮关键词" value={keyword} onChange={event => setKeyword(event.target.value)} maxLength={128} onKeyDown={event => { if (event.key === 'Escape' && !event.nativeEvent.isComposing) { setKeyword(''); setKeywordOpen(false); terminal.current?.focus(); } }}/><button className="icon-button" aria-label="清除临时高亮" onClick={() => { setKeyword(''); setKeywordOpen(false); }}><Icon name="close" width="14"/></button></div>}
     {tmuxOpen && <TmuxDialog workspace={workspace} onInsert={insert} onClose={() => setTmuxOpen(false)} />}
     <div className="terminal-canvas" ref={container} style={{ background: colors.background }} />
-    {log?.directory && <div className="session-status"><span>{connected && log.recording ? '日志记录中' : '日志已暂停'}</span><button className="session-tool file-path" title={log.directory} onClick={() => { navigator.clipboard.writeText(log.directory).catch(e => setError(String(e))); }}>{log.directory}</button></div>}
-    <Modal isOpen={logConfirm} onClose={() => setLogConfirm(false)} className="app-dialog"><ModalContent><ModalHeader>记录终端输出</ModalHeader><ModalBody><p>输出以 ANSI 原始字节保存在本机，可能包含敏感信息。最多保留三段日志，每段 8 MiB，循环覆盖最旧段。</p>{log?.directory && <p className="file-path">{log.directory}</p>}</ModalBody><ModalFooter><Button variant="light" onPress={() => setLogConfirm(false)}>取消</Button><Button color="primary" onPress={async () => { try { const value = await StartTerminalLog(id); if (value.directory) setLog(value); setLogConfirm(false); } catch (e) { setError(String(e)); } }}>开始记录</Button></ModalFooter></ModalContent></Modal>
+    {log?.directory && <div className="session-status"><span>{connected && log.recording ? '日志记录中' : '日志已暂停'}</span><button className="session-tool file-path" title={log.directory} onClick={() => { navigator.clipboard.writeText(log.directory).catch(e => setError(errorMessage(e))); }}>{log.directory}</button></div>}
+    <Modal isOpen={logConfirm} onClose={() => setLogConfirm(false)} className="app-dialog"><ModalContent><ModalHeader>记录终端输出</ModalHeader><ModalBody><p>输出以 ANSI 原始字节保存在本机，可能包含敏感信息。最多保留三段日志，每段 8 MiB，循环覆盖最旧段。</p>{log?.directory && <p className="file-path">{log.directory}</p>}</ModalBody><ModalFooter><Button variant="light" onPress={() => setLogConfirm(false)}>取消</Button><Button color="primary" onPress={async () => { try { const value = await StartTerminalLog(id); if (value.directory) setLog(value); setLogConfirm(false); } catch (e) { setError(errorMessage(e)); } }}>开始记录</Button></ModalFooter></ModalContent></Modal>
     {(connected !== true || cwd || exitCode && exitCode !== '0' || error) && <div className="session-status">{connected !== true && <span role="status">{connected===null?'连接中':'已断开'}</span>}{cwd && <span className="file-path" title={cwd}>{cwd}</span>}{exitCode && exitCode !== '0' && <span className="error">退出码 {exitCode}</span>}{error && <span role="alert" className="error">{error}</span>}</div>}
     <Modal isOpen={integrationOpen} onClose={() => setIntegrationOpen(false)} className="app-dialog"><ModalContent><ModalHeader>当前 Shell 集成</ModalHeader><ModalBody><label className="form-field">Shell<SelectControl value={shell} onChange={event => setShell(event.target.value as 'bash' | 'zsh')}><option value="bash">Bash 4.4+</option><option value="zsh">Zsh</option></SelectControl></label><p className="muted">在当前 Shell 提示符执行，退出后失效。将设置提示符与命令钩子。</p><pre className="paste-preview">{shellSetup}</pre></ModalBody><ModalFooter><Button variant="light" onPress={() => setIntegrationOpen(false)}>取消</Button><Button color="primary" onPress={() => { if (insert(shellSetup + '\n')) setIntegrationOpen(false); }}>插入并预览</Button></ModalFooter></ModalContent></Modal>
     <Modal isOpen={paste !== undefined} onClose={() => { setPaste(undefined); terminal.current?.focus(); }} className="app-dialog"><ModalContent><ModalHeader>确认多行粘贴</ModalHeader><ModalBody><p>换行可能立即执行命令，请核对内容。</p><pre className="paste-preview">{paste}</pre></ModalBody><ModalFooter><Button variant="light" onPress={() => { setPaste(undefined); terminal.current?.focus(); }}>取消</Button><Button color="primary" onPress={() => { if (paste !== undefined) terminal.current?.paste(paste); setPaste(undefined); terminal.current?.focus(); }}>粘贴到终端</Button></ModalFooter></ModalContent></Modal>

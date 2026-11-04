@@ -496,6 +496,12 @@ button:active:not(:disabled):not([role=tab]) { filter: brightness(.93); }
 .settings-panel form { max-width: 660px; display: flex; flex-direction: column; gap: 18px; }
 .checkbox-label { display: flex; gap: 8px; font-size: 12px; align-items: center; color: var(--color-muted); }
 .operation-result { color: var(--color-success); font-size: 12px; overflow-wrap: anywhere; }
+.operation-error { display: flex; align-items: flex-start; gap: 8px; min-width: 0; font-size: 12px; padding: 8px 0; }
+.operation-error-content { flex: 1; min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.operation-error-content .button-row { margin-top: 6px; }
+.operation-error > .icon-button { width: 24px; height: 24px; margin-top: -3px; color: inherit; }
+.workbench-status .operation-error { padding: 0; align-items: center; }
+.workbench-status .operation-error > .icon-button { width: 20px; height: 20px; margin: 0; }
 .snapshot-list li { display: flex; justify-content: space-between; gap: 12px; align-items: center; border-bottom: 1px solid var(--color-border); padding: 10px 0; font-size: 12px; }
 .snapshot-list li > div { display: flex; flex-direction: column; gap: 5px; overflow-wrap: anywhere; min-width: 0; }
 .snapshot-list span { color: var(--color-muted); }

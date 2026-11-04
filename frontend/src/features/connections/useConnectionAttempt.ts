@@ -1,3 +1,4 @@
+import { errorMessage } from "../../lib/errors";
 import { useEffect, useRef, useState } from 'react';
 import { OpenTerminal, OpenSavedTerminalInteractive, GetSSHChallenge, AnswerSSHChallenge, ProbeRDPRoute, TrustSSHHost, TrustRDPCertificateRoute, OpenRDPRoute, OpenSavedRDPRoute, OpenSystemRDP, OpenSavedSystemRDP, CloseWorkspace, CloseRDP } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { SSHChallenge } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
@@ -45,7 +46,7 @@ export default function useConnectionAttempt(onSSH: (id: string, connection: Con
         authID.current = crypto.randomUUID();
         if (auth) auth.auth_id = authID.current;
         const open = () => auth ? OpenTerminal(auth) : OpenSavedTerminalInteractive(connection.id, authID.current);
-        async function loadChallenge() { try { const value = await GetSSHChallenge(authID.current); if (current.current === attempt && !attempt.cancelled) setChallenge(value || undefined); } catch (e) { if (current.current === attempt && !attempt.cancelled) { setError(`读取认证提示失败：${String(e)}`); cancel(); } } finally { if (current.current === attempt && !attempt.cancelled) poll = setTimeout(loadChallenge, 300); } }
+        async function loadChallenge() { try { const value = await GetSSHChallenge(authID.current); if (current.current === attempt && !attempt.cancelled) setChallenge(value || undefined); } catch (e) { if (current.current === attempt && !attempt.cancelled) { setError(`读取认证提示失败：${errorMessage(e)}`); cancel(); } } finally { if (current.current === attempt && !attempt.cancelled) poll = setTimeout(loadChallenge, 300); } }
         void loadChallenge();
         let operation = open(); attempt.operation = operation;
         let result = await operation; owned = result.id; check();
@@ -84,12 +85,12 @@ export default function useConnectionAttempt(onSSH: (id: string, connection: Con
         owned = '';
       }
       return true;
-    } catch (e) { const message = attempt.cancelled ? '连接已取消' : String(e); if (rdpWorkspace) failRDP(rdpWorkspace, message); if (!attempt.cancelled) setError(message); return false; }
+    } catch (e) { const message = attempt.cancelled ? '连接已取消' : errorMessage(e); if (rdpWorkspace) failRDP(rdpWorkspace, message); if (!attempt.cancelled) setError(message); return false; }
     finally {
       clearTimeout(poll); setChallenge(undefined);
       if (auth) { auth.password = ''; auth.private_key = ''; auth.passphrase = ''; }
       try { if (owned) { if (connection.protocol === 'ssh') { remove(owned); await CloseWorkspace(owned); } else await CloseRDP(owned); } }
-      catch (e) { setError(previous => [previous, `关闭连接失败：${String(e)}`].filter(Boolean).join('\n')); }
+      catch (e) { setError(previous => [previous, `关闭连接失败：${errorMessage(e)}`].filter(Boolean).join('\n')); }
       finally { current.current = undefined; setBusy(false); setTrust(undefined); }
     }
   }

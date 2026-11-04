@@ -1,3 +1,4 @@
+import { errorMessage } from "../../lib/errors";
 import { useEffect, useRef, useState } from 'react';
 import { Button, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
 import { CancelRestorePreview, ConfirmRestoreWithOptions, GetPortableUI, PreviewLocalRestore, PreviewSavedRestore } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
@@ -34,13 +35,13 @@ export default function RestoreBackupDialog({ path, hasConnections, recoverySave
       setSelected((value.connections || []).length <= 256 ? (value.connections || []).map(connection => connection.id) : []);
       setSettings(mode === 'replace' ? (value.settings || []).filter(key => key === 'snippets') : []);
     } catch (error) {
-      if (mounted.current) { setError(String(error)); setShowPassword(true); }
+      if (mounted.current) { setError(errorMessage(error)); setShowPassword(true); }
     } finally { if (mounted.current) setBusy(false); }
   }
   useEffect(() => {
     mounted.current = true;
     if (recoverySaved) void unlock('');
-    return () => { mounted.current = false; request.current?.cancel(); if (previewID.current) void CancelRestorePreview(previewID.current).catch(error => onError(String(error))); };
+    return () => { mounted.current = false; request.current?.cancel(); if (previewID.current) void CancelRestorePreview(previewID.current).catch(error => onError(errorMessage(error))); };
   }, []);
 
   function chooseMode(next: 'import' | 'replace') {
@@ -66,7 +67,7 @@ export default function RestoreBackupDialog({ path, hasConnections, recoverySave
       onRestored();
       if (settings.includes('appearance') || settings.includes('shortcuts')) applyPortableUI(await GetPortableUI());
       onClose();
-    } catch (error) { setError(String(error)); }
+    } catch (error) { setError(errorMessage(error)); }
     finally { setBusy(false); }
   }
   return <Modal isOpen onClose={() => { if (!busy) onClose(); }} isDismissable={!busy} isKeyboardDismissDisabled={busy} size="2xl" scrollBehavior="inside" className="app-dialog restore-backup-dialog"><ModalContent>

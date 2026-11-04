@@ -1,3 +1,4 @@
+import { errorMessage } from "../../lib/errors";
 import { createContext, useContext, useEffect, useLayoutEffect, useState, type ReactNode } from 'react';
 import { appearanceKey, defaultAppearance, monoFonts, parseAppearance, uiFonts, type Appearance } from './appearance';
 import { Window } from '@wailsio/runtime';
@@ -7,16 +8,16 @@ const AppearanceContext = createContext<{ appearance: Appearance; dark: boolean;
 export function AppearanceProvider({ children }: { children: ReactNode }) {
   const [initial] = useState(() => {
     try { return { appearance: parseAppearance(localStorage.getItem(appearanceKey)), error: '' }; }
-    catch (error) { return { appearance: { ...defaultAppearance }, error: String(error) }; }
+    catch (error) { return { appearance: { ...defaultAppearance }, error: errorMessage(error) }; }
   });
   const [appearance, setAppearance] = useState(initial.appearance);
   const [preview, setPreview] = useState<Appearance>();
   const current = preview ?? appearance;
   const [error, setError] = useState(initial.error);
   const [systemDark, setSystemDark] = useState(() => matchMedia('(prefers-color-scheme: dark)').matches);
-  useEffect(() => { const restore = () => { try { setAppearance(parseAppearance(localStorage.getItem(appearanceKey))); setError(''); } catch (e) { setError(String(e)); } }; window.addEventListener('termquay:portable-restored', restore); return () => window.removeEventListener('termquay:portable-restored', restore); }, []);
+  useEffect(() => { const restore = () => { try { setAppearance(parseAppearance(localStorage.getItem(appearanceKey))); setError(''); } catch (e) { setError(errorMessage(e)); } }; window.addEventListener('termquay:portable-restored', restore); return () => window.removeEventListener('termquay:portable-restored', restore); }, []);
   const dark = current.theme === 'system' ? systemDark : current.theme === 'dark';
-  useEffect(() => { Window.SetZoom(current.uiZoom).catch(error => setError(`界面缩放失败：${String(error)}`)); }, [current.uiZoom]);
+  useEffect(() => { Window.SetZoom(current.uiZoom).catch(error => setError(`界面缩放失败：${errorMessage(error)}`)); }, [current.uiZoom]);
   useEffect(() => {
     const media = matchMedia('(prefers-color-scheme: dark)');
     const changed = () => setSystemDark(media.matches);
@@ -32,7 +33,7 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
   function update(value: Appearance) {
     if (preview) { setPreview(value); return; }
     try { localStorage.setItem(appearanceKey, JSON.stringify(value)); setAppearance(value); setError(''); window.dispatchEvent(new Event('termquay:portable-changed')); }
-    catch (error) { setError(String(error)); }
+    catch (error) { setError(errorMessage(error)); }
   }
   return <AppearanceContext.Provider value={{ appearance: current, dark, error, update, beginPreview: () => setPreview({ ...appearance }), endPreview: () => setPreview(undefined) }}>{children}</AppearanceContext.Provider>;
 }

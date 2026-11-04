@@ -1,3 +1,4 @@
+import { errorMessage } from "../../lib/errors";
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Button, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger, Tooltip } from '@heroui/react';
 import { Events, System } from '@wailsio/runtime';
@@ -99,7 +100,7 @@ export default function DemoWorkbench({ scene, onScene, onExit, shortcuts, fontS
   dispatch.current = id => { if(root.current?.querySelector('[role=dialog]'))return false;const command=commands.find(command=>command.id===id);if(!command)return false;command.run();return true; };
   useEffect(()=>Events.On('app:menu-command',event=>dispatch.current(event.data as string)),[]);
   const menuState=JSON.stringify(palette?{}:Object.fromEntries(commands.map(command=>[command.id,command.shortcut==='未分配'?'':command.shortcut||''])));
-  useEffect(()=>{if(System.IsMac())void Events.Emit('app:menu-state',JSON.parse(menuState) as Record<string,string>).catch(error=>setError(String(error)));},[menuState]);
+  useEffect(()=>{if(System.IsMac())void Events.Emit('app:menu-state',JSON.parse(menuState) as Record<string,string>).catch(error=>setError(errorMessage(error)));},[menuState]);
   useEffect(()=>{
     const key=(event:KeyboardEvent)=>{
       if(event.isComposing||event.repeat||event.composedPath().some(target=>target instanceof HTMLElement&&target.matches('[role=dialog]')))return;

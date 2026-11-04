@@ -1,3 +1,4 @@
+import { errorMessage } from "../../lib/errors";
 import { useEffect, useRef, useState } from 'react';
 import { Button, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
 import { ListTmuxSessions } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
@@ -11,7 +12,7 @@ export default function TmuxDialog({ workspace, onInsert, onClose }: { workspace
   const [busy, setBusy] = useState(false);
   const pending = useRef<ReturnType<typeof ListTmuxSessions>>();
   const mounted = useRef(true);
-  async function load() { setBusy(true); setError(''); const operation = ListTmuxSessions(workspace); pending.current = operation; try { const values = await operation; if (mounted.current) setItems(values || []); } catch (e) { if (mounted.current) setError(String(e)); } finally { if (mounted.current) setBusy(false); } }
+  async function load() { setBusy(true); setError(''); const operation = ListTmuxSessions(workspace); pending.current = operation; try { const values = await operation; if (mounted.current) setItems(values || []); } catch (e) { if (mounted.current) setError(errorMessage(e)); } finally { if (mounted.current) setBusy(false); } }
   useEffect(() => { mounted.current = true; void load(); return () => { mounted.current = false; pending.current?.cancel(); }; }, [workspace]);
   function insert(command: string) { if (onInsert(command)) onClose(); else setError('当前终端不可输入'); }
   return <Modal isOpen onClose={onClose} className="app-dialog"><ModalContent><ModalHeader>tmux 会话</ModalHeader><ModalBody>

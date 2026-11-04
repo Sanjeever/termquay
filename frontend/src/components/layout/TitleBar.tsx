@@ -1,3 +1,4 @@
+import { errorMessage } from "../../lib/errors";
 import { useEffect, useRef, useState, type ReactNode, type MouseEvent } from 'react';
 import { Events, System, Window } from '@wailsio/runtime';
 import { TitlebarDoubleClick } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
@@ -29,7 +30,7 @@ export default function TitleBar({ tabs, tools, onError }: {
     const update = () => {
       Promise.all([Window.IsMaximised(), Window.IsFullscreen()]).then(([maximised, fullscreen]) => {
         if (!disposed) { setMaximised(maximised); setFullscreen(fullscreen); }
-      }).catch(error => { if (!disposed) onError(String(error)); });
+      }).catch(error => { if (!disposed) onError(errorMessage(error)); });
     };
     const off = [
       Events.On(Events.Types.Common.WindowMaximise, update),
@@ -45,7 +46,7 @@ export default function TitleBar({ tabs, tools, onError }: {
   }, [onError]);
   function run(action: () => Promise<void>) {
     onError('');
-    action().catch(error => onError(String(error)));
+    action().catch(error => onError(errorMessage(error)));
   }
   function draggable(event: MouseEvent) { return getComputedStyle(event.target as Element).getPropertyValue('--termquay-window-drag').trim() === 'drag'; }
   function doubleClick(event: MouseEvent) {

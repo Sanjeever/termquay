@@ -1,3 +1,4 @@
+import { errorMessage } from "../../lib/errors";
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Dropdown, DropdownTrigger, DropdownMenu, DropdownSection, DropdownItem, Tooltip } from '@heroui/react';
 import { Compartment, EditorState, StateEffect, StateField, Transaction } from '@codemirror/state';
@@ -70,7 +71,7 @@ export default function CodeEditor({ path, content, format, visible, saving, dir
   useEffect(() => { if (visible) { view.current?.requestMeasure(); if (focusOnShow && !document.activeElement?.closest('[role=tablist]')) view.current?.focus(); } }, [visible]);
   useEffect(() => { const editor = view.current; if (!editor || !visible || !jumpTo) return; const line = editor.state.doc.line(Math.max(1, Math.min(editor.state.doc.lines, jumpTo.line))); editor.dispatch({ selection: { anchor: line.from }, effects: EditorView.scrollIntoView(line.from, { y: 'center' }) }); editor.focus(); }, [jumpTo?.sequence, visible, reloadEpoch]);
   function updateFormat(value: Partial<EditorFormat>) { const editor = view.current; if (editor) { const next = { ...editor.state.field(formatState), ...value }; if (JSON.stringify(next) === JSON.stringify(editor.state.field(formatState))) return; editor.dispatch({ effects: changeFormat.of(next), annotations: Transaction.userEvent.of('input.format') }); editor.focus(); } }
-  function preference(key: string, value: string, apply: () => void) { try { if(!demo)localStorage.setItem(key, value); apply(); setError(''); } catch (e) { setError(String(e)); } }
+  function preference(key: string, value: string, apply: () => void) { try { if(!demo)localStorage.setItem(key, value); apply(); setError(''); } catch (e) { setError(errorMessage(e)); } }
   function action(label: string, name: Parameters<typeof Icon>[0]['name'], run: () => void, disabled = false) { return <Tooltip content={label}><button type="button" className="icon-button" aria-label={label} disabled={disabled} onClick={run}><Icon name={name} width="16" /></button></Tooltip>; }
   const mod = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl+';
   return <>
