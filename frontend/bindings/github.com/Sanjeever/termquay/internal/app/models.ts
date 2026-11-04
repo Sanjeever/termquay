@@ -65,6 +65,19 @@ export interface Catalog {
     "session_only": boolean;
 }
 
+export interface CommandStep {
+    "name": string;
+    "script": string;
+    "timeout_seconds": number;
+}
+
+export interface CommandTask {
+    "id": string;
+    "name": string;
+    "steps": CommandStep[] | null;
+    "stop_on_failure": boolean;
+}
+
 export interface CompletionPath {
     "name": string;
     "directory": boolean;

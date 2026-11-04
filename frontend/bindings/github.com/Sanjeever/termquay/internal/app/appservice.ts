@@ -157,6 +157,10 @@ export function CreateTerminal(workspace: string): $CancellablePromise<$models.O
     return $Call.ByID(272076810, workspace);
 }
 
+export function DeleteCommandTask(id: string): $CancellablePromise<void> {
+    return $Call.ByID(1666692899, id);
+}
+
 export function DeleteConnection(id: string): $CancellablePromise<void> {
     return $Call.ByID(2843121549, id);
 }
@@ -315,6 +319,10 @@ export function GetUpdateStatus(): $CancellablePromise<$models.UpdateStatus> {
 
 export function GetWorkspaceLayout(): $CancellablePromise<$models.WorkspaceLayout> {
     return $Call.ByID(841988121);
+}
+
+export function ListCommandTasks(): $CancellablePromise<$models.CommandTask[] | null> {
+    return $Call.ByID(1459462947);
 }
 
 export function ListCredentialReferences(): $CancellablePromise<$models.CredentialReference[] | null> {
@@ -579,6 +587,10 @@ export function RunRemoteCommand(workspace: string, script: string, timeoutSecon
 
 export function SaveBackupSettings(options: backup$0.WebDAVOptions, password: string, deviceName: string, selection: $models.BackupSelection): $CancellablePromise<void> {
     return $Call.ByID(3551534060, options, password, deviceName, selection);
+}
+
+export function SaveCommandTask(task: $models.CommandTask): $CancellablePromise<$models.CommandTask> {
+    return $Call.ByID(2063822837, task);
 }
 
 export function SaveConnection(c: store$0.Connection, auth: ssh$0.Request): $CancellablePromise<store$0.Connection> {
