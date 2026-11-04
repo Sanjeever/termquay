@@ -20,7 +20,7 @@ type Result = { key: string; target: Target; step: string; state: string; result
 type TaskDraft = CommandTask & { steps: CommandStep[] };
 const emptyTask = (): TaskDraft => ({ id: '', name: '', steps: [{ name: '步骤 1', script: '', timeout_seconds: 60 }], stop_on_failure: true });
 
-export default function CommandTasksDialog({ targets, groups, onClose }: { targets: Target[]; groups?: Group[]; onClose(): void }) {
+export default function CommandTasksDialog({ targets, groups: catalogGroups, onClose }: { targets: Target[]; groups?: Group[]; onClose(): void }) {
   const [tasks, setTasks] = useState<CommandTask[]>([]);
   const [task, setTask] = useState<TaskDraft>(emptyTask);
   const [baseline, setBaseline] = useState(() => JSON.stringify(emptyTask()));
@@ -47,7 +47,7 @@ export default function CommandTasksDialog({ targets, groups, onClose }: { targe
   const dirty = JSON.stringify(task) !== baseline;
   const names = [...new Set(task.steps.flatMap(step => snippetParameters(step.script)))];
   const expanded = task.steps.map(step => ({ ...step, ...expandSnippet(step.script, parameters) }));
-  const invalid = task.steps.some(step => !step.name.trim() || !step.script.trim() || step.timeout_seconds < 1 || step.timeout_seconds > 600 || !Number.isInteger(step.timeout_seconds));
+  const invalid = task.steps.some(step => !step.name.trim() || !step.script.trim() || step.timeout_seconds < 1 || step.timeout_seconds > 600 || !Number.isInteger(step.timeout_seconds)) || !Number.isInteger(task.concurrency || 3) || (task.concurrency || 3) < 1 || (task.concurrency || 3) > 3 || !Number.isInteger(task.batch_size || 64) || (task.batch_size || 64) < 1 || (task.batch_size || 64) > 64;
   const expansionError = expanded.find(step => step.error || new TextEncoder().encode(step.text).length > 32768);
   function cancel() { cancelled.current = true; batchApproval.current?.(false); batchApproval.current = undefined; setWaitingBatch(false); pending.current.forEach(request => request.cancel()); }
   useEffect(() => {
@@ -70,6 +70,7 @@ export default function CommandTasksDialog({ targets, groups, onClose }: { targe
     if (running.current || busy || invalid || expansionError || !selected.size) return;
     const chosen = targets.filter(target => selected.has(target.id));
     if (!chosen.length) return;
+    if (chosen.length > 64) { setError('每次最多执行 64 个工作区'); return; }
     const steps = expanded.map(step => ({ name: step.name, script: step.text, timeout: step.timeout_seconds }));
     const stopOnFailure = task.stop_on_failure;
     running.current = true; cancelled.current = false; setBusy(true); setError(''); setComparison(['', '']);
@@ -129,7 +130,7 @@ export default function CommandTasksDialog({ targets, groups, onClose }: { targe
     <div className="button-row"><Button size="sm" variant="light" isDisabled={busy || task.steps.length >= 16} onPress={() => setTask({ ...task, steps: [...task.steps, { name: `步骤 ${task.steps.length + 1}`, script: '', timeout_seconds: 60 }] })}>添加步骤</Button><label className="checkbox-label"><input type="checkbox" disabled={busy} checked={task.stop_on_failure} onChange={event => setTask({ ...task, stop_on_failure: event.target.checked })} />失败后停止该主机后续步骤</label></div>
     {names.map(name => <label className="form-field" key={name}>{name}<input maxLength={4096} disabled={busy} value={parameters[name] || ''} onChange={event => setParameters({ ...parameters, [name]: event.target.value })} /></label>)}
     {!!names.length && <details><summary>展开后的命令</summary>{expanded.map((step, index) => <pre key={index}>{step.text}</pre>)}</details>}
-    <CommandTargets targets={targets} groups={groups} selected={selected} onChange={setSelected} busy={busy} />
+    <CommandTargets targets={targets} groups={catalogGroups} selected={selected} onChange={setSelected} busy={busy} />
     {error && <p className="error" role="alert">{error}</p>}{expansionError && <p className="error" role="alert">{expansionError.error || '替换后命令超过 32 KiB'}</p>}
     {!!results.length && <><label className="form-field">结果分组<SelectControl value={group} onChange={event => setGroup(event.target.value)}><option value="target">按主机</option><option value="exit">按退出码</option><option value="output">按相同输出</option></SelectControl></label>{Array.from(groups.values(), (items, index) => <details key={index} open={group === 'target'}><summary>{group === 'target' ? items[0].target.name : group === 'exit' ? items[0].result ? `退出码 ${items[0].result.exit_code}` : items[0].state : `输出组 ${index + 1}`} · {items.length} 项</summary><table><thead><tr><th>主机</th><th>步骤</th><th>状态</th><th>退出码</th><th>耗时</th><th>输出</th></tr></thead><tbody>{items.map(item => <tr key={item.key}><td>{item.target.name}</td><td>{item.step}</td><td>{item.state}</td><td>{item.result?.exit_code ?? '—'}</td><td>{item.result ? `${(item.result.duration_ms / 1000).toFixed(2)}s` : '—'}</td><td><details><summary>查看</summary>{(item.error || item.result?.error) && <p className="error">{item.error || item.result?.error}</p>}<pre>{item.result?.stdout}</pre><pre className="error">{item.result?.stderr}</pre>{item.result?.truncated && <p>输出已截断</p>}</details></td></tr>)}</tbody></table></details>)}</>}
     {!!results.length && <details><summary>选择并导出执行结果</summary>{results.map(item => <label className="checkbox-label" key={item.key}><input type="checkbox" checked={exportSelection.has(item.key)} onChange={event => setExportSelection(previous => { const next = new Set(previous); if (event.target.checked) next.add(item.key); else next.delete(item.key); return next; })} />{item.target.name} · {item.step} · {item.state}</label>)}<Button size="sm" variant="light" isDisabled={busy || !exportSelection.size} onPress={() => { ExportCommandResults(results.filter(item => exportSelection.has(item.key)).map(item => ({ target: item.target.name, address: item.target.address, step: item.step, state: item.state, result: item.result, error: item.error || '' }))).catch(e => setError(errorMessage(e))); }}>导出所选结果</Button></details>}
