@@ -14,6 +14,7 @@ import { editorTheme } from '../files/editorTheme';
 import '../../styles/file-compare.css';
 import CommandTargets, { type CommandTarget } from './CommandTargets';
 import type { Group } from '../../../bindings/github.com/Sanjeever/termquay/internal/store/models';
+import { runCommandTask } from './commandTaskRunner';
 
 type Target = CommandTarget;
 type Result = { key: string; target: Target; step: string; state: string; result?: CommandResult; error?: string };
@@ -72,39 +73,36 @@ export default function CommandTasksDialog({ targets, groups: catalogGroups, onC
     if (!chosen.length) return;
     if (chosen.length > 64) { setError('每次最多执行 64 个工作区'); return; }
     const steps = expanded.map(step => ({ name: step.name, script: step.text, timeout: step.timeout_seconds }));
-    const stopOnFailure = task.stop_on_failure;
     running.current = true; cancelled.current = false; setBusy(true); setError(''); setComparison(['', '']);
     setResults(chosen.flatMap(target => steps.map((step, index) => ({ key: `${target.id}:${index}`, target, step: step.name, state: '等待' }))));
-    let cursor = 0, end = 0, halted = false;
-    async function worker() {
-      while (!cancelled.current && !halted && cursor < end) {
-        const target = chosen[cursor++];
-        for (let index = 0; index < steps.length && !cancelled.current; index++) {
-          const step = steps[index], key = `${target.id}:${index}`;
-          update(key, { state: '执行中' });
-          const request = RunRemoteCommand(target.id, step.script, step.timeout); pending.current.set(key, request);
-          let failed = false;
-          try { const result = await request; failed = !!result.error || result.exit_code !== 0; update(key, { result, state: result.error ? '失败' : failed ? '非零退出' : '完成' }); }
-          catch (e) { failed = true; update(key, { state: cancelled.current ? '已请求取消' : '失败', error: errorMessage(e) }); }
-          finally { pending.current.delete(key); }
-          if (failed && task.stop_all_on_failure) halted = true;
-          if (failed && stopOnFailure) break;
-        }
-      }
-    }
     setExportSelection(new Set());
-    while (!cancelled.current && !halted && cursor < chosen.length) {
-      const first = cursor === 0 && task.first_host_approval;
-      end = Math.min(chosen.length, cursor + (first ? 1 : task.batch_size || chosen.length));
-      await Promise.all(Array.from({ length: Math.min(task.concurrency || 3, end - cursor) }, worker));
-      if (first && cursor < chosen.length && !halted && !cancelled.current) {
+    await runCommandTask(chosen, steps, task, {
+      cancelled: () => cancelled.current,
+      async execute(target, step, index) {
+        const key = `${target.id}:${index}`;
+        update(key, { state: '执行中' });
+        const request = RunRemoteCommand(target.id, step.script, step.timeout);
+        pending.current.set(key, request);
+        try {
+          const result = await request;
+          const failed = !!result.error || result.exit_code !== 0;
+          update(key, { result, state: result.error ? '失败' : failed ? '非零退出' : '完成' });
+          return failed;
+        } catch (e) {
+          update(key, { state: cancelled.current ? '已请求取消' : '失败', error: errorMessage(e) });
+          return true;
+        } finally {
+          pending.current.delete(key);
+        }
+      },
+      async approveFirstHost() {
         setWaitingBatch(true);
         const approved = await new Promise<boolean>(resolve => { batchApproval.current = resolve; });
         batchApproval.current = undefined;
         if (mounted.current) setWaitingBatch(false);
-        if (!approved) break;
-      }
-    }
+        return approved;
+      },
+    });
     running.current = false;
     if (mounted.current) { setBusy(false); setResults(previous => previous.map(result => result.state === '等待' ? { ...result, state: '未执行' } : result)); }
   }
