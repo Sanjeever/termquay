@@ -80,6 +80,11 @@ func EncryptSnapshot(snap Snapshot, password string) ([]byte, error) {
 	if snap.DeviceName != "" || snap.CredentialsIncluded != nil {
 		version = 8
 	}
+	for key := range settings {
+		if IsWorkflowSetting(key) {
+			version = 9
+		}
+	}
 	if err := validateSettings(settings); err != nil {
 		return nil, err
 	}
@@ -139,11 +144,16 @@ func Decrypt(encrypted []byte, password string) (Snapshot, error) {
 	if err = decoder.Decode(&extra); err != io.EOF {
 		return snap, errors.New("快照尾部包含额外数据")
 	}
-	if snap.Version < 1 || snap.Version > 8 {
+	if snap.Version < 1 || snap.Version > 9 {
 		return snap, errors.New("不支持的快照版本")
 	}
 	if snap.Version < 8 && (snap.DeviceName != "" || snap.CredentialsIncluded != nil) {
 		return snap, errors.New("旧快照不能包含设备名称或凭据携带标记")
+	}
+	for key := range snap.Settings {
+		if snap.Version < 9 && IsWorkflowSetting(key) {
+			return snap, errors.New("旧快照不能包含工作环境设置")
+		}
 	}
 	if err := validateMetadata(snap); err != nil {
 		return snap, err
@@ -211,9 +221,21 @@ func validateMetadata(snap Snapshot) error {
 
 func validateSettings(settings map[string]string) error {
 	for key, value := range settings {
-		if (key != "snippets" && key != "appearance" && key != "shortcuts") || len(value) > 1<<20 || !json.Valid([]byte(value)) {
+		limit := 1 << 20
+		if key == "workspace_sets" {
+			limit = 2 << 20
+		}
+		if (key != "snippets" && key != "appearance" && key != "shortcuts" && !IsWorkflowSetting(key)) || len(value) > limit || !json.Valid([]byte(value)) {
 			return errors.New("快照设置类型、大小或 JSON 无效")
 		}
 	}
 	return nil
+}
+
+func IsWorkflowSetting(key string) bool {
+	switch key {
+	case "command_tasks", "workspace_sets", "tunnel_presets", "sync_presets", "connection_preferences":
+		return true
+	}
+	return false
 }

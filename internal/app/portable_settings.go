@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/Sanjeever/termquay/internal/backup"
 )
 
 func validatePortableUI(values map[string]string) error {
@@ -141,6 +143,16 @@ func (a *AppService) restoreSettings(settings map[string]string) (map[string]str
 				return nil, nil, err
 			}
 			result["snippets"] = encoded
+		} else if backup.IsWorkflowSetting(key) {
+			if key == "command_tasks" {
+				encoded, err := a.store.SealSetting(key, value)
+				if err != nil {
+					return nil, nil, err
+				}
+				result[key] = encoded
+			} else {
+				result[key] = value
+			}
 		} else {
 			ui[key] = value
 		}

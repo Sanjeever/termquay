@@ -151,6 +151,13 @@ func (a *AppService) protectRestore(current store.Data) error {
 		return err
 	}
 	settings["snippets"] = string(value)
+	workflows, err := a.captureWorkflowSettings(current, BackupSelection{Tasks: true, Workspaces: true, Tunnels: true, Sync: true, Preferences: true})
+	if err != nil {
+		return err
+	}
+	for key, value := range workflows {
+		settings[key] = value
+	}
 	includeCredentials := true
 	encrypted, err := backup.EncryptSnapshot(backup.Snapshot{DeviceID: device, DeviceName: name, CreatedAt: time.Now().UTC(), Data: current, Settings: settings, CredentialsIncluded: &includeCredentials}, password)
 	if err != nil {

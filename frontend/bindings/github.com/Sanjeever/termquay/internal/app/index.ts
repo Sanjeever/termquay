@@ -40,6 +40,7 @@ export type {
     RecoveryDraftSummary,
     RemoteLogSlice,
     RemotePathResult,
+    RestorePathHint,
     RestorePreview,
     SSHChallenge,
     SSHImportChoice,

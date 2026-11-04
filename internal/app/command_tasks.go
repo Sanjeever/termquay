@@ -46,13 +46,8 @@ func (a *AppService) ListCommandTasks() ([]CommandTask, error) {
 
 func (a *AppService) SaveCommandTask(task CommandTask) (CommandTask, error) {
 	task.Name = strings.TrimSpace(task.Name)
-	if task.Name == "" || len(task.Name) > 128 || len(task.Steps) == 0 || len(task.Steps) > 16 {
-		return CommandTask{}, errors.New("任务名称须为 1 至 128 字节，步骤须为 1 至 16 项")
-	}
-	for _, step := range task.Steps {
-		if strings.TrimSpace(step.Name) == "" || len(step.Name) > 128 || strings.TrimSpace(step.Script) == "" || len(step.Script) > 32<<10 || strings.ContainsRune(step.Script, 0) || step.TimeoutSeconds < 1 || step.TimeoutSeconds > 600 {
-			return CommandTask{}, errors.New("步骤须包含名称、最多 32 KiB 的命令及 1 至 600 秒超时")
-		}
+	if err := validateCommandTask(task); err != nil {
+		return CommandTask{}, err
 	}
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
@@ -90,6 +85,18 @@ func (a *AppService) SaveCommandTask(task CommandTask) (CommandTask, error) {
 		return CommandTask{}, err
 	}
 	return task, nil
+}
+
+func validateCommandTask(task CommandTask) error {
+	if task.Name == "" || len(task.Name) > 128 || len(task.Steps) == 0 || len(task.Steps) > 16 {
+		return errors.New("任务名称须为 1 至 128 字节，步骤须为 1 至 16 项")
+	}
+	for _, step := range task.Steps {
+		if strings.TrimSpace(step.Name) == "" || len(step.Name) > 128 || strings.TrimSpace(step.Script) == "" || len(step.Script) > 32<<10 || strings.ContainsRune(step.Script, 0) || step.TimeoutSeconds < 1 || step.TimeoutSeconds > 600 {
+			return errors.New("步骤须包含名称、最多 32 KiB 的命令及 1 至 600 秒超时")
+		}
+	}
+	return nil
 }
 
 func (a *AppService) DeleteCommandTask(id string) error {

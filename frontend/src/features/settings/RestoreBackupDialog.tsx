@@ -4,8 +4,7 @@ import { Button, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader
 import { CancelRestorePreview, ConfirmRestoreWithOptions, GetPortableUI, PreviewLocalRestore, PreviewSavedRestore } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { RestorePreview } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import { applyPortableUI } from './portable';
-
-const settingNames: Record<string, string> = { snippets: '命令片段', appearance: '外观', shortcuts: '快捷键' };
+import { backupSettingNames, workflowBackupOptions } from './backupContent';
 
 export default function RestoreBackupDialog({ path, hasConnections, recoverySaved, onRestored, onClose, onError }: {
   path: string; hasConnections: boolean; recoverySaved: boolean; onRestored(): void; onClose(): void; onError(message: string): void;
@@ -87,7 +86,9 @@ export default function RestoreBackupDialog({ path, hasConnections, recoverySave
           {(preview.credentials_included === false || !preview.credentials) && <p role="alert" className="error">这份备份没有已保存的连接密码或私钥。替换会移除本机现有凭据。</p>}
           <p className="muted">替换前将保存本机加密保护副本，保存失败会停止替换。</p>
         </>}
-        {!!preview.settings?.length && <fieldset className="backup-restore-settings" disabled={busy || completed}><legend>同时恢复</legend>{preview.settings.map(key => <label className="checkbox-label" key={key}><input type="checkbox" checked={settings.includes(key)} onChange={event => setSettings(previous => event.target.checked ? [...previous, key] : previous.filter(item => item !== key))}/>{settingNames[key] || key}{key === 'snippets' && '（替换本机片段）'}</label>)}</fieldset>}
+        {!!preview.settings?.length && <fieldset className="backup-restore-settings" disabled={busy || completed}><legend>同时恢复</legend>{preview.settings.map(key => <label className="checkbox-label" key={key}><input type="checkbox" checked={settings.includes(key)} onChange={event => setSettings(previous => event.target.checked ? [...previous, key] : previous.filter(item => item !== key))}/>{backupSettingNames[key] || key}{preview.setting_counts?.[key] !== undefined && ` · ${preview.setting_counts[key]} 项`}{key === 'snippets' ? '（替换本机片段）' : workflowBackupOptions.some(option => option.key === key) ? mode === 'import' ? '（追加）' : '（替换本机同类配置）' : ''}</label>)}</fieldset>}
+        {settings.includes('tunnel_presets') && <p className="muted">恢复的隧道预设暂停自动启动，需重新启用。</p>}
+        {!!preview.path_hints?.filter(hint => settings.includes(hint.setting)).length && <details><summary>目标设备需要核对的本地路径</summary><ul>{preview.path_hints.filter(hint => settings.includes(hint.setting)).map((hint, index) => <li key={index}>{hint.name}<span className="file-path">{hint.path}</span><span className="muted">{hint.setting === 'connection_preferences' ? '私钥文件需重新选择，原路径不启用' : '目录同步前需核对本地目录'}</span></li>)}</ul></details>}
         {mode === 'replace' && !completed && <label className="checkbox-label backup-replace-confirm"><input type="checkbox" checked={confirmed} disabled={busy} onChange={event => setConfirmed(event.target.checked)}/>确认替换本机连接、分组和凭据</label>}
       </>}
       {error && <p role="alert" className="error">{error}</p>}

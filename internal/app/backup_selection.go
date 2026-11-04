@@ -12,6 +12,11 @@ type BackupSelection struct {
 	Credentials   bool     `json:"credentials"`
 	Snippets      bool     `json:"snippets"`
 	Settings      bool     `json:"settings"`
+	Tasks         bool     `json:"tasks"`
+	Workspaces    bool     `json:"workspaces"`
+	Tunnels       bool     `json:"tunnels"`
+	Sync          bool     `json:"sync"`
+	Preferences   bool     `json:"preferences"`
 }
 
 func selectSnapshotData(data store.Data, ids []string) (store.Data, error) {
@@ -72,7 +77,7 @@ func selectSnapshotData(data store.Data, ids []string) (store.Data, error) {
 	return result, result.Validate()
 }
 
-func mergeSnapshotCopies(current, imported store.Data) store.Data {
+func mergeSnapshotCopies(current, imported store.Data) (store.Data, map[string]string) {
 	ids := map[string]string{}
 	newID := func(id string) string {
 		if id == "" {
@@ -95,5 +100,5 @@ func mergeSnapshotCopies(current, imported store.Data) store.Data {
 		connection.ID, connection.GroupID, connection.CredentialID, connection.JumpID = newID(connection.ID), newID(connection.GroupID), newID(connection.CredentialID), newID(connection.JumpID)
 		current.Connections = append(current.Connections, connection)
 	}
-	return current
+	return current, ids
 }

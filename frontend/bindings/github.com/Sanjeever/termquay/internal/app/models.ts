@@ -39,6 +39,11 @@ export interface BackupSelection {
     "credentials": boolean;
     "snippets": boolean;
     "settings": boolean;
+    "tasks": boolean;
+    "workspaces": boolean;
+    "tunnels": boolean;
+    "sync": boolean;
+    "preferences": boolean;
 }
 
 export interface BackupSettings {
@@ -257,6 +262,12 @@ export interface RemotePathResult {
     "error": string;
 }
 
+export interface RestorePathHint {
+    "setting": string;
+    "name": string;
+    "path": string;
+}
+
 export interface RestorePreview {
     "id": string;
     "device_id": string;
@@ -270,6 +281,8 @@ export interface RestorePreview {
     "credentials": number;
     "connections": store$0.Connection[] | null;
     "settings": string[] | null;
+    "setting_counts": { [_ in string]?: number } | null;
+    "path_hints": RestorePathHint[] | null;
 }
 
 export interface SSHChallenge {

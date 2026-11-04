@@ -36,6 +36,8 @@ type RestorePreview struct {
 	Credentials         int                `json:"credentials"`
 	Connections         []store.Connection `json:"connections"`
 	Settings            []string           `json:"settings"`
+	SettingCounts       map[string]int     `json:"setting_counts"`
+	PathHints           []RestorePathHint  `json:"path_hints"`
 }
 
 type pendingRestore struct {
@@ -629,6 +631,13 @@ func (a *AppService) createSnapshot(password string, selection BackupSelection) 
 			settings[key] = value
 		}
 	}
+	workflows, err := a.captureWorkflowSettings(d, selection)
+	if err != nil {
+		return nil, "", err
+	}
+	for key, value := range workflows {
+		settings[key] = value
+	}
 	name, err := a.deviceName()
 	if err != nil {
 		return nil, "", err
@@ -688,6 +697,10 @@ func (a *AppService) prepareRestore(snap backup.Snapshot) (RestorePreview, error
 	id := base64.RawURLEncoding.EncodeToString(randomBytes(24))
 	p := RestorePreview{ID: id, DeviceID: snap.DeviceID, DeviceName: snap.DeviceName, CredentialsIncluded: snap.CredentialsIncluded, CreatedAt: snap.CreatedAt, Added: []string{}, Updated: []string{}, Removed: []string{}, Credentials: len(snap.Data.Credentials), CredentialUpdated: []string{}}
 	p.Connections = snap.Data.Connections
+	p.SettingCounts, p.PathHints, err = validateWorkflowSettings(snap.Settings, snap.Data)
+	if err != nil {
+		return RestorePreview{}, err
+	}
 	_, base, err := a.restoreSettings(snap.Settings)
 	if err != nil {
 		return RestorePreview{}, err
@@ -766,7 +779,7 @@ func (a *AppService) ConfirmRestoreWithOptions(id string, connectionIDs []string
 	settings := map[string]string{}
 	selectedSettings := map[string]string{}
 	for _, key := range settingKeys {
-		if key != "snippets" && key != "appearance" && key != "shortcuts" {
+		if key != "snippets" && key != "appearance" && key != "shortcuts" && !backup.IsWorkflowSetting(key) {
 			return errors.New("恢复设置包含未知选项")
 		}
 		if value, ok := a.preview.sourceSettings[key]; ok {
@@ -776,8 +789,8 @@ func (a *AppService) ConfirmRestoreWithOptions(id string, connectionIDs []string
 	if len(selectedSettings) > 0 {
 		for sourceKey := range selectedSettings {
 			key := "portable_ui"
-			if sourceKey == "snippets" {
-				key = "snippets"
+			if sourceKey == "snippets" || backup.IsWorkflowSetting(sourceKey) {
+				key = sourceKey
 			}
 			expected := a.preview.settingsBase[key]
 			value, err := a.store.Setting(key)
@@ -788,17 +801,28 @@ func (a *AppService) ConfirmRestoreWithOptions(id string, connectionIDs []string
 				return errors.New("本机设置在预览后发生变化，请重新预览")
 			}
 		}
-		settings, _, err = a.restoreSettings(selectedSettings)
-		if err != nil {
-			return err
-		}
 	}
+	var ids map[string]string
 	if !replace {
 		selected, err := selectSnapshotData(data, connectionIDs)
 		if err != nil {
 			return err
 		}
-		data = mergeSnapshotCopies(current, selected)
+		data, ids = mergeSnapshotCopies(current, selected)
+	}
+	workflows, err := a.remapWorkflowSettings(selectedSettings, data, ids, !replace, true)
+	if err != nil {
+		return err
+	}
+	if _, _, err := validateWorkflowSettings(workflows, data); err != nil {
+		return err
+	}
+	for key, value := range workflows {
+		selectedSettings[key] = value
+	}
+	settings, _, err = a.restoreSettings(selectedSettings)
+	if err != nil {
+		return err
 	}
 	if replace {
 		if err := a.protectRestore(current); err != nil {

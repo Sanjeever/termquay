@@ -37,6 +37,10 @@ func (a *AppService) workspaceSets() ([]WorkspaceSet, error) {
 	if err != nil {
 		return nil, err
 	}
+	return decodeWorkspaceSets(value)
+}
+
+func decodeWorkspaceSets(value string) ([]WorkspaceSet, error) {
 	data := workspaceSetData{Items: []WorkspaceSet{}}
 	if value == "" {
 		return data.Items, nil
