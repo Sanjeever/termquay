@@ -532,6 +532,10 @@ export function PrepareImagePreview(id: string, remote: string): $CancellablePro
     return $Call.ByID(1916396934, id, remote);
 }
 
+export function PrepareInspectionBaseline(workspace: string, remote: string, timeoutSeconds: number): $CancellablePromise<$models.InspectionBaseline> {
+    return $Call.ByID(1650740612, workspace, remote, timeoutSeconds);
+}
+
 export function PreviewDirectorySync(workspace: string, direction: string, local: string, remote: string): $CancellablePromise<$models.DirectorySyncPreview> {
     return $Call.ByID(936556326, workspace, direction, local, remote);
 }
@@ -690,6 +694,10 @@ export function RetryTransfer(id: string, newName: string, overwrite: boolean): 
 
 export function RevokeTrust(key: string): $CancellablePromise<void> {
     return $Call.ByID(3245294958, key);
+}
+
+export function RunCommandStep(workspace: string, step: $models.CommandStep, baseline: $models.InspectionBaseline | null): $CancellablePromise<$models.CommandStepResult> {
+    return $Call.ByID(3241259934, workspace, step, baseline);
 }
 
 export function RunFileAction(workspace: string, remote: string, action: string, expectedScript: string): $CancellablePromise<ssh$0.CommandResult> {
@@ -922,6 +930,10 @@ export function UseSessionStorage(): $CancellablePromise<void> {
 
 export function UseSystemStorage(password: string): $CancellablePromise<void> {
     return $Call.ByID(3744715745, password);
+}
+
+export function ValidateCommandSteps(steps: $models.CommandStep[] | null): $CancellablePromise<void> {
+    return $Call.ByID(4040103112, steps);
 }
 
 export function WorkspaceRecoveryDrafts(workspace: string): $CancellablePromise<$models.RecoveryDraft[] | null> {

@@ -12,9 +12,10 @@ import (
 )
 
 type CommandStep struct {
-	Name           string `json:"name"`
-	Script         string `json:"script"`
-	TimeoutSeconds int    `json:"timeout_seconds"`
+	Name           string        `json:"name"`
+	Script         string        `json:"script"`
+	TimeoutSeconds int           `json:"timeout_seconds"`
+	Check          *CommandCheck `json:"check,omitempty"`
 }
 
 type CommandTask struct {
@@ -103,20 +104,22 @@ func validateCommandTask(task CommandTask) error {
 		return errors.New("任务名称须为 1 至 128 字节，步骤须为 1 至 16 项")
 	}
 	for _, step := range task.Steps {
-		if strings.TrimSpace(step.Name) == "" || len(step.Name) > 128 || strings.TrimSpace(step.Script) == "" || len(step.Script) > 32<<10 || strings.ContainsRune(step.Script, 0) || step.TimeoutSeconds < 1 || step.TimeoutSeconds > 600 {
-			return errors.New("步骤须包含名称、最多 32 KiB 的命令及 1 至 600 秒超时")
+		if err := validateCommandStep(step); err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
 type CommandExportResult struct {
-	Target  string                  `json:"target"`
-	Address string                  `json:"address"`
-	Step    string                  `json:"step"`
-	State   string                  `json:"state"`
-	Result  *terminal.CommandResult `json:"result,omitempty"`
-	Error   string                  `json:"error,omitempty"`
+	Target   string                  `json:"target"`
+	Address  string                  `json:"address"`
+	Step     string                  `json:"step"`
+	State    string                  `json:"state"`
+	Result   *terminal.CommandResult `json:"result,omitempty"`
+	Error    string                  `json:"error,omitempty"`
+	Check    *InspectionCheckResult  `json:"check,omitempty"`
+	Baseline string                  `json:"baseline,omitempty"`
 }
 
 func (a *AppService) ExportCommandResults(results []CommandExportResult) error {

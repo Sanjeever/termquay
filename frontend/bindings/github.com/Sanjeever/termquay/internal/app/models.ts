@@ -71,6 +71,15 @@ export interface Catalog {
     "session_only": boolean;
 }
 
+export interface CommandCheck {
+    "kind": string;
+    "source"?: string;
+    "expected"?: string;
+    "pointer"?: string;
+    "operator"?: string;
+    "file_path"?: string;
+}
+
 export interface CommandExportResult {
     "target": string;
     "address": string;
@@ -78,12 +87,20 @@ export interface CommandExportResult {
     "state": string;
     "result"?: ssh$0.CommandResult | null;
     "error"?: string;
+    "check"?: InspectionCheckResult | null;
+    "baseline"?: string;
 }
 
 export interface CommandStep {
     "name": string;
     "script": string;
     "timeout_seconds": number;
+    "check"?: CommandCheck | null;
+}
+
+export interface CommandStepResult {
+    "command"?: ssh$0.CommandResult | null;
+    "check"?: InspectionCheckResult | null;
 }
 
 export interface CommandTask {
@@ -166,6 +183,19 @@ export interface ImagePreview {
     "height": number;
     "size": number;
     "format": string;
+}
+
+export interface InspectionBaseline {
+    "workspace": string;
+    "path": string;
+    "revision": string;
+}
+
+export interface InspectionCheckResult {
+    "state": string;
+    "message": string;
+    "actual"?: string;
+    "expected"?: string;
 }
 
 export interface LinuxPort {
