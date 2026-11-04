@@ -52,6 +52,7 @@ const DemoWorkbench = lazy(() => import('./features/demo/DemoWorkbench'));
 const WorkspaceSetsDialog = lazy(() => import('./features/workspaces/WorkspaceSetsDialog'));
 const FileCompareDialog = lazy(() => import('./features/files/FileCompareDialog'));
 const CommandTasksDialog = lazy(() => import('./features/terminal/CommandTasksDialog'));
+const DockerDialog = lazy(() => import('./features/docker/DockerDialog'));
 
 type Workspace = { id: string; sessionID?: string; connection?: Connection; connectionID: string; name: string; state?: string; restore?:SSHLayout; restored?:boolean; rdp?: { connection: Connection; grant?: Grant; error?: string; options: RDPOptions }; local?:{shell:string;terminal:RefObject<TerminalHandle>}; view?: RefObject<RDPHandle>; ssh?: RefObject<SSHWorkspaceHandle>; dirty?: boolean };
 
@@ -102,6 +103,7 @@ export default function App() {
   const [batchCommandOpen, setBatchCommandOpen] = useState(false);
   const [fileCompareOpen, setFileCompareOpen] = useState(false);
   const [commandTasksOpen, setCommandTasksOpen] = useState(false);
+  const [dockerOpen, setDockerOpen] = useState(false);
   const [localShells,setLocalShells]=useState<LocalShell[]>([]);
   const [openingLocal,setOpeningLocal]=useState(false);
   const localOpening=useRef(false);
@@ -311,6 +313,7 @@ export default function App() {
     { id: 'transfers', label: '查看传输任务', kind: 'command', run: () => setTransfersOpen(true) },
     { id: 'batch-command', label: '多主机执行命令', kind: 'command', run: () => setBatchCommandOpen(true) },
     { id: 'command-tasks', label: '管理与执行多主机任务', kind: 'command', run: () => setCommandTasksOpen(true) },
+    { id: 'docker', label: 'Docker 容器工作区', kind: 'command', run: () => setDockerOpen(true) },
     { id: 'file-compare', label: '文件对比与跨工作区复制', kind: 'command', run: () => setFileCompareOpen(true) },
     ...(current?.ssh ? [{ id: 'sudo-edit', label: '以 sudo 编辑文件', kind: 'command' as const, run: () => current.ssh?.current?.sudoEdit() }] : []),
     { id: 'diagnostics', label: '导出脱敏诊断信息', kind: 'command', run: () => { ExportDiagnostics().catch(e => setPreferenceError(errorMessage(e))); } },
@@ -357,6 +360,7 @@ export default function App() {
     {batchCommandOpen && <BatchCommandDialog targets={workspaces.filter(w => w.sessionID && w.state === '已连接').map(w => ({ id: w.sessionID!, name: w.name, address: `${w.connection?.username}@${w.connection?.host}:${w.connection?.port}` }))} initial={current?.sessionID} snippets={snippets} onClose={() => setBatchCommandOpen(false)} />}
     {fileCompareOpen && <Suspense fallback={<div role="status">正在载入文件对比…</div>}><FileCompareDialog targets={workspaces.filter(w => !w.local && !w.rdp && w.sessionID && w.state === '已连接').map(w => ({ id: w.sessionID!, name: w.name }))} initial={current?.ssh ? current.sessionID : undefined} onTransfer={item => { transfers.accept([item]); setTransferReveal(item.id); setTransfersOpen(true); }} onClose={() => setFileCompareOpen(false)} /></Suspense>}
     {commandTasksOpen && <Suspense fallback={<div role="status">正在载入命令任务…</div>}><CommandTasksDialog targets={workspaces.filter(w => w.ssh && w.sessionID && w.state === '已连接').map(w => ({ id: w.sessionID!, name: w.name, address: `${w.connection?.username}@${w.connection?.host}:${w.connection?.port}` }))} onClose={() => setCommandTasksOpen(false)} /></Suspense>}
+    {dockerOpen && <Suspense fallback={<div role="status">正在载入 Docker…</div>}><DockerDialog targets={workspaces.filter(w => w.ssh && w.sessionID && w.state === '已连接').map(w => ({ id: w.sessionID!, name: w.name }))} initial={current?.ssh ? current.sessionID : undefined} fontSize={fontSize} onClose={() => setDockerOpen(false)} /></Suspense>}
     {restoreDialog&&<WorkspaceRestoreDialog layout={restoreDialog} connections={catalog?.connections||[]} openIDs={workspaces.map(w=>w.id)} onRestore={restoreWorkspaces} onClose={()=>setRestoreDialog(undefined)}/>}
     {workspaceSetLayout && <Suspense fallback={<div className="session-status" role="status">正在载入工作集…</div>}><WorkspaceSetsDialog layout={workspaceSetLayout} localCount={workspaces.filter(workspace => !!workspace.local).length} connections={catalog?.connections || []} onOpen={openWorkspaceSet} onClose={() => setWorkspaceSetLayout(undefined)} /></Suspense>}
     {palette && <CommandPalette commands={commands} initialScope={paletteScope} initialQuery={paletteQuery} onClose={() => { setPalette(false); setPaletteQuery(''); }} error={snippetError} />}

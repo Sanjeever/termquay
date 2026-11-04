@@ -10,6 +10,9 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 import * as backup$0 from "../backup/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as docker$0 from "../docker/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as files$0 from "../files/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -91,6 +94,10 @@ export function ClearRecoveryDrafts(): $CancellablePromise<void> {
 
 export function ClearTransfer(id: string): $CancellablePromise<void> {
     return $Call.ByID(2575385820, id);
+}
+
+export function CloseContainerTerminal(id: string): $CancellablePromise<void> {
+    return $Call.ByID(2569984197, id);
 }
 
 export function CloseLocalTerminal(id: string): $CancellablePromise<void> {
@@ -321,8 +328,16 @@ export function GetWorkspaceLayout(): $CancellablePromise<$models.WorkspaceLayou
     return $Call.ByID(841988121);
 }
 
+export function InspectContainer(workspace: string, socket: string, id: string): $CancellablePromise<docker$0.Details> {
+    return $Call.ByID(1928224569, workspace, socket, id);
+}
+
 export function ListCommandTasks(): $CancellablePromise<$models.CommandTask[] | null> {
     return $Call.ByID(1459462947);
+}
+
+export function ListContainers(workspace: string, socket: string): $CancellablePromise<docker$0.Container[] | null> {
+    return $Call.ByID(3633674134, workspace, socket);
 }
 
 export function ListCredentialReferences(): $CancellablePromise<$models.CredentialReference[] | null> {
@@ -387,6 +402,10 @@ export function MoveGroup(id: string, parentID: string, beforeID: string): $Canc
 
 export function MoveRemotePaths(id: string, paths: string[] | null, directory: string): $CancellablePromise<$models.RemotePathResult[] | null> {
     return $Call.ByID(3367740979, id, paths, directory);
+}
+
+export function OpenContainerTerminal(workspace: string, socket: string, id: string, shell: string): $CancellablePromise<$models.OpenResult> {
+    return $Call.ByID(2310516577, workspace, socket, id, shell);
 }
 
 export function OpenLocalTerminal(kind: string, cols: number, rows: number): $CancellablePromise<$models.LocalTerminal> {
@@ -493,6 +512,10 @@ export function PuTTYImportAvailable(): $CancellablePromise<boolean> {
     return $Call.ByID(2645956148);
 }
 
+export function ReadContainerLogs(workspace: string, socket: string, id: string): $CancellablePromise<docker$0.Logs> {
+    return $Call.ByID(541234366, workspace, socket, id);
+}
+
 export function ReadDirectory(id: string, remote: string): $CancellablePromise<files$0.Directory> {
     return $Call.ByID(504709045, id, remote);
 }
@@ -555,6 +578,10 @@ export function ReleaseWorkspaceView(id: string): $CancellablePromise<void> {
 
 export function RenameRemotePath(id: string, oldPath: string, newPath: string): $CancellablePromise<void> {
     return $Call.ByID(3565050989, id, oldPath, newPath);
+}
+
+export function ResizeContainerTerminal(id: string, cols: number, rows: number): $CancellablePromise<void> {
+    return $Call.ByID(2315972877, id, cols, rows);
 }
 
 export function ResizeLocalTerminal(id: string, cols: number, rows: number): $CancellablePromise<void> {

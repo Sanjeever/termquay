@@ -1,0 +1,9 @@
+.docker-connection { display: flex; align-items: end; gap: 12px; flex-wrap: wrap; }
+.docker-connection .form-field { flex: 1; min-width: 200px; }
+.docker-containers { max-height: 220px; overflow: auto; }
+.docker-containers h3, .docker-dialog h3 { margin-block: 12px 6px; font-size: 13px; }
+.docker-dialog table { width: 100%; text-align: start; font-size: 12px; }
+.docker-dialog th, .docker-dialog td { padding: 5px 8px; overflow-wrap: anywhere; }
+.docker-logs { height: 260px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
+.docker-terminal { height: 380px; min-height: 240px; }
+.docker-terminal[hidden] { display: none; }

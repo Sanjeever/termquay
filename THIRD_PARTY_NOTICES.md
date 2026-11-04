@@ -17,6 +17,7 @@ TermQuay 采用 Apache-2.0。各依赖保留其原有许可证、版权与声明
 - 本地终端使用 `github.com/aymanbagabas/go-pty`（MIT）；其 `github.com/creack/pty`（MIT）和 `github.com/u-root/u-root`（BSD-3-Clause）许可原文保存在 Go 许可目录。
 - 文件编码转换使用 `golang.org/x/text`，采用 BSD-3-Clause；LICENSE 与 PATENTS 原文保存在 Go 许可目录。
 - 动态转发使用 `github.com/armon/go-socks5`，采用 MIT；SOCKS 协议解析复用该库，许可原文保存在 Go 许可目录。
+- Docker 日志流解复用使用 `github.com/moby/moby/api/pkg/stdcopy`，采用 Apache-2.0；模块许可原文保存在 Go 许可目录。
 - OpenSSH 配置解析使用 `github.com/kevinburke/ssh_config`，采用 MIT；许可原文保存在 Go 许可目录。
 - Iron Remote Desktop 和 RDP 后端采用 `MIT OR Apache-2.0`。已核对 npm 发布来源证明、包摘要及源码标签，固定源码提交见 [核对记录](build/licenses/review.json)。[WASM 材料](build/licenses/wasm/) 保存源码锁文件、Rust normal/build 依赖许可清单和原文、来源证明及制品摘要；清单可能包含未链接的依赖。预构建 JavaScript 使用的 Svelte、UAParser.js、esm-env 和 clsx 材料另保存在该目录。
 - `use-composed-ref` 的发布包及对应源码提交均明确声明 MIT，许可目录保存原始包元数据和标准 MIT 条款。上游未提供独立版权行，材料保留这一事实，不推断版权所有者或年份。

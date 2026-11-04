@@ -96,6 +96,7 @@ type AppService struct {
 	sshChallenges          map[string]*sshAuthentication
 	transferRate           atomic.Int64
 	commandSlots           chan struct{}
+	containerTerminals     map[string]*containerTerminal
 	automaticMu            sync.Mutex
 	automaticConfig        *automaticBackupConfig
 	automaticStatus        AutomaticBackupStatus
@@ -170,7 +171,7 @@ func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (Open
 		a.mu.Unlock()
 		return OpenResult{}, errors.New("信任记录已变化，请重新连接")
 	}
-	if a.closed || len(a.workspaces)+a.opening+a.closing >= 16 || len(a.terminals)+a.opening >= 64 {
+	if a.closed || len(a.workspaces)+a.opening+a.closing >= 16 || len(a.terminals)+len(a.containerTerminals)+a.opening >= 64 {
 		a.mu.Unlock()
 		return OpenResult{}, errors.New("当前最多运行 16 个终端")
 	}
@@ -336,7 +337,7 @@ func (a *AppService) CreateTerminal(workspace string) (OpenResult, error) {
 			count++
 		}
 	}
-	if owner == nil || a.closed || count+owner.opening >= 8 || len(a.terminals)+a.opening >= 64 {
+	if owner == nil || a.closed || count+owner.opening >= 8 || len(a.terminals)+len(a.containerTerminals)+a.opening >= 64 {
 		a.mu.Unlock()
 		return OpenResult{}, errors.New("工作区已关闭或终端达到上限（每工作区 8 个，全局 64 个）")
 	}
@@ -412,7 +413,17 @@ func (a *AppService) CloseWorkspace(id string) {
 			delete(a.terminals, key)
 		}
 	}
+	containers := []*containerTerminal{}
+	for key, p := range a.containerTerminals {
+		if p.workspace == id {
+			containers = append(containers, p)
+			delete(a.containerTerminals, key)
+		}
+	}
 	a.mu.Unlock()
+	for _, console := range containers {
+		console.close()
+	}
 	a.releaseWorkspaceImages(id)
 	for _, t := range forwarding {
 		if t.forward != nil {

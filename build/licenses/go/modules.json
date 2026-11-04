@@ -1,5 +1,9 @@
 [
   {
+    "module": "github.com/moby/moby/api",
+    "version": "v1.56.1"
+  },
+  {
     "module": "al.essio.dev/pkg/shellescape",
     "version": "v1.6.0"
   },

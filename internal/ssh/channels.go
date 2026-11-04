@@ -17,6 +17,38 @@ func (t *Terminal) DialAddress(ctx context.Context, address string) (net.Conn, e
 	return t.client.DialContext(ctx, "tcp", address)
 }
 
+func (t *Terminal) DialSocket(ctx context.Context, socket string) (net.Conn, error) {
+	select {
+	case t.forwardRequests <- struct{}{}:
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+		return nil, errors.New("SSH socket 打开请求达到上限")
+	}
+	type result struct {
+		conn net.Conn
+		err  error
+	}
+	ready := make(chan result)
+	go func() {
+		defer func() { <-t.forwardRequests }()
+		conn, err := t.client.Dial("unix", socket)
+		select {
+		case ready <- result{conn, err}:
+		case <-ctx.Done():
+			if conn != nil {
+				conn.Close()
+			}
+		}
+	}()
+	select {
+	case value := <-ready:
+		return value.conn, value.err
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
 func (t *Terminal) DirectoryClient(ctx context.Context) (*directorysftp.Client, error) {
 	return directorysftp.NewClient(ctx, t.client, directorysftp.WithMaxInflight(4), directorysftp.WithMaxDataLength(32<<10), directorysftp.WithMaxPacketLength(1<<20))
 }
