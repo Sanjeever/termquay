@@ -120,6 +120,15 @@ func (a *AppService) ConfirmUpload(ctx context.Context, id, directory string, ov
 	pending.submitting = true
 	a.mu.Unlock()
 	defer func() { a.mu.Lock(); pending.submitting = false; a.mu.Unlock() }()
+	if pending.sourceWorkspace != "" {
+		owner, err := a.terminal(pending.sourceWorkspace)
+		if err != nil {
+			return UploadSubmission{}, err
+		}
+		if owner != pending.sourceOwner {
+			return UploadSubmission{}, errors.New("来源 SSH 连接已变化，请重新复制")
+		}
+	}
 	c, close, err := a.fileClient(ctx, pending.view.Workspace)
 	if err != nil {
 		return UploadSubmission{}, err

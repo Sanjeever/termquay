@@ -23,13 +23,21 @@ func (a *AppService) CopyRemoteFiles(id string, paths []string) error {
 		return err
 	}
 	clipboard := &remoteFileClipboard{workspace: id, paths: append([]string(nil), paths...), token: "termquay://files/" + base64.RawURLEncoding.EncodeToString(randomBytes(24))}
+	a.fileClipboardMu.Lock()
+	defer a.fileClipboardMu.Unlock()
+	a.mu.Lock()
+	if a.closed || a.workspaces[id] == nil {
+		a.mu.Unlock()
+		return errors.New("SSH 工作区已关闭")
+	}
+	a.mu.Unlock()
+	if !application.Get().Clipboard.SetText(clipboard.token) {
+		return errors.New("无法写入文件剪贴板")
+	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.closed || a.workspaces[id] == nil {
 		return errors.New("SSH 工作区已关闭")
-	}
-	if !application.Get().Clipboard.SetText(clipboard.token) {
-		return errors.New("无法写入文件剪贴板")
 	}
 	a.fileClipboard = clipboard
 	return nil
@@ -38,10 +46,12 @@ func (a *AppService) CopyRemoteFiles(id string, paths []string) error {
 func (a *AppService) PasteClipboardFiles(ctx context.Context, id, directory string) error {
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
+	a.fileClipboardMu.Lock()
 	text, _ := application.Get().Clipboard.Text()
 	a.mu.Lock()
 	clipboard := a.fileClipboard
 	a.mu.Unlock()
+	a.fileClipboardMu.Unlock()
 	var preview UploadPreview
 	var err error
 	if clipboard != nil && text == clipboard.token {

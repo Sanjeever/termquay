@@ -80,6 +80,7 @@ type AppService struct {
 	transferEvent          func(Transfer)
 	uploadPreview          *pendingUpload
 	fileClipboard          *remoteFileClipboard
+	fileClipboardMu        sync.Mutex
 	syncPlans              map[string]*directorySyncPlan
 	syncOpening            int
 	dirty                  map[string]bool
