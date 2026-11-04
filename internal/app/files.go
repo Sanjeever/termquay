@@ -80,6 +80,26 @@ func (a *AppService) SaveRemoteFile(ctx context.Context, id string, document fil
 		return files.Document{}, err
 	}
 	defer close()
+	history, err := a.GetFileHistory(id, document.Path)
+	if err != nil {
+		return files.Document{}, err
+	}
+	if history.Enabled {
+		charset := document.OriginalEncoding
+		if charset == "" {
+			charset = document.Encoding
+		}
+		previous, err := files.ReadEncoded(c, document.Path, charset)
+		if err != nil {
+			return files.Document{}, err
+		}
+		if previous.Revision != document.Revision {
+			return files.Document{}, errors.New("远端文件已变化，请先对比与合并")
+		}
+		if err := a.recordFileVersion(id, previous); err != nil {
+			return files.Document{}, err
+		}
+	}
 	return files.Save(c, document)
 }
 

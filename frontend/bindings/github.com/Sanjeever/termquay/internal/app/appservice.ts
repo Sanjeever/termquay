@@ -84,6 +84,10 @@ export function ChooseUploadFiles(id: string, directory: string): $CancellablePr
     return $Call.ByID(3202931173, id, directory);
 }
 
+export function ClearFileHistory(workspace: string, remote: string): $CancellablePromise<void> {
+    return $Call.ByID(3206972715, workspace, remote);
+}
+
 export function ClearFinishedTransfers(): $CancellablePromise<string[] | null> {
     return $Call.ByID(210711123);
 }
@@ -298,6 +302,10 @@ export function GetDirectoryBookmarks(id: string): $CancellablePromise<string[] 
 
 export function GetDraftRecoveryState(): $CancellablePromise<$models.DraftRecoveryState> {
     return $Call.ByID(1509178199);
+}
+
+export function GetFileHistory(workspace: string, remote: string): $CancellablePromise<$models.FileHistory> {
+    return $Call.ByID(1754201140, workspace, remote);
 }
 
 export function GetLicenseFiles(): $CancellablePromise<string[] | null> {
@@ -556,6 +564,10 @@ export function ReadDirectory(id: string, remote: string): $CancellablePromise<f
     return $Call.ByID(504709045, id, remote);
 }
 
+export function ReadFileVersion(workspace: string, remote: string, versionID: string): $CancellablePromise<files$0.Document> {
+    return $Call.ByID(3121419668, workspace, remote, versionID);
+}
+
 export function ReadLinuxProcessDetails(workspace: string, pid: number): $CancellablePromise<$models.LinuxProcessDetails> {
     return $Call.ByID(3532396353, workspace, pid);
 }
@@ -642,6 +654,10 @@ export function RetryTransfer(id: string, newName: string, overwrite: boolean): 
 
 export function RevokeTrust(key: string): $CancellablePromise<void> {
     return $Call.ByID(3245294958, key);
+}
+
+export function RunFileAction(workspace: string, remote: string, action: string): $CancellablePromise<ssh$0.CommandResult> {
+    return $Call.ByID(2078851123, workspace, remote, action);
 }
 
 export function RunRemoteCommand(workspace: string, script: string, timeoutSeconds: number): $CancellablePromise<ssh$0.CommandResult> {
@@ -754,6 +770,10 @@ export function SetDirectoryBookmarks(id: string, bookmarks: string[] | null): $
 
 export function SetDraftRecoveryEnabled(enabled: boolean): $CancellablePromise<void> {
     return $Call.ByID(342898779, enabled);
+}
+
+export function SetFileHistory(workspace: string, remote: string, enabled: boolean, validate: string, reload: string): $CancellablePromise<void> {
+    return $Call.ByID(2175736048, workspace, remote, enabled, validate, reload);
 }
 
 export function SetFrontendReady(): $CancellablePromise<void> {

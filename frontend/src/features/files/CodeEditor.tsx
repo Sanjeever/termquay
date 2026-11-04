@@ -23,12 +23,13 @@ import { editorEncodings, type EditorFormat } from './editorFormat';
 const changeFormat = StateEffect.define<EditorFormat>();
 const formatState = StateField.define<EditorFormat>({ create: () => ({ encoding: 'UTF-8', line_ending: 'LF', bom: false }), update: (value, transaction) => transaction.effects.reduce((current, effect) => effect.is(changeFormat) ? effect.value : current, value), provide: field => [EditorState.readOnly.from(field, value => value.line_ending === 'mixed'), EditorView.editable.from(field, value => value.line_ending !== 'mixed')] });
 
-export default function CodeEditor({ path, content, format, visible, saving, dirty, reloadEpoch = 0, onChange, onSave, onReload, onDownload, focusOnShow = true, jumpTo, demo = false, completionShortcut = 'Alt+Slash' }: {
+export default function CodeEditor({ path, content, format, visible, saving, dirty, reloadEpoch = 0, onChange, onSave, onReload, onDownload, onHistory, focusOnShow = true, jumpTo, demo = false, completionShortcut = 'Alt+Slash' }: {
   path: string; content: string; format: EditorFormat; visible: boolean; saving: boolean; dirty: boolean; reloadEpoch?: number;
   onChange(value: string, format: EditorFormat): void; onSave(): void; onReload(encoding: string): void; onDownload(): void; focusOnShow?: boolean;
   jumpTo?: { line: number; sequence: number };
   demo?: boolean;
   completionShortcut?: string;
+  onHistory?(): void;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView>();
@@ -107,6 +108,7 @@ export default function CodeEditor({ path, content, format, visible, saving, dir
       {action('重新加载', 'refresh', () => onReload(format.encoding), saving)}
       {action(saving ? '正在保存' : `保存 · ${mod}S`, 'save', onSave, saving || !dirty)}
       {action('下载当前内容', 'download', onDownload, demo)}
+      {onHistory && <button className="session-tool" disabled={saving || demo} onClick={onHistory}>历史与验证</button>}
       {action(`搜索 · ${mod}F`, 'search', () => { if (view.current) openSearchPanel(view.current); })}
       {action(`触发代码补全 · ${shortcutLabel(completionShortcut)}`, 'terminal', () => {if(view.current){view.current.focus();startCompletion(view.current);}}, format.line_ending==='mixed')}
       <span className="editor-toolbar-divider" />

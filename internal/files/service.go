@@ -32,12 +32,13 @@ type Entry struct {
 	LinkError    string  `json:"link_error,omitempty"`
 }
 type Document struct {
-	Path       string `json:"path"`
-	Content    string `json:"content"`
-	Revision   string `json:"revision"`
-	Encoding   string `json:"encoding,omitempty"`
-	LineEnding string `json:"line_ending,omitempty"`
-	BOM        bool   `json:"bom,omitempty"`
+	Path             string `json:"path"`
+	Content          string `json:"content"`
+	Revision         string `json:"revision"`
+	Encoding         string `json:"encoding,omitempty"`
+	LineEnding       string `json:"line_ending,omitempty"`
+	BOM              bool   `json:"bom,omitempty"`
+	OriginalEncoding string `json:"original_encoding,omitempty"`
 }
 
 type Directory struct {

@@ -132,6 +132,20 @@ export interface DraftRecoveryState {
     "drafts": RecoveryDraftSummary[] | null;
 }
 
+export interface FileHistory {
+    "enabled": boolean;
+    "validate": string;
+    "reload": string;
+    "versions": FileVersion[] | null;
+}
+
+export interface FileVersion {
+    "id": string;
+    "time": string;
+    "size": number;
+    "revision": string;
+}
+
 export interface ImagePreview {
     "id": string;
     "url": string;

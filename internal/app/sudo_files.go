@@ -78,6 +78,26 @@ test "$before" = "$(revision)" || { echo '读取期间文件已变化' >&2; exit
 }
 
 func (a *AppService) SaveSudoFile(ctx context.Context, id string, document files.Document, password string) (files.Document, error) {
+	history, err := a.GetFileHistory(id, document.Path)
+	if err != nil {
+		return files.Document{}, err
+	}
+	if history.Enabled {
+		charset := document.OriginalEncoding
+		if charset == "" {
+			charset = document.Encoding
+		}
+		previous, err := a.ReadSudoFile(ctx, id, document.Path, charset, password)
+		if err != nil {
+			return files.Document{}, err
+		}
+		if previous.Revision != document.Revision {
+			return files.Document{}, errors.New("远端文件已变化，请先对比与合并")
+		}
+		if err := a.recordFileVersion(id, previous); err != nil {
+			return files.Document{}, err
+		}
+	}
 	data, err := files.EncodeDocument(document)
 	if err != nil {
 		return files.Document{}, err

@@ -22,6 +22,8 @@ export type {
     CredentialReference,
     DirectorySyncPreview,
     DraftRecoveryState,
+    FileHistory,
+    FileVersion,
     ImagePreview,
     LinuxPort,
     LinuxPortList,

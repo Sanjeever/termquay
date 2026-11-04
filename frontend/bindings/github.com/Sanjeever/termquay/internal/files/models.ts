@@ -13,6 +13,7 @@ export interface Document {
     "encoding"?: string;
     "line_ending"?: string;
     "bom"?: boolean;
+    "original_encoding"?: string;
 }
 
 export interface Entry {

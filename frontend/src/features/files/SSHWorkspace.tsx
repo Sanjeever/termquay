@@ -27,6 +27,7 @@ import SudoAuthorizationDialog, { type SudoAuthorization } from './SudoAuthoriza
 const TextDocument = lazy(() => import('./TextDocument'));
 const ImagePreview = lazy(() => import('./ImagePreview'));
 const FileConflictView = lazy(() => import('./FileConflictView'));
+const FileHistoryDialog = lazy(() => import('./FileHistoryDialog'));
 
 type Draft = Document & { saved: string; savedFormat?: string; reloadEpoch?: number; error: string; saving: boolean; needsReview?: boolean; recovery?:boolean; sudo?: boolean };
 function isDirty(draft: Draft) { return !!draft.recovery || draft.content !== draft.saved || !!draft.savedFormat && formatKey(draft) !== draft.savedFormat; }
@@ -70,6 +71,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   const [sudoPrompt, setSudoPrompt] = useState<{ path: string; encoding: string; operation: 'open' | 'read' | 'save' }>();
   const sudoAnswer = useRef<(value?: SudoAuthorization) => void>();
   const [sudoConflict, setSudoConflict] = useState<Document>();
+  const [historyPath, setHistoryPath] = useState('');
   function authorizeSudo(path: string, encoding: string, operation: 'open' | 'read' | 'save') {
     if (sudoAnswer.current) return Promise.resolve(undefined);
     return new Promise<SudoAuthorization | undefined>(resolve => { sudoAnswer.current = resolve; setSudoPrompt({ path, encoding, operation }); });
@@ -239,7 +241,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
         const authorization = draft.sudo ? await authorizeSudo(path, draft.encoding || 'UTF-8', 'save') : undefined;
         if (draft.sudo && !authorization) { updateDrafts(prev => prev.map(d => d.path === path ? { ...d, saving: false } : d)); return false; }
         if (disposed.current || instance.current !== sessionID) return false;
-        const document = { path, content: draft.content, revision: draft.revision, ...documentFormat(draft) };
+        const document = { path, content: draft.content, revision: draft.revision, original_encoding: savedEncoding(draft), ...documentFormat(draft) };
         const result = authorization ? await SaveSudoFile(sessionID, document, authorization.password) : await SaveRemoteFile(sessionID, document);
         if (disposed.current || instance.current!==sessionID) return false;
         updateDrafts(prev => prev.map(d => d.path === path ? { ...d, saved: result.content, savedFormat: formatKey(result), revision: result.revision, saving: false } : d));
@@ -316,9 +318,10 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
       {fileOrder.filter(imageFile).map(path=><div key={`image:${path}`} className="editor-tab" data-tab-id={path} hidden={!shown(path)} style={{gridColumn:maximized?1:paneFor(path)===0?1:3,gridRow:2}} onFocusCapture={()=>setActivePane(paneFor(path))}><Suspense fallback={<div className="view-loading" role="status">正在载入图片预览…</div>}><ImagePreview workspace={sessionID} path={path} visible={visible&&shown(path)} onDownload={()=>{void StartDownload(sessionID,path).catch(e=>setError(errorMessage(e)));}} onText={()=>{void openPath(path,'UTF-8','text').catch(e=>setError(errorMessage(e)));}}/></Suspense></div>)}
       {drafts.map(d => <div key={d.path} className={`editor-tab ${activePane===paneFor(d.path)?'focused-pane':''}`} data-tab-id={d.path} hidden={!shown(d.path)||imageFile(d.path)} style={{gridColumn:maximized?1:paneFor(d.path)===0?1:3,gridRow:2}} onFocusCapture={()=>setActivePane(paneFor(d.path))}>
         {d.error && <div className="file-save-error"><p role="alert" className="error">{d.error}</p><div className="button-row"><Button size="sm" variant="light" isDisabled={d.saving} onPress={()=>setConflict(d.path)}>对比与合并</Button><Button size="sm" variant="light" onPress={() => setRereading(d.path)}>重新读取</Button><Button size="sm" variant="light" onPress={() => { navigator.clipboard.writeText(d.content).catch(e => setError(errorMessage(e))); }}>复制草稿</Button></div></div>}
-        <Suspense fallback={<div className="view-loading" role="status">正在载入编辑器…</div>}><TextDocument workspace={sessionID} anchor={markdownAnchor?.path===d.path?markdownAnchor:undefined} onNavigate={(path,hash)=>{setMarkdownAnchor(previous=>({path,hash,sequence:(previous?.sequence||0)+1}));void openPath(path).catch(error=>setError(errorMessage(error)));}} completionShortcut={shortcuts.completion} path={d.path} jumpTo={fileJump?.path === d.path ? fileJump : undefined} content={d.content} format={documentFormat(d)} saving={d.saving} dirty={isDirty(d)} reloadEpoch={d.reloadEpoch} visible={visible && shown(d.path) && !imageFile(d.path)} focusOnShow={activePane===paneFor(d.path)} onChange={(value,format) => updateDrafts(prev => prev.map(item => item.path === d.path ? { ...item, ...format, content: value } : item))} onSave={() => void save(d.path)} onReload={encoding=>requestReload(d.path,encoding)} onDownload={()=>void DownloadFileDraft({...d,...documentFormat(d)}).catch(e=>updateDrafts(prev=>prev.map(item=>item.path===d.path?{...item,error:errorMessage(e)}:item)))} /></Suspense>
+        <Suspense fallback={<div className="view-loading" role="status">正在载入编辑器…</div>}><TextDocument workspace={sessionID} onHistory={() => setHistoryPath(d.path)} anchor={markdownAnchor?.path===d.path?markdownAnchor:undefined} onNavigate={(path,hash)=>{setMarkdownAnchor(previous=>({path,hash,sequence:(previous?.sequence||0)+1}));void openPath(path).catch(error=>setError(errorMessage(error)));}} completionShortcut={shortcuts.completion} path={d.path} jumpTo={fileJump?.path === d.path ? fileJump : undefined} content={d.content} format={documentFormat(d)} saving={d.saving} dirty={isDirty(d)} reloadEpoch={d.reloadEpoch} visible={visible && shown(d.path) && !imageFile(d.path)} focusOnShow={activePane===paneFor(d.path)} onChange={(value,format) => updateDrafts(prev => prev.map(item => item.path === d.path ? { ...item, ...format, content: value } : item))} onSave={() => void save(d.path)} onReload={encoding=>requestReload(d.path,encoding)} onDownload={()=>void DownloadFileDraft({...d,...documentFormat(d)}).catch(e=>updateDrafts(prev=>prev.map(item=>item.path===d.path?{...item,error:errorMessage(e)}:item)))} /></Suspense>
       </div>)}
       </WorkspacePanes>
+      {historyPath && drafts.filter(d => d.path === historyPath).map(d => <Suspense key={`history:${sessionID}:${d.path}`} fallback={<div role="status">正在载入配置历史…</div>}><FileHistoryDialog workspace={sessionID} document={d} dirty={isDirty(d)} onClose={() => setHistoryPath('')} onRestore={version => updateDrafts(previous => previous.map(item => item.path === d.path ? { ...item, content: version.content, ...documentFormat(version), reloadEpoch: (item.reloadEpoch || 0) + 1 } : item))} /></Suspense>)}
     </div>
     <MonitorPanel id={sessionID} visible={visible && monitorShown} onDirectory={path => { showFiles(); setDirectoryRequest(previous => ({ path, sequence: (previous?.sequence || 0) + 1, locate: true })); }} onFile={path => openTerminalFile(path, 1)} onClose={() => { toggleMonitor(); monitorToggle.current?.focus(); }} />
     </div>
