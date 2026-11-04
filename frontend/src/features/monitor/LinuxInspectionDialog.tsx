@@ -29,7 +29,7 @@ function ProcessDetails({ workspace, process, onDirectory, onService }: { worksp
       {details.executable && <p className="file-path">可执行文件 · {details.executable}</p>}
       {details.directory && <div className="inspection-path"><span className="file-path">工作目录 · {details.directory}</span>{onDirectory && details.directory.startsWith('/') && <Button size="sm" variant="light" onPress={() => onDirectory(details.directory)}>打开目录</Button>}</div>}
       {details.service && <Button size="sm" variant="light" onPress={() => onService(details.service)}>查看服务 {details.service}</Button>}
-      {details.errors.map((message, index) => <p key={index} role="status" className="error">{message}</p>)}
+      {(details.errors || []).map((message, index) => <p key={index} role="status" className="error">{message}</p>)}
     </>}
   </section>;
 }
@@ -55,7 +55,7 @@ function ProcessInspection({ workspace, initialOrder, ...navigation }: { workspa
     <div className="inspection-toolbar"><SelectControl aria-label="进程排序" value={order} onChange={event => setOrder(event.target.value as 'cpu' | 'memory')}><option value="cpu">按 CPU 排序</option><option value="memory">按内存排序</option></SelectControl><input aria-label="过滤已读取进程" placeholder="过滤已读取进程" value={filter} onChange={event => setFilter(event.target.value)} maxLength={256} /><Button size="sm" variant="light" isLoading={busy} onPress={() => setRevision(value => value + 1)}>刷新</Button></div>
     <ErrorNotice message={error} />
     {list?.warning && <p role="status" className="error">{list.warning}</p>}
-    {list && <div className="session-status" role="status">{items.length} / {list.items.length} 个进程 · {new Date(list.time).toLocaleTimeString()}{list.truncated && ' · 结果已截断，可切换排序查看其他高占用进程'}</div>}
+    {list && <div className="session-status" role="status">{items.length} / {list.items?.length || 0} 个进程 · {new Date(list.time).toLocaleTimeString()}{list.truncated && ' · 结果已截断，可切换排序查看其他高占用进程'}</div>}
     <div className="inspection-table-scroll"><table className="inspection-table"><thead><tr><th>PID</th><th>用户</th><th><Tooltip content="进程存活期间的平均 CPU 使用率，来自 ps；与监控的采样区间使用率不同"><span>CPU %</span></Tooltip></th><th>内存</th><th>命令行</th></tr></thead><tbody>{items.map(process => <tr key={process.pid} className={selected?.pid === process.pid ? 'selected' : ''}><td><button className="inspection-pick" aria-label={`查看进程 ${process.pid}`} aria-pressed={selected?.pid === process.pid} onClick={() => setSelected(process)}>{process.pid}</button></td><td>{process.user}</td><td>{process.cpu.toFixed(1)}</td><td><Tooltip content={`物理内存占比 ${process.memory.toFixed(1)}%`}><span>{bytes(process.rss)}</span></Tooltip></td><td><button className="inspection-process-command" onClick={() => setSelected(process)}>{process.command}</button></td></tr>)}</tbody></table></div>
     {list && !items.length && <p className="sidebar-empty">没有匹配进程</p>}
     {selected && <ProcessDetails key={`${workspace}:${revision}:${selected.pid}`} workspace={workspace} process={selected} {...navigation} />}
