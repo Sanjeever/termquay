@@ -1,6 +1,7 @@
 import { errorMessage } from "../../lib/errors";
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { Button, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger, Tooltip } from '@heroui/react';
+import { Button, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger } from '@heroui/react';
+import Tooltip from '../../components/Tooltip';
 import { Events, System } from '@wailsio/runtime';
 import Workbench from '../../components/layout/Workbench';
 import WorkspaceTabs from '../../components/layout/WorkspaceTabs';

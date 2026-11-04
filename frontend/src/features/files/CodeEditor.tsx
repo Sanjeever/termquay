@@ -1,6 +1,7 @@
 import { errorMessage } from "../../lib/errors";
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { Dropdown, DropdownTrigger, DropdownMenu, DropdownSection, DropdownItem, Tooltip } from '@heroui/react';
+import { Dropdown, DropdownTrigger, DropdownMenu, DropdownSection, DropdownItem } from '@heroui/react';
+import Tooltip from '../../components/Tooltip';
 import { Compartment, EditorState, StateEffect, StateField, Transaction } from '@codemirror/state';
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, indentWithTab, undo, redo, undoDepth, redoDepth, invertedEffects } from '@codemirror/commands';
