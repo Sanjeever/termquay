@@ -9,6 +9,7 @@ import { capturePortableUI } from './portable';
 import type useAutomaticBackup from './useAutomaticBackup';
 import BackupHistory from './BackupHistory';
 import RestoreBackupDialog from './RestoreBackupDialog';
+import ErrorNotice from '../../components/ErrorNotice';
 
 export default function BackupSettings({ onRestore, onEditConnection, connections, automaticBackup }: {
   onRestore(): void; onEditConnection(id: string): void; connections: Connection[]; automaticBackup: ReturnType<typeof useAutomaticBackup>;
@@ -28,13 +29,14 @@ export default function BackupSettings({ onRestore, onEditConnection, connection
   const [search, setSearch] = useState('');
   const localForm = useRef<HTMLFormElement>(null);
   const mounted = useRef(true);
+  const [loadRevision, setLoadRevision] = useState(0);
 
   useEffect(() => {
     mounted.current = true;
     const request = GetBackupSettings();
-    request.then(value => { if (mounted.current) { setPreferences(value); setLocationEditing(!value.configured); setBackupEditing(!value.recovery_saved); } }).catch(error => { if (mounted.current) setError({ area: 'location', message: errorMessage(error) }); });
+    request.then(value => { if (mounted.current) { setPreferences(value); setLocationEditing(!value.configured); setBackupEditing(!value.recovery_saved); void automaticBackup.refresh(); } }).catch(error => { if (mounted.current) setError({ area: 'location', message: errorMessage(error) }); });
     return () => { mounted.current = false; request.cancel(); };
-  }, []);
+  }, [loadRevision]);
   useEffect(() => {
     let disposed = false;
     const request = GetBackupCoverage();
@@ -46,7 +48,7 @@ export default function BackupSettings({ onRestore, onEditConnection, connection
     if (busy) return;
     setBusy(area); setError(undefined);
     try { await task(); }
-    catch (error) { if (mounted.current) setError({ area, message: errorMessage(error) }); }
+    catch (error) { if (mounted.current) {setError({ area, message: errorMessage(error) });if(area==='backup')await automaticBackup.refresh();} }
     finally { if (mounted.current) setBusy(''); }
   }
   async function refreshPreferences() {
@@ -106,7 +108,7 @@ export default function BackupSettings({ onRestore, onEditConnection, connection
         <div className="backup-form-columns"><Input name="username" label="用户名" labelPlacement="outside" defaultValue={preferences.username} autoComplete="off" size="sm" isDisabled={!!busy}/><Input name="password" label="WebDAV 登录密码" labelPlacement="outside" placeholder={preferences.password_saved ? '已保存，留空沿用' : ''} type="password" autoComplete="off" size="sm" isDisabled={!!busy}/></div>
         <div className="button-row"><Button size="sm" type="submit" color="primary" isLoading={busy === 'location'} isDisabled={!!busy}>保存位置</Button>{preferences.configured && <Button size="sm" variant="light" isDisabled={!!busy} onPress={() => setLocationEditing(false)}>取消</Button>}</div>
       </form> : <><dl className="backup-location"><div><dt>地址</dt><dd>{preferences.url.replace(/\/$/, '')}/{preferences.directory}</dd></div>{preferences.username && <div><dt>用户</dt><dd>{preferences.username}</dd></div>}</dl><Button size="sm" variant="bordered" isLoading={busy === 'location'} isDisabled={!!busy} onPress={() => void run('location', async () => { await CheckSavedWebDAV(); setChecked(true); })}>{checked ? '读写与发布检查通过' : '检查连接'}</Button></>)}
-      {error?.area === 'location' && <p role="alert" className="error">{error.message}</p>}
+      <ErrorNotice message={error?.area==='location'?error.message:''} onDismiss={preferences?()=>setError(undefined):undefined}>{!preferences&&<button className="session-tool" onClick={()=>{setError(undefined);setLoadRevision(value=>value+1);void automaticBackup.refresh(true);}}>重新读取备份设置</button>}</ErrorNotice>
     </section>
 
     {preferences && <section className="backup-section">
@@ -122,7 +124,8 @@ export default function BackupSettings({ onRestore, onEditConnection, connection
       <div className="backup-automatic-row"><label className="checkbox-label"><input type="checkbox" role="switch" aria-label="自动备份" checked={!!status?.enabled} disabled={!!busy || !preferences.configured || !preferences.recovery_saved || backupEditing || locationEditing} onChange={event => { const enabled = event.target.checked; void run('backup', async () => { await SetAutomaticBackupEnabled(enabled); await automaticBackup.refresh(); }); }}/>自动备份<span className="muted">{automaticLabel}</span></label><Button size="sm" variant="bordered" isLoading={busy === 'backup' || !!status?.running} isDisabled={!!busy || !!status?.running || !preferences.configured || !preferences.recovery_saved || backupEditing || locationEditing} onPress={() => void run('backup', async () => { if (preferences.selection.settings) await SavePortableUI(capturePortableUI()); await BackupNow(); await automaticBackup.refresh(); setHistoryRevision(value => value + 1); })}>{status?.error ? '重试备份' : '立即备份'}</Button></div>
       <p className="muted backup-last-success">{status?.last_success ? `最近成功 ${new Date(status.last_success).toLocaleString()}` : '尚无成功备份记录'}</p>
       {!!coverage.length && <details className="backup-coverage"><summary>需要补齐或在目标设备配置的认证 · {coverage.length} 个连接</summary><ul>{coverage.map(item => <li key={item.connection_id}><div><strong>{item.name}</strong><span className="muted">{item.reason}</span></div>{item.can_save && <Button size="sm" variant="light" isDisabled={!!busy} onPress={() => onEditConnection(item.connection_id)}>补齐凭据</Button>}</li>)}</ul></details>}
-      {(error?.area === 'backup' || automaticBackup.error || status?.error) && <p role="alert" className="error">{error?.area === 'backup' ? error.message : automaticBackup.error || status?.error}</p>}
+      <ErrorNotice message={error?.area==='backup'?error.message:''} onDismiss={()=>setError(undefined)}/>
+      {(automaticBackup.error || status?.error) && <details className="error backup-failure-details"><summary>最近备份失败</summary><p>{automaticBackup.error || status?.error}</p></details>}
     </section>}
 
     {preferences?.configured && !locationEditing && <BackupHistory key={`${preferences.url}\n${preferences.username}\n${preferences.directory}`} deviceID={preferences.device_id} deviceName={preferences.device_name} recoverySaved={preferences.recovery_saved} revision={`${historyRevision}:${status?.last_success || ''}`} onRestore={path => setRestoring(path)}/>}
@@ -135,7 +138,7 @@ export default function BackupSettings({ onRestore, onEditConnection, connection
       <div className="button-row"><Button size="sm" variant="bordered" type="submit" isLoading={busy === 'files'} isDisabled={!!busy}>导出加密文件</Button><Button size="sm" variant="light" isDisabled={!!busy} onPress={() => setRestoring('')}>从文件恢复</Button></div>
     </form></details>}
     <Button className="backup-protection-directory" size="sm" variant="light" isDisabled={!!busy} onPress={() => void run('files', async () => { await OpenRestoreBackupDirectory(); })}>打开恢复保护副本目录</Button>
-    {error?.area === 'files' && <p role="alert" className="error">{error.message}</p>}
+    <ErrorNotice message={error?.area==='files'?error.message:''} onDismiss={()=>setError(undefined)}/>
     {restoring !== undefined && <RestoreBackupDialog path={restoring} recoverySaved={!!preferences?.recovery_saved} hasConnections={!!connections.length} onClose={() => setRestoring(undefined)} onRestored={() => { onRestore(); setHistoryRevision(value => value + 1); }} onError={message => setError({ area: 'files', message })}/>}
   </section>;
 }

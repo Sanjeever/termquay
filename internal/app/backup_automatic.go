@@ -16,6 +16,7 @@ type AutomaticBackupStatus struct {
 	URL         string `json:"url"`
 	LastSuccess string `json:"last_success"`
 	Error       string `json:"error"`
+	FailureID   uint64 `json:"failure_id"`
 }
 
 type automaticBackupConfig struct {
@@ -169,6 +170,7 @@ func (a *AppService) runAutomaticBackup(ctx context.Context) {
 		if a.automaticConfig == config {
 			if err != nil {
 				a.automaticStatus.Error = err.Error()
+				a.automaticStatus.FailureID++
 			} else {
 				last = time.Now().UTC().Format(time.RFC3339Nano)
 				a.automaticStatus.LastSuccess = last
@@ -183,6 +185,7 @@ func (a *AppService) runAutomaticBackup(ctx context.Context) {
 			if err != nil {
 				a.automaticMu.Lock()
 				a.automaticStatus.Error = "快照已发布，但成功时间保存失败：" + err.Error()
+				a.automaticStatus.FailureID++
 				a.automaticMu.Unlock()
 			}
 		}

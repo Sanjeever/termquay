@@ -5,6 +5,7 @@ import { GetBackupDeviceAliases, GetSnapshotDetails, ListSavedSnapshots, SetBack
 import type { SnapshotDetails } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import type { RemoteSnapshot } from '../../../bindings/github.com/Sanjeever/termquay/internal/backup/models';
 import SelectControl from '../../components/SelectControl';
+import ErrorNotice from '../../components/ErrorNotice';
 
 export default function BackupHistory({ deviceID, deviceName, recoverySaved, revision, onRestore }: {
   deviceID: string; deviceName: string; recoverySaved: boolean; revision: string; onRestore(path: string): void;
@@ -77,8 +78,8 @@ export default function BackupHistory({ deviceID, deviceName, recoverySaved, rev
   }
   return <section className="backup-section">
     <div className="backup-section-heading"><h3>设备备份</h3><div className="button-row"><SelectControl aria-label="筛选备份设备" value={scope} onChange={event => setScope(event.target.value)}><option value="all">所有设备</option><option value="other">其他设备</option><option value="local">本机</option></SelectControl><Button size="sm" variant="light" isDisabled={loading} onPress={() => setRefresh(value => value + 1)}>刷新</Button></div></div>
-    {error && <p role="alert" className="error">{error}</p>}
-    {loading ? <p className="muted" role="status">正在读取备份…</p> : !groups.size && <p className="muted">{scope === 'other' ? '暂无其他设备的备份' : '暂无备份'}</p>}
+    <ErrorNotice message={error}><button className="session-tool" onClick={()=>setRefresh(value=>value+1)}>重新读取</button></ErrorNotice>
+    {loading ? <p className="muted" role="status">正在读取备份…</p> : !error && !groups.size && <p className="muted">{scope === 'other' ? '暂无其他设备的备份' : '暂无备份'}</p>}
     {!loading && <ul className="backup-devices">{visible.map(([id, snapshots]) => {
       const latest = snapshots[0];
       const detail = details[latest.path];

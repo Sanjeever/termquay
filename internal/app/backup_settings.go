@@ -178,9 +178,17 @@ func (a *AppService) ListSavedSnapshots(ctx context.Context) ([]backup.RemoteSna
 	return config.Options.List(ctx)
 }
 
-func (a *AppService) BackupNow(ctx context.Context) (string, error) {
+func (a *AppService) BackupNow(ctx context.Context) (remote string, result error) {
 	a.backupMu.Lock()
 	defer a.backupMu.Unlock()
+	defer func() {
+		if result != nil {
+			a.automaticMu.Lock()
+			a.automaticStatus.Error = result.Error()
+			a.automaticStatus.FailureID++
+			a.automaticMu.Unlock()
+		}
+	}()
 	config, err := a.savedBackupConfig()
 	if err != nil {
 		return "", err
@@ -189,7 +197,7 @@ func (a *AppService) BackupNow(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	remote, err := config.Options.Append(ctx, device, encrypted)
+	remote, err = config.Options.Append(ctx, device, encrypted)
 	if err != nil {
 		return "", err
 	}

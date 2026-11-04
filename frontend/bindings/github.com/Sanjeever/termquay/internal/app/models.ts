@@ -24,6 +24,7 @@ export interface AutomaticBackupStatus {
     "url": string;
     "last_success": string;
     "error": string;
+    "failure_id": number;
 }
 
 export interface BackupCoverage {
