@@ -151,7 +151,7 @@ func (a *AppService) protectRestore(current store.Data) error {
 		return err
 	}
 	settings["snippets"] = string(value)
-	workflows, err := a.captureWorkflowSettings(current, BackupSelection{Tasks: true, Workspaces: true, Tunnels: true, Sync: true, Preferences: true})
+	workflows, err := a.captureWorkflowSettings(current, BackupSelection{Tasks: true, Workspaces: true, Tunnels: true, Sync: true, Preferences: true, LogRules: true})
 	if err != nil {
 		return err
 	}

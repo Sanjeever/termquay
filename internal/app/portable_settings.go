@@ -144,7 +144,7 @@ func (a *AppService) restoreSettings(settings map[string]string) (map[string]str
 			}
 			result["snippets"] = encoded
 		} else if backup.IsWorkflowSetting(key) {
-			if key == "command_tasks" {
+			if key == "command_tasks" || key == "log_view_presets" {
 				encoded, err := a.store.SealSetting(key, value)
 				if err != nil {
 					return nil, nil, err

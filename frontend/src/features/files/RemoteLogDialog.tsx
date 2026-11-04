@@ -1,20 +1,39 @@
 import { errorMessage } from "../../lib/errors";
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
-import { ReadRemoteLog } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
-import type { RemoteLogSlice } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
+import { ReadRemoteLog, ListLogViewPresets, SaveLogViewPreset, DeleteLogViewPreset } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
+import type { RemoteLogSlice, LogViewPreset } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import ErrorNotice from '../../components/ErrorNotice';
+import SelectControl from '../../components/SelectControl';
+import { bytes } from './transferFormat';
+import { defaultLogViewOptions, retainLogTail, type LogViewOptions, type LogViewResult } from './logView';
 
 export default function RemoteLogDialog({ workspace, path, visible, onClose }: { workspace: string; path: string; visible: boolean; onClose(): void }) {
   const [slice, setSlice] = useState<RemoteLogSlice>();
   const [follow, setFollow] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [filter, setFilter] = useState('');
+  const [options, setOptions] = useState<LogViewOptions>(defaultLogViewOptions);
+  const [view, setView] = useState<LogViewResult>();
+  const [filterError, setFilterError] = useState('');
+  const [filtering, setFiltering] = useState(false);
+  const [autoScroll, setAutoScroll] = useState(true);
+  const scrolling = useRef(autoScroll); scrolling.current = autoScroll;
+  const [unread, setUnread] = useState(0);
+  const [unreadBytes, setUnreadBytes] = useState(0);
+  const [trimmed, setTrimmed] = useState(false);
+  const [presets, setPresets] = useState<LogViewPreset[]>([]);
+  const [presetID, setPresetID] = useState('');
+  const [presetName, setPresetName] = useState('');
+  const [presetError, setPresetError] = useState('');
+  const [savingPreset, setSavingPreset] = useState(false);
+  const [deletingPreset, setDeletingPreset] = useState(false);
+  const worker = useRef<Worker>();
+  const active = useRef(visible); active.current = visible;
   const current = useRef(slice); current.current = slice;
   const mounted = useRef(true);
   const pending = useRef<ReturnType<typeof ReadRemoteLog>>();
-  const content = useRef<HTMLPreElement>(null);
+  const content = useRef<HTMLDivElement>(null);
   async function load(kind: 'refresh' | 'older' | 'append') {
     if (pending.current) return;
     setBusy(true); setError('');
@@ -23,19 +42,73 @@ export default function RemoteLogDialog({ workspace, path, visible, onClose }: {
     try {
       const value = await request; if (!mounted.current || pending.current !== request) return;
       if (kind === 'append' && before && !value.reset && value.start === before.end) {
-        const text = before.content + value.content;
-        if (text.length > 512 * 1024) { setSlice(value); } else setSlice({ ...value, start: before.start, content: text });
-      } else setSlice(value);
-      if (kind !== 'older') requestAnimationFrame(() => content.current?.scrollTo({ top: content.current.scrollHeight }));
-    } catch (e) { if (mounted.current && pending.current === request) { setError(errorMessage(e)); setFollow(false); } }
+        const retained = retainLogTail(before.content + value.content);
+        setSlice({ ...value, start: before.start + retained.removedBytes, content: retained.content });
+        if (retained.removedBytes) setTrimmed(true);
+        if (!scrolling.current && value.content) { setUnread(previous => previous + (value.content.match(/\n/g)?.length || 0)); setUnreadBytes(previous => previous + value.end - value.start); }
+      } else {
+        const retained = retainLogTail(value.content);
+        setSlice({ ...value, start: value.start + retained.removedBytes, content: retained.content });
+        setTrimmed(retained.removedBytes > 0); setUnread(0); setUnreadBytes(0);
+        if (kind === 'older') setAutoScroll(false);
+      }
+    } catch (e) { if (mounted.current && active.current && pending.current === request) { setError(errorMessage(e)); setFollow(false); } }
     finally { if (pending.current === request) { pending.current = undefined; if (mounted.current) setBusy(false); } }
   }
-  useEffect(() => { mounted.current = true; void load('refresh'); return () => { mounted.current = false; pending.current?.cancel(); pending.current = undefined; }; }, [workspace, path]);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; pending.current?.cancel(); pending.current = undefined; worker.current?.terminate(); }; }, [workspace, path]);
+  useEffect(() => { if (!visible) pending.current?.cancel(); else if (!current.current) void load('refresh'); }, [visible, workspace, path]);
   useEffect(() => { if (!follow || !visible) return; const timer = setInterval(() => void load('append'), 2000); return () => clearInterval(timer); }, [follow, visible, workspace, path]);
+  useEffect(() => {
+    const request = ListLogViewPresets(); let disposed = false;
+    request.then(values => { if (!disposed) setPresets(values || []); }).catch(e => { if (!disposed) setPresetError(errorMessage(e)); });
+    return () => { disposed = true; request.cancel(); };
+  }, []);
+  useEffect(() => {
+    if (!visible) { worker.current?.terminate(); worker.current = undefined; return; }
+    let disposed = false, inFlight = false;
+    let deadline: ReturnType<typeof setTimeout> | undefined;
+    setFiltering(true); setFilterError('');
+    const delay = setTimeout(() => {
+      const fail = (message: string) => { if (disposed) return; inFlight = false; clearTimeout(deadline); worker.current?.terminate(); worker.current = undefined; setView(undefined); setFilterError(message); setFiltering(false); };
+      try {
+        if (!worker.current) worker.current = new Worker(new URL('./logView.worker.ts', import.meta.url), { type: 'module' });
+        worker.current.onmessage = (event: MessageEvent<LogViewResult>) => { if (disposed) return; inFlight = false; clearTimeout(deadline); setView(event.data.error ? undefined : event.data); setFilterError(event.data.error ? `筛选表达式无效：${event.data.error}` : ''); setFiltering(false); };
+        worker.current.onerror = event => { event.preventDefault(); fail(`日志处理失败：${event.message}`); };
+        inFlight = true;
+        worker.current.postMessage({ content: slice?.content || '', options });
+        deadline = setTimeout(() => fail('日志处理超时，请简化表达式或关闭 JSON 格式化'), 1000);
+      } catch (e) { fail(errorMessage(e)); }
+    }, 150);
+    return () => { disposed = true; clearTimeout(delay); clearTimeout(deadline); if (inFlight) { worker.current?.terminate(); worker.current = undefined; } };
+  }, [slice?.content, options, visible]);
+  useLayoutEffect(() => { if (autoScroll && visible && content.current) content.current.scrollTop = content.current.scrollHeight; }, [view, autoScroll, visible]);
+  function resumeScroll() { setAutoScroll(true); setUnread(0); setUnreadBytes(0); }
+  async function savePreset() {
+    setSavingPreset(true); setPresetError('');
+    try { const item = await SaveLogViewPreset({ id: presetID, name: presetName, ...options }); if (mounted.current) { setPresets(previous => [...previous.filter(value => value.id !== item.id), item]); setPresetID(item.id); setPresetName(item.name); } }
+    catch (e) { if (mounted.current) setPresetError(errorMessage(e)); }
+    finally { if (mounted.current) setSavingPreset(false); }
+  }
+  async function deletePreset() {
+    if (!deletingPreset) { setDeletingPreset(true); return; }
+    setSavingPreset(true); setPresetError('');
+    try { await DeleteLogViewPreset(presetID); if (mounted.current) { setPresets(previous => previous.filter(item => item.id !== presetID)); setPresetID(''); setPresetName(''); setDeletingPreset(false); } }
+    catch (e) { if (mounted.current) setPresetError(errorMessage(e)); }
+    finally { if (mounted.current) setSavingPreset(false); }
+  }
+  const rows = useMemo(() => view?.rows.map((row, index) => {
+    let position = 0;
+    const parts = row.highlights.flatMap((highlight, match) => { const previous = row.text.slice(position, highlight.start); position = highlight.end; return [previous, <mark key={match}>{row.text.slice(highlight.start, highlight.end)}</mark>]; });
+    return <div key={index}>{row.gap && <div className="remote-log-gap">···</div>}{parts}{row.text.slice(position) || (row.text ? '' : '\n')}</div>;
+  }), [view]);
   return <Modal isOpen onClose={onClose} size="5xl" className="app-dialog remote-log-dialog" scrollBehavior="inside"><ModalContent><ModalHeader>{path.split('/').pop()}</ModalHeader><ModalBody>
-    <div className="button-row"><Button size="sm" variant="light" isDisabled={busy || !slice?.start} onPress={() => { setFollow(false); void load('older'); }}>更早内容</Button><Button size="sm" variant="light" isLoading={busy} onPress={() => void load('refresh')}>读取末尾</Button><label className="checkbox-label"><input type="checkbox" checked={follow} onChange={event => setFollow(event.target.checked)}/>跟随追加</label><input aria-label="筛选已读取日志行" placeholder="筛选已读取内容" value={filter} onChange={event => setFilter(event.target.value)} maxLength={128}/></div>
+    <div className="button-row"><Button size="sm" variant="light" isDisabled={busy || !slice?.start} onPress={() => { setFollow(false); void load('older'); }}>更早内容</Button><Button size="sm" variant="light" isLoading={busy} onPress={() => { resumeScroll(); void load('refresh'); }}>读取末尾</Button><label className="checkbox-label"><input type="checkbox" checked={follow} onChange={event => setFollow(event.target.checked)}/>跟随追加</label><Button size="sm" variant="light" aria-pressed={!autoScroll} onPress={() => autoScroll ? setAutoScroll(false) : resumeScroll()}>{autoScroll ? '暂停滚动' : unreadBytes ? `查看新增 ${unread + (slice?.content.endsWith('\n') ? 0 : 1)} 行` : '滚动到最新'}</Button></div>
+    <div className="remote-log-filters"><input aria-label="筛选已读取日志行" placeholder="筛选已读内容" value={options.filter} onChange={event => setOptions(previous => ({ ...previous, filter: event.target.value }))} maxLength={128}/><input aria-label="排除日志行" placeholder="排除" value={options.exclude} onChange={event => setOptions(previous => ({ ...previous, exclude: event.target.value }))} maxLength={128}/><input aria-label="高亮日志关键词" placeholder="高亮" value={options.highlight} onChange={event => setOptions(previous => ({ ...previous, highlight: event.target.value }))} maxLength={128}/></div>
+    <div className="button-row"><label className="checkbox-label"><input type="checkbox" checked={options.regex} onChange={event => setOptions(previous => ({ ...previous, regex: event.target.checked }))}/>正则</label><label className="checkbox-label"><input type="checkbox" checked={options.case_sensitive} onChange={event => setOptions(previous => ({ ...previous, case_sensitive: event.target.checked }))}/>区分大小写</label><label className="checkbox-label"><input type="checkbox" checked={options.format_json} onChange={event => setOptions(previous => ({ ...previous, format_json: event.target.checked }))}/>JSON 格式化</label><label className="checkbox-label">上下文<SelectControl aria-label="匹配上下文行数" value={options.context_lines} onChange={event => setOptions(previous => ({ ...previous, context_lines: Number(event.target.value) }))}>{[0, 1, 3, 5, 10].map(value => <option key={value} value={value}>{value} 行</option>)}</SelectControl></label></div>
+    <details><summary>保存与复用规则</summary><div className="button-row"><SelectControl aria-label="已保存日志规则" disabled={savingPreset} value={presetID} onChange={event => { const item = presets.find(value => value.id === event.target.value); setPresetID(item?.id || ''); setPresetName(item?.name || ''); setDeletingPreset(false); if (item) setOptions({ filter: item.filter, exclude: item.exclude, highlight: item.highlight, regex: item.regex, case_sensitive: item.case_sensitive, context_lines: item.context_lines, format_json: item.format_json }); }}><option value="">新规则</option>{presets.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</SelectControl><input aria-label="日志规则名称" placeholder="规则名称" maxLength={128} disabled={savingPreset} value={presetName} onChange={event => { setPresetName(event.target.value); setDeletingPreset(false); }}/><Button size="sm" variant="light" isLoading={savingPreset} isDisabled={!presetName.trim() || !!filterError || filtering} onPress={() => void savePreset()}>{presetID ? '更新规则' : '保存规则'}</Button>{presetID && <Button size="sm" variant="light" color="danger" isDisabled={savingPreset} onPress={() => void deletePreset()}>{deletingPreset ? '确认删除规则' : '删除规则'}</Button>}</div><ErrorNotice message={presetError} onDismiss={() => setPresetError('')}/></details>
     <p className="file-path">{path}</p><ErrorNotice message={error} onDismiss={()=>setError('')}/>
-    <pre className="remote-log-content" ref={content}>{filter ? slice?.content.split('\n').filter(line => line.toLowerCase().includes(filter.toLowerCase())).join('\n') : slice?.content}</pre>
-    <div className="session-status">字节 {slice?.start || 0}–{slice?.end || 0} / {slice?.size || 0}</div>
+    <ErrorNotice message={filterError}/>
+    <div className="remote-log-content" ref={content} role="region" aria-label="已读取日志内容" aria-busy={filtering} tabIndex={0} onScroll={event => { const node = event.currentTarget; if (node.scrollHeight - node.scrollTop - node.clientHeight > 12) setAutoScroll(false); else if (!filtering) resumeScroll(); }}>{rows}</div>
+    <div className="session-status">字节 {slice?.start || 0}–{slice?.end || 0} / {slice?.size || 0}{filtering ? ' · 筛选中…' : view && ` · 已读 ${view.scanned} 行，匹配 ${view.matched} 行`}{unreadBytes > 0 && ` · 未读 ${bytes(unreadBytes)}`}{trimmed && ' · 较早内容已移出缓存'}{view?.truncated && ' · 显示内容达到上限'}{view?.highlightLimited && ' · 高亮达到上限'}{!!view?.unformatted && ` · ${view.unformatted} 行 JSON 无法格式化，保留原文`}</div>
   </ModalBody><ModalFooter><Button variant="light" onPress={onClose}>关闭</Button></ModalFooter></ModalContent></Modal>;
 }

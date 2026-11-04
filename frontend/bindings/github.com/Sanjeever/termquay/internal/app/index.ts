@@ -30,6 +30,7 @@ export type {
     LinuxServiceList,
     LocalShell,
     LocalTerminal,
+    LogViewPreset,
     MonitorEvent,
     OpenResult,
     PrivateKeySelection,

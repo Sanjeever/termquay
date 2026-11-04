@@ -44,6 +44,7 @@ export interface BackupSelection {
     "tunnels": boolean;
     "sync": boolean;
     "preferences": boolean;
+    "log_rules": boolean;
 }
 
 export interface BackupSettings {
@@ -183,6 +184,18 @@ export interface LocalShell {
 export interface LocalTerminal {
     "id": string;
     "name": string;
+}
+
+export interface LogViewPreset {
+    "id": string;
+    "name": string;
+    "filter": string;
+    "exclude": string;
+    "highlight": string;
+    "regex": boolean;
+    "case_sensitive": boolean;
+    "context_lines": number;
+    "format_json": boolean;
 }
 
 export interface MonitorEvent {

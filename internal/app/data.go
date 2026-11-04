@@ -697,7 +697,7 @@ func (a *AppService) prepareRestore(snap backup.Snapshot) (RestorePreview, error
 	id := base64.RawURLEncoding.EncodeToString(randomBytes(24))
 	p := RestorePreview{ID: id, DeviceID: snap.DeviceID, DeviceName: snap.DeviceName, CredentialsIncluded: snap.CredentialsIncluded, CreatedAt: snap.CreatedAt, Added: []string{}, Updated: []string{}, Removed: []string{}, Credentials: len(snap.Data.Credentials), CredentialUpdated: []string{}}
 	p.Connections = snap.Data.Connections
-	p.SettingCounts, p.PathHints, err = validateWorkflowSettings(snap.Settings, snap.Data)
+	p.SettingCounts, p.PathHints, err = validateWorkflowSettings(snap.Settings, snap.Data, true)
 	if err != nil {
 		return RestorePreview{}, err
 	}
@@ -814,7 +814,7 @@ func (a *AppService) ConfirmRestoreWithOptions(id string, connectionIDs []string
 	if err != nil {
 		return err
 	}
-	if _, _, err := validateWorkflowSettings(workflows, data); err != nil {
+	if _, _, err := validateWorkflowSettings(workflows, data, false); err != nil {
 		return err
 	}
 	for key, value := range workflows {

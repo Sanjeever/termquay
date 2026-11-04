@@ -234,7 +234,7 @@ func validateSettings(settings map[string]string) error {
 
 func IsWorkflowSetting(key string) bool {
 	switch key {
-	case "command_tasks", "workspace_sets", "tunnel_presets", "sync_presets", "connection_preferences":
+	case "command_tasks", "workspace_sets", "tunnel_presets", "sync_presets", "connection_preferences", "log_view_presets":
 		return true
 	}
 	return false

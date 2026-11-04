@@ -338,6 +338,12 @@ button:active:not(:disabled):not([role=tab]) { filter: brightness(.93); }
 .app-dialog.directory-sync-dialog { max-width: min(900px,calc(100vw - 24px)); }
 .app-dialog.remote-log-dialog { max-width: min(1100px,calc(100vw - 24px)); }
 .remote-log-content { height: min(55vh,600px); min-height: 180px; overflow: auto; white-space: pre; font: 12px/1.6 var(--font-mono); background: var(--color-background); border: 1px solid var(--color-border); border-radius: 5px; padding: 10px; tab-size: 4; }
+.remote-log-filters { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 8px; }
+.remote-log-filters input { min-width: 0; width: 100%; }
+.remote-log-content { overflow-anchor: none; }
+.remote-log-content mark { background: var(--color-warning); color: var(--color-background); }
+.remote-log-gap { color: var(--color-muted); border-block: 1px dashed var(--color-border); margin-block: 4px; }
+.remote-log-dialog .session-status { flex-wrap: wrap; white-space: normal; }
 .connection-diagnostics ol { list-style: none; padding: 0; margin: 0; }
 .connection-diagnostics li { display: grid; gap: 3px; padding: 9px 0; border-bottom: 1px solid var(--color-border); }
 .connection-diagnostics li > span { font-size: 12px; overflow-wrap: anywhere; }

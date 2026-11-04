@@ -4,6 +4,7 @@ export const workflowBackupOptions = [
   { field: 'tunnels', key: 'tunnel_presets', label: '隧道预设' },
   { field: 'sync', key: 'sync_presets', label: '目录同步预设' },
   { field: 'preferences', key: 'connection_preferences', label: '书签与连接偏好' },
+  { field: 'log_rules', key: 'log_view_presets', label: '日志筛选与高亮规则' },
 ] as const;
 
 export const backupSettingNames: Record<string, string> = {
@@ -12,5 +13,5 @@ export const backupSettingNames: Record<string, string> = {
 };
 
 export function workflowBackupSelection(data: FormData) {
-  return { tasks: data.get('tasks') === 'on', workspaces: data.get('workspaces') === 'on', tunnels: data.get('tunnels') === 'on', sync: data.get('sync') === 'on', preferences: data.get('preferences') === 'on' };
+  return { tasks: data.get('tasks') === 'on', workspaces: data.get('workspaces') === 'on', tunnels: data.get('tunnels') === 'on', sync: data.get('sync') === 'on', preferences: data.get('preferences') === 'on', log_rules: data.get('log_rules') === 'on' };
 }

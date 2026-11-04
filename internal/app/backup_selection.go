@@ -17,6 +17,7 @@ type BackupSelection struct {
 	Tunnels       bool     `json:"tunnels"`
 	Sync          bool     `json:"sync"`
 	Preferences   bool     `json:"preferences"`
+	LogRules      bool     `json:"log_rules"`
 }
 
 func selectSnapshotData(data store.Data, ids []string) (store.Data, error) {

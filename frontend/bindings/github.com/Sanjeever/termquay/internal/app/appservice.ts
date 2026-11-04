@@ -184,6 +184,10 @@ export function DeleteGroup(id: string): $CancellablePromise<void> {
     return $Call.ByID(781925736, id);
 }
 
+export function DeleteLogViewPreset(id: string): $CancellablePromise<void> {
+    return $Call.ByID(961134239, id);
+}
+
 export function DeleteRemotePath(id: string, remote: string): $CancellablePromise<void> {
     return $Call.ByID(2431690864, id, remote);
 }
@@ -370,6 +374,10 @@ export function ListLinuxServices(workspace: string, filter: string): $Cancellab
 
 export function ListLocalShells(): $CancellablePromise<$models.LocalShell[] | null> {
     return $Call.ByID(3912183842);
+}
+
+export function ListLogViewPresets(): $CancellablePromise<$models.LogViewPreset[] | null> {
+    return $Call.ByID(3138643291);
 }
 
 export function ListSavedSnapshots(): $CancellablePromise<backup$0.RemoteSnapshot[] | null> {
@@ -646,6 +654,10 @@ export function SaveConnectionWithCredential(c: store$0.Connection, auth: ssh$0.
 
 export function SaveGroup(g: store$0.Group): $CancellablePromise<void> {
     return $Call.ByID(3737144714, g);
+}
+
+export function SaveLogViewPreset(item: $models.LogViewPreset): $CancellablePromise<$models.LogViewPreset> {
+    return $Call.ByID(3788869509, item);
 }
 
 export function SavePortableUI(values: { [_ in string]?: string } | null): $CancellablePromise<void> {

@@ -33,7 +33,7 @@ func decodeWorkflow(value string, target any) error {
 	return nil
 }
 
-func validateWorkflowSettings(values map[string]string, data store.Data) (map[string]int, []RestorePathHint, error) {
+func validateWorkflowSettings(values map[string]string, data store.Data, checkReferences bool) (map[string]int, []RestorePathHint, error) {
 	counts, hints := map[string]int{}, []RestorePathHint{}
 	connections := map[string]store.Connection{}
 	for _, c := range data.Connections {
@@ -51,6 +51,18 @@ func validateWorkflowSettings(values map[string]string, data store.Data) (map[st
 			return nil, nil, errors.New("工作环境设置为空或超过大小上限")
 		}
 		switch key {
+		case "log_view_presets":
+			var items []LogViewPreset
+			if len(value) > 64<<10 {
+				return nil, nil, errors.New("日志规则超过 64 KiB")
+			}
+			if err := decodeWorkflow(value, &items); err != nil {
+				return nil, nil, err
+			}
+			if err := validateLogViewPresets(items); err != nil {
+				return nil, nil, err
+			}
+			counts[key] = len(items)
 		case "command_tasks":
 			var items []CommandTask
 			if err := decodeWorkflow(value, &items); err != nil {
@@ -77,7 +89,7 @@ func validateWorkflowSettings(values map[string]string, data store.Data) (map[st
 			}
 			for _, item := range items {
 				for _, entry := range item.Layout.Entries {
-					if _, ok := connections[entry.ConnectionID]; !ok || entry.Target.JumpID != "" && connections[entry.Target.JumpID].ID == "" {
+					if _, ok := connections[entry.ConnectionID]; checkReferences && (!ok || entry.Target.JumpID != "" && connections[entry.Target.JumpID].ID == "") {
 						return nil, nil, errors.New("工作集引用了快照之外的连接或跳板")
 					}
 				}
@@ -94,7 +106,7 @@ func validateWorkflowSettings(values map[string]string, data store.Data) (map[st
 			seen, automatic := map[string]bool{}, map[string]int{}
 			for _, item := range items {
 				id := item.ConnectionID + "\x00" + item.Name
-				if connections[item.ConnectionID].Protocol != "ssh" || strings.TrimSpace(item.Name) == "" || len(item.Name) > 128 || seen[id] {
+				if checkReferences && connections[item.ConnectionID].Protocol != "ssh" || strings.TrimSpace(item.Name) == "" || len(item.Name) > 128 || seen[id] {
 					return nil, nil, errors.New("隧道预设名称、连接或重复项无效")
 				}
 				if err := item.Spec.Validate(); err != nil {
@@ -120,7 +132,7 @@ func validateWorkflowSettings(values map[string]string, data store.Data) (map[st
 			seen := map[string]bool{}
 			for _, item := range items {
 				id := item.ConnectionID + "\x00" + item.Name
-				if connections[item.ConnectionID].Protocol != "ssh" || strings.TrimSpace(item.Name) == "" || len(item.Name) > 128 || item.Local == "" || len(item.Local) > 4096 || strings.ContainsRune(item.Local, 0) || !path.IsAbs(item.Remote) || len(item.Remote) > 4096 || (item.Direction != "upload" && item.Direction != "download") || seen[id] {
+				if checkReferences && connections[item.ConnectionID].Protocol != "ssh" || strings.TrimSpace(item.Name) == "" || len(item.Name) > 128 || item.Local == "" || len(item.Local) > 4096 || strings.ContainsRune(item.Local, 0) || !path.IsAbs(item.Remote) || len(item.Remote) > 4096 || (item.Direction != "upload" && item.Direction != "download") || seen[id] {
 					return nil, nil, errors.New("同步预设名称、连接、路径或方向无效")
 				}
 				if err := files.ValidateSyncExcludes(item.Exclude); err != nil {
@@ -136,7 +148,7 @@ func validateWorkflowSettings(values map[string]string, data store.Data) (map[st
 				return nil, nil, err
 			}
 			for id, item := range items {
-				if connections[id].ID == "" || len(item.Bookmarks) > 32 || len(item.PrivateKeyPath) > 4096 || strings.ContainsRune(item.PrivateKeyPath, 0) || item.Environment != "" && item.Environment != "production" && item.Environment != "staging" && item.Environment != "development" || item.RDPResolution != "" && item.RDPResolution != "dynamic" && item.RDPResolution != "1280x800" && item.RDPResolution != "1920x1080" && item.RDPResolution != "multimon" || item.RDPClient != "" && item.RDPClient != "internal" && item.RDPClient != "system" {
+				if checkReferences && connections[id].ID == "" || len(item.Bookmarks) > 32 || len(item.PrivateKeyPath) > 4096 || strings.ContainsRune(item.PrivateKeyPath, 0) || item.Environment != "" && item.Environment != "production" && item.Environment != "staging" && item.Environment != "development" || item.RDPResolution != "" && item.RDPResolution != "dynamic" && item.RDPResolution != "1280x800" && item.RDPResolution != "1920x1080" && item.RDPResolution != "multimon" || item.RDPClient != "" && item.RDPClient != "internal" && item.RDPClient != "system" {
 					return nil, nil, errors.New("连接偏好字段或引用无效")
 				}
 				seen := map[string]bool{}
@@ -161,14 +173,14 @@ func (a *AppService) captureWorkflowSettings(data store.Data, selection BackupSe
 	choices := []struct {
 		key     string
 		enabled bool
-	}{{"command_tasks", selection.Tasks}, {"workspace_sets", selection.Workspaces}, {"tunnel_presets", selection.Tunnels}, {"sync_presets", selection.Sync}, {"connection_preferences", selection.Preferences}}
+	}{{"command_tasks", selection.Tasks}, {"workspace_sets", selection.Workspaces}, {"tunnel_presets", selection.Tunnels}, {"sync_presets", selection.Sync}, {"connection_preferences", selection.Preferences}, {"log_view_presets", selection.LogRules}}
 	for _, choice := range choices {
 		if !choice.enabled {
 			continue
 		}
 		var value string
 		var err error
-		if choice.key == "command_tasks" {
+		if choice.key == "command_tasks" || choice.key == "log_view_presets" {
 			value, err = a.store.SecretSetting(choice.key)
 		} else {
 			value, err = a.store.Setting(choice.key)
@@ -191,7 +203,7 @@ func (a *AppService) captureWorkflowSettings(data store.Data, selection BackupSe
 	if err != nil {
 		return nil, err
 	}
-	_, _, err = validateWorkflowSettings(filtered, data)
+	_, _, err = validateWorkflowSettings(filtered, data, true)
 	return filtered, err
 }
 
@@ -219,6 +231,30 @@ func (a *AppService) remapWorkflowSettings(values map[string]string, data store.
 	}
 	for key, value := range values {
 		switch key {
+		case "log_view_presets":
+			var items []LogViewPreset
+			if err := decodeWorkflow(value, &items); err != nil {
+				return nil, err
+			}
+			if importing {
+				current, err := a.logViewPresets()
+				if err != nil {
+					return nil, err
+				}
+				names := map[string]bool{}
+				for _, item := range current {
+					names[item.Name] = true
+				}
+				for i := range items {
+					items[i].ID = base64.RawURLEncoding.EncodeToString(randomBytes(16))
+					items[i].Name = importedWorkflowName(items[i].Name, names)
+					names[items[i].Name] = true
+				}
+				items = append(current, items...)
+			}
+			if err := encode(key, items); err != nil {
+				return nil, err
+			}
 		case "command_tasks":
 			var items []CommandTask
 			if err := decodeWorkflow(value, &items); err != nil {
@@ -281,15 +317,7 @@ func (a *AppService) remapWorkflowSettings(values map[string]string, data store.
 				}
 				if importing {
 					item.ID = base64.RawURLEncoding.EncodeToString(randomBytes(16))
-					base := item.Name
-					for n := 2; names[item.Name]; n++ {
-						suffix := fmt.Sprintf("（导入 %d）", n)
-						for len(base)+len(suffix) > 128 {
-							_, size := utf8.DecodeLastRuneInString(base)
-							base = base[:len(base)-size]
-						}
-						item.Name = base + suffix
-					}
+					item.Name = importedWorkflowName(item.Name, names)
 					names[item.Name] = true
 				}
 				output = append(output, item)
@@ -383,4 +411,17 @@ func (a *AppService) remapWorkflowSettings(values map[string]string, data store.
 		}
 	}
 	return result, nil
+}
+
+func importedWorkflowName(name string, names map[string]bool) string {
+	base := name
+	for n := 2; names[name]; n++ {
+		suffix := fmt.Sprintf("（导入 %d）", n)
+		for len(base)+len(suffix) > 128 {
+			_, size := utf8.DecodeLastRuneInString(base)
+			base = base[:len(base)-size]
+		}
+		name = base + suffix
+	}
+	return name
 }
