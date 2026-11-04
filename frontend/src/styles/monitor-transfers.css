@@ -1,0 +1,84 @@
+.rdp-failure { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; padding: 24px; overflow: auto; }
+.rdp-failure h2 { font-size: 15px; font-weight: 500; }
+.rdp-failure details { max-width: 720px; width: 100%; }
+.rdp-failure summary { cursor: pointer; color: var(--color-muted); font-size: 12px; }
+.rdp-failure .error { margin-top: 12px; white-space: pre-wrap; }
+.draft-confirm { display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: var(--color-elevated); border-bottom: 1px solid var(--color-border); color: var(--color-warning); font-size: 12px; flex-wrap: wrap; }
+.monitor-dock { display: flex; min-width: 220px; flex-shrink: 0; }
+.monitor-panel { min-width: 0; flex: 1; padding: 0 16px 16px; overflow: auto; background: var(--color-surface); }
+.monitor-error { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding-top: 12px; }
+.monitor-details { border-top: 1px solid var(--color-border); padding: 14px 0; }
+.monitor-details summary, .monitor-error summary { color: var(--color-muted); font-size: 12px; cursor: pointer; }
+.filesystem-metric > strong { overflow-wrap: anywhere; font-weight: 500; }
+.monitor-trend { position: relative; height: 54px; }
+.monitor-trend svg { width: 100%; height: 100%; overflow: visible; }
+.trend-scale { position: absolute; right: 0; top: -6px; font-size: 10px; color: var(--color-muted); font-variant-numeric: tabular-nums; }
+.trend-baseline { stroke: var(--color-border); stroke-width: 1; }
+.trend-series { color: var(--color-primary); }
+.trend-series-1 { color: var(--color-success); }
+.trend-series path { stroke: currentColor; stroke-width: 1.5; fill: none; vector-effect: non-scaling-stroke; }
+.trend-series circle { fill: currentColor; }
+.trend-series-1 path { stroke-dasharray: 4 3; }
+.trend-legend { display: flex; justify-content: space-between; gap: 8px; color: var(--color-muted); font-size: 10px; margin: 14px 0 8px; }
+.metric .metric-primary { font-size: 26px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.transfer-dock { display: flex; flex-direction: column; flex-shrink: 0; min-height: 120px; max-height: 55vh; }
+.transfer-dock .transfer-panel { height: auto; flex: 1; min-height: 0; border-top: 0; }
+.transfer-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.transfer-heading h2 { font-size: 14px; font-weight: 500; }
+.transfer-heading-actions { display: flex; align-items: center; gap: 3px; margin-left: auto; }
+.transfer-heading .select-control { width: 120px; flex-shrink: 0; }
+.transfer-empty .sidebar-empty { padding: 16px 8px; }
+.monitor-panel .panel-heading { font-size: 14px; font-weight: 600; margin-bottom: 16px; }
+.monitor-panel h3 { color: var(--color-muted); font-size: 12px; font-weight: 500; margin: 22px 0 12px; }
+.metric { display: grid; gap: 8px; font-size: 12px; margin: 18px 0; }
+.metric > span { color: var(--color-muted); }
+.metric strong { font-weight: 500; }
+.metric meter { width: 100%; height: 6px; accent-color: var(--color-primary); }
+.metric meter::-webkit-meter-bar { background: var(--color-border); border: 0; border-radius: 3px; }
+.metric meter::-webkit-meter-optimum-value { background: var(--color-primary); border-radius: 3px; }
+.transfer-panel progress::-webkit-progress-bar { background: var(--color-border); border-radius: 3px; }
+.transfer-panel progress::-webkit-progress-value { background: var(--color-primary); border-radius: 3px; }
+.system-info, .sample-time { color: var(--color-muted); font-size: 11px; overflow-wrap: anywhere; }
+.transfer-panel { height: 200px; min-height: 100px; flex-shrink: 0; overflow: auto; padding: 8px 16px; border-top: 1px solid var(--color-border); background: var(--color-surface); }
+.transfer-panel table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
+.transfer-panel th { color: var(--color-muted); font-weight: 500; padding: 6px 12px; }
+.transfer-panel td { padding: 8px 12px; border-top: 1px solid var(--color-border); }
+.transfer-heading select { font-size: 12px; }
+.transfer-options { width: 240px; padding: 16px; color: var(--color-text); background: var(--color-elevated); border: 1px solid var(--color-border-strong); border-radius: var(--radius-menu); box-shadow: var(--shadow-floating); font-size: 12px; }
+.transfer-options form { display: grid; gap: 12px; width: 100%; }
+.transfer-options input { width: 120px; min-height: 32px; padding: 4px 8px; border: 1px solid var(--color-border-strong); border-radius: var(--radius); background: var(--color-control); color: var(--color-text); }
+.transfer-options form > button { justify-self: end; }
+.auth-instruction { white-space: pre-wrap; overflow-wrap: anywhere; }
+.batch-targets { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 6px 16px; max-height: 180px; overflow: auto; }
+.batch-targets label { display: flex; align-items: center; gap: 8px; padding: 6px 0; min-width: 0; }
+.batch-targets small { display: block; overflow-wrap: anywhere; font-size: 11px; }
+.command-source { font-family: var(--font-mono); }
+.backup-connection-list { display: grid; gap: 6px; max-height: 220px; overflow: auto; margin: 10px 0; }
+.backup-connection-list label { min-width: 0; overflow-wrap: anywhere; }
+.credential-list { display: grid; gap: 0; }
+.credential-list > li { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; border-bottom: 1px solid var(--color-border); padding: 14px 0; }
+.credential-list strong,.credential-list span { display: block; font-size: 12px; font-weight: 400; }
+.credential-list details { margin-top: 6px; font-size: 12px; }
+.command-results details { border-top: 1px solid var(--color-border); padding: 10px 0; }
+.command-results summary { cursor: pointer; display: flex; justify-content: space-between; gap: 12px; font-size: 12px; }
+.command-results pre { max-height: 280px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-mono); font-size: 12px; margin-top: 8px; }
+.session-status .file-path { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.transfer-file { max-width: 260px; overflow-wrap: anywhere; }
+.transfer-file details { color: var(--color-muted); font-size: 11px; margin-top: 3px; }
+.transfer-target { max-width: 180px; overflow-wrap: anywhere; font: 11px var(--font-mono); }
+.transfer-panel td:last-child button { margin-right: 8px; white-space: nowrap; }
+.transfer-panel progress { display: block; width: 160px; height: 4px; margin-top: 6px; accent-color: var(--color-primary); }
+.transfer-destination { display: block; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-muted); font: 11px var(--font-mono); margin-top: 4px; }
+.transfer-progress { min-width: 200px; font-variant-numeric: tabular-nums; }
+.transfer-state { white-space: nowrap; }
+.transfer-compact-target { display: none; }
+.transfer-metrics { display: flex; justify-content: space-between; gap: 12px; margin-top: 5px; color: var(--color-muted); font-size: 11px; }
+.transfer-batch-summary { margin: 2px 12px 8px; color: var(--color-muted); font-size: 12px; }
+.transfer-reason { margin-top: 5px; font-size: 11px; overflow-wrap: anywhere; }
+.transfer-revealed { background: color-mix(in srgb, var(--color-selected) 45%, transparent); }
+@media (max-width: 1000px) {
+  .transfer-panel .transfer-target { display: none; }
+  .transfer-compact-target { display: block; margin-top: 4px; color: var(--color-muted); font: 11px var(--font-mono); }
+  .transfer-heading { flex-wrap: wrap; gap: 8px; }
+  .transfer-panel td, .transfer-panel th { padding-inline: 8px; }
+}
