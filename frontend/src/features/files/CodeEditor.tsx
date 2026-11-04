@@ -79,7 +79,7 @@ export default function CodeEditor({ path, content, format, visible, saving, dir
     void loadEditorLanguage(mode).then(extension=>{if(!ended&&view.current===editor)editor.dispatch({effects:language.current.reconfigure(extension)});}).catch(error=>{if(!ended)setLanguageError(errorMessage(error));});
     return()=>{ended=true;};
   },[mode,path,reloadEpoch,languageEpoch]);
-  useEffect(()=>{const editor=view.current;if(!editor)return;setDiagnosticError('');if(diagnosticCount(editor.state))editor.dispatch(setDiagnostics(editor.state,[]));editor.dispatch({effects:intelligence.current.reconfigure(visible?editorIntelligence(mode,setDiagnosticError):[])});},[mode,visible,path,reloadEpoch,diagnosticEpoch]);
+  useEffect(()=>{const editor=view.current;if(!editor)return;setDiagnosticError('');if(diagnosticCount(editor.state))editor.dispatch(setDiagnostics(editor.state,[]));editor.dispatch({effects:intelligence.current.reconfigure(editorIntelligence(mode,setDiagnosticError,visible))});},[mode,visible,path,reloadEpoch,diagnosticEpoch]);
   useEffect(() => { view.current?.dispatch({ effects: theme.current.reconfigure(editorTheme(dark)) }); view.current?.requestMeasure(); }, [dark, appearance.monoFont, path, reloadEpoch]);
   useEffect(() => { const observer = new ResizeObserver(([entry]) => setWide(entry.contentRect.width >= 600)); observer.observe(host.current!); return () => observer.disconnect(); }, []);
   useEffect(() => { view.current?.dispatch({ effects: map.current.reconfigure(visible && wide && minimap ? showMinimap.of({ create: () => ({ dom: document.createElement('div') }), displayText: 'blocks', showOverlay: 'always' }) : []) }); }, [visible, wide, minimap, reloadEpoch]);

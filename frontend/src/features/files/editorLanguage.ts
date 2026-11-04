@@ -91,8 +91,8 @@ const loaders: Record<EditorLanguageID,()=>Promise<Extension>> = {
   systemd:()=>loadEditorLanguage('ini'),ssh:()=>loadEditorLanguage('ini'),env:()=>loadEditorLanguage('ini'),gitignore:()=>loadEditorLanguage('ini'),
   diff:()=>import('@codemirror/legacy-modes/mode/diff').then(module=>StreamLanguage.define(module.diff)),
   protobuf:()=>import('@codemirror/legacy-modes/mode/protobuf').then(module=>StreamLanguage.define(module.protobuf)),
-  batch:()=>import('./editorScriptModes').then(module=>StreamLanguage.define(module.batch)),
-  makefile:()=>import('./editorScriptModes').then(module=>StreamLanguage.define(module.makefile)),
+  batch:()=>import('./editorScriptModes.ts').then(module=>StreamLanguage.define(module.batch)),
+  makefile:()=>import('./editorScriptModes.ts').then(module=>StreamLanguage.define(module.makefile)),
 };
 const loaded = new Map<EditorLanguageID,Promise<Extension>>();
 export function loadEditorLanguage(id: EditorLanguageID): Promise<Extension> {

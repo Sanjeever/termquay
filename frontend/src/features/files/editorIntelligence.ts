@@ -6,8 +6,7 @@ import type { EditorLanguageID } from './editorLanguage';
 import { editorDiagnostics } from './editorDiagnostics';
 
 const words: Partial<Record<EditorLanguageID,string>> = {
-  python:'and as assert async await break class continue def del elif else except False finally for from global if import in is lambda None nonlocal not or pass raise return True try while with yield',
-  go:'break case chan const continue default defer else fallthrough for func go goto if import interface map package range return select struct switch type var true false nil',
+  json:'true false null',
   rust:'as async await break const continue crate dyn else enum extern false fn for if impl in let loop match mod move mut pub ref return self Self static struct super trait true type unsafe use where while',
   c:'auto break case char const continue default do double else enum extern float for goto if inline int long register restrict return short signed sizeof static struct switch typedef union unsigned void volatile while',
   cpp:'alignas alignof auto bool break case catch char class const constexpr continue default delete do double else enum explicit extern false float for friend if inline int long namespace new noexcept nullptr operator override private protected public return short signed sizeof static struct switch template this throw true try typedef typename union unsigned using virtual void volatile while',
@@ -30,7 +29,6 @@ const configuration: Partial<Record<EditorLanguageID,readonly [string,string][]>
   dockerfile:[['FROM','选择基础镜像，可为构建阶段命名'],['RUN','构建时执行命令'],['COPY','复制构建上下文或其他构建阶段的文件'],['WORKDIR','设置后续命令的工作目录'],['ARG','构建参数'],['ENV','镜像环境变量'],['EXPOSE','声明容器服务端口'],['CMD','默认容器启动参数'],['ENTRYPOINT','容器入口命令'],['USER','后续步骤及运行时使用的用户'],['HEALTHCHECK','容器健康检查命令']],
 };
 const templates: Partial<Record<EditorLanguageID,readonly [string,string,string][]>> = {
-  python:[['def','定义函数','def ${name}(${args}):\n\t${pass}'],['class','定义类','class ${Name}:\n\tdef __init__(self):\n\t\t${pass}'],['for','遍历序列','for ${item} in ${items}:\n\t${pass}']],
   go:[['func','定义函数','func ${name}(${args}) ${result} {\n\t${}\n}'],['iferr','检查错误','if err != nil {\n\treturn ${err}\n}'],['forrange','遍历集合','for ${key}, ${value} := range ${items} {\n\t${}\n}']],
   rust:[['fn','定义函数','fn ${name}(${args}) -> ${Result} {\n\t${}\n}'],['match','模式匹配','match ${value} {\n\t${pattern} => ${result},\n}']],
   shell:[['if','条件分支','if ${command}; then\n\t${}\nfi'],['for','遍历参数','for ${item} in ${items}; do\n\t${}\ndone']],
@@ -41,7 +39,7 @@ const templates: Partial<Record<EditorLanguageID,readonly [string,string,string]
   makefile:[['target','定义构建目标','${target}: ${dependencies}\n\t${command}']],
 };
 
-export function editorIntelligence(language: EditorLanguageID, onDiagnosticError: (message:string)=>void): Extension {
+export function editorIntelligence(language: EditorLanguageID, onDiagnosticError: (message:string)=>void,diagnostics=true): Extension {
   const descriptions = new Map(configuration[language] || []);
   const completions: Completion[] = [...new Set((words[language] || '').split(' ').filter(Boolean).concat([...descriptions.keys()]))].map(label=>({label,type:'keyword',info:descriptions.get(label)}));
   for (const [label,info,text] of templates[language] || []) completions.push({label,type:'snippet',info,apply:snippet(text)});
@@ -52,7 +50,7 @@ export function editorIntelligence(language: EditorLanguageID, onDiagnosticError
     EditorState.languageData.of(()=>[{autocomplete:context=>{
       if (context.view?.composing) return null;
       if (!context.explicit && (context.matchBefore(/[\w.-]+/)?.text.length || 0)<2) return null;
-      if (!context.explicit && /Comment|String/.test(syntaxTree(context.state).resolveInner(context.pos,-1).name)) return null;
+      if (!context.explicit && /comment|string|template/i.test(syntaxTree(context.state).resolveInner(context.pos,-1).name)) return null;
       return completeAnyWord(context);
     }}, ...(completions.length?[{autocomplete:complete}]:[])]),
     hoverTooltip((view,pos)=>{
@@ -63,7 +61,7 @@ export function editorIntelligence(language: EditorLanguageID, onDiagnosticError
       if (!text) return null;
       return {pos:pos-before.length,end:pos+after.length,above:true,create(){const dom=document.createElement('div');dom.className='editor-word-help';dom.textContent=text;return {dom};}};
     }),
-    language==='json'||language==='yaml'?editorDiagnostics(language,onDiagnosticError):[],
+    diagnostics&&(language==='json'||language==='yaml')?editorDiagnostics(language,onDiagnosticError):[],
   ];
 }
 

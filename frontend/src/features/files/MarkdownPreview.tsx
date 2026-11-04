@@ -91,8 +91,9 @@ export default function MarkdownPreview({workspace,path,content,visible,focusOnS
       setError('此链接暂不支持打开');
     }}>{children}</a>,
   }),[workspace,path,prefix]);
+  const renderedDocument=useMemo(()=><PreviewBoundary revision={rendered}><Markdown skipHtml remarkPlugins={[remarkGfm,limitMarkdownTree]} rehypePlugins={[[rehypeSlug,{prefix}]]} remarkRehypeOptions={{clobberPrefix:prefix}} components={components}>{rendered}</Markdown></PreviewBoundary>,[rendered,components,prefix,allowed]);
   return <div className="markdown-preview" ref={host} tabIndex={0} aria-label="Markdown 预览" data-markdown-preview>
     <ErrorNotice message={error} onDismiss={()=>setError('')}/>
-    {visible&&(content.length>512*1024?<ErrorNotice message="Markdown 超过预览大小限制，请切换源码查看"/>:<PreviewBoundary revision={rendered}><Markdown skipHtml remarkPlugins={[remarkGfm,limitMarkdownTree]} rehypePlugins={[[rehypeSlug,{prefix}]]} remarkRehypeOptions={{clobberPrefix:prefix}} components={components}>{rendered}</Markdown></PreviewBoundary>)}
+    {visible&&(Math.max(content.length,rendered.length)>512*1024?<ErrorNotice message="Markdown 超过预览大小限制，请切换源码查看"/>:renderedDocument)}
   </div>;
 }

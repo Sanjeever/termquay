@@ -20,7 +20,7 @@ export function editorTheme(dark: boolean) {
     '.cm-foldGutter': { width: '14px' },
     '.cm-minimap-gutter': { background: 'var(--color-background)', borderLeft: '1px solid var(--color-border)' },
     '.cm-tooltip': { background:'var(--color-elevated)',color:'var(--color-text)',border:'1px solid var(--color-border-strong)',borderRadius:'6px' },
-    '.cm-tooltip-autocomplete ul li[aria-selected]': { background:'var(--color-selected)',color:'var(--color-text)' },
+    '.cm-tooltip-autocomplete ul li[aria-selected=true]': { background:'var(--color-selected)',color:'var(--color-text)' },
     '.cm-completionInfo,.editor-word-help': { padding:'8px 10px',maxWidth:'360px',fontFamily:'var(--font-ui)',fontSize:'12px' },
     '.cm-diagnostic-error': { borderLeftColor:'var(--color-danger)' },
     '.cm-diagnostic-warning': { borderLeftColor:'var(--color-warning)' },
