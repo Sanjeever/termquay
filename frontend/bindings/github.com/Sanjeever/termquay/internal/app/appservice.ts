@@ -609,6 +609,10 @@ export function TestWebDAV(options: backup$0.WebDAVOptions): $CancellablePromise
     return $Call.ByID(1607539899, options);
 }
 
+export function TitlebarDoubleClick(): $CancellablePromise<void> {
+    return $Call.ByID(3945271408);
+}
+
 export function TrustHost(host: string, port: number, fingerprint: string): $CancellablePromise<void> {
     return $Call.ByID(1684754374, host, port, fingerprint);
 }

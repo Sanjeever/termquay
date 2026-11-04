@@ -34,6 +34,7 @@ func Run(assets fs.FS, appIcons fs.ReadFileFS, build BuildInfo, licenses fs.Read
 	app.HandleStream("workspace", service.handleWorkspace)
 	app.HandleStream("local-terminal", service.handleLocalTerminal)
 	window := app.Window.NewWithOptions(application.WebviewWindowOptions{
+		Name:  "workbench",
 		Title: "TermQuay", Width: 1280, Height: 820, MinWidth: 900, MinHeight: 600,
 		BackgroundColour: application.NewRGB(16, 18, 22), URL: "/",
 		EnableFileDrop: true,

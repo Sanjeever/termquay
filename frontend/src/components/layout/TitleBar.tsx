@@ -1,5 +1,6 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode, type MouseEvent } from 'react';
 import { Events, System, Window } from '@wailsio/runtime';
+import { TitlebarDoubleClick } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import appIcon from '../../../../build/appicon.svg';
 
 export default function TitleBar({ tabs, tools, onError }: {
@@ -9,6 +10,7 @@ export default function TitleBar({ tabs, tools, onError }: {
   const [maximised, setMaximised] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [focused, setFocused] = useState(true);
+  const dragReady = useRef(false);
   useEffect(() => {
     let disposed = false;
     const update = () => {
@@ -32,11 +34,19 @@ export default function TitleBar({ tabs, tools, onError }: {
     onError('');
     action().catch(error => onError(String(error)));
   }
-  function doubleClick() { if (System.IsLinux()) run(() => Window.ToggleMaximise()); }
-  return <header className={`workbench-header${mac ? ' mac-titlebar' : ''}${fullscreen ? ' fullscreen-titlebar' : ''}${focused ? '' : ' inactive-titlebar'}`}>
-    <div className="titlebar-brand" title="TermQuay" onDoubleClick={doubleClick}><img src={appIcon} alt="" width="18" height="18" draggable={false} /><span>TermQuay</span></div>
+  function draggable(event: MouseEvent) { return getComputedStyle(event.target as Element).getPropertyValue('--termquay-window-drag').trim() === 'drag'; }
+  function doubleClick(event: MouseEvent) {
+    if (!draggable(event) || fullscreen) return;
+    if (mac) run(() => TitlebarDoubleClick());
+    else if (System.IsLinux()) run(() => Window.ToggleMaximise());
+  }
+  return <header className={`workbench-header${mac ? ' mac-titlebar' : ''}${fullscreen ? ' fullscreen-titlebar' : ''}${focused ? '' : ' inactive-titlebar'}`} onDoubleClick={doubleClick}
+    onMouseDown={event => { if (mac) dragReady.current = !fullscreen && event.button === 0 && event.detail === 1 && draggable(event); }}
+    onMouseMove={event => { if (mac && dragReady.current && event.buttons === 1) { dragReady.current = false; System.invoke('wails:drag'); } }}
+    onMouseUp={() => { dragReady.current = false; }} onMouseLeave={() => { dragReady.current = false; }}>
+    <div className="titlebar-brand" title="TermQuay"><img src={appIcon} alt="" width="18" height="18" draggable={false} /><span>TermQuay</span></div>
     {tabs}
-    <div className="titlebar-drag" aria-hidden="true" onDoubleClick={doubleClick} />
+    <div className="titlebar-drag" aria-hidden="true" />
     <div className="workbench-tools">{tools}</div>
     {!mac && !fullscreen && <div className="window-controls" role="group" aria-label="窗口控制">
       <button className="window-minimise" aria-label="最小化" title="最小化" onClick={() => run(() => Window.Minimise())}><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M1 6.5h10" /></svg></button>
