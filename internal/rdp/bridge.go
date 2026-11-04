@@ -352,8 +352,7 @@ func negotiate(ctx context.Context, target Target, request []byte) (*tls.Conn, [
 	if confirm.Type != x224.TypeRDPNegRsp || (confirm.SelectedProto != x224.ProtocolHybrid && confirm.SelectedProto != x224.ProtocolHybridEx) {
 		return nil, nil, errors.New("RDP 目标未协商 TLS/NLA，已阻止安全协议降级")
 	}
-	// Windows 11 RDP 在 Go TLS 1.3 握手后、认证数据发送前返回 internal_error。
-	// 当前桥接固定使用已验证的 TLS 1.2；不重试其他安全协议，仍强制 NLA 和证书校验。
+	// 固定 TLS 1.2 的互操作证据与重新评估条件见 docs/architecture.md 的“内嵌 RDP”。
 	config := &tls.Config{ServerName: target.Host, MinVersion: tls.VersionTLS12, MaxVersion: tls.VersionTLS12}
 	if target.Fingerprint != "" {
 		// 已固定指纹时校验精确身份与有效期，也支持用户确认的自签名证书。

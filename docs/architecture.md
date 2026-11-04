@@ -10,11 +10,11 @@ TermQuay 面向个人桌面的 SSH/RDP 连接管理。外层标签保留固定�
 
 SSH、SFTP、终端模拟、编辑器和 RDP 分别复用成熟协议库及组件。具体依赖与兼容组合由 [go.mod](../go.mod)、[前端清单](../frontend/package.json) 和锁文件固定。CodeMirror 面向配置文件编辑，不扩展为 IDE 服务。协议、ASN.1、SQLite、加密和快照封装不另造解析器或密码算法。
 
-图片预览使用 Go 验证格式和尺寸，通过现有资产服务和短期随机资源凭据提供二进制内容；凭据放在请求头中，避免进入资源 URL 与访问日志。资源绑定 SSH 工作区，不暴露任意路径读取接口。读取、排队、字节与像素总量均有界，具体边界见 [图片预览](../internal/app/image_preview.go)。隐藏和关闭视图释放资源，关闭工作区取消读取并清理对应图片；预览不进入文本草稿或备份。GIF 提供首帧预览，SVG 保留源码编辑。外部图片由用户显式加载，HTTP 请求不携带 SSH 凭据，图片不以内联 HTML 或可执行文档呈现。
+图片预览由 Go 验证格式和尺寸，资源使用短期随机凭据并绑定 SSH 工作区，读取、排队、字节与像素总量均有界，具体边界见 [图片预览](../internal/app/image_preview.go)。资源凭据放在请求头中，避免进入 URL 与访问日志，不暴露任意路径读取接口。隐藏和关闭视图释放资源，关闭工作区取消读取并清理对应图片；预览不进入文本草稿或备份。外部图片由用户显式加载，HTTP 请求不携带 SSH 凭据，图片不以内联 HTML 或可执行文档呈现。支持格式与操作见 [预览说明](development.md#linux-监控与日志查看)。
 
 本地终端由 Go 持有原生 PTY 与进程，复用终端视图和消费确认，不经过 SSH。进程生命周期属于工作区，布局恢复不自动启动本地进程。
 
-演示模式是前端内存中的独立工作台，复用连接目录、文件树、xterm、CodeMirror 和监控视图，数据由仓库示例提供。演示分支不创建网络连接、PTY 或采集订阅，不调用真实配置、文件、传输和备份写入；示例不能作为远端集成验证证据。真实工作区保留原实例并转入隐藏状态，采集与探测遵循原有可见性规则。演示状态及其外观预览不进入本地持久化或备份，退出恢复原工作区与外观。界面保留演示标记，避免示例状态与真实会话混淆。
+演示模式使用独立的前端内存工作台，不创建网络连接、PTY 或采集订阅，不调用真实配置、文件、传输和备份写入。真实工作区保留原实例并转入隐藏状态，采集与探测遵循原有可见性规则。演示状态及其外观预览不持久化，退出恢复原工作区与外观。界面保留演示标记，避免示例状态与真实会话混淆；示例不能作为远端集成验证证据。入口与可用操作见 [演示说明](development.md#设置与演示模式)。
 
 ## 通信、背压与生命周期
 
@@ -107,7 +107,7 @@ WebDAV 使用追加式快照，不覆盖或自动清理历史。备份目录由�
 
 ## 发布与应用更新
 
-发布版本以 `frontend/package.json` 为源，平台资源由版本工具同步；数据库、备份和布局使用独立格式版本。更新日志以 `docs/releases/<version>.md` 为源，与版本资源一并提交，原样进入 GitHub Release 正文，再由应用展示。正式标签须指向已进入 `main` 且完成检查的提交，全部目标附件齐备后才公开 Release；公开版本不覆盖。
+版本定义、日志与操作入口统一见 [版本与发布](development.md#版本与发布)。应用版本与数据库、备份、布局格式分别演进。正式标签须指向已进入 `main` 且完成检查的提交，全部目标附件齐备后才公开 Release；公开版本不覆盖。
 
 更新下载、校验、解包与程序替换复用锁定版本的 Wails updater，TermQuay 负责正式渠道、确定性附件选择、强制摘要校验、用户确认与退出协调。只接受本项目匹配当前平台的正式版本；缺少摘要或校验失败必须阻止安装。摘要保障制品完整性，签名认证单独判断，不能把二者混同。
 
@@ -125,8 +125,8 @@ WebDAV 使用追加式快照，不覆盖或自动清理历史。备份目录由�
 | 本地 Shell 与 PTY | [local_terminal.go](../internal/app/local_terminal.go)、[TerminalView](../frontend/src/features/terminal/TerminalView.tsx) | 各平台原生进程、输入与关闭验证 |
 | 目录延迟探测 | [latency.go](../internal/app/latency.go)、[internal/ssh/latency.go](../internal/ssh/latency.go)、[前端调度](../frontend/src/features/connections/useConnectionLatency.ts) | 尚无专门自动化回归；需验证真实代理与跳板路径、取消及并发边界 |
 | 文件、草稿与传输 | [internal/files](../internal/files)、[files.go](../internal/app/files.go)、[transfer.go](../internal/app/transfer.go)、[前端文件工作区](../frontend/src/features/files) | `internal/files/service_test.go`、`transfer_test.go`、原生传输流程 |
-| Linux 监控 | [internal/monitor](../internal/monitor)、[monitor.go](../internal/app/monitor.go) | `internal/monitor/sample_test.go` |
+| Linux 监控 | [internal/monitor](../internal/monitor)、[monitor.go](../internal/app/monitor.go) | `internal/monitor/sample_test.go`、`filesystems_test.go`、前端 `history.test.ts` |
 | RDP、证书与授权 | [internal/rdp](../internal/rdp)、[rdp.go](../internal/app/rdp.go)、[RDPView](../frontend/src/features/rdp/RDPView.tsx) | `internal/rdp/bridge_test.go`、真实 RDP 与原生 WebView |
 | 存储、凭据与信任 | [internal/store](../internal/store)、[data.go](../internal/app/data.go)、[credentials.go](../internal/app/credentials.go)、[trust.go](../internal/app/trust.go)、[连接界面](../frontend/src/features/connections) | `data_test.go`、`credentials_test.go`、`trust_test.go` |
 | 配置预览导入 | [import.go](../internal/app/import.go)、[import_putty_windows.go](../internal/app/import_putty_windows.go) | `import_test.go` |
-| 快照与恢复 | [internal/backup](../internal/backup)、[data.go](../internal/app/data.go)、[BackupSettings](../frontend/src/features/settings/BackupSettings.tsx) | `internal/backup/*_test.go`、`data_test.go` |
+| 快照与恢复 | [internal/backup](../internal/backup)、[data.go](../internal/app/data.go)、[backup_local.go](../internal/app/backup_local.go)、[backup_selection.go](../internal/app/backup_selection.go)、[BackupSettings](../frontend/src/features/settings/BackupSettings.tsx) | `internal/backup/*_test.go`、`data_test.go`、`backup_selection_test.go` |

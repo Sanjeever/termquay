@@ -27,7 +27,7 @@ TermQuay 采用 Apache-2.0。各依赖保留其原有许可证、版权与声明
 
 macOS 应用包和其他平台安装包分发时，需随包携带本文件、项目 `LICENSE` 与适用的依赖许可原文。
 
-主程序内嵌本文件、项目许可和收集的依赖声明，可在“设置 → 关于 → 开源许可”读取。macOS 应用包另保留资源目录副本。Markdown 更新日志展示使用 `react-markdown` 及其生产依赖，材料收集在前端许可目录。Wails 更新组件使用 `golang.org/x/mod`，采用 BSD-3-Clause，许可原文位于 Go 许可目录。
+主程序通过 [assets.go](assets.go) 内嵌本文件、项目许可和收集的依赖声明，可在“设置 → 关于 → 开源许可”读取。[macOS 打包任务](build/darwin/Taskfile.yml) 另保留资源目录副本。Wails 更新组件使用 `golang.org/x/mod`，采用 BSD-3-Clause，许可原文位于 Go 许可目录。
 
 上述两项无独立 LICENSE 文件的 npm 包，依据发布包与固定源码中的明确 MIT 声明收集条款。源码提交与 SPDX 文本来源统一记录在 [核对记录](build/licenses/review.json)，不把作者元数据改写为新版权声明。
 
