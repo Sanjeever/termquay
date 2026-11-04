@@ -33,6 +33,9 @@ func TestWebDAVConditionalAppendAndRead(t *testing.T) {
 	}))
 	defer server.Close()
 	opts := WebDAVOptions{URL: server.URL, Directory: "termquay/backups"}
+	if err := opts.Check(context.Background()); err != nil {
+		t.Fatal("目标目录完整检查失败", err)
+	}
 	exerciseWebDAV(t, opts)
 	if _, err := opts.Read(context.Background(), "../outside.json.age"); err == nil {
 		t.Fatal("允许备份目录外读取")

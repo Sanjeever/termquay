@@ -156,7 +156,10 @@ func (a *AppService) protectRestore(current store.Data) error {
 	if err != nil {
 		return fmt.Errorf("创建恢复前保护副本失败：%w", err)
 	}
-	directory := filepath.Join(a.store.Directory(), "restore-backups")
+	directory, err := a.restoreBackupDirectory()
+	if err != nil {
+		return err
+	}
 	if err := os.MkdirAll(directory, 0700); err != nil {
 		return fmt.Errorf("创建保护副本目录失败：%w", err)
 	}
@@ -173,10 +176,24 @@ func (a *AppService) OpenRestoreBackupDirectory() error {
 		a.storeMu.Unlock()
 		return err
 	}
-	directory := filepath.Join(a.store.Directory(), "restore-backups")
+	directory, err := a.restoreBackupDirectory()
 	a.storeMu.Unlock()
+	if err != nil {
+		return err
+	}
 	if err := os.MkdirAll(directory, 0700); err != nil {
 		return err
 	}
 	return application.Get().Env.OpenFileManager(directory, false)
+}
+
+func (a *AppService) restoreBackupDirectory() (string, error) {
+	if a.sessionDir == "" {
+		return filepath.Join(a.store.Directory(), "restore-backups"), nil
+	}
+	directory, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(directory, "TermQuay", "restore-backups"), nil
 }

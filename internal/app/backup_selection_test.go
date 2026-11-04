@@ -1,12 +1,49 @@
 package app
 
 import (
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/Sanjeever/termquay/internal/backup"
 	"github.com/Sanjeever/termquay/internal/store"
 )
+
+func TestBackupSettingsMigrateAndPause(t *testing.T) {
+	a := testAppStore(t)
+	t.Cleanup(a.stopAutomaticBackup)
+	legacy := `{"options":{"url":"https://backup.invalid/dav","username":"test","password":"test-webdav-secret","directory":"termquay/backups"},"password":"test-recovery-secret","selection":{"credentials":true,"snippets":true,"settings":false}}`
+	if err := a.store.SetSecretSetting("automatic_backup", legacy); err != nil {
+		t.Fatal(err)
+	}
+	settings, err := a.GetBackupSettings()
+	if err != nil || !settings.Configured || !settings.PasswordSaved || !settings.RecoverySaved || !settings.Selection.Credentials {
+		t.Fatal("旧备份配置未正确载入", err)
+	}
+	status, err := a.GetAutomaticBackupStatus()
+	if err != nil || !status.Enabled {
+		t.Fatal("旧配置迁移后未保留开启状态", err)
+	}
+	if err := a.DisableAutomaticBackup(); err != nil {
+		t.Fatal(err)
+	}
+	options := backup.WebDAVOptions{URL: settings.URL, Username: settings.Username, Directory: settings.Directory}
+	if err := a.SaveBackupSettings(options, "", "迁移后的设备", settings.Selection); err != nil {
+		t.Fatal(err)
+	}
+	config, err := a.savedBackupConfig()
+	if err != nil || !config.Paused || config.Options.Password != "test-webdav-secret" || config.Password != "test-recovery-secret" {
+		t.Fatal("暂停或留空保存丢失了备份凭据", err)
+	}
+	settings, err = a.GetBackupSettings()
+	if err != nil || settings.DeviceName != "迁移后的设备" {
+		t.Fatal("设备名称未保存", err)
+	}
+	encoded, err := a.store.Setting("automatic_backup")
+	if err != nil || strings.Contains(encoded, "test-webdav-secret") || strings.Contains(encoded, "test-recovery-secret") {
+		t.Fatal("备份配置没有加密保存", err)
+	}
+}
 
 func TestSelectedRestorePreservesExistingAndChecksSettings(t *testing.T) {
 	a := testAppStore(t)
