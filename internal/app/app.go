@@ -96,6 +96,7 @@ type AppService struct {
 	sshChallenges          map[string]*sshAuthentication
 	transferRate           atomic.Int64
 	commandSlots           chan struct{}
+	commandRuns            map[string]*commandRun
 	containerTerminals     map[string]*containerTerminal
 	automaticMu            sync.Mutex
 	automaticConfig        *automaticBackupConfig
@@ -223,6 +224,11 @@ func (a *AppService) ServiceShutdown() (result error) {
 	defer func() { result = errors.Join(result, a.cleanupLocalTransferResumes()) }()
 	a.mu.Lock()
 	a.closed = true
+	commandRuns := make([]*commandRun, 0, len(a.commandRuns))
+	for _, run := range a.commandRuns {
+		run.cancel()
+		commandRuns = append(commandRuns, run)
+	}
 	for _, probe := range a.latencyProbes {
 		probe.cancel()
 	}
@@ -241,6 +247,9 @@ func (a *AppService) ServiceShutdown() (result error) {
 	}
 	a.mu.Unlock()
 	a.stopAutomaticBackup()
+	for _, run := range commandRuns {
+		<-run.done
+	}
 	for _, id := range localIDs {
 		a.CloseLocalTerminal(id)
 	}

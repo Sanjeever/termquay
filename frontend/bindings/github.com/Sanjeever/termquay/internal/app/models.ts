@@ -91,6 +91,42 @@ export interface CommandExportResult {
     "baseline"?: string;
 }
 
+export interface CommandRunItem {
+    "target": CommandRunTarget;
+    "index": number;
+    "step": string;
+    "state": string;
+    "result"?: ssh$0.CommandResult | null;
+    "check"?: InspectionCheckResult | null;
+    "baseline"?: string;
+    "error"?: string;
+}
+
+export interface CommandRunRecord {
+    "summary": CommandRunSummary;
+    "task": CommandTask;
+    "results": CommandRunItem[] | null;
+}
+
+export interface CommandRunSummary {
+    "id": string;
+    "name": string;
+    "state": string;
+    "started_at": number;
+    "finished_at": number;
+    "completed": number;
+    "total": number;
+    "error"?: string;
+    "saved": boolean;
+    "revision": number;
+}
+
+export interface CommandRunTarget {
+    "id": string;
+    "name": string;
+    "address": string;
+}
+
 export interface CommandStep {
     "name": string;
     "script": string;

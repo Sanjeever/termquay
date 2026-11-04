@@ -52,6 +52,10 @@ export function BrowseTransferDirectory(workspace: string, directory: string): $
     return $Call.ByID(2404688278, workspace, directory);
 }
 
+export function CancelCommandRun(id: string): $CancellablePromise<void> {
+    return $Call.ByID(634258122, id);
+}
+
 export function CancelDirectorySyncPreview(id: string): $CancellablePromise<void> {
     return $Call.ByID(3885577300, id);
 }
@@ -172,6 +176,10 @@ export function ConfirmUpload(id: string, directory: string, overwrite: boolean)
     return $Call.ByID(3543393483, id, directory, overwrite);
 }
 
+export function ContinueCommandRun(id: string): $CancellablePromise<void> {
+    return $Call.ByID(829999593, id);
+}
+
 export function CopyRemoteFile(sourceID: string, sourcePath: string, targetID: string, targetPath: string, overwrite: boolean): $CancellablePromise<$models.Transfer> {
     return $Call.ByID(1619394583, sourceID, sourcePath, targetID, targetPath, overwrite);
 }
@@ -194,6 +202,10 @@ export function CreateTerminal(workspace: string): $CancellablePromise<$models.O
 
 export function CreateTmuxTerminal(workspace: string, name: string): $CancellablePromise<$models.OpenResult> {
     return $Call.ByID(1598212760, workspace, name);
+}
+
+export function DeleteCommandRun(id: string): $CancellablePromise<void> {
+    return $Call.ByID(146950359, id);
 }
 
 export function DeleteCommandTask(id: string): $CancellablePromise<void> {
@@ -312,6 +324,10 @@ export function GetCatalog(): $CancellablePromise<$models.Catalog> {
     return $Call.ByID(3198086081);
 }
 
+export function GetCommandRun(id: string): $CancellablePromise<$models.CommandRunRecord> {
+    return $Call.ByID(522968724, id);
+}
+
 export function GetConnectionFilters(): $CancellablePromise<$models.ConnectionFilter[] | null> {
     return $Call.ByID(1522307065);
 }
@@ -390,6 +406,10 @@ export function GetWorkspaceLayout(): $CancellablePromise<$models.WorkspaceLayou
 
 export function InspectContainer(workspace: string, socket: string, id: string): $CancellablePromise<docker$0.Details> {
     return $Call.ByID(1928224569, workspace, socket, id);
+}
+
+export function ListCommandRuns(): $CancellablePromise<$models.CommandRunSummary[] | null> {
+    return $Call.ByID(1846872853);
 }
 
 export function ListCommandTasks(): $CancellablePromise<$models.CommandTask[] | null> {
@@ -728,6 +748,10 @@ export function SaveBackupSettings(options: backup$0.WebDAVOptions, password: st
     return $Call.ByID(3551534060, options, password, deviceName, selection);
 }
 
+export function SaveCommandRun(id: string): $CancellablePromise<$models.CommandRunSummary> {
+    return $Call.ByID(2461912533, id);
+}
+
 export function SaveCommandTask(task: $models.CommandTask): $CancellablePromise<$models.CommandTask> {
     return $Call.ByID(2063822837, task);
 }
@@ -862,6 +886,10 @@ export function SetUpdateCheck(enabled: boolean): $CancellablePromise<void> {
 
 export function SetWorkspaceDirty(id: string, dirty: boolean): $CancellablePromise<void> {
     return $Call.ByID(3255489445, id, dirty);
+}
+
+export function StartCommandRun(task: $models.CommandTask, targets: $models.CommandRunTarget[] | null, baselineWorkspace: string): $CancellablePromise<$models.CommandRunSummary> {
+    return $Call.ByID(3850444144, task, targets, baselineWorkspace);
 }
 
 export function StartDownload(id: string, remote: string): $CancellablePromise<$models.Transfer> {
