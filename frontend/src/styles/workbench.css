@@ -7,14 +7,18 @@ button:focus-visible, summary:focus-visible, select:focus-visible, input:not([da
 [role=listbox]:focus-visible, [role=menu]:focus-visible { outline: none; }
 [data-slot=trigger][data-focus-visible=true] { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 [data-slot=input-wrapper] input, [data-slot=input-wrapper] textarea { outline: none; outline-width: 0 !important; box-shadow: none; }
-.select-control { display: inline-flex; min-width: 0; width: auto; }
-.select-trigger { height: var(--control-height); min-height: var(--control-height); border: 1px solid var(--color-border-strong); background: var(--color-control); padding: 0 10px; border-radius: var(--radius); box-shadow: var(--shadow-control); }
+.select-control { display: inline-flex; flex-shrink: 0; min-width: 0; width: max-content; max-width: 100%; }
+.select-trigger { height: var(--control-height); min-height: var(--control-height); gap: 8px; border: 1px solid var(--color-border-strong); background: var(--color-control); padding: 0 10px; border-radius: var(--radius); box-shadow: var(--shadow-control); }
+.select-trigger [data-slot=innerWrapper] { flex: 1; min-width: 0; width: auto; }
+.select-trigger [data-slot=selectorIcon] { position: static; }
 .select-trigger[data-hover=true] { background: var(--color-surface); }
 .select-trigger[data-open=true], .select-trigger[data-focus-visible=true] { border-color: var(--color-primary); }
 .select-trigger[data-invalid=true] { border-color: var(--color-danger); }
 .select-value { font-size: 12px; color: var(--color-text); }
+[data-slot=popover]:has(.select-popover) { width: max-content !important; min-width: 96px; max-width: calc(100vw - 24px); }
 .select-popover { color: var(--color-text); background: var(--color-elevated); border: 1px solid var(--color-border-strong); border-radius: var(--radius-menu); padding: 5px; box-shadow: var(--shadow-floating); }
 .select-options [role=option] { min-height: 30px; border-radius: 4px; font-size: 12px; }
+.select-options [data-slot=title] { white-space: normal; overflow-wrap: anywhere; }
 .select-options [role=option][data-hover=true], .select-options [role=option][data-focus=true] { background: var(--color-hover); }
 .select-options [role=option][data-selected=true] { background: var(--color-selected); color: var(--color-text); }
 .form-field > .select-control { width: 100%; }
