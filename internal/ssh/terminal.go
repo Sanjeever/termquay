@@ -37,6 +37,7 @@ type Request struct {
 	Certificate     string `json:"certificate,omitempty"`
 	ProxyAddress    string `json:"proxy_address,omitempty"`
 	challenge       gossh.KeyboardInteractiveChallenge
+	progress        func(string) func(error)
 }
 
 func WithChallenge(r Request, challenge gossh.KeyboardInteractiveChallenge) Request {
@@ -91,7 +92,9 @@ func Dial(ctx context.Context, r Request) (*Terminal, error) {
 	}
 	return terminalOn(ctx, client, r)
 }
-func terminalOn(ctx context.Context, client *gossh.Client, r Request) (*Terminal, error) {
+func terminalOn(ctx context.Context, client *gossh.Client, r Request) (result *Terminal, failure error) {
+	finish := r.connectionStage("终端通道与 Shell")
+	defer func() { finish(failure) }()
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	stop := context.AfterFunc(ctx, func() { client.Close() })
@@ -108,7 +111,7 @@ func terminalOn(ctx context.Context, client *gossh.Client, r Request) (*Terminal
 	}
 	return t, nil
 }
-func dialClient(ctx context.Context, r Request, connect func(context.Context, string) (net.Conn, error)) (*gossh.Client, error) {
+func dialClient(ctx context.Context, r Request, connect func(context.Context, string) (net.Conn, error)) (result *gossh.Client, failure error) {
 	if r.Host == "" || r.Username == "" || r.Port < 1 || r.Port > 65535 || r.Cols < 1 || r.Rows < 1 {
 		return nil, errors.New("SSH 地址、用户名、端口或终端尺寸无效")
 	}
@@ -127,6 +130,13 @@ func dialClient(ctx context.Context, r Request, connect func(context.Context, st
 			method = "password"
 		}
 	}
+	finishCredentials := r.connectionStage("认证材料")
+	credentialsReady := false
+	defer func() {
+		if !credentialsReady {
+			finishCredentials(failure)
+		}
+	}()
 	if method == "agent" {
 		if r.IdentityAgent == "none" {
 			return nil, errors.New("此连接已禁用 SSH Agent")
@@ -188,17 +198,38 @@ func dialClient(ctx context.Context, r Request, connect func(context.Context, st
 		}
 		auth = append(auth, gossh.KeyboardInteractive(r.challenge))
 	}
+	finishCredentials(nil)
+	credentialsReady = true
+	var finishHandshake, finishAuth func(error)
+	var identityOnce sync.Once
 	config := &gossh.ClientConfig{User: r.Username, Auth: auth,
 		HostKeyAlgorithms: []string{gossh.KeyAlgoED25519, gossh.KeyAlgoECDSA256, gossh.KeyAlgoECDSA384, gossh.KeyAlgoECDSA521, gossh.KeyAlgoRSASHA512, gossh.KeyAlgoRSASHA256},
 		HostKeyCallback: func(_ string, _ net.Addr, key gossh.PublicKey) error {
 			fingerprint := gossh.FingerprintSHA256(key)
+			var identityError error
 			if subtle.ConstantTimeCompare([]byte(fingerprint), []byte(r.Fingerprint)) != 1 {
-				return &HostKeyError{Fingerprint: fingerprint, Host: r.Host, Port: r.Port, Via: r.JumpID}
+				identityError = &HostKeyError{Fingerprint: fingerprint, Host: r.Host, Port: r.Port, Via: r.JumpID}
 			}
-			return nil
+			identityOnce.Do(func() {
+				finishHandshake(nil)
+				finishHandshake = nil
+				r.connectionStage("主机身份校验")(identityError)
+				if identityError == nil {
+					finishAuth = r.connectionStage("SSH 用户认证")
+				}
+			})
+			return identityError
 		}}
 	address := net.JoinHostPort(r.Host, strconv.Itoa(r.Port))
+	stage := "TCP 建连（含 DNS）"
+	if r.ProxyAddress != "" {
+		stage = "SOCKS5 路径连接"
+	} else if r.JumpID != "" {
+		stage = "跳板转发目标端口"
+	}
+	finishConnect := r.connectionStage(stage)
 	conn, err := connect(ctx, address)
+	finishConnect(err)
 	if err != nil {
 		stage := "TCP 连接"
 		if r.ProxyAddress != "" {
@@ -211,7 +242,14 @@ func dialClient(ctx context.Context, r Request, connect func(context.Context, st
 		return nil, &ConnectionError{Stage: stage, Err: err, Retryable: ctx.Err() == nil}
 	}
 	stop := context.AfterFunc(ctx, func() { conn.Close() })
+	finishHandshake = r.connectionStage("SSH 协商")
 	c, chans, reqs, err := gossh.NewClientConn(conn, address, config)
+	if finishHandshake != nil {
+		finishHandshake(err)
+	}
+	if finishAuth != nil {
+		finishAuth(err)
+	}
 	if err != nil {
 		stop()
 		conn.Close()

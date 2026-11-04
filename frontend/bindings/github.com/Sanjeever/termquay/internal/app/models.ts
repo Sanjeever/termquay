@@ -187,6 +187,7 @@ export interface MonitorEvent {
 }
 
 export interface OpenResult {
+    "steps": ssh$0.ConnectionStep[] | null;
     "id": string;
     "fingerprint": string;
     "trust_required": boolean;
@@ -314,6 +315,7 @@ export interface SSHLayout {
 }
 
 export interface SSHReconnectResult {
+    "steps": ssh$0.ConnectionStep[] | null;
     "result": OpenResult;
     "error": string;
     "retryable": boolean;

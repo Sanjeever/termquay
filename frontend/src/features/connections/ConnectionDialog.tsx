@@ -9,13 +9,16 @@ import type {PrivateKeySelection, CredentialReference}from'../../../bindings/git
 import { ListCredentialReferences, SaveConnectionWithCredential, SelectSSHCertificate } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { Connection, ConnectionPreference, Group } from '../../../bindings/github.com/Sanjeever/termquay/internal/store/models';
 import type { Request } from '../../../bindings/github.com/Sanjeever/termquay/internal/ssh/models';
+import type { ConnectionStep } from '../../../bindings/github.com/Sanjeever/termquay/internal/ssh/models';
+import ConnectionDiagnostics from './ConnectionDiagnostics';
 
-export default function ConnectionDialog({ connection, temporary, groups, connections, busy, connectionError, onConnect, onSaved, onClose, onCancel, rdpOptions, preference, systemRDP, gateways=[] }: {
+export default function ConnectionDialog({ connection, temporary, groups, connections, busy, connectionError, connectionSteps = [], onConnect, onSaved, onClose, onCancel, rdpOptions, preference, systemRDP, gateways=[] }: {
   connection?: Connection; temporary: boolean; groups: Group[]; busy: boolean; connectionError: string;
   connections:Connection[];
   preference?: ConnectionPreference;
   systemRDP: boolean;
   gateways?: {id:string;name:string}[];
+  connectionSteps?: ConnectionStep[];
   onConnect(connection: Connection, auth?: Request, options?: RDPOptions): Promise<boolean>; onSaved(): void; onClose(): void; onCancel(): void; rdpOptions?: RDPOptions;
 }) {
   const [saved, setSaved] = useState(connection);
@@ -129,6 +132,7 @@ export default function ConnectionDialog({ connection, temporary, groups, connec
       </div>
       {stored && connectionError && <p className="muted">配置已保存，连接未成功。</p>}
       {(error || connectionError) && <p role="alert" className="error">{error || connectionError}</p>}
+      {!!connectionSteps.length && <details><summary>连接诊断{busy && ` · ${connectionSteps.at(-1)?.stage}`}</summary><ConnectionDiagnostics steps={connectionSteps} busy={busy} /></details>}
     </form></ModalBody>
     <ModalFooter>{temporary && <span className="temporary-label">临时连接</span>}<Button variant="light" isDisabled={saving} onPress={() => { onCancel(); onClose(); }}>{busy ? '取消连接' : '取消'}</Button>{!temporary && <Button variant="bordered" isDisabled={busy || saving} onPress={() => void submit('save')}>保存</Button>}<Button color="primary" type="submit" form="connection-dialog-form" isDisabled={!targetReady || parsing} isLoading={busy || saving}>{temporary ? '连接' : '保存并连接'}</Button></ModalFooter>
   </ModalContent></Modal>;

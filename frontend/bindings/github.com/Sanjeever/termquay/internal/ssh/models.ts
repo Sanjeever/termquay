@@ -10,6 +10,18 @@ export interface CommandResult {
     "error": string;
 }
 
+export interface ConnectionStep {
+    "hop": number;
+    "host": string;
+    "port": number;
+    "role": string;
+    "stage": string;
+    "state": string;
+    "duration_ms": number;
+    "code"?: string;
+    "detail"?: string;
+}
+
 export interface ForwardInfo {
     "address": string;
     "state": string;

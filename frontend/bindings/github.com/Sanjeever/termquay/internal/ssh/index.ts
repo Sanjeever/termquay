@@ -3,6 +3,7 @@
 
 export type {
     CommandResult,
+    ConnectionStep,
     ForwardInfo,
     ForwardSpec,
     Request,

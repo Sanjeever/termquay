@@ -64,6 +64,10 @@ export function CancelUpdate(): $CancellablePromise<void> {
     return $Call.ByID(33469453);
 }
 
+export function CheckSSHFileAccess(workspace: string): $CancellablePromise<void> {
+    return $Call.ByID(354512916, workspace);
+}
+
 export function CheckSavedWebDAV(): $CancellablePromise<void> {
     return $Call.ByID(2741362148);
 }
@@ -302,6 +306,10 @@ export function GetPortableUI(): $CancellablePromise<{ [_ in string]?: string } 
 
 export function GetSSHChallenge(id: string): $CancellablePromise<$models.SSHChallenge | null> {
     return $Call.ByID(548734497, id);
+}
+
+export function GetSSHConnectionProgress(id: string): $CancellablePromise<ssh$0.ConnectionStep[] | null> {
+    return $Call.ByID(3326919123, id);
 }
 
 export function GetSnapshotDetails(path: string, password: string): $CancellablePromise<$models.SnapshotDetails> {

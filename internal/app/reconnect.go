@@ -8,9 +8,10 @@ import (
 )
 
 type SSHReconnectResult struct {
-	Result    OpenResult `json:"result"`
-	Error     string     `json:"error"`
-	Retryable bool       `json:"retryable"`
+	Steps     []terminal.ConnectionStep `json:"steps"`
+	Result    OpenResult                `json:"result"`
+	Error     string                    `json:"error"`
+	Retryable bool                      `json:"retryable"`
 }
 
 func (a *AppService) ReconnectSavedSSH(ctx context.Context, id string) SSHReconnectResult {
@@ -23,11 +24,11 @@ func (a *AppService) ReconnectSavedSSH(ctx context.Context, id string) SSHReconn
 	}
 	result, err := a.OpenTerminal(ctx, r)
 	if err == nil && result.TrustRequired {
-		return SSHReconnectResult{Error: "主机身份需要手动确认"}
+		return SSHReconnectResult{Error: "主机身份需要手动确认", Steps: result.Steps}
 	}
 	if err != nil {
 		var connection *terminal.ConnectionError
-		return SSHReconnectResult{Error: err.Error(), Retryable: errors.As(err, &connection) && connection.Retryable}
+		return SSHReconnectResult{Error: err.Error(), Steps: result.Steps, Retryable: errors.As(err, &connection) && connection.Retryable}
 	}
 	return SSHReconnectResult{Result: result}
 }

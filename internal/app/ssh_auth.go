@@ -19,6 +19,7 @@ type SSHChallenge struct {
 
 type sshAuthentication struct {
 	challenge *SSHChallenge
+	progress  *connectionProgress
 	answers   chan []string
 	rounds    int
 }
@@ -35,7 +36,7 @@ func (a *AppService) beginSSHAuthentication(ctx context.Context, id string) (gos
 	if a.sshChallenges == nil {
 		a.sshChallenges = make(map[string]*sshAuthentication)
 	}
-	state := &sshAuthentication{answers: make(chan []string, 1)}
+	state := &sshAuthentication{answers: make(chan []string, 1), progress: &connectionProgress{}}
 	a.sshChallenges[id] = state
 	a.mu.Unlock()
 	challenge := func(user, instruction string, questions []string, echo []bool) ([]string, error) {

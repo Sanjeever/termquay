@@ -22,13 +22,14 @@ import (
 )
 
 type OpenResult struct {
-	ID            string `json:"id"`
-	Fingerprint   string `json:"fingerprint"`
-	TrustRequired bool   `json:"trust_required"`
-	TrustHost     string `json:"trust_host,omitempty"`
-	TrustPort     int    `json:"trust_port,omitempty"`
-	TrustVia      string `json:"trust_via,omitempty"`
-	TrustRole     string `json:"trust_role,omitempty"`
+	Steps         []terminal.ConnectionStep `json:"steps"`
+	ID            string                    `json:"id"`
+	Fingerprint   string                    `json:"fingerprint"`
+	TrustRequired bool                      `json:"trust_required"`
+	TrustHost     string                    `json:"trust_host,omitempty"`
+	TrustPort     int                       `json:"trust_port,omitempty"`
+	TrustVia      string                    `json:"trust_via,omitempty"`
+	TrustRole     string                    `json:"trust_role,omitempty"`
 }
 
 type pendingTerminal struct {
@@ -126,7 +127,7 @@ func NewAppService(build BuildInfo, licenses fs.ReadFileFS) *AppService {
 	return &AppService{build: build, licenseFiles: licenses, terminals: map[string]*pendingTerminal{}, workspaces: map[string]*workspaceOwner{}, trusted: map[string]string{}, pendingTrust: map[string]string{}, fileSlots: make(chan struct{}, 4), imageSlots: make(chan struct{}, 2), monitors: map[string]context.CancelFunc{}, transfers: map[string]*transferTask{}, dirty: map[string]bool{}, views: map[string]bool{}, syncPlans: map[string]*directorySyncPlan{}, privateKeys: map[string]stagedPrivateKey{}, tunnels: map[string]*workspaceTunnel{}, transferEvent: func(view Transfer) { application.Get().Event.Emit("transfer:changed", view) }}
 }
 
-func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (OpenResult, error) {
+func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (result OpenResult, failure error) {
 	if r.ProxyAddress != "" && r.JumpID != "" {
 		return OpenResult{}, errors.New("目标不能同时配置跳板与连接代理，请在首个跳板配置代理")
 	}
@@ -135,6 +136,18 @@ func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (Open
 		return OpenResult{}, err
 	}
 	defer release()
+	progress := &connectionProgress{}
+	a.mu.Lock()
+	if state := a.sshChallenges[r.AuthID]; state != nil {
+		progress = state.progress
+	}
+	a.mu.Unlock()
+	defer func() {
+		result.Steps = progress.snapshot()
+		if failure != nil {
+			failure = &SSHConnectionFailure{Message: failure.Error(), Steps: result.Steps, err: failure}
+		}
+	}()
 	r = terminal.WithChallenge(r, challenge)
 	if err := a.resolvePrivateKey(&r); err != nil {
 		return OpenResult{}, err
@@ -142,6 +155,9 @@ func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (Open
 	chain, err := a.resolveSSHChain(r)
 	if err != nil {
 		return OpenResult{}, err
+	}
+	for i := range chain {
+		chain[i] = terminal.WithConnectionProgress(chain[i], i+1, len(chain), progress.record)
 	}
 	epochs := map[string]uint64{}
 	a.mu.Lock()
