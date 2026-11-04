@@ -2,9 +2,10 @@ import Tooltip from '../Tooltip';
 import Icon from '../Icon';
 import { useEffect, useRef, useState } from 'react';
 import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from '@heroui/react';
+import { commandAttentionLabels, type CommandAttention } from '../../features/terminal/commandAttention';
 
 export default function WorkspaceTabs({ items, active, onSelect, onClose, onNew, onRename, onMove, onSearch, disableNew = false }: {
-  items: { id: string; name: string; rdp?: unknown; dirty?: boolean }[]; active: string;
+  items: { id: string; name: string; rdp?: unknown; dirty?: boolean; attention?: CommandAttention }[]; active: string;
   onSelect(id: string, keyboard?: boolean): void; onClose(id: string, keyboard?: boolean): void; onNew(): void;
   onRename(id: string, name: string): void; onMove(id: string, target: string): void;
   onSearch(): void;
@@ -32,7 +33,7 @@ export default function WorkspaceTabs({ items, active, onSelect, onClose, onNew,
           if (index && e.altKey && e.shiftKey && ['ArrowLeft', 'ArrowRight'].includes(e.key)) { e.preventDefault(); const target = tabs[index + (e.key === 'ArrowRight' ? 1 : -1)]; if (target?.id) { onMove(item.id, target.id); focusTab(item.id); } return; }
           if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) { e.preventDefault(); const next = e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1 : (index + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length; if (tabs[next].id !== active) onSelect(tabs[next].id, true); focusTab(tabs[next].id); }
         }}>
-        <Icon name={index === 0 ? 'connections' : item.rdp ? 'desktop' : 'terminal'} /><span>{item.name}</span>{item.dirty && <span aria-label="有未保存文件" className="dirty-dot">●</span>}
+        <Icon name={index === 0 ? 'connections' : item.rdp ? 'desktop' : 'terminal'} /><span>{item.name}</span>{'attention' in item && item.attention && <span className={`command-attention ${item.attention}`}>{commandAttentionLabels[item.attention]}</span>}{item.dirty && <span aria-label="有未保存文件" className="dirty-dot">●</span>}
       </button></Tooltip>}{index !== 0 && <><Dropdown><DropdownTrigger><button className="tab-close" aria-label={`工作区菜单 ${item.name}`}><Icon name="more" width="13" height="13" /></button></DropdownTrigger><DropdownMenu aria-label="工作区操作" onAction={key => { if (key === 'rename') rename(item.id, item.name); if (key === 'left' && index > 1) onMove(item.id, tabs[index - 1].id); if (key === 'right' && index < tabs.length - 1) onMove(item.id, tabs[index + 1].id); }} disabledKeys={[...(index <= 1 ? ['left'] : []), ...(index === tabs.length - 1 ? ['right'] : [])]}><DropdownItem key="rename">临时重命名</DropdownItem><DropdownItem key="left">左移工作区</DropdownItem><DropdownItem key="right">右移工作区</DropdownItem></DropdownMenu></Dropdown><button className="tab-close" aria-label={`关闭工作区 ${item.name}`} onClick={e => onClose(item.id, e.detail === 0)}><Icon name="close" width="13" height="13" /></button></>}
     </div>)}
     <Tooltip content="新建连接"><button className="icon-button" aria-label="新建连接" disabled={disableNew} onClick={onNew}><Icon name="plus" /></button></Tooltip>

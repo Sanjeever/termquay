@@ -14,6 +14,7 @@ import (
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 	"github.com/Sanjeever/termquay/internal/store"
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/services/notifications"
 	"github.com/wailsapp/wails/v3/pkg/updater"
 )
 
@@ -105,6 +106,8 @@ type AppService struct {
 	automaticDone          chan struct{}
 	locals                 map[string]*localTerminal
 	localOpening           int
+	notificationMu         sync.Mutex
+	notifications          *notifications.NotificationService
 	latencyProbes          map[string]*latencyProbe
 	updateMu               sync.Mutex
 	updateEngine           *updater.Updater
@@ -212,6 +215,7 @@ func (a *AppService) CloseWorkspace(id string) {
 
 func (a *AppService) ServiceShutdown() (result error) {
 	result = errors.Join(result, a.stopUpdates())
+	defer func() { result = errors.Join(result, a.closeNotifications()) }()
 	defer func() { result = errors.Join(result, a.cleanupLocalTransferResumes()) }()
 	a.mu.Lock()
 	a.closed = true

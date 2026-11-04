@@ -10,6 +10,7 @@ import { WebLinksAddon } from '@xterm/addon-web-links';
 import TerminalSearch, { searchHighlightLimit } from './TerminalSearch';
 import { addLogHighlights } from './logHighlights';
 import { addShellIntegration, type CommandIndexEntry } from './shellIntegration';
+import type { CommandAttention } from './commandAttention';
 import { parseRecordedCommand } from './shellCompletionProtocol';
 import { shellCompletionSetup } from './shellCompletionSetup';
 import useTerminalCompletion from './useTerminalCompletion';
@@ -18,6 +19,7 @@ import CommandHelpDialog from './CommandHelpDialog';
 import SelectControl from '../../components/SelectControl';
 import TmuxDialog from './TmuxDialog';
 import { ExportTerminalBuffer, StartTerminalLog, StartTerminalRecording, PauseTerminalLog, GetTerminalLogStatus } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
+import { EnableCommandNotification, NotifyCommandFinished } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { TerminalLogStatus } from '../../../bindings/github.com/Sanjeever/termquay/internal/ssh/models';
 import Icon from '../../components/Icon';
 import ErrorNotice from '../../components/ErrorNotice';
@@ -33,7 +35,7 @@ const RecordingPlayer = lazy(() => import('./RecordingPlayer'));
 
 export type TerminalAction = 'find' | 'terminalCompletion' | 'commandHelp' | 'copy' | 'paste' | 'selectAll' | 'clear' | 'zoomIn' | 'zoomOut' | 'zoomReset';
 export type TerminalHandle = { ended():boolean; action(action: TerminalAction): void; insert(text: string): boolean };
-const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string; host?:string; local?: boolean; container?: boolean; visible: boolean; fontSize: number; demoOutput?: string; focusOnShow?:boolean; tmuxSession?: string; tmuxAttached?: boolean; tmuxAvailable?: boolean; onTmuxAttach?(name: string): Promise<boolean>; onTmuxUnbind?(): void; onConnectionChange?():void; onSnippets(): void; onDirectory?(path: string, host: string): void; onFile?(path: string, line: number): void }>(function TerminalView({ id, workspace, host='localhost', local=false, container: containerConsole=false, visible, fontSize, demoOutput, focusOnShow=true, tmuxSession, tmuxAttached=false, tmuxAvailable=false, onTmuxAttach, onTmuxUnbind, onConnectionChange, onSnippets, onDirectory, onFile }, ref) {
+const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string; host?:string; local?: boolean; container?: boolean; visible: boolean; fontSize: number; demoOutput?: string; focusOnShow?:boolean; tmuxSession?: string; tmuxAttached?: boolean; tmuxAvailable?: boolean; onTmuxAttach?(name: string): Promise<boolean>; onTmuxUnbind?(): void; onConnectionChange?():void; onAttention?(state?: CommandAttention): void; onActivate?(): void; onSnippets(): void; onDirectory?(path: string, host: string): void; onFile?(path: string, line: number): void }>(function TerminalView({ id, workspace, host='localhost', local=false, container: containerConsole=false, visible, fontSize, demoOutput, focusOnShow=true, tmuxSession, tmuxAttached=false, tmuxAvailable=false, onTmuxAttach, onTmuxUnbind, onConnectionChange, onAttention, onActivate, onSnippets, onDirectory, onFile }, ref) {
   const container = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<{ source: string; message: string }>();
   const [streamError, setStreamError] = useState('');
@@ -52,6 +54,12 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
   const [zoom, setZoom] = useState(0);
   const [cwd, setCwd] = useState('');
   const [exitCode, setExitCode] = useState('');
+  const [runningCommand, setRunningCommand] = useState(false);
+  const [reminder, setReminder] = useState(false);
+  const [armingReminder, setArmingReminder] = useState(false);
+  const currentCommand = useRef(0);
+  const running = useRef(false);
+  const reminderCommand = useRef<number>();
   const [integrationOpen, setIntegrationOpen] = useState(false);
   const [help, setHelp] = useState<{command?:string}>();
   const [pathCompletion, setPathCompletion] = useState(false);
@@ -73,13 +81,31 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
   const [shell, setShell] = useState<'bash' | 'zsh'>(local&&System.IsMac()?'zsh':'bash');
   const shellSetup=useMemo(()=>shellCompletionSetup(shell,host,setupToken),[shell,host,setupToken]);
   const integration = useRef<ReturnType<typeof addShellIntegration>>();
-  const callbacks = useRef({ onDirectory, onFile }); callbacks.current = { onDirectory, onFile };
+  const callbacks = useRef({ onDirectory, onFile, onAttention, onActivate }); callbacks.current = { onDirectory, onFile, onAttention, onActivate };
   const shown = useRef(visible); shown.current = visible;
   const focusRequested=useRef(focusOnShow);focusRequested.current=focusOnShow;
   const inputStream=useRef<ReturnType<typeof Stream>>();
   const completion=useTerminalCompletion({id,workspace,visible,terminal,send:sendFrame,fail:message=>reportError('completion',message),help:()=>setHelp({})});
   const complete=useRef(completion);complete.current=completion;
   const stateCallback=useRef(onConnectionChange);stateCallback.current=onConnectionChange;
+  async function toggleReminder() {
+    if (reminderCommand.current !== undefined) { reminderCommand.current = undefined; setReminder(false); return; }
+    const term = terminal.current;
+    const command = currentCommand.current;
+    setArmingReminder(true); clearError('notification');
+    try {
+      await EnableCommandNotification();
+      if (terminal.current === term && running.current && currentCommand.current === command) { reminderCommand.current = command; setReminder(true); }
+    } catch (e) { if (terminal.current === term) reportError('notification', e); }
+    finally { if (terminal.current === term) setArmingReminder(false); }
+  }
+  useEffect(() => {
+    if (demoOutput !== undefined) return;
+    const clearAttention = () => { if (shown.current && !running.current) callbacks.current.onAttention?.(); };
+    const off = [Events.On(Events.Types.Common.WindowFocus, clearAttention), Events.On('terminal:notification-activated', event => { if (event.data === id) callbacks.current.onActivate?.(); })];
+    return () => off.forEach(dispose => dispose());
+  }, [id, demoOutput]);
+  useEffect(() => { if (visible && document.hasFocus() && !running.current) callbacks.current.onAttention?.(); }, [visible]);
   function sendFrame(data:string):boolean {
     const stream=inputStream.current,bytes=new TextEncoder().encode(data);
     if(!stream||stream.readyState!==stream.OPEN){reportError('completion','终端已断开');return false;}
@@ -128,7 +154,23 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
     }));
     terminal.current = term;
     setCommandEntries([]); commandToken.current = '';
-    integration.current = addShellIntegration(term, (path, host) => { setCwd(path); callbacks.current.onDirectory?.(path, host); }, setExitCode, (path, line) => callbacks.current.onFile?.(path, line),kind=>complete.current.command(kind),data=>{ const command = parseRecordedCommand(data, commandToken.current); if (command !== undefined) integration.current?.recordCommand(command); else complete.current.receive(data); },setCommandEntries);
+    integration.current = addShellIntegration(term, (path, host) => { setCwd(path); callbacks.current.onDirectory?.(path, host); }, setExitCode, (path, line) => callbacks.current.onFile?.(path, line),kind=>complete.current.command(kind),data=>{ const command = parseRecordedCommand(data, commandToken.current); if (command !== undefined) integration.current?.recordCommand(command); else complete.current.receive(data); }, entries => {
+      setCommandEntries(entries);
+      const latest = entries[entries.length - 1];
+      if (!latest || demoOutput !== undefined) return;
+      if (latest.duration === undefined) {
+        currentCommand.current = latest.id; running.current = true; setRunningCommand(true);
+        callbacks.current.onAttention?.('running');
+      } else if (running.current && currentCommand.current === latest.id) {
+        running.current = false; setRunningCommand(false);
+        const failed = latest.exitCode !== undefined && latest.exitCode !== '0';
+        callbacks.current.onAttention?.(shown.current && document.hasFocus() ? undefined : failed ? 'failed' : 'completed');
+        if (reminderCommand.current === latest.id) {
+          reminderCommand.current = undefined; setReminder(false);
+          NotifyCommandFinished(id, failed).catch(e => { if (terminal.current === term) reportError('notification', e); });
+        }
+      }
+    });
     term.attachCustomKeyEventHandler(event=>complete.current.key(event));
     const bufferChange=term.buffer.onBufferChange(()=>complete.current.invalidate());
     const textarea=term.textarea,blur=()=>complete.current.dismiss();textarea?.addEventListener('blur',blur);
@@ -165,7 +207,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
         stream.send(ack);
       });
     };
-    stream.onclose = () => { if (!disposed) { complete.current.invalidate();setConnected(false); term.options.disableStdin = true;stateCallback.current?.(); } };
+    stream.onclose = () => { if (!disposed) { running.current = false; reminderCommand.current = undefined; setRunningCommand(false); setReminder(false); callbacks.current.onAttention?.(); complete.current.invalidate();setConnected(false); term.options.disableStdin = true;stateCallback.current?.(); } };
     stream.onerror = () => { if (!disposed) setStreamError('终端数据流中断'); };
     const input = term.onData((data) => {
       complete.current.input(data);
@@ -199,6 +241,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
         <DropdownItem key="copy">复制</DropdownItem><DropdownItem key="paste">粘贴</DropdownItem><DropdownItem key="selectAll">全选</DropdownItem><DropdownItem key="find">查找</DropdownItem><DropdownItem key="clear">清空显示</DropdownItem><DropdownItem key="zoomIn">放大字号</DropdownItem><DropdownItem key="zoomOut">缩小字号</DropdownItem><DropdownItem key="zoomReset">复位字号</DropdownItem>
         <DropdownItem key="previousCommand">跳到上一条命令</DropdownItem><DropdownItem key="commandOutput">选择上次命令输出</DropdownItem><DropdownItem key="integration" isDisabled={!connected}>启用当前 Shell 集成…</DropdownItem>
         <DropdownItem key="commandIndex" onPress={() => setCommandIndexOpen(true)}>会话命令索引</DropdownItem>
+        <DropdownItem key="reminder" isDisabled={!connected || !runningCommand || armingReminder || demoOutput !== undefined} onPress={() => void toggleReminder()} endContent={reminder ? '✓' : null}>完成时提醒</DropdownItem>
         <DropdownItem key="terminalCompletion" isDisabled={!connected||demoOutput!==undefined}>命令补全</DropdownItem><DropdownItem key="commandHelp">POSIX 命令参考…</DropdownItem>
         <DropdownItem key="tmux" className={local||containerConsole?'hidden':''} isDisabled={local||containerConsole||!connected}>tmux 会话…</DropdownItem>
         <DropdownItem key="keyword">临时关键词高亮</DropdownItem><DropdownItem key="export">导出当前缓冲区</DropdownItem><DropdownItem key="log" className={local||containerConsole?'hidden':''} isDisabled={local||containerConsole||!connected} onPress={() => setLogFormat(log?.format === 'asciicast' ? 'asciicast' : log?.directory ? 'ansi' : 'asciicast')}>{log?.recording ? '暂停记录' : log?.directory ? '继续记录…' : '记录终端输出…'}</DropdownItem><DropdownItem key="playback" isDisabled={demoOutput !== undefined} onPress={() => setPlayback(true)}>打开录制回放…</DropdownItem>

@@ -5,6 +5,7 @@ import type { Grant } from '../../../bindings/github.com/Sanjeever/termquay/inte
 import type { SSHWorkspaceHandle } from '../files/SSHWorkspace';
 import type { RDPHandle, RDPOptions } from '../rdp/RDPView';
 import type { TerminalHandle } from '../terminal/TerminalView';
+import type { CommandAttention } from '../terminal/commandAttention';
 
 export type Workspace = {
   id: string;
@@ -21,4 +22,5 @@ export type Workspace = {
   view?: RefObject<RDPHandle>;
   ssh?: RefObject<SSHWorkspaceHandle>;
   dirty?: boolean;
+  attention?: CommandAttention;
 };

@@ -264,6 +264,10 @@ export function EnableAutomaticBackup(options: backup$0.WebDAVOptions, password:
     return $Call.ByID(855699466, options, password, selection);
 }
 
+export function EnableCommandNotification(): $CancellablePromise<void> {
+    return $Call.ByID(2440707361);
+}
+
 export function ExecuteDirectorySync(id: string, selected: string[] | null): $CancellablePromise<$models.Transfer> {
     return $Call.ByID(1166658499, id, selected);
 }
@@ -466,6 +470,10 @@ export function MoveGroup(id: string, parentID: string, beforeID: string): $Canc
 
 export function MoveRemotePaths(id: string, paths: string[] | null, directory: string): $CancellablePromise<$models.RemotePathResult[] | null> {
     return $Call.ByID(3367740979, id, paths, directory);
+}
+
+export function NotifyCommandFinished(id: string, failed: boolean): $CancellablePromise<void> {
+    return $Call.ByID(2465979134, id, failed);
 }
 
 export function OpenContainerTerminal(workspace: string, socket: string, id: string, shell: string): $CancellablePromise<$models.OpenResult> {
