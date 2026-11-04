@@ -7,23 +7,43 @@ import { transferSummary } from './transferFormat';
 
 export default function useTransfers() {
   const [transfers, setTransfers] = useState<Record<string, Transfer>>({});
-  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState<{ task: string; message: string }>();
+  const [loadError, setLoadError] = useState('');
+  const live = useRef(false);
+  const loadVersion = useRef(0);
+  const operationVersion = useRef(0);
+  const operations = useRef(new Map<string, number>());
   const pending = useRef(new Map<string,Transfer>());
+  async function refresh() {
+    const version = ++loadVersion.current;
+    try {
+      const list = await ListTransfers();
+      if (!live.current || loadVersion.current !== version) return;
+      setTransfers(previous=>({...Object.fromEntries((list || []).map(task=>[task.id,task])),...previous})); setLoadError('');
+    } catch (error) { if (live.current && loadVersion.current === version) setLoadError(errorMessage(error)); }
+  }
   useEffect(() => {
-    let disposed = false;
+    live.current = true;
     let frame = 0;
     const off = Events.On('transfer:changed', event => { const t = event.data as Transfer; pending.current.set(t.id,t); if(!frame)frame=requestAnimationFrame(()=>{frame=0;const updates=Object.fromEntries(pending.current);pending.current.clear();setTransfers(prev=>({...prev,...updates}));}); });
-    ListTransfers().then(list => { if (!disposed) setTransfers(prev => ({ ...Object.fromEntries((list ?? []).map(t => [t.id, t])), ...prev })); }).catch(e => { if (!disposed) setError(errorMessage(e)); });
-    return () => { disposed = true; off(); cancelAnimationFrame(frame); pending.current.clear(); };
+    void refresh();
+    return () => { live.current = false; off(); cancelAnimationFrame(frame); pending.current.clear(); operations.current.clear(); };
   }, []);
   const items = useMemo(()=>Object.values(transfers).sort((a,b)=>a.sequence-b.sequence),[transfers]);
   function accept(items: Transfer[]) { setTransfers(previous => ({ ...Object.fromEntries(items.map(item => [item.id, item])), ...previous })); }
-  async function cancel(id: string) { try { await CancelTransfer(id); setError(''); } catch (e) { setError(errorMessage(e)); } }
-  async function clear(id: string) { try { await ClearTransfer(id); pending.current.delete(id); setTransfers(prev => { const next = { ...prev }; delete next[id]; return next; }); setError(''); } catch (e) { setError(errorMessage(e)); } }
-  async function retry(id:string,name:string,overwrite:boolean){try{await RetryTransfer(id,name,overwrite);setError('');return true;}catch(e){setError(errorMessage(e));return false;}}
-  async function resume(id:string,workspace:string){try{await ResumeTransfer(id,workspace);setError('');return true;}catch(e){setError(errorMessage(e));return false;}}
-  async function discard(id:string,workspace:string){try{await DiscardTransferResume(id,workspace);pending.current.delete(id);setTransfers(previous=>{const next={...previous};delete next[id];return next;});setError('');return true;}catch(e){setError(errorMessage(e));return false;}}
-  async function clearFinished(){try{const removed=new Set(await ClearFinishedTransfers()||[]);for(const id of removed)pending.current.delete(id);setTransfers(prev=>Object.fromEntries(Object.entries(prev).filter(([id])=>!removed.has(id))));setError('');}catch(e){setError(errorMessage(e));}}
+  function clearError(id: string) { setActionError(previous=>previous?.task===id?undefined:previous); }
+  async function run(id: string, action: () => Promise<unknown>) {
+    const version = ++operationVersion.current; operations.current.set(id,version); clearError(id);
+    try { await action(); return true; }
+    catch (error) { if (live.current && operations.current.get(id)===version) setActionError({task:id,message:errorMessage(error)}); return false; }
+    finally { if (operations.current.get(id)===version) operations.current.delete(id); }
+  }
+  const cancel = (id: string) => run(id,()=>CancelTransfer(id));
+  const clear = (id: string) => run(id,async()=>{await ClearTransfer(id);pending.current.delete(id);setTransfers(previous=>{const next={...previous};delete next[id];return next;});});
+  const retry = (id: string,name: string,overwrite: boolean) => run(id,()=>RetryTransfer(id,name,overwrite));
+  const resume = (id: string,workspace: string) => run(id,()=>ResumeTransfer(id,workspace));
+  const discard = (id: string,workspace: string) => run(id,async()=>{await DiscardTransferResume(id,workspace);pending.current.delete(id);setTransfers(previous=>{const next={...previous};delete next[id];return next;});});
+  const clearFinished = () => run('',async()=>{const removed=new Set(await ClearFinishedTransfers()||[]);for(const id of removed)pending.current.delete(id);setTransfers(previous=>Object.fromEntries(Object.entries(previous).filter(([id])=>!removed.has(id))));});
   const speed = items.reduce((sum, task) => sum + (task.state === 'running' ? task.speed : 0), 0);
-  return { items, error, accept, cancel, clear, clearFinished, retry, resume, discard, speed, summary: transferSummary(items), running: items.filter(t => t.state === 'running').length, waiting:items.filter(t=>t.state==='queued').length, failed: items.filter(t => t.state === 'failed').length };
+  return { items, error:actionError?.message || loadError, errorTask:actionError?.task || '', errorKind:actionError?'action':'load', clearError, refresh, accept, cancel, clear, clearFinished, retry, resume, discard, speed, summary: transferSummary(items), running: items.filter(t => t.state === 'running').length, waiting:items.filter(t=>t.state==='queued').length, failed: items.filter(t => t.state === 'failed').length };
 }

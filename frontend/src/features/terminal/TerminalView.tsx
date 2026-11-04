@@ -14,6 +14,7 @@ import TmuxDialog from './TmuxDialog';
 import { ExportTerminalBuffer, StartTerminalLog, PauseTerminalLog, GetTerminalLogStatus } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { TerminalLogStatus } from '../../../bindings/github.com/Sanjeever/termquay/internal/ssh/models';
 import Icon from '../../components/Icon';
+import ErrorNotice from '../../components/ErrorNotice';
 import { useAppearance } from '../settings/AppearanceProvider';
 import { monoFonts, terminalTheme } from '../settings/appearance';
 import { CloseTerminal, ResizeTerminal } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
@@ -24,7 +25,12 @@ export type TerminalAction = 'find' | 'copy' | 'paste' | 'selectAll' | 'clear' |
 export type TerminalHandle = { ended():boolean; action(action: TerminalAction): void; insert(text: string): boolean };
 const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string; host?:string; local?: boolean; visible: boolean; fontSize: number; demoOutput?: string; focusOnShow?:boolean; onConnectionChange?():void; onSnippets(): void; onDirectory?(path: string, host: string): void; onFile?(path: string, line: number): void }>(function TerminalView({ id, workspace, host='localhost', local=false, visible, fontSize, demoOutput, focusOnShow=true, onConnectionChange, onSnippets, onDirectory, onFile }, ref) {
   const container = useRef<HTMLDivElement>(null);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<{ source: string; message: string }>();
+  const [streamError, setStreamError] = useState('');
+  const [logError, setLogError] = useState('');
+  const [logErrorDismissed, setLogErrorDismissed] = useState(false);
+  function reportError(source: string, error: unknown) { setError({source,message:errorMessage(error)}); }
+  function clearError(source: string) { setError(previous=>previous?.source===source?undefined:previous); }
   const [connected, setConnected] = useState<boolean|null>(null);
   const terminal = useRef<Terminal>();
   const { appearance, dark } = useAppearance();
@@ -42,9 +48,9 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
   const [log, setLog] = useState<TerminalLogStatus>();
   const [keywordOpen, setKeywordOpen] = useState(false);
   const [keyword, setKeyword] = useState('');
-  async function exportBuffer() { try { const buffer = terminal.current?.buffer.active; if (!buffer) return; const lines: string[] = []; for (let y = 0; y < buffer.length; y++) lines.push(buffer.getLine(y)?.translateToString(true) || ''); await ExportTerminalBuffer(lines.join('\n')); } catch (e) { setError(errorMessage(e)); } }
-  async function pauseLog() { try { setLog(await PauseTerminalLog(id)); } catch (e) { setError(errorMessage(e)); } }
-  useEffect(() => { if (!log?.recording || !connected) return; let ended = false; let timer: ReturnType<typeof setTimeout>; async function load() { try { const value = await GetTerminalLogStatus(id); if (!ended) { setLog(value); if (value.error) setError(`日志记录停止：${value.error}`); } } catch (e) { if (!ended) setError(errorMessage(e)); } finally { if (!ended) timer = setTimeout(load, 2000); } } timer = setTimeout(load, 2000); return () => { ended = true; clearTimeout(timer); }; }, [id, log?.recording, connected]);
+  async function exportBuffer() { clearError('export'); try { const buffer = terminal.current?.buffer.active; if (!buffer) return; const lines: string[] = []; for (let y = 0; y < buffer.length; y++) lines.push(buffer.getLine(y)?.translateToString(true) || ''); await ExportTerminalBuffer(lines.join('\n')); clearError('export'); } catch (e) { reportError('export',e); } }
+  async function pauseLog() { clearError('log'); try { setLog(await PauseTerminalLog(id)); clearError('log'); } catch (e) { reportError('log',e); } }
+  useEffect(() => { if (!log?.recording || !connected) return; let ended = false; let timer: ReturnType<typeof setTimeout>; async function load() { try { const value = await GetTerminalLogStatus(id); if (!ended) { setLog(value); setLogError(value.error ? `日志记录停止：${value.error}` : ''); if (!value.error) setLogErrorDismissed(false); } } catch (e) { if (!ended) setLogError(errorMessage(e)); } finally { if (!ended) timer = setTimeout(load, 2000); } } timer = setTimeout(load, 2000); return () => { ended = true; clearTimeout(timer); }; }, [id, log?.recording, connected]);
   const [shell, setShell] = useState<'bash' | 'zsh'>('bash');
   const shellSetup=shellSetupForHost(shell,host);
   const integration = useRef<ReturnType<typeof addShellIntegration>>();
@@ -54,19 +60,20 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
   const inputStream=useRef<ReturnType<typeof Stream>>();
   const stateCallback=useRef(onConnectionChange);stateCallback.current=onConnectionChange;
   function insert(text: string):boolean {
-    if (demoOutput !== undefined) { setError('演示终端不执行命令'); return false; }
+    if (demoOutput !== undefined) { reportError('input','演示终端不执行命令'); return false; }
     const size=new TextEncoder().encode(text).length;
-    if (size > 256 * 1024 - 16) { setError('粘贴内容超过输入队列上限（256 KiB）'); return false; }
-    const stream=inputStream.current;if(!stream||stream.readyState!==stream.OPEN){setError('终端已断开');return false;}
-    if(stream.bufferedAmount+size+Math.ceil(size/32768)+16>256*1024){setError('输入队列已满，请等待远端响应');return false;}
+    if (size > 256 * 1024 - 16) { reportError('input','粘贴内容超过输入队列上限（256 KiB）'); return false; }
+    const stream=inputStream.current;if(!stream||stream.readyState!==stream.OPEN){reportError('input','终端已断开');return false;}
+    if(stream.bufferedAmount+size+Math.ceil(size/32768)+16>256*1024){reportError('input','输入队列已满，请等待远端响应');return false;}
+    clearError('input');
     if (/[\r\n]/.test(text)) setPaste(text); else terminal.current?.paste(text);
     return true;
   }
   function action(name: TerminalAction) {
     const term = terminal.current; if (!term) return;
     if (name === 'find') setSearchOpen(true);
-    if (name === 'copy') navigator.clipboard.writeText(term.getSelection()).catch(e => setError(errorMessage(e)));
-    if (name === 'paste' && demoOutput === undefined) navigator.clipboard.readText().then(insert).catch(e => setError(errorMessage(e)));
+    if (name === 'copy') navigator.clipboard.writeText(term.getSelection()).then(()=>clearError('clipboard')).catch(e => reportError('clipboard',e));
+    if (name === 'paste' && demoOutput === undefined) navigator.clipboard.readText().then(value=>{clearError('clipboard');insert(value);}).catch(e => reportError('clipboard',e));
     if (name === 'selectAll') term.selectAll();
     if (name === 'clear') term.clear();
     if (name === 'zoomIn') setZoom(v => Math.min(36 - fontSize, v + 1));
@@ -85,7 +92,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
     const finder = new SearchAddon({highlightLimit:searchHighlightLimit}); term.loadAddon(finder); search.current = finder;
     term.loadAddon(new WebLinksAddon((event, uri) => {
       if (demoOutput !== undefined || !(event.ctrlKey || event.metaKey)) return;
-      const url = new URL(uri); if (url.protocol === 'http:' || url.protocol === 'https:') Browser.OpenURL(url).catch(e => setError(errorMessage(e)));
+      const url = new URL(uri); if (url.protocol === 'http:' || url.protocol === 'https:') Browser.OpenURL(url).then(()=>clearError('link')).catch(e => reportError('link',e));
     }));
     terminal.current = term;
     integration.current = addShellIntegration(term, (path, host) => { setCwd(path); callbacks.current.onDirectory?.(path, host); }, setExitCode, (path, line) => callbacks.current.onFile?.(path, line));
@@ -111,8 +118,8 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
     const stream = Stream(local ? 'local-terminal' : 'terminal');
     inputStream.current=stream;
     let disposed = false;
-    const fail = (e: unknown) => { if (!disposed) setError(errorMessage(e)); };
-    stream.onopen = () => { stream.send(new TextEncoder().encode(id)); setConnected(true); stateCallback.current?.();fitVisible(); if (shown.current&&focusRequested.current&&!document.querySelector('[role=dialog][data-open=true]')) term.focus(); };
+    const fail = (e: unknown) => { if (!disposed) reportError('resize',e); };
+    stream.onopen = () => { stream.send(new TextEncoder().encode(id)); setConnected(true); setStreamError(''); stateCallback.current?.();fitVisible(); if (shown.current&&focusRequested.current&&!document.querySelector('[role=dialog][data-open=true]')) term.focus(); };
     stream.onmessage = (event) => {
       const bytes = new Uint8Array(event.data);
       term.write(bytes, () => {
@@ -123,21 +130,22 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
       });
     };
     stream.onclose = () => { if (!disposed) { setConnected(false); term.options.disableStdin = true;stateCallback.current?.(); } };
-    stream.onerror = () => fail('终端数据流中断');
+    stream.onerror = () => { if (!disposed) setStreamError('终端数据流中断'); };
     const input = term.onData((data) => {
       const bytes = new TextEncoder().encode(data);
       if (stream.readyState !== stream.OPEN) return;
-      if (stream.bufferedAmount + bytes.length + Math.ceil(bytes.length/32768) > 256 * 1024) { fail('输入队列已满，请等待远端响应'); return; }
+      if (stream.bufferedAmount + bytes.length + Math.ceil(bytes.length/32768) > 256 * 1024) { if (!disposed) reportError('input','输入队列已满，请等待远端响应'); return; }
+      clearError('input');
       for (let offset = 0; offset < bytes.length; offset += 32768) {
         const chunk = bytes.subarray(offset, offset + 32768);
         const frame = new Uint8Array(chunk.length + 1); frame.set(chunk, 1); stream.send(frame);
       }
     });
-    const resize = term.onResize(({ cols, rows }) => { if (stream.readyState === stream.OPEN) (local ? ResizeLocalTerminal(id, cols, rows) : ResizeTerminal(id, cols, rows)).catch(fail); });
+    const resize = term.onResize(({ cols, rows }) => { if (stream.readyState === stream.OPEN) (local ? ResizeLocalTerminal(id, cols, rows) : ResizeTerminal(id, cols, rows)).then(()=>{if(!disposed)clearError('resize');}).catch(fail); });
     const observer = new ResizeObserver(fitVisible); observer.observe(container.current!);
     const unsubscribe = Events.On('terminal:error', (event) => {
       const data = event.data as { id: string; error: string };
-      if (data.id === id) fail(data.error);
+      if (data.id === id && !disposed) setStreamError(data.error);
     });
     return () => { disposed = true; integration.current?.dispose(); integration.current = undefined; observer.disconnect(); cancelAnimationFrame(fitFrame); requestFit.current = undefined; unsubscribe(); input.dispose(); resize.dispose(); stream.close(); term.dispose(); terminal.current = undefined; search.current = undefined; inputStream.current=undefined; (local ? CloseLocalTerminal(id) : CloseTerminal(id)).catch(() => {}); };
   }, [id, demoOutput]);
@@ -161,9 +169,11 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
     {keywordOpen && <div className="terminal-search"><input aria-label="临时高亮关键词" placeholder="高亮关键词" value={keyword} onChange={event => setKeyword(event.target.value)} maxLength={128} onKeyDown={event => { if (event.key === 'Escape' && !event.nativeEvent.isComposing) { setKeyword(''); setKeywordOpen(false); terminal.current?.focus(); } }}/><button className="icon-button" aria-label="清除临时高亮" onClick={() => { setKeyword(''); setKeywordOpen(false); }}><Icon name="close" width="14"/></button></div>}
     {tmuxOpen && <TmuxDialog workspace={workspace} onInsert={insert} onClose={() => setTmuxOpen(false)} />}
     <div className="terminal-canvas" ref={container} style={{ background: colors.background }} />
-    {log?.directory && <div className="session-status"><span>{connected && log.recording ? '日志记录中' : '日志已暂停'}</span><button className="session-tool file-path" title={log.directory} onClick={() => { navigator.clipboard.writeText(log.directory).catch(e => setError(errorMessage(e))); }}>{log.directory}</button></div>}
-    <Modal isOpen={logConfirm} onClose={() => setLogConfirm(false)} className="app-dialog"><ModalContent><ModalHeader>记录终端输出</ModalHeader><ModalBody><p>输出以 ANSI 原始字节保存在本机，可能包含敏感信息。最多保留三段日志，每段 8 MiB，循环覆盖最旧段。</p>{log?.directory && <p className="file-path">{log.directory}</p>}</ModalBody><ModalFooter><Button variant="light" onPress={() => setLogConfirm(false)}>取消</Button><Button color="primary" onPress={async () => { try { const value = await StartTerminalLog(id); if (value.directory) setLog(value); setLogConfirm(false); } catch (e) { setError(errorMessage(e)); } }}>开始记录</Button></ModalFooter></ModalContent></Modal>
-    {(connected !== true || cwd || exitCode && exitCode !== '0' || error) && <div className="session-status">{connected !== true && <span role="status">{connected===null?'连接中':'已断开'}</span>}{cwd && <span className="file-path" title={cwd}>{cwd}</span>}{exitCode && exitCode !== '0' && <span className="error">退出码 {exitCode}</span>}{error && <span role="alert" className="error">{error}</span>}</div>}
+    {log?.directory && <div className="session-status"><span>{connected && log.recording ? '日志记录中' : '日志已暂停'}</span><button className="session-tool file-path" title={log.directory} onClick={() => { navigator.clipboard.writeText(log.directory).then(()=>clearError('clipboard')).catch(e => reportError('clipboard',e)); }}>{log.directory}</button>{logError && <button className="session-tool error" onClick={()=>setLogErrorDismissed(false)}>日志异常</button>}</div>}
+    <Modal isOpen={logConfirm} onClose={() => {setLogConfirm(false);clearError('log');}} className="app-dialog"><ModalContent><ModalHeader>记录终端输出</ModalHeader><ModalBody><p>输出以 ANSI 原始字节保存在本机，可能包含敏感信息。最多保留三段日志，每段 8 MiB，循环覆盖最旧段。</p>{log?.directory && <p className="file-path">{log.directory}</p>}<ErrorNotice message={error?.source==='log'?error.message:''} onDismiss={()=>clearError('log')}/></ModalBody><ModalFooter><Button variant="light" onPress={() => {setLogConfirm(false);clearError('log');}}>取消</Button><Button color="primary" onPress={async () => { clearError('log');setLogErrorDismissed(false);try { const value = await StartTerminalLog(id); if (value.directory) setLog(value); setLogError(''); setLogConfirm(false); } catch (e) { reportError('log',e); } }}>开始记录</Button></ModalFooter></ModalContent></Modal>
+    <ErrorNotice message={logConfirm&&error?.source==='log'?'':error?.message || ''} onDismiss={()=>setError(undefined)}/>
+    {logError && !logErrorDismissed && <ErrorNotice message={logError} onDismiss={()=>setLogErrorDismissed(true)}/>}
+    {(connected !== true || cwd || exitCode && exitCode !== '0' || streamError) && <div className="session-status">{connected !== true && <span role="status">{connected===null?'连接中':'已断开'}</span>}{cwd && <span className="file-path" title={cwd}>{cwd}</span>}{exitCode && exitCode !== '0' && <span className="error">退出码 {exitCode}</span>}{streamError && <details className="error"><summary>终端连接异常</summary>{errorMessage(streamError)}</details>}</div>}
     <Modal isOpen={integrationOpen} onClose={() => setIntegrationOpen(false)} className="app-dialog"><ModalContent><ModalHeader>当前 Shell 集成</ModalHeader><ModalBody><label className="form-field">Shell<SelectControl value={shell} onChange={event => setShell(event.target.value as 'bash' | 'zsh')}><option value="bash">Bash 4.4+</option><option value="zsh">Zsh</option></SelectControl></label><p className="muted">在当前 Shell 提示符执行，退出后失效。将设置提示符与命令钩子。</p><pre className="paste-preview">{shellSetup}</pre></ModalBody><ModalFooter><Button variant="light" onPress={() => setIntegrationOpen(false)}>取消</Button><Button color="primary" onPress={() => { if (insert(shellSetup + '\n')) setIntegrationOpen(false); }}>插入并预览</Button></ModalFooter></ModalContent></Modal>
     <Modal isOpen={paste !== undefined} onClose={() => { setPaste(undefined); terminal.current?.focus(); }} className="app-dialog"><ModalContent><ModalHeader>确认多行粘贴</ModalHeader><ModalBody><p>换行可能立即执行命令，请核对内容。</p><pre className="paste-preview">{paste}</pre></ModalBody><ModalFooter><Button variant="light" onPress={() => { setPaste(undefined); terminal.current?.focus(); }}>取消</Button><Button color="primary" onPress={() => { if (paste !== undefined) terminal.current?.paste(paste); setPaste(undefined); terminal.current?.focus(); }}>粘贴到终端</Button></ModalFooter></ModalContent></Modal>
   </div>;
