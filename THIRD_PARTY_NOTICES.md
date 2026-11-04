@@ -10,7 +10,8 @@ TermQuay 采用 Apache-2.0。各依赖保留其原有许可证、版权与声明
 - 快速连接使用 `github.com/google/shlex` 解析引号与词法，采用 Apache-2.0；不执行解析内容。许可原文保存在 Go 许可目录。
 - 文件冲突对比使用 `@codemirror/merge`，采用 MIT；许可原文保存在前端许可目录。
 - 代码缩略图使用 `@replit/codemirror-minimap`。已核对发布包及对应源码提交的 `package.json`，均声明 MIT；许可目录保存原始包元数据和标准 MIT 条款。作者信息沿用原始元数据，未补写上游没有提供的版权年份或权利人。高亮标签使用的 `@lezer/highlight` 已收集许可原文。
-- Shell、INI、TOML 与 nginx 配置高亮使用 `@codemirror/legacy-modes`，采用 MIT；许可原文保存在前端许可目录。
+- 多语言高亮、补全与语法提示使用 CodeMirror、Lezer 语言包及 `@codemirror/legacy-modes`，采用 MIT。YAML 诊断使用 `yaml`，采用 ISC；Markdown 预览使用 `react-markdown`、`remark-gfm` 和 `rehype-slug`，采用 MIT。对应生产依赖和许可原文保存在前端许可目录。
+- WebP 图片预览使用 `golang.org/x/image`，采用 BSD-3-Clause；LICENSE 与 PATENTS 原文保存在 Go 许可目录。
 - 有界目录扫描使用 `github.com/pkg/sftp/v2`，采用 BSD-2-Clause，许可原文保存在 Go 许可目录。采用预发布分页接口的理由及回归要求见 [远端文件契约](docs/architecture.md#远端文件与监控)。
 - Windows SSH Agent 命名管道使用 `github.com/Microsoft/go-winio`，采用 MIT；许可原文保存在 Go 许可目录。
 - 本地终端使用 `github.com/aymanbagabas/go-pty`（MIT）；其 `github.com/creack/pty`（MIT）和 `github.com/u-root/u-root`（BSD-3-Clause）许可原文保存在 Go 许可目录。

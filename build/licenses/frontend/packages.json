@@ -3169,5 +3169,401 @@
     "license": "MIT",
     "homepage": "https://github.com/wooorm/zwitch#readme",
     "author": "Titus Wormer"
+  },
+  {
+    "name": "@codemirror/lang-cpp",
+    "versions": [
+      "6.0.3"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/codemirror/lang-cpp#readme",
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@codemirror/lang-css",
+    "versions": [
+      "6.3.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/codemirror/lang-css#readme",
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@codemirror/lang-go",
+    "versions": [
+      "6.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/codemirror/lang-go#readme",
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@codemirror/lang-html",
+    "versions": [
+      "6.4.12"
+    ],
+    "license": "MIT",
+    "homepage": null,
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@codemirror/lang-java",
+    "versions": [
+      "6.0.2"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/codemirror/lang-java#readme",
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@codemirror/lang-markdown",
+    "versions": [
+      "6.5.2"
+    ],
+    "license": "MIT",
+    "homepage": null,
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@codemirror/lang-php",
+    "versions": [
+      "6.0.2"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/codemirror/lang-php#readme",
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@codemirror/lang-python",
+    "versions": [
+      "6.2.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/codemirror/lang-python#readme",
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@codemirror/lang-rust",
+    "versions": [
+      "6.0.2"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/codemirror/lang-rust#readme",
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@codemirror/lang-sql",
+    "versions": [
+      "6.10.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/codemirror/lang-sql#readme",
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@codemirror/lang-xml",
+    "versions": [
+      "6.1.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/codemirror/lang-xml#readme",
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@lezer/cpp",
+    "versions": [
+      "1.1.6"
+    ],
+    "license": "MIT",
+    "homepage": null,
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@lezer/css",
+    "versions": [
+      "1.3.9"
+    ],
+    "license": "MIT",
+    "homepage": null,
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@lezer/go",
+    "versions": [
+      "1.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/lezer-parser/go#readme",
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@lezer/html",
+    "versions": [
+      "1.3.13"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/lezer-parser/html#readme",
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@lezer/java",
+    "versions": [
+      "1.1.5"
+    ],
+    "license": "MIT",
+    "homepage": null,
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@lezer/markdown",
+    "versions": [
+      "1.8.1"
+    ],
+    "license": "MIT",
+    "homepage": null,
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@lezer/php",
+    "versions": [
+      "1.0.6"
+    ],
+    "license": "MIT",
+    "homepage": null,
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@lezer/python",
+    "versions": [
+      "1.1.19"
+    ],
+    "license": "MIT",
+    "homepage": null,
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@lezer/rust",
+    "versions": [
+      "1.0.3"
+    ],
+    "license": "MIT",
+    "homepage": null,
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "@lezer/xml",
+    "versions": [
+      "1.0.6"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/lezer-parser/xml#readme",
+    "author": "Marijn Haverbeke"
+  },
+  {
+    "name": "escape-string-regexp",
+    "versions": [
+      "5.0.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/sindresorhus/escape-string-regexp#readme",
+    "author": "Sindre Sorhus"
+  },
+  {
+    "name": "github-slugger",
+    "versions": [
+      "2.0.0"
+    ],
+    "license": "ISC",
+    "homepage": "https://github.com/Flet/github-slugger",
+    "author": "Dan Flettre"
+  },
+  {
+    "name": "hast-util-heading-rank",
+    "versions": [
+      "3.0.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/syntax-tree/hast-util-heading-rank#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "hast-util-to-string",
+    "versions": [
+      "3.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/rehypejs/rehype-minify/tree/main#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "markdown-table",
+    "versions": [
+      "3.0.4"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/wooorm/markdown-table#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "mdast-util-find-and-replace",
+    "versions": [
+      "3.0.4"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/syntax-tree/mdast-util-find-and-replace#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "mdast-util-gfm",
+    "versions": [
+      "3.1.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/syntax-tree/mdast-util-gfm#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "mdast-util-gfm-autolink-literal",
+    "versions": [
+      "2.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/syntax-tree/mdast-util-gfm-autolink-literal#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "mdast-util-gfm-footnote",
+    "versions": [
+      "2.1.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/syntax-tree/mdast-util-gfm-footnote#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "mdast-util-gfm-strikethrough",
+    "versions": [
+      "2.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/syntax-tree/mdast-util-gfm-strikethrough#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "mdast-util-gfm-table",
+    "versions": [
+      "2.0.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/syntax-tree/mdast-util-gfm-table#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "mdast-util-gfm-task-list-item",
+    "versions": [
+      "2.0.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/syntax-tree/mdast-util-gfm-task-list-item#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "micromark-extension-gfm",
+    "versions": [
+      "3.0.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/micromark/micromark-extension-gfm#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "micromark-extension-gfm-autolink-literal",
+    "versions": [
+      "2.1.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/micromark/micromark-extension-gfm-autolink-literal#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "micromark-extension-gfm-footnote",
+    "versions": [
+      "2.1.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/micromark/micromark-extension-gfm-footnote#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "micromark-extension-gfm-strikethrough",
+    "versions": [
+      "2.1.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/micromark/micromark-extension-gfm-strikethrough#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "micromark-extension-gfm-table",
+    "versions": [
+      "2.1.2"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/micromark/micromark-extension-gfm-table#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "micromark-extension-gfm-tagfilter",
+    "versions": [
+      "2.0.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/micromark/micromark-extension-gfm-tagfilter#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "micromark-extension-gfm-task-list-item",
+    "versions": [
+      "2.1.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/micromark/micromark-extension-gfm-task-list-item#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "rehype-slug",
+    "versions": [
+      "6.0.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/rehypejs/rehype-slug#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "remark-gfm",
+    "versions": [
+      "4.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/remarkjs/remark-gfm#readme",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "remark-stringify",
+    "versions": [
+      "11.0.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://remark.js.org",
+    "author": "Titus Wormer"
+  },
+  {
+    "name": "yaml",
+    "versions": [
+      "2.9.1"
+    ],
+    "license": "ISC",
+    "homepage": "https://eemeli.org/yaml/",
+    "author": "Eemeli Aro"
   }
 ]
