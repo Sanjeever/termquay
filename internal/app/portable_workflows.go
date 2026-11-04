@@ -112,6 +112,9 @@ func validateWorkflowSettings(values map[string]string, data store.Data, checkRe
 				if err := item.Spec.Validate(); err != nil {
 					return nil, nil, err
 				}
+				if err := validateServicePreset(item); err != nil {
+					return nil, nil, err
+				}
 				seen[id] = true
 				if item.AutoStart {
 					automatic[item.ConnectionID]++

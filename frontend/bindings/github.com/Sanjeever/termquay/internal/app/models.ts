@@ -531,6 +531,8 @@ export interface TunnelPreset {
     "connection_id": string;
     "spec": ssh$0.ForwardSpec;
     "auto_start": boolean;
+    "service_type"?: string;
+    "url_path"?: string;
 }
 
 export interface UpdateStatus {

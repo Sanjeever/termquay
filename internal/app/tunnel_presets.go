@@ -3,6 +3,8 @@ package app
 import (
 	"encoding/json"
 	"errors"
+	"net"
+	"net/url"
 	"strings"
 
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
@@ -13,6 +15,58 @@ type TunnelPreset struct {
 	ConnectionID string               `json:"connection_id"`
 	Spec         terminal.ForwardSpec `json:"spec"`
 	AutoStart    bool                 `json:"auto_start"`
+	ServiceType  string               `json:"service_type,omitempty"`
+	URLPath      string               `json:"url_path,omitempty"`
+}
+
+func validateServicePreset(preset TunnelPreset) error {
+	if preset.ServiceType == "" && preset.URLPath == "" {
+		return nil
+	}
+	if preset.ServiceType != "address" && preset.ServiceType != "http" && preset.ServiceType != "https" {
+		return errors.New("服务类型须为地址、HTTP 或 HTTPS")
+	}
+	bind := net.ParseIP(preset.Spec.BindHost)
+	if preset.Spec.Kind != "local" || bind == nil || !bind.IsLoopback() || preset.Spec.AllowPublic {
+		return errors.New("服务入口须使用回环本地转发")
+	}
+	if preset.AutoStart {
+		return errors.New("服务入口在显式打开时启动，请关闭连接后自动启动")
+	}
+	if len(preset.URLPath) > 2048 || strings.ContainsAny(preset.URLPath, "\r\n\x00\\") {
+		return errors.New("服务 URL 路径无效或过长")
+	}
+	if preset.URLPath != "" {
+		u, err := url.Parse(preset.URLPath)
+		if err != nil || !strings.HasPrefix(preset.URLPath, "/") || strings.HasPrefix(preset.URLPath, "//") || u.IsAbs() || u.Host != "" || preset.ServiceType == "address" {
+			return errors.New("URL 路径须以单个 / 开头，且仅用于 HTTP/HTTPS 服务")
+		}
+	}
+	return nil
+}
+
+func (a *AppService) ListServiceEntries() ([]TunnelPreset, error) {
+	a.storeMu.Lock()
+	defer a.storeMu.Unlock()
+	items, err := a.tunnelPresets()
+	if err != nil {
+		return nil, err
+	}
+	data, err := a.store.Read()
+	if err != nil {
+		return nil, err
+	}
+	connections := map[string]bool{}
+	for _, c := range data.Connections {
+		connections[c.ID] = c.Protocol == "ssh"
+	}
+	result := []TunnelPreset{}
+	for _, item := range items {
+		if item.ServiceType != "" && connections[item.ConnectionID] {
+			result = append(result, item)
+		}
+	}
+	return result, nil
 }
 
 func (a *AppService) tunnelPresets() ([]TunnelPreset, error) {
@@ -51,6 +105,9 @@ func (a *AppService) SaveTunnelPreset(preset TunnelPreset) error {
 	if err := preset.Spec.Validate(); err != nil {
 		return err
 	}
+	if err := validateServicePreset(preset); err != nil {
+		return err
+	}
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
 	items, err := a.tunnelPresets()
@@ -74,6 +131,9 @@ func (a *AppService) SaveTunnelPreset(preset TunnelPreset) error {
 	replaced := false
 	for i, item := range items {
 		if item.ConnectionID == preset.ConnectionID && item.Name == preset.Name {
+			if item.ServiceType != "" && preset.ServiceType == "" {
+				return errors.New("此预设属于服务入口，请在远端服务中编辑")
+			}
 			items[i] = preset
 			replaced = true
 			break

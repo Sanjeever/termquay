@@ -46,7 +46,7 @@ export default function useConnectionAttempt(onSSH: (id: string, connection: Con
         setSteps(result.steps?.length ? result.steps : result.result.steps || []);
         if (result.error) { retryable.current = result.retryable; throw new Error(result.error); }
         setConnectedWorkspace(result.result.id);
-        onSSH(result.result.id, connection, reuse, true, result.result.route); owned = '';
+        onSSH(result.result.id, connection, reuse, true, result.result.route || undefined); owned = '';
       } else if (connection.protocol === 'ssh') {
         authID.current = crypto.randomUUID();
         if (auth) auth.auth_id = authID.current;
@@ -62,7 +62,7 @@ export default function useConnectionAttempt(onSSH: (id: string, connection: Con
           operation = open(); attempt.operation = operation; result = await operation; attempt.progressEpoch++; owned = result.id; check(); setSteps(result.steps || []);
         }
         setConnectedWorkspace(result.id);
-        onSSH(result.id, connection, reuse, false, result.route); owned = '';
+        onSSH(result.id, connection, reuse, false, result.route || undefined); owned = '';
       } else if (options?.client === 'system') {
         if(options.gateway)throw new Error('系统 RDP 客户端不能使用应用内 SSH 跳板');
         const operation = auth ? OpenSystemRDP(connection, auth, options.resolution, options.clipboard) : OpenSavedSystemRDP(connection.id, options.resolution, options.clipboard);

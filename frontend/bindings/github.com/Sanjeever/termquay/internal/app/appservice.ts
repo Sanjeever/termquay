@@ -416,6 +416,10 @@ export function ListSavedSnapshots(): $CancellablePromise<backup$0.RemoteSnapsho
     return $Call.ByID(174467334);
 }
 
+export function ListServiceEntries(): $CancellablePromise<$models.TunnelPreset[] | null> {
+    return $Call.ByID(3913153087);
+}
+
 export function ListSnapshots(options: backup$0.WebDAVOptions): $CancellablePromise<backup$0.RemoteSnapshot[] | null> {
     return $Call.ByID(1236382247, options);
 }
