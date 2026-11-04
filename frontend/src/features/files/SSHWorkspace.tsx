@@ -156,14 +156,15 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   useEffect(() => { const handler = (event: BeforeUnloadEvent) => { if (draftsRef.current.some(d => isDirty(d))) { event.preventDefault(); event.returnValue = ''; } }; window.addEventListener('beforeunload', handler); return () => window.removeEventListener('beforeunload', handler); }, []);
 
   async function open(entry: Entry) {
-    await openPath(entry.path); if (narrow) setNarrowPanel(null);
+    await openPath(entry.path);
   }
   async function openPath(path:string, encoding = 'UTF-8'){
     if(restoring||!restoreReady)throw new Error('请等待或重试本地草稿载入');
-    if (draftsRef.current.some(d => d.path === path)) { setActive(path); return true; }
+    if (draftsRef.current.some(d => d.path === path)) { setActive(path); if(narrow)setNarrowPanel(null); return true; }
     if (reads.current.has(path)) return;
     if(!fileOrder.includes(path)&&fileOrder.length+reads.current.size>=64)throw new Error('打开文件达到上限（64 个）');
     setFileOrder(prev=>prev.includes(path)?prev:[...prev,path]); setActive(path);
+    if(narrow)setNarrowPanel(null);
     setPendingErrors(prev=>{const next={...prev};delete next[path];return next;});
     const request = ReadRemoteFileEncoded(sessionID, path, encoding); reads.current.set(path, request);
     try { const doc = await request; if (disposed.current || instance.current!==sessionID || reads.current.get(path)!==request) return false; updateDrafts(prev => [...prev, { ...doc, saved: doc.content, savedFormat: formatKey(doc), error: '', saving: false }]);setFileOrder(prev=>prev.includes(path)?prev:[...prev,path]); if(split&&activePane===1&&!fileOrder.includes(path)){setSecondary(prev=>[...prev,path]);setSelection(prev=>[prev[0],path]);}else setActive(path); return true; }
@@ -238,7 +239,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
           <div className="button-row">
             {failure?.code === 'file_encoding' && <SelectControl aria-label="以指定编码打开文件" value="" disabled={restoring||!restoreReady} onChange={e=>{if(e.target.value)retry(e.target.value);}}><option value="" disabled>选择编码…</option>{editorEncodings.map(([value,label])=><option key={value} value={value}>{label}</option>)}</SelectControl>}
             {failure && !['file_encoding','file_binary','file_too_large','file_not_regular'].includes(failure.code) && <Button size="sm" variant="bordered" isDisabled={restoring||!restoreReady} onPress={()=>retry(failure.encoding)}>重试读取</Button>}
-            {failure && failure.code !== 'file_not_regular' && <Button size="sm" variant="light" onPress={()=>{void StartDownload(sessionID,path,false).catch(e=>setError(errorMessage(e)));}}>下载原文件</Button>}
+            {failure && failure.code !== 'file_not_regular' && <Button size="sm" variant="light" onPress={()=>{void StartDownload(sessionID,path).catch(e=>setError(errorMessage(e)));}}>下载原文件</Button>}
             <Button size="sm" variant="light" onPress={()=>close(path)}>关闭文件</Button>
           </div>
         </div>;
