@@ -8,11 +8,13 @@ import (
 	"path"
 	"path/filepath"
 
+	terminal "github.com/Sanjeever/termquay/internal/ssh"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 type UploadFile struct {
 	Name      string `json:"name"`
+	Path      string `json:"path,omitempty"`
 	Size      int64  `json:"size"`
 	Supported bool   `json:"supported"`
 	Error     string `json:"error"`
@@ -22,6 +24,7 @@ type UploadPreview struct {
 	ID        string       `json:"id"`
 	Workspace string       `json:"workspace"`
 	Target    string       `json:"target"`
+	Source    string       `json:"source,omitempty"`
 	Directory string       `json:"directory"`
 	Files     []UploadFile `json:"files"`
 }
@@ -37,9 +40,12 @@ type UploadSubmission struct {
 }
 
 type pendingUpload struct {
-	view       UploadPreview
-	paths      []string
-	submitting bool
+	view            UploadPreview
+	paths           []string
+	sourceWorkspace string
+	sourceOwner     *terminal.Terminal
+	sourceFiles     []os.FileInfo
+	submitting      bool
 }
 
 func (a *AppService) ChooseUploadFiles(id, directory string) (UploadPreview, error) {
@@ -57,7 +63,7 @@ func (a *AppService) prepareUploads(id, directory string, paths []string) (Uploa
 	view := UploadPreview{ID: base64.RawURLEncoding.EncodeToString(randomBytes(16)), Workspace: id, Directory: path.Clean(directory), Files: []UploadFile{}}
 	names := make(map[string]bool, len(paths))
 	for _, local := range paths {
-		file := UploadFile{Name: filepath.Base(local)}
+		file := UploadFile{Name: filepath.Base(local), Path: local}
 		if !filepath.IsAbs(local) || len(local) > 4096 {
 			file.Error = "本地路径无效"
 		} else if info, err := os.Lstat(local); err != nil {
@@ -128,8 +134,9 @@ func (a *AppService) ConfirmUpload(ctx context.Context, id, directory string, ov
 	}
 	directory = path.Clean(directory)
 	result := UploadSubmission{Batch: TransferBatch{Items: []Transfer{}, Errors: []string{}}}
-	remaining := UploadPreview{ID: id, Workspace: pending.view.Workspace, Target: pending.view.Target, Directory: directory, Files: []UploadFile{}}
+	remaining := UploadPreview{ID: id, Workspace: pending.view.Workspace, Target: pending.view.Target, Source: pending.view.Source, Directory: directory, Files: []UploadFile{}}
 	paths := []string{}
+	sourceFiles := []os.FileInfo{}
 	for i, file := range pending.view.Files {
 		if file.Supported {
 			var view Transfer
@@ -137,11 +144,22 @@ func (a *AppService) ConfirmUpload(ctx context.Context, id, directory string, ov
 			var size int64
 			remote := path.Join(directory, file.Name)
 			err = ctx.Err()
-			if err == nil {
+			if err == nil && pending.sourceWorkspace != "" {
+				var targetOwner *terminal.Terminal
+				targetOwner, err = a.terminal(pending.view.Workspace)
+				if err == nil {
+					size = pending.sourceFiles[i].Size()
+					run = a.remoteCopyOperation(pending.sourceWorkspace, pending.paths[i], pending.view.Workspace, remote, overwrite, true, pending.sourceOwner, targetOwner, pending.sourceFiles[i], nil)
+				}
+			} else if err == nil {
 				size, run, err = a.uploadOperation(pending.view.Workspace, pending.paths[i], remote, overwrite)
 			}
 			if err == nil {
-				view, err = a.startTransfer(pending.view.Workspace, file.Name, "upload", size, run, transferSpec{workspace: pending.view.Workspace, local: pending.paths[i], remote: remote, direction: "upload", overwrite: overwrite, batchID: id})
+				if pending.sourceWorkspace != "" {
+					view, err = a.startTransfer(pending.view.Workspace, file.Name, "copy", size, run, transferSpec{workspace: pending.view.Workspace, remote: pending.paths[i], local: remote, direction: "copy", batchID: id})
+				} else {
+					view, err = a.startTransfer(pending.view.Workspace, file.Name, "upload", size, run, transferSpec{workspace: pending.view.Workspace, local: pending.paths[i], remote: remote, direction: "upload", overwrite: overwrite, batchID: id})
+				}
 			}
 			if err == nil {
 				result.Batch.Items = append(result.Batch.Items, view)
@@ -152,6 +170,9 @@ func (a *AppService) ConfirmUpload(ctx context.Context, id, directory string, ov
 		result.Batch.Errors = append(result.Batch.Errors, file.Name+": "+file.Error)
 		remaining.Files = append(remaining.Files, file)
 		paths = append(paths, pending.paths[i])
+		if pending.sourceWorkspace != "" {
+			sourceFiles = append(sourceFiles, pending.sourceFiles[i])
+		}
 	}
 	a.mu.Lock()
 	if a.uploadPreview == pending {
@@ -159,6 +180,7 @@ func (a *AppService) ConfirmUpload(ctx context.Context, id, directory string, ov
 			a.uploadPreview = nil
 		} else {
 			pending.view, pending.paths = remaining, paths
+			pending.sourceFiles = sourceFiles
 			result.Pending = remaining
 		}
 	}

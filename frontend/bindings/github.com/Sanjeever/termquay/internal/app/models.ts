@@ -581,6 +581,7 @@ export interface UpdateStatus {
 
 export interface UploadFile {
     "name": string;
+    "path"?: string;
     "size": number;
     "supported": boolean;
     "error": string;
@@ -595,6 +596,7 @@ export interface UploadPreview {
     "id": string;
     "workspace": string;
     "target": string;
+    "source"?: string;
     "directory": string;
     "files": UploadFile[] | null;
 }

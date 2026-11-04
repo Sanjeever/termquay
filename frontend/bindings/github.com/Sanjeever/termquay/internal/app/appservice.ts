@@ -176,6 +176,10 @@ export function CopyRemoteFile(sourceID: string, sourcePath: string, targetID: s
     return $Call.ByID(1619394583, sourceID, sourcePath, targetID, targetPath, overwrite);
 }
 
+export function CopyRemoteFiles(id: string, paths: string[] | null): $CancellablePromise<void> {
+    return $Call.ByID(1458740588, id, paths);
+}
+
 export function CreatePasswordStorage(password: string): $CancellablePromise<void> {
     return $Call.ByID(949906388, password);
 }
@@ -526,6 +530,10 @@ export function OpenTerminal(r: ssh$0.Request): $CancellablePromise<$models.Open
 
 export function ParseQuickConnection(value: string): $CancellablePromise<store$0.Connection> {
     return $Call.ByID(2288405752, value);
+}
+
+export function PasteClipboardFiles(id: string, directory: string): $CancellablePromise<void> {
+    return $Call.ByID(3433277032, id, directory);
 }
 
 export function PauseTerminalLog(id: string): $CancellablePromise<ssh$0.TerminalLogStatus> {

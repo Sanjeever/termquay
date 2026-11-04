@@ -79,6 +79,7 @@ type AppService struct {
 	transferSequence       uint64
 	transferEvent          func(Transfer)
 	uploadPreview          *pendingUpload
+	fileClipboard          *remoteFileClipboard
 	syncPlans              map[string]*directorySyncPlan
 	syncOpening            int
 	dirty                  map[string]bool
@@ -133,6 +134,9 @@ func (a *AppService) CloseWorkspace(id string) {
 	delete(a.workspaces, id)
 	if a.uploadPreview != nil && a.uploadPreview.view.Workspace == id {
 		a.uploadPreview = nil
+	}
+	if a.fileClipboard != nil && a.fileClipboard.workspace == id {
+		a.fileClipboard = nil
 	}
 	if owner != nil {
 		a.closing++

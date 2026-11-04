@@ -143,5 +143,5 @@ func (a *AppService) remoteSyncEntry(ctx context.Context, plan *directorySyncPla
 	}
 	releaseTarget()
 	expected := transferExpectation{source: plan.source[entry.Path], target: old, targetExists: exists}
-	return a.remoteCopyOperation(plan.sourceWorkspace, sourcePath, plan.workspace, targetPath, exists, sourceOwner, targetOwner, info, &expected)(ctx, report)
+	return a.remoteCopyOperation(plan.sourceWorkspace, sourcePath, plan.workspace, targetPath, exists, false, sourceOwner, targetOwner, info, &expected)(ctx, report)
 }

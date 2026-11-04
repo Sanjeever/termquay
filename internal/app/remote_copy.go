@@ -41,11 +41,11 @@ func (a *AppService) CopyRemoteFile(ctx context.Context, sourceID, sourcePath, t
 	if !info.Mode().IsRegular() || info.Mode()&(os.ModeSetuid|os.ModeSetgid|os.ModeSticky) != 0 {
 		return Transfer{}, errors.New("跨工作区复制支持无特殊权限位的普通文件")
 	}
-	run := a.remoteCopyOperation(sourceID, sourcePath, targetID, targetPath, overwrite, sourceOwner, targetOwner, info, nil)
+	run := a.remoteCopyOperation(sourceID, sourcePath, targetID, targetPath, overwrite, false, sourceOwner, targetOwner, info, nil)
 	return a.startTransfer(targetID, path.Base(sourcePath)+" → "+path.Base(targetPath), "copy", info.Size(), run, transferSpec{workspace: targetID, remote: sourcePath, local: targetPath, direction: "copy"})
 }
 
-func (a *AppService) remoteCopyOperation(sourceID, sourcePath, targetID, targetPath string, overwrite bool, sourceOwner, targetOwner *terminal.Terminal, info os.FileInfo, expected *transferExpectation) func(context.Context, func(int64, int64)) error {
+func (a *AppService) remoteCopyOperation(sourceID, sourcePath, targetID, targetPath string, overwrite, skipExisting bool, sourceOwner, targetOwner *terminal.Terminal, info os.FileInfo, expected *transferExpectation) func(context.Context, func(int64, int64)) error {
 	return func(ctx context.Context, report func(int64, int64)) (result error) {
 		if !info.Mode().IsRegular() || info.Mode()&(os.ModeSetuid|os.ModeSetgid|os.ModeSticky) != 0 {
 			return errors.New("复制支持无特殊权限位的普通文件")
@@ -100,6 +100,9 @@ func (a *AppService) remoteCopyOperation(sourceID, sourcePath, targetID, targetP
 			if expected.targetExists && (before == nil || !files.SameSyncNode(files.SyncInfo(before), expected.target)) || !expected.targetExists && before != nil {
 				return errors.New("目标自预览后已变化")
 			}
+		}
+		if before != nil && !overwrite && skipExisting {
+			return errTransferSkipped
 		}
 		if before != nil && (!overwrite || !before.Mode().IsRegular()) {
 			return errors.New("同名目标已存在或不是普通文件")
