@@ -3,6 +3,10 @@ package ssh
 import (
 	"errors"
 	"fmt"
+	"golang.org/x/text/encoding/unicode"
+	"golang.org/x/text/transform"
+	"io"
+	"maze.io/x/asciicast"
 	"os"
 	"path/filepath"
 )
@@ -11,6 +15,8 @@ type TerminalLogStatus struct {
 	Directory string `json:"directory"`
 	Recording bool   `json:"recording"`
 	Error     string `json:"error"`
+	Format    string `json:"format"`
+	File      string `json:"file"`
 }
 
 type terminalLog struct {
@@ -18,6 +24,9 @@ type terminalLog struct {
 	file   *os.File
 	index  int
 	size   int64
+	cast   *asciicast.Encoder
+	text   *transform.Writer
+	events int
 }
 
 func (t *Terminal) StartLog(parent string) (TerminalLogStatus, error) {
@@ -25,6 +34,12 @@ func (t *Terminal) StartLog(parent string) (TerminalLogStatus, error) {
 	defer t.logMu.Unlock()
 	if t.logClosed {
 		return TerminalLogStatus{}, errors.New("终端已关闭")
+	}
+	if t.log != nil && t.log.cast != nil {
+		if t.log.file != nil {
+			return t.log.status, errors.New("请先暂停当前录制")
+		}
+		t.log = nil
 	}
 	if t.log == nil {
 		directory, err := os.MkdirTemp(parent, "termquay-session-")
@@ -63,6 +78,12 @@ func (t *Terminal) pauseLogLocked() TerminalLogStatus {
 		return TerminalLogStatus{}
 	}
 	if t.log.file != nil {
+		if t.log.text != nil {
+			if err := t.log.text.Close(); err != nil {
+				t.log.status.Error = err.Error()
+			}
+			t.log.text = nil
+		}
 		if err := t.log.file.Close(); err != nil {
 			t.log.status.Error = err.Error()
 		}
@@ -89,6 +110,13 @@ func (t *Terminal) recordOutput(data []byte) {
 	if log == nil || log.file == nil {
 		return
 	}
+	if log.cast != nil {
+		if _, err := log.text.Write(data); err != nil {
+			t.pauseLogLocked()
+			log.status.Error = err.Error()
+		}
+		return
+	}
 	fail := func(err error) {
 		log.file.Close()
 		log.file = nil
@@ -112,5 +140,83 @@ func (t *Terminal) recordOutput(data []byte) {
 	log.size += int64(n)
 	if err != nil {
 		fail(err)
+	}
+}
+
+type castWriter struct{ log *terminalLog }
+
+func (w castWriter) Write(data []byte) (int, error) {
+	if w.log.size+int64(len(data)) > 16<<20 {
+		return 0, errors.New("录制达到 16 MiB 上限，已停止")
+	}
+	if w.log.events >= 100001 {
+		return 0, errors.New("录制达到 100000 个事件上限，已停止")
+	}
+	w.log.events++
+	n, err := w.log.file.Write(data)
+	w.log.size += int64(n)
+	if err == nil && n != len(data) {
+		err = io.ErrShortWrite
+	}
+	return n, err
+}
+
+func (t *Terminal) StartTimedLog(parent string) (TerminalLogStatus, error) {
+	t.logMu.Lock()
+	defer t.logMu.Unlock()
+	if t.logClosed {
+		return TerminalLogStatus{}, errors.New("终端已关闭")
+	}
+	if t.logCols < 1 || t.logRows < 1 {
+		return TerminalLogStatus{}, errors.New("终端尺寸尚未就绪")
+	}
+	if t.log != nil && t.log.file != nil {
+		return t.log.status, errors.New("请先暂停当前记录")
+	}
+	if t.log != nil && t.log.cast != nil && t.log.status.Error != "" {
+		t.log = nil
+	}
+	if t.log == nil || t.log.cast == nil {
+		directory, err := os.MkdirTemp(parent, "termquay-recording-")
+		if err != nil {
+			return TerminalLogStatus{}, err
+		}
+		t.log = &terminalLog{status: TerminalLogStatus{Directory: directory, Format: "asciicast", File: filepath.Join(directory, "session.cast")}}
+	}
+	log := t.log
+	file, err := os.OpenFile(log.status.File, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+	if err != nil {
+		return log.status, err
+	}
+	log.file = file
+	if log.cast == nil {
+		log.cast = asciicast.NewEncoder(castWriter{log}, t.logCols, t.logRows)
+		if err = log.cast.WriteHeader(); err != nil {
+			t.pauseLogLocked()
+			log.status.Error = err.Error()
+			return log.status, err
+		}
+	}
+	log.text = transform.NewWriter(log.cast, unicode.UTF8.NewDecoder())
+	if err = log.cast.WriteEvent(asciicast.EventType("r"), fmt.Sprintf("%dx%d", t.logCols, t.logRows)); err != nil {
+		t.pauseLogLocked()
+		log.status.Error = err.Error()
+		return log.status, err
+	}
+	log.status.Recording = true
+	log.status.Error = ""
+	return log.status, nil
+}
+
+func (t *Terminal) recordResize(cols, rows int) {
+	t.logMu.Lock()
+	defer t.logMu.Unlock()
+	t.logCols, t.logRows = cols, rows
+	if t.log == nil || t.log.cast == nil || t.log.file == nil {
+		return
+	}
+	if err := t.log.cast.WriteEvent(asciicast.EventType("r"), fmt.Sprintf("%dx%d", cols, rows)); err != nil {
+		t.pauseLogLocked()
+		t.log.status.Error = err.Error()
 	}
 }

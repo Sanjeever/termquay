@@ -439,6 +439,11 @@ export interface SyncPreset {
     "exclude": string[] | null;
 }
 
+export interface TerminalRecording {
+    "name": string;
+    "content": string;
+}
+
 export interface TmuxSession {
     "id": string;
     "name": string;

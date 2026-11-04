@@ -17,7 +17,7 @@ import TerminalCompletion from './TerminalCompletionPanel';
 import CommandHelpDialog from './CommandHelpDialog';
 import SelectControl from '../../components/SelectControl';
 import TmuxDialog from './TmuxDialog';
-import { ExportTerminalBuffer, StartTerminalLog, PauseTerminalLog, GetTerminalLogStatus } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
+import { ExportTerminalBuffer, StartTerminalLog, StartTerminalRecording, PauseTerminalLog, GetTerminalLogStatus } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { TerminalLogStatus } from '../../../bindings/github.com/Sanjeever/termquay/internal/ssh/models';
 import Icon from '../../components/Icon';
 import ErrorNotice from '../../components/ErrorNotice';
@@ -29,6 +29,7 @@ import { CloseContainerTerminal, ResizeContainerTerminal } from '../../../bindin
 import '@xterm/xterm/css/xterm.css';
 
 const CommandIndexDialog = lazy(() => import('./CommandIndexDialog'));
+const RecordingPlayer = lazy(() => import('./RecordingPlayer'));
 
 export type TerminalAction = 'find' | 'terminalCompletion' | 'commandHelp' | 'copy' | 'paste' | 'selectAll' | 'clear' | 'zoomIn' | 'zoomOut' | 'zoomReset';
 export type TerminalHandle = { ended():boolean; action(action: TerminalAction): void; insert(text: string): boolean };
@@ -62,6 +63,8 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
   const commandToken = useRef('');
   const [logConfirm, setLogConfirm] = useState(false);
   const [log, setLog] = useState<TerminalLogStatus>();
+  const [logFormat, setLogFormat] = useState('asciicast');
+  const [playback, setPlayback] = useState(false);
   const [keywordOpen, setKeywordOpen] = useState(false);
   const [keyword, setKeyword] = useState('');
   async function exportBuffer() { clearError('export'); try { const buffer = terminal.current?.buffer.active; if (!buffer) return; const lines: string[] = []; for (let y = 0; y < buffer.length; y++) lines.push(buffer.getLine(y)?.translateToString(true) || ''); await ExportTerminalBuffer(lines.join('\n')); clearError('export'); } catch (e) { reportError('export',e); } }
@@ -198,10 +201,11 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
         <DropdownItem key="commandIndex" onPress={() => setCommandIndexOpen(true)}>会话命令索引</DropdownItem>
         <DropdownItem key="terminalCompletion" isDisabled={!connected||demoOutput!==undefined}>命令补全</DropdownItem><DropdownItem key="commandHelp">POSIX 命令参考…</DropdownItem>
         <DropdownItem key="tmux" className={local||containerConsole?'hidden':''} isDisabled={local||containerConsole||!connected}>tmux 会话…</DropdownItem>
-        <DropdownItem key="keyword">临时关键词高亮</DropdownItem><DropdownItem key="export">导出当前缓冲区</DropdownItem><DropdownItem key="log" className={local||containerConsole?'hidden':''} isDisabled={local||containerConsole||!connected}>{log?.recording ? '暂停日志记录' : log?.directory ? '继续日志记录…' : '记录终端输出…'}</DropdownItem>
+        <DropdownItem key="keyword">临时关键词高亮</DropdownItem><DropdownItem key="export">导出当前缓冲区</DropdownItem><DropdownItem key="log" className={local||containerConsole?'hidden':''} isDisabled={local||containerConsole||!connected} onPress={() => setLogFormat(log?.format === 'asciicast' ? 'asciicast' : log?.directory ? 'ansi' : 'asciicast')}>{log?.recording ? '暂停记录' : log?.directory ? '继续记录…' : '记录终端输出…'}</DropdownItem><DropdownItem key="playback" isDisabled={demoOutput !== undefined} onPress={() => setPlayback(true)}>打开录制回放…</DropdownItem>
       </DropdownMenu></Dropdown>
     </div>
     {searchOpen && search.current && <TerminalSearch addon={search.current} onClose={closeSearch} />}
+    {playback && <Suspense fallback={<div role="status">正在载入回放…</div>}><RecordingPlayer onClose={() => setPlayback(false)} /></Suspense>}
     {commandIndexOpen && <Suspense fallback={<div role="status">正在载入命令索引…</div>}><CommandIndexDialog entries={commandEntries} onGoTo={id => integration.current?.goTo(id) || false} onOutput={id => { if (!integration.current) throw new Error('终端已关闭'); return integration.current.outputText(id); }} onClose={() => setCommandIndexOpen(false)} /></Suspense>}
     {keywordOpen && <div className="terminal-search"><input aria-label="临时高亮关键词" placeholder="高亮关键词" value={keyword} onChange={event => setKeyword(event.target.value)} maxLength={128} onKeyDown={event => { if (event.key === 'Escape' && !event.nativeEvent.isComposing) { setKeyword(''); setKeywordOpen(false); terminal.current?.focus(); } }}/><button className="icon-button" aria-label="清除临时高亮" onClick={() => { setKeyword(''); setKeywordOpen(false); }}><Icon name="close" width="14"/></button></div>}
     {tmuxOpen && <TmuxDialog workspace={workspace} onInsert={insert} onClose={() => setTmuxOpen(false)} />}
@@ -209,7 +213,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
     <TerminalCompletion completion={completion} onHelp={command=>{completion.dismiss();setHelp({command});}}/>
     {help&&<CommandHelpDialog initial={help.command} enabled={completion.enabled} onEnable={()=>{setHelp(undefined);openIntegration();}} onClose={()=>{setHelp(undefined);terminal.current?.focus();}}/>}
     {log?.directory && <div className="session-status"><span>{connected && log.recording ? '日志记录中' : '日志已暂停'}</span><Tooltip content={log.directory}><button className="session-tool file-path" onClick={() => { navigator.clipboard.writeText(log.directory).then(()=>clearError('clipboard')).catch(e => reportError('clipboard',e)); }}>{log.directory}</button></Tooltip>{logError && <button className="session-tool error" onClick={()=>setLogErrorDismissed(false)}>日志异常</button>}</div>}
-    <Modal isOpen={logConfirm} onClose={() => {setLogConfirm(false);clearError('log');}} className="app-dialog"><ModalContent><ModalHeader>记录终端输出</ModalHeader><ModalBody><p>输出以 ANSI 原始字节保存在本机，可能包含敏感信息。最多保留三段日志，每段 8 MiB，循环覆盖最旧段。</p>{log?.directory && <p className="file-path">{log.directory}</p>}<ErrorNotice message={error?.source==='log'?error.message:''} onDismiss={()=>clearError('log')}/></ModalBody><ModalFooter><Button variant="light" onPress={() => {setLogConfirm(false);clearError('log');}}>取消</Button><Button color="primary" onPress={async () => { clearError('log');setLogErrorDismissed(false);try { const value = await StartTerminalLog(id); if (value.directory) setLog(value); setLogError(''); setLogConfirm(false); } catch (e) { reportError('log',e); } }}>开始记录</Button></ModalFooter></ModalContent></Modal>
+    <Modal isOpen={logConfirm} onClose={() => {setLogConfirm(false);clearError('log');}} className="app-dialog"><ModalContent><ModalHeader>记录终端输出</ModalHeader><ModalBody><SelectControl aria-label="记录格式" value={logFormat} onChange={event => setLogFormat(event.target.value)}><option value="asciicast">带时间轴录制（asciicast v2）</option><option value="ansi">原始 ANSI 日志</option></SelectControl><p>{logFormat === 'asciicast' ? '记录后续输出与尺寸变化，保存在本机 session.cast。达到 16 MiB 或 100000 个事件时停止。' : '最多保留三段原始日志，每段 8 MiB，循环覆盖最旧段。'} 输出可能包含敏感信息，不进入常规备份。</p>{log?.directory && <p className="file-path">{log.directory}</p>}<ErrorNotice message={error?.source==='log'?error.message:''} onDismiss={()=>clearError('log')}/></ModalBody><ModalFooter><Button variant="light" onPress={() => {setLogConfirm(false);clearError('log');}}>取消</Button><Button color="primary" onPress={async () => { clearError('log');setLogErrorDismissed(false);try { const value = await (logFormat === 'asciicast' ? StartTerminalRecording(id) : StartTerminalLog(id)); if (value.directory) setLog(value); setLogError(''); setLogConfirm(false); } catch (e) { reportError('log',e); } }}>开始记录</Button></ModalFooter></ModalContent></Modal>
     <ErrorNotice message={logConfirm&&error?.source==='log'?'':error?.message || ''} onDismiss={()=>setError(undefined)}/>
     {logError && !logErrorDismissed && <ErrorNotice message={logError} onDismiss={()=>setLogErrorDismissed(true)}/>}
     {(connected !== true || cwd || exitCode && exitCode !== '0' || streamError) && <div className="session-status">{connected !== true && <span role="status">{connected===null?'连接中':'已断开'}</span>}{cwd && <Tooltip content={cwd}><span className="file-path">{cwd}</span></Tooltip>}{exitCode && exitCode !== '0' && <span className="error">退出码 {exitCode}</span>}{streamError && <details className="error"><summary>终端连接异常</summary>{errorMessage(streamError)}</details>}</div>}

@@ -53,6 +53,7 @@ const DemoWorkbench = lazy(() => import('./features/demo/DemoWorkbench'));
 const WorkspaceSetsDialog = lazy(() => import('./features/workspaces/WorkspaceSetsDialog'));
 const FileCompareDialog = lazy(() => import('./features/files/FileCompareDialog'));
 const CommandTasksDialog = lazy(() => import('./features/terminal/CommandTasksDialog'));
+const RecordingPlayer = lazy(() => import('./features/terminal/RecordingPlayer'));
 const DockerDialog = lazy(() => import('./features/docker/DockerDialog'));
 const StorageAccess = lazy(() => import('./features/settings/StorageAccess'));
 
@@ -105,6 +106,7 @@ export default function App() {
   const [snippetInsert,setSnippetInsert]=useState<{snippet:Snippet;workspace:string;terminal:string}>();
   const [batchCommandOpen, setBatchCommandOpen] = useState(false);
   const [fileCompareOpen, setFileCompareOpen] = useState(false);
+  const [recordingOpen, setRecordingOpen] = useState(false);
   const [commandTasksOpen, setCommandTasksOpen] = useState(false);
   const [dockerOpen, setDockerOpen] = useState(false);
   const [localShells,setLocalShells]=useState<LocalShell[]>([]);
@@ -318,6 +320,7 @@ export default function App() {
     { id: 'command-tasks', label: '管理与执行多主机任务', kind: 'command', run: () => setCommandTasksOpen(true) },
     { id: 'docker', label: 'Docker 容器工作区', kind: 'command', run: () => setDockerOpen(true) },
     { id: 'file-compare', label: '文件管理、对比与跨工作区复制', kind: 'command', run: () => setFileCompareOpen(true) },
+    { id: 'recording-playback', label: '打开本机终端录制回放', kind: 'command', run: () => setRecordingOpen(true) },
     ...(current?.ssh ? [{ id: 'sudo-edit', label: '以 sudo 编辑文件', kind: 'command' as const, run: () => current.ssh?.current?.sudoEdit() }] : []),
     { id: 'diagnostics', label: '导出脱敏诊断信息', kind: 'command', run: () => { ExportDiagnostics().catch(e => setPreferenceError(errorMessage(e))); } },
     ...(attempt.steps.length ? [{ id: 'connection-diagnostics', label: '查看上次 SSH 连接诊断', kind: 'command' as const, run: () => setConnectionDiagnosticsOpen(true) }] : []),
@@ -363,6 +366,7 @@ export default function App() {
     <Modal isOpen={!!rdpStart} onClose={()=>setRDPStart(undefined)} className="app-dialog"><ModalContent><ModalHeader>连接远程桌面</ModalHeader><ModalBody>{rdpStart && <><p>{rdpStart.connection.name}</p><label className="form-field">连接方式<SelectControl value={rdpStart.options.client || 'internal'} onChange={e=>setRDPStart({...rdpStart,options:{...rdpStart.options,client:e.target.value,gateway:e.target.value==='system'?'':rdpStart.options.gateway,resolution:e.target.value!=='system'&&rdpStart.options.resolution==='multimon'?'dynamic':rdpStart.options.resolution}})}><option value="internal">内置客户端</option><option value="system" disabled={!systemRDP}>系统客户端（mstsc）</option></SelectControl></label>{rdpStart.options.client!=='system'&&<label className="form-field">连接路径<SelectControl value={rdpStart.options.gateway||''} onChange={event=>setRDPStart({...rdpStart,options:{...rdpStart.options,gateway:event.target.value}})}><option value="">直连</option>{rdpGateways.map(gateway=><option key={gateway.id} value={gateway.id}>经 SSH · {gateway.name}</option>)}</SelectControl></label>}<label className="checkbox-label"><input type="checkbox" checked={rdpStart.options.clipboard} onChange={e=>setRDPStart({...rdpStart,options:{...rdpStart.options,clipboard:e.target.checked}})} />文本剪贴板</label><label className="form-field">远端分辨率<SelectControl value={rdpStart.options.resolution} onChange={e=>setRDPStart({...rdpStart,options:{...rdpStart.options,resolution:e.target.value}})}><option value="dynamic">适应窗口</option><option value="1280x800">1280 × 800</option><option value="1920x1080">1920 × 1080</option>{rdpStart.options.client==='system'&&<option value="multimon">全部显示器</option>}</SelectControl></label></>}</ModalBody><ModalFooter><Button variant="light" onPress={()=>setRDPStart(undefined)}>取消</Button><Button color="primary" onPress={async()=>{if(!rdpStart)return;const launch=rdpStart;setRDPStart(undefined);try{await saveRDPResolution(launch.connection.id,launch.options.resolution);await SetRDPClient(launch.connection.id, launch.options.client || 'internal');setPreferences(prev=>({...prev,[launch.connection.id]:{...prev[launch.connection.id]!,rdp_client:launch.options.client || 'internal'}}));await attempt.start(launch.connection,undefined,undefined,launch.options);}catch(e){setPreferenceError(errorMessage(e));}}}>连接</Button></ModalFooter></ModalContent></Modal>
     <HostTrustDialog target={attempt.trust} onConfirm={attempt.confirm} />
     {attempt.challenge && <SSHChallengeDialog key={attempt.challenge.id} challenge={attempt.challenge} target={attempt.target} onAnswer={attempt.answer} onCancel={attempt.cancel} />}
+    {recordingOpen && <Suspense fallback={<div role="status">正在载入录制回放…</div>}><RecordingPlayer onClose={() => setRecordingOpen(false)} /></Suspense>}
     {batchCommandOpen && <BatchCommandDialog groups={catalog?.groups} targets={workspaces.filter(w => w.sessionID && w.state === '已连接').map(w => ({ id: w.sessionID!, name: w.name, address: `${w.connection?.username}@${w.connection?.host}:${w.connection?.port}`, connection: w.connection, preference: preferences[w.connectionID] }))} initial={current?.sessionID} snippets={snippets} onClose={() => setBatchCommandOpen(false)} />}
     {fileCompareOpen && <Suspense fallback={<div role="status">正在载入文件对比…</div>}><FileCompareDialog targets={workspaces.filter(w => !w.local && !w.rdp && w.sessionID && w.state === '已连接').map(w => ({ id: w.sessionID!, name: w.name }))} initial={current?.ssh ? current.sessionID : undefined} onTransfer={item => { transfers.accept([item]); setTransferReveal(item.id); setTransfersOpen(true); }} onClose={() => setFileCompareOpen(false)} /></Suspense>}
     {commandTasksOpen && <Suspense fallback={<div role="status">正在载入命令任务…</div>}><CommandTasksDialog groups={catalog?.groups} targets={workspaces.filter(w => w.ssh && w.sessionID && w.state === '已连接').map(w => ({ id: w.sessionID!, name: w.name, address: `${w.connection?.username}@${w.connection?.host}:${w.connection?.port}`, connection: w.connection, preference: preferences[w.connectionID] }))} onClose={() => setCommandTasksOpen(false)} /></Suspense>}

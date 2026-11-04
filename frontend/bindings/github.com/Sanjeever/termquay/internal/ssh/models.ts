@@ -62,4 +62,6 @@ export interface TerminalLogStatus {
     "directory": string;
     "recording": boolean;
     "error": string;
+    "format": string;
+    "file": string;
 }

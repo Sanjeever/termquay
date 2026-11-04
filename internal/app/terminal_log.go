@@ -23,8 +23,9 @@ func (a *AppService) StartTerminalLog(id string) (terminal.TerminalLogStatus, er
 	if err != nil {
 		return terminal.TerminalLogStatus{}, err
 	}
-	parent := t.LogStatus().Directory
-	if parent == "" {
+	status := t.LogStatus()
+	parent := status.Directory
+	if parent == "" || status.Format == "asciicast" {
 		parent, err = application.Get().Dialog.OpenFile().SetTitle("选择终端日志目录").CanChooseFiles(false).CanChooseDirectories(true).PromptForSingleSelection()
 		if err != nil || parent == "" {
 			return terminal.TerminalLogStatus{}, err

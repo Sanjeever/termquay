@@ -60,6 +60,7 @@ export type {
     StorageStatus,
     SyncContentComparison,
     SyncPreset,
+    TerminalRecording,
     TmuxSession,
     Transfer,
     TransferBatch,

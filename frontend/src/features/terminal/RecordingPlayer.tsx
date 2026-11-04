@@ -1,0 +1,52 @@
+import { useEffect, useRef, useState } from 'react';
+import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
+import { create, type Player } from 'asciinema-player';
+import 'asciinema-player/dist/bundle/asciinema-player.css';
+import { ChooseTerminalRecording } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
+import type { TerminalRecording } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
+import SelectControl from '../../components/SelectControl';
+import { Events } from '@wailsio/runtime';
+import { errorMessage } from '../../lib/errors';
+
+export default function RecordingPlayer({ onClose }: { onClose(): void }) {
+  const [recording, setRecording] = useState<TerminalRecording>();
+  const [error, setError] = useState('');
+  const [speed, setSpeed] = useState(1);
+  const [skipIdle, setSkipIdle] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const host = useRef<HTMLDivElement>(null);
+  const player = useRef<Player>();
+  const resume = useRef<{ recording: TerminalRecording; position: number; playing: boolean }>();
+  const mounted = useRef(true);
+  const pending = useRef<ReturnType<typeof ChooseTerminalRecording>>();
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; pending.current?.cancel(); }; }, []);
+  useEffect(() => {
+    if (!recording || !host.current) return;
+    setError('');
+    let ended = false, playing = false;
+    try {
+      const value = create({ data: recording.content }, host.current, { autoPlay: false, preload: true, speed, idleTimeLimit: skipIdle ? 2 : undefined, fit: 'width', controls: true, terminalFontSize: '13px', logger: { log() {}, debug() {}, info() {}, warn() {}, error(...args: unknown[]) { if (mounted.current && !ended) setError(args.map(errorMessage).join(' ')); } } });
+      player.current = value;
+      value.addEventListener('playing', () => { playing = true; }); value.addEventListener('pause', () => { playing = false; }); value.addEventListener('ended', () => { playing = false; });
+      const previous = resume.current;
+      if (previous?.recording === recording && previous.position > 0) value.seek(previous.position).then(() => { if (!ended && previous.playing) return value.play(); }).catch(e => { if (!ended) setError(errorMessage(e)); });
+      return () => { ended = true; resume.current = { recording, position: value.getCurrentTime(), playing }; value.dispose(); player.current = undefined; };
+    }
+    catch (e) { setError(errorMessage(e)); }
+  }, [recording, speed, skipIdle]);
+  useEffect(() => {
+    const hide = () => { if (document.visibilityState !== 'visible') player.current?.pause().catch(e => { if (mounted.current) setError(errorMessage(e)); }); };
+    const off = Events.On(Events.Types.Common.WindowMinimise, () => { player.current?.pause().catch(e => { if (mounted.current) setError(errorMessage(e)); }); });
+    document.addEventListener('visibilitychange', hide); return () => { document.removeEventListener('visibilitychange', hide); off(); };
+  }, []);
+  async function choose() {
+    setBusy(true); setError(''); const request = ChooseTerminalRecording(); pending.current = request;
+    try { const value = await request; if (mounted.current && value.content) setRecording(value); }
+    catch (e) { if (mounted.current) setError(errorMessage(e)); }
+    finally { if (mounted.current) setBusy(false); }
+  }
+  return <Modal isOpen onClose={onClose} size="5xl" className="app-dialog" scrollBehavior="inside"><ModalContent><ModalHeader>终端录制回放</ModalHeader><ModalBody>
+    <div className="button-row"><Button size="sm" variant="light" isLoading={busy} onPress={() => void choose()}>打开本机录制</Button>{recording && <span>{recording.name}</span>}<SelectControl aria-label="回放倍速" value={speed} onChange={event => setSpeed(Number(event.target.value))}>{[0.5, 1, 1.5, 2, 4].map(value => <option key={value} value={value}>{value}×</option>)}</SelectControl><label className="checkbox-label"><input type="checkbox" checked={skipIdle} onChange={event => setSkipIdle(event.target.checked)} />跳过长时间空闲</label></div>
+    {error && <p className="error" role="alert">{error}</p>}<div className="recording-player" ref={host} />
+  </ModalBody><ModalFooter><Button variant="light" onPress={onClose}>关闭</Button></ModalFooter></ModalContent></Modal>;
+}

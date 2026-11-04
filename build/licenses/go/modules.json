@@ -1,5 +1,9 @@
 [
   {
+    "module": "maze.io/x/asciicast",
+    "version": "v1.0.1"
+  },
+  {
     "module": "github.com/moby/moby/api",
     "version": "v1.56.1"
   },

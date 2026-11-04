@@ -3565,5 +3565,77 @@
     "license": "ISC",
     "homepage": "https://eemeli.org/yaml/",
     "author": "Eemeli Aro"
+  },
+  {
+    "name": "@solid-primitives/refs",
+    "versions": [
+      "1.1.4"
+    ],
+    "license": "MIT",
+    "homepage": "https://primitives.solidjs.community/package/refs",
+    "author": "Damian Tarnawski @thetarnav"
+  },
+  {
+    "name": "@solid-primitives/transition-group",
+    "versions": [
+      "1.1.2"
+    ],
+    "license": "MIT",
+    "homepage": "https://primitives.solidjs.community/package/transition-group",
+    "author": "Damian Tarnawski"
+  },
+  {
+    "name": "@solid-primitives/utils",
+    "versions": [
+      "6.4.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/solidjs-community/solid-primitives/tree/main/packages/utils#readme",
+    "author": "Damian Tarnawski @thetarnav"
+  },
+  {
+    "name": "asciinema-player",
+    "versions": [
+      "3.17.0"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/asciinema/asciinema-player",
+    "author": "Marcin Kulik"
+  },
+  {
+    "name": "seroval",
+    "versions": [
+      "1.6.12"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/lxsmnsyc/seroval/tree/main/packages/seroval",
+    "author": "Alexis Munsayac"
+  },
+  {
+    "name": "seroval-plugins",
+    "versions": [
+      "1.6.12"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/lxsmnsyc/seroval/tree/main/packages/plugins",
+    "author": "Alexis Munsayac"
+  },
+  {
+    "name": "solid-js",
+    "versions": [
+      "1.9.18"
+    ],
+    "license": "MIT",
+    "homepage": "https://solidjs.com",
+    "author": "Ryan Carniato"
+  },
+  {
+    "name": "solid-transition-group",
+    "versions": [
+      "0.2.3"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/solidjs/solid-transition-group#readme",
+    "author": "Ryan Carniato"
   }
 ]

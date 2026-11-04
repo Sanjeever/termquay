@@ -88,6 +88,10 @@ export function ChooseComparisonFile(charset: string): $CancellablePromise<files
     return $Call.ByID(685130488, charset);
 }
 
+export function ChooseTerminalRecording(): $CancellablePromise<$models.TerminalRecording> {
+    return $Call.ByID(828706094);
+}
+
 export function ChooseUploadFiles(id: string, directory: string): $CancellablePromise<$models.UploadPreview> {
     return $Call.ByID(3202931173, id, directory);
 }
@@ -838,6 +842,10 @@ export function StartDownloads(id: string, remotes: string[] | null, overwrite: 
 
 export function StartTerminalLog(id: string): $CancellablePromise<ssh$0.TerminalLogStatus> {
     return $Call.ByID(397401596, id);
+}
+
+export function StartTerminalRecording(id: string): $CancellablePromise<ssh$0.TerminalLogStatus> {
+    return $Call.ByID(296065221, id);
 }
 
 export function StartTunnel(workspace: string, spec: ssh$0.ForwardSpec): $CancellablePromise<$models.Tunnel> {

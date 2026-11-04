@@ -60,24 +60,25 @@ type HostKeyError struct {
 func (e *HostKeyError) Error() string { return "SSH 主机身份尚未确认或已变化" }
 
 type Terminal struct {
-	client          *gossh.Client
-	jumps           []*gossh.Client
-	forwardSlots    chan struct{}
-	forwardRequests chan struct{}
-	probeSlots      chan struct{}
-	session         *gossh.Session
-	Input           io.WriteCloser
-	Output          *io.PipeReader
-	writer          *io.PipeWriter
-	once            sync.Once
-	Done            chan struct{}
-	mu              sync.Mutex
-	waitErr         error
-	logMu           sync.Mutex
-	log             *terminalLog
-	logClosed       bool
-	completionLog   completionLogFilter
-	connectionOwner bool
+	client           *gossh.Client
+	jumps            []*gossh.Client
+	forwardSlots     chan struct{}
+	forwardRequests  chan struct{}
+	probeSlots       chan struct{}
+	session          *gossh.Session
+	Input            io.WriteCloser
+	Output           *io.PipeReader
+	writer           *io.PipeWriter
+	once             sync.Once
+	Done             chan struct{}
+	mu               sync.Mutex
+	waitErr          error
+	logMu            sync.Mutex
+	log              *terminalLog
+	logClosed        bool
+	logCols, logRows int
+	completionLog    completionLogFilter
+	connectionOwner  bool
 }
 
 func Dial(ctx context.Context, r Request) (*Terminal, error) {
@@ -291,7 +292,7 @@ func newTerminal(client *gossh.Client, cols, rows int) (*Terminal, error) {
 		writer.Close()
 		return fail(err)
 	}
-	t := &Terminal{client: client, session: s, Input: input, Output: reader, writer: writer, Done: make(chan struct{}), forwardSlots: make(chan struct{}, 8), forwardRequests: make(chan struct{}, 4), probeSlots: make(chan struct{}, 4)}
+	t := &Terminal{client: client, session: s, Input: input, Output: reader, writer: writer, Done: make(chan struct{}), forwardSlots: make(chan struct{}, 8), forwardRequests: make(chan struct{}, 4), probeSlots: make(chan struct{}, 4), logCols: cols, logRows: rows}
 	go func() {
 		err := s.Wait()
 		t.mu.Lock()
@@ -307,7 +308,11 @@ func (t *Terminal) Resize(cols, rows int) error {
 	if cols < 1 || rows < 1 || cols > 1000 || rows > 1000 {
 		return errors.New("终端尺寸无效")
 	}
-	return t.session.WindowChange(rows, cols)
+	if err := t.session.WindowChange(rows, cols); err != nil {
+		return err
+	}
+	t.recordResize(cols, rows)
+	return nil
 }
 
 func (t *Terminal) Close() {
