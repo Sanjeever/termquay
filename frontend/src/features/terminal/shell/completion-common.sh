@@ -30,7 +30,19 @@ __termquay_prompt_state() {
     *) if [ "$__termquay_shell" = bash ]; then PS1="$PS1"'\['"$marker"'\]'; else PS1="$PS1"'%{'"$marker"'%}'; fi ;;
   esac
   __termquay_saved_line=; __termquay_saved_point=
+  if [ "$__termquay_shell" = bash ]; then
+    local recent
+    recent=$(HISTTIMEFORMAT= builtin history 1)
+    if [[ $recent =~ ^[[:space:]]*([0-9]+) ]]; then __termquay_history_base=${BASH_REMATCH[1]}; else __termquay_history_base=; fi
+  fi
   __termquay_emit "P;$__termquay_shell"
+}
+__termquay_record() {
+  local LC_ALL=C command="$1"
+  [ "$$" = "$__termquay_owner" ] && [ ${#command} -le 8192 ] || return
+  __termquay_hex "$command"
+  __termquay_emit "R;$__termquay_encoded"
+  __termquay_encoded=
 }
 __termquay_snapshot() {
   local LC_ALL=C line="$1" point="$2" directory home

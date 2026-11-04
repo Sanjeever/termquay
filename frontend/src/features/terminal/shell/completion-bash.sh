@@ -1,4 +1,16 @@
 __termquay_shell=bash
+__termquay_record_bash() {
+  [[ -o history ]] && [ "${HISTSIZE:-0}" -gt 0 ] || return
+  local recent
+  recent=$(HISTTIMEFORMAT= builtin history 1)
+  if [[ $recent =~ ^[[:space:]]*([0-9]+)[[:space:]]+(.*)$ ]] && [ "${BASH_REMATCH[1]}" -gt "${__termquay_history_base:-0}" ]; then
+    __termquay_record "${BASH_REMATCH[2]}"
+  fi
+}
+if [ -z "${__termquay_command_capture-}" ]; then
+  __termquay_command_capture=1
+  PS0='$(__termquay_record_bash)'"$PS0"
+fi
 __termquay_complete_request() { __termquay_snapshot "$READLINE_LINE" "$READLINE_POINT"; }
 __termquay_complete_apply() {
   local packet LC_ALL=C

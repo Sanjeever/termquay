@@ -1,4 +1,5 @@
 __termquay_shell=zsh
+__termquay_preexec() { __termquay_record "$1"; printf '\033]133;C\007'; }
 __termquay_complete_request() { __termquay_snapshot "$BUFFER" "$CURSOR"; }
 __termquay_complete_apply() {
   local packet= char count=0

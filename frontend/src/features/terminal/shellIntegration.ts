@@ -1,5 +1,7 @@
 import type { IMarker, Terminal } from '@xterm/xterm';
 
+export type CommandIndexEntry = { id: number; command?: string; directory: string; startedAt: number; duration?: number; exitCode?: string };
+
 export function shellQuote(value: string) { return "'" + value.replace(/'/g, "'\\''") + "'"; }
 
 export const shellSetup = {
@@ -26,10 +28,14 @@ export function shellSetupForHost(shell: 'bash' | 'zsh', host: string) {
   return shellSetup[shell].replace('__termquay_enabled=1', `__termquay_enabled=1\n  __termquay_host=${shellQuote(authority)}`).replace(/"\$HOSTNAME"|"\$HOST"/g, '"$__termquay_host"').replace('"$PWD";', '"$__termquay_path";').replace('local code=$?;', prompt);
 }
 
-export function addShellIntegration(term: Terminal, onDirectory: (path: string, host: string) => void, onExit: (code: string) => void, onFile: (path: string, line: number) => void, onCommand?: (kind: string) => void, onCompletion?: (data: string) => void) {
+export function addShellIntegration(term: Terminal, onDirectory: (path: string, host: string) => void, onExit: (code: string) => void, onFile: (path: string, line: number) => void, onCommand?: (kind: string) => void, onCompletion?: (data: string) => void, onIndex?: (entries: CommandIndexEntry[]) => void) {
   const marks: IMarker[] = [];
   let output: IMarker | undefined;
   let completed: { start: IMarker; end: IMarker } | undefined;
+  let currentDirectory = '', pendingCommand: string | undefined, sequence = 0;
+  const entries: { view: CommandIndexEntry; start: IMarker; end?: IMarker }[] = [];
+  let current: typeof entries[number] | undefined;
+  function publishIndex() { onIndex?.(entries.map(entry => ({ ...entry.view }))); }
   function marker() {
     const value = term.registerMarker(0);
     if (value) { marks.push(value); if (marks.length > 128) marks.shift()?.dispose(); }
@@ -37,7 +43,7 @@ export function addShellIntegration(term: Terminal, onDirectory: (path: string, 
   }
   const cwd = term.parser.registerOscHandler(7, data => {
     if (data.length > 8192 || /[\x00-\x1f\x7f]/.test(data) || term.buffer.active.type !== 'normal') return true;
-    try { const url = new URL(data); const path = decodeURIComponent(url.pathname); if (url.protocol === 'file:' && path.startsWith('/') && !/[\x00-\x1f\x7f]/.test(path)) onDirectory(path, url.hostname); } catch { return true; }
+    try { const url = new URL(data); const path = decodeURIComponent(url.pathname); if (url.protocol === 'file:' && path.startsWith('/') && !/[\x00-\x1f\x7f]/.test(path)) { currentDirectory = path; onDirectory(path, url.hostname); } } catch { return true; }
     return true;
   });
   const command = term.parser.registerOscHandler(133, data => {
@@ -45,8 +51,16 @@ export function addShellIntegration(term: Terminal, onDirectory: (path: string, 
     const [kind, status] = data.split(';', 2);
     onCommand?.(kind);
     if (kind === 'A') marker();
-    if (kind === 'C') output = marker();
-    if (kind === 'D') { const end = marker(); if (output && end) completed = { start: output, end }; output = undefined; if (/^\d{1,3}$/.test(status || '')) onExit(status); }
+    if (kind === 'C') {
+      output = marker();
+      if (output) { current = { view: { id: ++sequence, command: pendingCommand, directory: currentDirectory, startedAt: Date.now() }, start: output }; entries.push(current); if (entries.length > 128) entries.shift(); publishIndex(); }
+      pendingCommand = undefined;
+    }
+    if (kind === 'D') {
+      const end = marker(); if (output && end) completed = { start: output, end }; output = undefined;
+      if (current) { current.end = end; current.view.duration = Date.now() - current.view.startedAt; if (/^\d{1,3}$/.test(status || '')) current.view.exitCode = status; current = undefined; publishIndex(); }
+      if (/^\d{1,3}$/.test(status || '')) onExit(status);
+    }
     return true;
   });
   const completion = term.parser.registerOscHandler(777, data => { if (term.buffer.active.type === 'normal') onCompletion?.(data); return true; });
@@ -59,6 +73,15 @@ export function addShellIntegration(term: Terminal, onDirectory: (path: string, 
     callback(matches.map(match => { const start = match.index! + match[0].indexOf(match[1]); return { text: match[1], range: { start: { x: cellColumn(start), y }, end: { x: cellColumn(start + match[1].length + match[2].length + 1) - 1, y } }, activate(event: MouseEvent) { if (event.ctrlKey || event.metaKey) onFile(match[1], Number(match[2])); } }; }));
   } });
   return {
+    recordCommand(text: string) { pendingCommand = text; },
+    goTo(id: number) { const entry = entries.find(entry => entry.view.id === id); if (!entry || entry.start.isDisposed) return false; term.scrollToLine(entry.start.line); return true; },
+    outputText(id: number) {
+      const entry = entries.find(entry => entry.view.id === id);
+      if (!entry || entry.start.isDisposed || !entry.end || entry.end.isDisposed) throw new Error('输出尚未结束或已移出终端缓冲区');
+      const lines: string[] = []; let size = 0;
+      for (let y = entry.start.line; y < entry.end.line; y++) { const line = term.buffer.normal.getLine(y)?.translateToString(true) || ''; size += new TextEncoder().encode(line).length + 1; if (size > 256 * 1024) throw new Error('输出超过 256 KiB 复制限制'); lines.push(line); }
+      return lines.join('\n');
+    },
     previous() { const before = term.buffer.active.viewportY; const mark = marks.filter(m => !m.isDisposed && m.line < before).slice(-1)[0]; if (mark) term.scrollToLine(mark.line); },
     selectOutput() { if (completed && !completed.start.isDisposed && !completed.end.isDisposed) term.selectLines(completed.start.line, Math.max(completed.start.line, completed.end.line - 1)); },
     dispose() { cwd.dispose(); command.dispose(); completion.dispose(); files.dispose(); marks.forEach(m => m.dispose()); },

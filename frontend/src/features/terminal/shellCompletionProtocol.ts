@@ -9,6 +9,11 @@ function unhex(value: string, maxBytes: number) {
   if (value.length > maxBytes * 2 || value.length % 2 || /[^0-9a-f]/.test(value)) throw new Error('补全数据编码无效');
   return decoder.decode(Uint8Array.from(value.match(/../g) || [], byte => parseInt(byte, 16)));
 }
+export function parseRecordedCommand(data: string, token: string): string | undefined {
+  const prefix = `termquay;${token};R;`;
+  if (!/^[a-f0-9]{64}$/.test(token) || data.length > prefix.length + 16384 || !data.startsWith(prefix)) return;
+  try { const command = unhex(data.slice(prefix.length), 8192); if (!/[\x00-\x08\x0b-\x1f\x7f]/.test(command)) return command; } catch { return; }
+}
 export function shellPoint(line: string, cursor: number, shell: CompletionShell) {
   const prefix = line.slice(0, cursor);
   return shell === 'bash' ? encoder.encode(prefix).length : Array.from(prefix).length;
