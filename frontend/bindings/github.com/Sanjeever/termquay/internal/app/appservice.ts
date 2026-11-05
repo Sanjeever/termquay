@@ -152,6 +152,10 @@ export function CompleteTerminalPath(workspace: string, terminal: string, direct
     return $Call.ByID(3874034242, workspace, terminal, directory, prefix, directoriesOnly);
 }
 
+export function ConfigureApplicationLock(idleMinutes: number, lockOnSystem: boolean): $CancellablePromise<$models.ApplicationLockStatus> {
+    return $Call.ByID(3340100931, idleMinutes, lockOnSystem);
+}
+
 export function ConfigureFileWorkflow(workspace: string, remote: string, enabled: boolean, validate: string, reload: string, health: string): $CancellablePromise<void> {
     return $Call.ByID(687753709, workspace, remote, enabled, validate, reload, health);
 }
@@ -306,6 +310,10 @@ export function ExportLocalSnapshot(password: string, selection: $models.BackupS
 
 export function ExportTerminalBuffer(content: string): $CancellablePromise<void> {
     return $Call.ByID(2167589366, content);
+}
+
+export function GetApplicationLock(): $CancellablePromise<$models.ApplicationLockStatus> {
+    return $Call.ByID(3288919527);
 }
 
 export function GetAutomaticBackupStatus(): $CancellablePromise<$models.AutomaticBackupStatus> {
@@ -486,6 +494,10 @@ export function ListTunnels(workspace: string): $CancellablePromise<$models.Tunn
 
 export function ListWorkspaceSets(): $CancellablePromise<$models.WorkspaceSet[] | null> {
     return $Call.ByID(253206);
+}
+
+export function LockApplication(): $CancellablePromise<void> {
+    return $Call.ByID(3976378473);
 }
 
 export function MeasureConnectionLatency(id: string): $CancellablePromise<$models.ConnectionLatency> {
@@ -960,6 +972,10 @@ export function TitlebarDoubleClick(): $CancellablePromise<void> {
     return $Call.ByID(3945271408);
 }
 
+export function TouchApplication(): $CancellablePromise<void> {
+    return $Call.ByID(881282545);
+}
+
 export function TrustHost(host: string, port: number, fingerprint: string): $CancellablePromise<void> {
     return $Call.ByID(1684754374, host, port, fingerprint);
 }
@@ -974,6 +990,10 @@ export function TrustRDPCertificateRoute(host: string, port: number, fingerprint
 
 export function TrustSSHHost(host: string, port: number, fingerprint: string, via: string): $CancellablePromise<void> {
     return $Call.ByID(3522158632, host, port, fingerprint, via);
+}
+
+export function UnlockApplication(password: string): $CancellablePromise<$models.ApplicationLockStatus> {
+    return $Call.ByID(78814432, password);
 }
 
 export function UnlockPasswordStorage(password: string): $CancellablePromise<void> {

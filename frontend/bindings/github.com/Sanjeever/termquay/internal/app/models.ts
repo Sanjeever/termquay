@@ -17,6 +17,13 @@ import * as ssh$0 from "../ssh/models.js";
 // @ts-ignore: Unused imports
 import * as store$0 from "../store/models.js";
 
+export interface ApplicationLockStatus {
+    "available": boolean;
+    "locked": boolean;
+    "idle_minutes": number;
+    "lock_on_system": boolean;
+}
+
 export interface AutomaticBackupStatus {
     "enabled": boolean;
     "running": boolean;

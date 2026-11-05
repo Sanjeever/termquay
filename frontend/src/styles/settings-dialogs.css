@@ -190,3 +190,6 @@
 .workspace-set-entries li > strong { font-weight: 500; }
 .workspace-set-confirm { flex-wrap: wrap; margin-top: 10px; }
 .workspace-set-confirm > span { flex: 1; min-width: 200px; }
+.application-lock { position: fixed; inset: 0; z-index: 2147483647; display: grid; place-items: center; padding: 24px; background: var(--color-background); color: var(--color-text); }
+.application-lock form { display: flex; flex-direction: column; gap: 20px; width: min(100%, 340px); }
+.application-lock h1 { font-size: 20px; font-weight: 600; }

@@ -51,6 +51,12 @@ type workspaceOwner struct {
 }
 
 type AppService struct {
+	appLocked              atomic.Bool
+	lockMu                 sync.Mutex
+	lockAuthMu             sync.Mutex
+	lockTimer              *time.Timer
+	lockDeadline           time.Time
+	lockState              ApplicationLockStatus
 	build                  BuildInfo
 	licenseFiles           fs.ReadFileFS
 	importPreview          *SSHImportPreview
@@ -223,6 +229,12 @@ func (a *AppService) CloseWorkspace(id string) {
 }
 
 func (a *AppService) ServiceShutdown() (result error) {
+	a.lockMu.Lock()
+	a.lockDeadline = time.Time{}
+	if a.lockTimer != nil {
+		a.lockTimer.Stop()
+	}
+	a.lockMu.Unlock()
 	result = errors.Join(result, a.stopUpdates())
 	defer func() { result = errors.Join(result, a.closeNotifications()) }()
 	defer func() { result = errors.Join(result, a.cleanupLocalTransferResumes()) }()

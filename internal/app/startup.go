@@ -27,6 +27,8 @@ func Run(assets fs.FS, appIcons fs.ReadFileFS, build BuildInfo, licenses fs.Read
 		Mac:        application.MacOptions{ApplicationShouldTerminateAfterLastWindowClosed: true},
 	})
 	installWorkbenchMenu(app)
+	app.Event.OnApplicationEvent(events.Common.ScreenLocked, func(_ *application.ApplicationEvent) { service.lockForSystem() })
+	app.Event.OnApplicationEvent(events.Common.SystemWillSleep, func(_ *application.ApplicationEvent) { service.lockForSystem() })
 	if err := service.initUpdater(app); err != nil {
 		return err
 	}
@@ -45,6 +47,9 @@ func Run(assets fs.FS, appIcons fs.ReadFileFS, build BuildInfo, licenses fs.Read
 		Windows: application.WindowsWindow{NonClientRegionSupport: true, WebView2CompositionHosting: false},
 	})
 	window.OnWindowEvent(events.Common.WindowFilesDropped, func(event *application.WindowEvent) {
+		if service.appLocked.Load() {
+			return
+		}
 		details := event.Context().DropTargetDetails()
 		if details == nil {
 			return

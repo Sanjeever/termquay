@@ -5,6 +5,7 @@ import { errorMessage } from '../../lib/errors';
 import type { Workspace } from './workspace';
 
 export default function useWorkbenchClose(options: {
+  locked?: boolean;
   workspaces: Workspace[];
   activeTasks: number;
   flushLocalState(): Promise<void>;
@@ -39,6 +40,7 @@ export default function useWorkbenchClose(options: {
   }
 
   nativeClose.current = () => {
+    if (latest.current.locked) return;
     if (autoQuitting.current) return;
     latest.current.beforeQuit();
     if (latest.current.activeTasks || latest.current.workspaces.some(workspace => workspace.ssh?.current?.hasDirty())) {

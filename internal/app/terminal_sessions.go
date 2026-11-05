@@ -141,7 +141,7 @@ func (a *AppService) handleTerminal(c *application.StreamConn) {
 	p.timer.Stop()
 	a.mu.Unlock()
 	defer a.CloseTerminal(id)
-	if err = terminal.Relay(p.terminal, c); err != nil && c.Context().Err() == nil {
+	if err = terminal.Relay(p.terminal, c, a.applicationInputAllowed); err != nil && c.Context().Err() == nil {
 		application.Get().Event.Emit("terminal:error", map[string]string{"id": id, "error": err.Error()})
 	}
 }

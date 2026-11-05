@@ -227,7 +227,7 @@ func (a *AppService) handleLocalTerminal(stream *application.StreamConn) {
 	session.timer.Stop()
 	a.mu.Unlock()
 	defer a.CloseLocalTerminal(id)
-	if err := terminal.RelayIO(session.pty, session.pty, session.done, session.close, session.waitError, nil, stream); err != nil && stream.Context().Err() == nil {
+	if err := terminal.RelayIO(session.pty, session.pty, session.done, session.close, session.waitError, nil, stream, a.applicationInputAllowed); err != nil && stream.Context().Err() == nil {
 		select {
 		case <-session.done:
 			if exitErr := session.waitError(); exitErr != nil {

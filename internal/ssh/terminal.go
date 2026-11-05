@@ -384,11 +384,11 @@ type Stream interface {
 	Close() error
 }
 
-func Relay(t *Terminal, s Stream) error {
-	return RelayIO(t.Input, t.Output, t.Done, t.Close, t.WaitError, t.recordOutput, s)
+func Relay(t *Terminal, s Stream, inputAllowed ...func() bool) error {
+	return RelayIO(t.Input, t.Output, t.Done, t.Close, t.WaitError, t.recordOutput, s, inputAllowed...)
 }
 
-func RelayIO(input io.Writer, output io.Reader, done <-chan struct{}, closeEndpoint func(), waitError func() error, record func([]byte), s Stream) error {
+func RelayIO(input io.Writer, output io.Reader, done <-chan struct{}, closeEndpoint func(), waitError func() error, record func([]byte), s Stream, inputAllowed ...func() bool) error {
 	defer closeEndpoint()
 	defer s.Close()
 	ctx, cancel := context.WithCancel(s.Context())
@@ -411,6 +411,9 @@ func RelayIO(input io.Writer, output io.Reader, done <-chan struct{}, closeEndpo
 			}
 			switch frame[0] {
 			case 0:
+				if len(inputAllowed) > 0 && !inputAllowed[0]() {
+					continue
+				}
 				if _, err = input.Write(frame[1:]); err != nil {
 					received <- err
 					return

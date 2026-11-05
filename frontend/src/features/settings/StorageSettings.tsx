@@ -3,6 +3,7 @@ import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from
 import { GetStorageStatus, SetStoragePassword, UseSystemStorage } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { StorageStatus } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import { errorMessage } from '../../lib/errors';
+import ApplicationLockSettings from './ApplicationLockSettings';
 
 export default function StorageSettings() {
   const [status, setStatus] = useState<StorageStatus>();
@@ -19,9 +20,10 @@ export default function StorageSettings() {
     setBusy(true); setError('');
     try { if (editing === 'keyring') await UseSystemStorage(current); else await SetStoragePassword(current, password); setCurrent(''); setPassword(''); setConfirmation(''); setStatus(await GetStorageStatus()); setEditing(undefined); }
     catch (e) { setError(errorMessage(e)); setCurrent(''); setPassword(''); setConfirmation(''); try { setStatus(await GetStorageStatus()); } catch (statusError) { setError(`${errorMessage(e)}；${errorMessage(statusError)}`); } }
-    finally { setBusy(false); }
+    finally { setBusy(false); window.dispatchEvent(new Event('termquay:storage-protection-changed')); }
   }
   return <section className="settings-panel"><h2>存储保护</h2><p>{status?.mode === 'password' ? '主密码' : status?.mode === 'session' ? '会话存储' : status ? '系统密钥库' : '正在读取…'}</p>
+    {status?.mode === 'password' && <ApplicationLockSettings />}
     {error && !editing && <p className="error" role="alert">{error}</p>}
     {status?.unlocked && status.mode !== 'session' && <div className="button-row"><Button size="sm" variant="light" onPress={() => { setError(''); setEditing('password'); }}>{status.mode === 'password' ? '修改主密码' : '启用主密码'}</Button>{status.mode === 'password' && <Button size="sm" variant="light" onPress={() => { setError(''); setEditing('keyring'); }}>切回系统密钥库</Button>}</div>}
     <Modal isOpen={!!editing} onClose={close} isDismissable={!busy} isKeyboardDismissDisabled={busy} className="app-dialog"><ModalContent><form onSubmit={event => { event.preventDefault(); void save(); }}><ModalHeader>{editing === 'keyring' ? '切回系统密钥库' : status?.mode === 'password' ? '修改主密码' : '启用主密码'}</ModalHeader><ModalBody>

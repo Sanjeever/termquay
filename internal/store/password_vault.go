@@ -241,3 +241,15 @@ func (s *Store) UseSystemVault(password string) error {
 	}
 	return nil
 }
+
+func (s *Store) VerifyVaultPassword(password string) error {
+	if len(password) == 0 || len(password) > 1024 {
+		return errors.New("主密码长度无效")
+	}
+	key, err := readPasswordKey(s.directory, password)
+	if err != nil {
+		return err
+	}
+	defer clear(key)
+	return s.verifyVaultKey(key)
+}

@@ -80,6 +80,9 @@ func (a *AppService) CreatePasswordStorage(password string) error {
 	return err
 }
 func (a *AppService) SetStoragePassword(current, password string) error {
+	if a.appLocked.Load() {
+		return errors.New("请先解锁应用")
+	}
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
 	if a.store == nil || a.sessionDir != "" {
@@ -88,6 +91,9 @@ func (a *AppService) SetStoragePassword(current, password string) error {
 	return a.store.SetVaultPassword(current, password)
 }
 func (a *AppService) UseSystemStorage(password string) error {
+	if a.appLocked.Load() {
+		return errors.New("请先解锁应用")
+	}
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
 	if a.store == nil || a.sessionDir != "" {

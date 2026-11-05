@@ -50,6 +50,8 @@ import type { Workspace } from './features/workspaces/workspace';
 import { captureWorkspaceLayout as captureLayout } from './features/workspaces/workspaceLayout';
 import useWorkbenchClose from './features/workspaces/useWorkbenchClose';
 import WorkbenchCloseDialog from './features/workspaces/WorkbenchCloseDialog';
+import useApplicationLock from './features/settings/useApplicationLock';
+import ApplicationLockScreen from './features/settings/ApplicationLockScreen';
 
 const loadSSHWorkspace = () => import('./features/files/SSHWorkspace');
 const loadTerminalView = () => import('./features/terminal/TerminalView');
@@ -76,6 +78,7 @@ export default function App() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [active, setActive] = useState('');
   const [catalog, setCatalog] = useState<{ groups: Group[]; connections: Connection[]; session_only: boolean }>();
+  const appLock = useApplicationLock(!!catalog);
   const [storageError, setStorageError] = useState('');
   const [connectionDiagnosticsOpen, setConnectionDiagnosticsOpen] = useState(false);
   const [catalogLoading, setCatalogLoading] = useState(true);
@@ -169,6 +172,7 @@ export default function App() {
   }
   async function flushLocalState(){if(!catalog)return;notifyLocalState();await workspaceRestore.flush();await recovery.flush();++portableGeneration.current;await SavePortableUI(capturePortableUI());setPortableError('');}
   const workbenchClose = useWorkbenchClose({
+    locked: !!appLock.status?.locked,
     workspaces,
     activeTasks: commandRuns.active,
     flushLocalState,
@@ -262,7 +266,7 @@ export default function App() {
   }, [active, dialog, rdpStart, restoreDialog, workspaceSetLayout, snippetInsert, attempt.trust, closing, quitConfirm, palette, settings,demoScene]);
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
-      if (demoScene || event.isComposing || event.repeat || dialog || attempt.trust || closing || quitConfirm || restarting) return;
+      if (appLock.locked.current || demoScene || event.isComposing || event.repeat || dialog || attempt.trust || closing || quitConfirm || restarting) return;
       const path = event.composedPath();
       if (path.some(target => target instanceof HTMLElement && target.matches('[role=dialog], .shortcut-recorder'))) return;
       if (path.some(target => target instanceof HTMLElement && target.matches('.rdp-canvas')) && path.some(target => target instanceof HTMLElement && target.matches('.rdp-view[data-keyboard-target=remote]'))) return;
@@ -428,6 +432,7 @@ export default function App() {
     await restoreWorkspaces(entries.map(entry => ({ ...entry, id: ids.get(entry.id)! })), ids.get(layout.active));
   }
   const tools = <>
+    {appLock.status?.available && <button className="session-tool" onClick={() => void appLock.lock()}>锁定</button>}
     {current?.connectionID && <Tooltip content="连接操作手册"><button className="icon-button" aria-label="连接操作手册" onClick={() => setPlaybookConnection(catalog?.connections.find(item => item.id === current.connectionID))}><Icon name="files" /></button></Tooltip>}
     <Tooltip content="命名工作集"><button className="icon-button" aria-label="命名工作集" disabled={attempt.busy || openingLocal || !catalog} onClick={manageWorkspaceSets}><Icon name="list" /></button></Tooltip>
     <Tooltip content={`命令搜索 · ${shortcutLabel(shortcuts.palette)}`}><button className="icon-button" aria-label="命令搜索" onClick={() => { setPaletteScope('all'); setPaletteQuery(''); setPalette(true); }}><Icon name="search" /></button></Tooltip>
@@ -442,6 +447,7 @@ export default function App() {
     ...localShells.map(shell=>({id:`local-${shell.id}`,label:`本地终端 · ${shell.name}`,kind:'command' as const,run:()=>{void openLocalShell(shell.id);}})),
     { id: 'connections', label: '进入连接中心', kind: 'command', run: () => select('') },
     { id: 'workspace-sets', label: '管理命名工作集', kind: 'command', run: manageWorkspaceSets },
+    ...(appLock.status?.available ? [{ id: 'lock-application', label: '锁定应用', kind: 'command' as const, run: () => { void appLock.lock(); } }] : []),
     ...(current?.connectionID && catalog?.connections.find(item => item.id === current.connectionID) ? [{ id: 'playbook', label: '打开连接操作手册', kind: 'command' as const, run: () => setPlaybookConnection(catalog.connections.find(item => item.id === current.connectionID)) }] : []),
     ...(current?.ssh ? [{ id: 'files', label: '显示远端文件', kind: 'command' as const, run: () => current.ssh?.current?.showFiles() }, { id: 'monitor', label: '切换监控面板', kind: 'command' as const, run: () => current.ssh?.current?.toggleMonitor() }, { id: 'focus', label: '切换专注模式', kind: 'command' as const, run: () => current.ssh?.current?.toggleFocus() }] : []),
     ...(current?.ssh||current?.local ? shortcutDefinitions.filter(d => d.scope === 'terminal').map(d => ({ id: `terminal-${d.id}`, label: d.label, detail: shortcutLabel(shortcuts[d.id]), kind: 'command' as const, run: () => {if(current.local)current.local.terminal.current?.action(d.id);else current.ssh?.current?.terminalAction(d.id);} })) : []),
@@ -470,9 +476,9 @@ export default function App() {
     ...(current?.ssh?.current?.insertionTarget()||current?.local?snippets.map(snippet=>({id:`snippet-${snippet.id}`,label:`插入片段 ${snippet.name}`,detail:snippet.group,kind:'command' as const,run:()=>{const target=current?.local?current.id:current?.ssh?.current?.insertionTarget();if(target&&current)setSnippetInsert({snippet,workspace:current.id,terminal:target});}})):[]),
   ];
   const menuCommand = useRef<(id:string)=>void>(()=>{});
-  menuCommand.current = id => { if (demoScene || dialog || rdpStart || restoreDialog || snippetInsert || attempt.trust || closing || quitConfirm || restarting || document.querySelector('[role=dialog]')) return; commands.find(command=>command.id===id)?.run(); };
+  menuCommand.current = id => { if (appLock.locked.current || demoScene || dialog || rdpStart || restoreDialog || snippetInsert || attempt.trust || closing || quitConfirm || restarting || document.querySelector('[role=dialog]')) return; commands.find(command=>command.id===id)?.run(); };
   useEffect(()=>Events.On('app:menu-command',event=>menuCommand.current(event.data as string)),[]);
-  const menuState = JSON.stringify(dialog || rdpStart || restoreDialog || workspaceSetLayout || snippetInsert || attempt.trust || closing || quitConfirm || restarting || palette || batchCommandOpen ? {} : Object.fromEntries(commands.map(command=>[command.id,command.shortcut==='未分配'?'':command.shortcut||''])));
+  const menuState = JSON.stringify(appLock.status?.locked || dialog || rdpStart || restoreDialog || workspaceSetLayout || snippetInsert || attempt.trust || closing || quitConfirm || restarting || palette || batchCommandOpen ? {} : Object.fromEntries(commands.map(command=>[command.id,command.shortcut==='未分配'?'':command.shortcut||''])));
   useEffect(()=>{if(!demoScene&&System.IsMac())void Events.Emit('app:menu-state',JSON.parse(menuState) as Record<string,string>).catch(error=>setPreferenceError(`菜单更新失败：${errorMessage(error)}`));},[menuState,demoScene]);
   return <>
     <div className="live-workbench" hidden={demoScene!==null}>
@@ -485,6 +491,7 @@ export default function App() {
       {!dialog && (attempt.busy || (attempt.error && !current?.rdp)) && <div className="connection-feedback" role={attempt.error ? 'alert' : 'status'}><span className={attempt.error ? 'error' : ''}>{attempt.target} · {attempt.error || attempt.steps[attempt.steps.length - 1]?.stage || '正在连接…'}</span><div className="button-row">{!!attempt.steps.length && <Button size="sm" variant="light" onPress={() => setConnectionDiagnosticsOpen(true)}>连接诊断</Button>}{attempt.busy && <Button size="sm" variant="light" onPress={attempt.cancel}>取消连接</Button>}{!attempt.busy && <button className="icon-button" aria-label="关闭连接错误" onClick={attempt.clearError}><Icon name="close" /></button>}</div></div>}
       {settings && <Suspense fallback={<div className="view-loading" role="status">正在载入设置…</div>}><SettingsView section={settingsSection} onSectionChange={setSettingsSection} recovery={recovery} fontSize={fontSize} onFontSize={setFontSize} onRestore={() => void reload()} onClose={() => setSettings(false)} shortcuts={shortcuts} onShortcuts={saveShortcuts} shortcutError={shortcutError} automaticBackup={automaticBackup} updates={updates} onRestart={workbenchClose.restart} activeWorkspaces={workspaces.length} activeTransfers={transfers.items.filter(item => ['queued','running'].includes(item.state)).length} onDemo={()=>showDemo()} demoDisabled={attempt.busy||openingLocal} connections={catalog?.connections || []} onEditConnection={id => { const connection = catalog?.connections.find(item => item.id === id); if (connection) openDialog(false, connection); }} /></Suspense>}
       <ErrorNotice message={preferenceError} onDismiss={()=>setPreferenceError('')} className="connection-feedback"/>
+      <ErrorNotice message={appLock.error} className="connection-feedback" />
       <ErrorNotice message={preferenceLoadError} className="connection-feedback"><button className="session-tool" onClick={()=>void reload()}>重新读取连接偏好</button></ErrorNotice>
       {portableError && portableFailure!==dismissedPortable && <ErrorNotice message={`界面设置未保存：${portableError}`} onDismiss={()=>setDismissedPortable(portableFailure)} className="connection-feedback"><button className="session-tool" onClick={()=>void savePortable()}>重试保存</button></ErrorNotice>}
       {automaticBackup.bannerVisible && !settings && <ErrorNotice message="备份失败" onDismiss={automaticBackup.dismiss} className="connection-feedback"><button className="session-tool" onClick={() => { setSettingsSection('backup'); setSettings(true); }}>查看详情</button></ErrorNotice>}
@@ -517,5 +524,6 @@ export default function App() {
     </>}
     </div>
     {demoScene&&<Suspense fallback={<div className="view-loading demo-loading" role="status">正在准备演示…</div>}><DemoWorkbench key={`${demoScene}-${demoRevision}`} scene={demoScene} onScene={selectDemoScene} onExit={exitDemo} shortcuts={shortcuts} fontSize={fontSize} /></Suspense>}
+    {appLock.status?.locked && <ApplicationLockScreen onUnlock={appLock.update} />}
   </>;
 }

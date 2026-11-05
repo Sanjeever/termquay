@@ -7,6 +7,7 @@ export {
 };
 
 export type {
+    ApplicationLockStatus,
     AutomaticBackupStatus,
     BackupCoverage,
     BackupSelection,

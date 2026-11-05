@@ -236,7 +236,7 @@ func (a *AppService) handleContainerTerminal(stream *application.StreamConn) {
 	console.timer.Stop()
 	a.mu.Unlock()
 	defer a.CloseContainerTerminal(id)
-	err = terminal.RelayIO(console.stream, console.output, console.done, console.close, func() error { console.mu.Lock(); defer console.mu.Unlock(); return console.err }, nil, stream)
+	err = terminal.RelayIO(console.stream, console.output, console.done, console.close, func() error { console.mu.Lock(); defer console.mu.Unlock(); return console.err }, nil, stream, a.applicationInputAllowed)
 	if err != nil && stream.Context().Err() == nil {
 		application.Get().Event.Emit("terminal:error", map[string]string{"id": id, "error": err.Error()})
 	}
