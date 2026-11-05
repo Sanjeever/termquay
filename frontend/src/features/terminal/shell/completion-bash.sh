@@ -25,7 +25,7 @@ __termquay_complete_apply() {
   __termquay_saved_line=; __termquay_saved_point=; __termquay_decoded=
   __termquay_emit "A;$__termquay_sequence"
 }
-for __termquay_map in emacs-standard vi-insertion vi-command; do
+for __termquay_map in emacs-standard vi-insert vi-command; do
   bind -m "$__termquay_map" -x '"\e[9270~":__termquay_complete_request'
   bind -m "$__termquay_map" -x '"\e[9271~":__termquay_complete_apply'
 done

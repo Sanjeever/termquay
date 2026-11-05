@@ -6,19 +6,19 @@ export function shellQuote(value: string) { return "'" + value.replace(/'/g, "'\
 
 export const shellSetup = {
   bash: `if [ -n "$BASH_VERSION" ] && [ -z "\${__termquay_enabled-}" ]; then
-  __termquay_enabled=1
-  __termquay_prompt() { local code=$?; printf '\\033]133;D;%s\\007\\033]7;file://%s%s\\007\\033]133;A\\007' "$code" "$HOSTNAME" "$PWD"; }
-  if declare -p PROMPT_COMMAND 2>/dev/null | grep -q 'declare -a'; then PROMPT_COMMAND=(__termquay_prompt "\${PROMPT_COMMAND[@]}"); else PROMPT_COMMAND="__termquay_prompt\${PROMPT_COMMAND:+; $PROMPT_COMMAND}"; fi
+  __termquay_prompt() { local code=$?; printf '\\033]133;D;%s\\007\\033]7;file://%s%s\\007\\033]133;A\\007' "$code" "$HOSTNAME" "$PWD"; return "$code"; }
+  if declare -p PROMPT_COMMAND 2>/dev/null | grep -q 'declare -a'; then PROMPT_COMMAND=(__termquay_prompt "\${PROMPT_COMMAND[@]}"); else PROMPT_COMMAND=$'__termquay_prompt\\n'"\${PROMPT_COMMAND-}"; fi
   PS0=$'\\e]133;C\\a'"$PS0"
   PS1="$PS1"$'\\[\\e]133;B\\a\\]'
+  __termquay_enabled=1
 fi`,
   zsh: `if [ -n "$ZSH_VERSION" ] && [ -z "\${__termquay_enabled-}" ]; then
-  __termquay_enabled=1
   __termquay_prompt() { local code=$?; printf '\\033]133;D;%s\\007\\033]7;file://%s%s\\007\\033]133;A\\007' "$code" "$HOST" "$PWD"; }
   __termquay_preexec() { printf '\\033]133;C\\007'; }
   precmd_functions=(__termquay_prompt \${precmd_functions[@]})
   preexec_functions+=(__termquay_preexec)
   PS1="$PS1"$'%{\\e]133;B\\a%}'
+  __termquay_enabled=1
 fi`,
 };
 
