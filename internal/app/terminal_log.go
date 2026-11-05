@@ -25,7 +25,7 @@ func (a *AppService) StartTerminalLog(id string) (terminal.TerminalLogStatus, er
 	}
 	status := t.LogStatus()
 	parent := status.Directory
-	if parent == "" || status.Format == "asciicast" {
+	if parent == "" || status.Format == "asciicast" || status.Finished {
 		parent, err = application.Get().Dialog.OpenFile().SetTitle("选择终端日志目录").CanChooseFiles(false).CanChooseDirectories(true).PromptForSingleSelection()
 		if err != nil || parent == "" {
 			return terminal.TerminalLogStatus{}, err
@@ -45,6 +45,26 @@ func (a *AppService) PauseTerminalLog(id string) (terminal.TerminalLogStatus, er
 		return terminal.TerminalLogStatus{}, err
 	}
 	return t.PauseLog(), nil
+}
+
+func (a *AppService) FinishTerminalLog(id string) (terminal.TerminalLogStatus, error) {
+	t, err := a.terminalInstance(id)
+	if err != nil {
+		return terminal.TerminalLogStatus{}, err
+	}
+	return t.FinishLog(), nil
+}
+
+func (a *AppService) OpenTerminalLogDirectory(id string) error {
+	t, err := a.terminalInstance(id)
+	if err != nil {
+		return err
+	}
+	status := t.LogStatus()
+	if status.Directory == "" {
+		return errors.New("本次终端尚未保存录制或日志")
+	}
+	return application.Get().Env.OpenFileManager(status.Directory, false)
 }
 
 func (a *AppService) GetTerminalLogStatus(id string) (terminal.TerminalLogStatus, error) {

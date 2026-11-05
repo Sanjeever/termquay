@@ -2,13 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
 import { create, type Player } from 'asciinema-player';
 import 'asciinema-player/dist/bundle/asciinema-player.css';
-import { ChooseTerminalRecording } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
+import { ChooseTerminalRecording, ReadTerminalRecording } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { TerminalRecording } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import SelectControl from '../../components/SelectControl';
 import { Events } from '@wailsio/runtime';
 import { errorMessage } from '../../lib/errors';
 
-export default function RecordingPlayer({ onClose }: { onClose(): void }) {
+export default function RecordingPlayer({ terminal, onClose }: { terminal?: string; onClose(): void }) {
   const [recording, setRecording] = useState<TerminalRecording>();
   const [error, setError] = useState('');
   const [speed, setSpeed] = useState(1);
@@ -19,7 +19,16 @@ export default function RecordingPlayer({ onClose }: { onClose(): void }) {
   const resume = useRef<{ recording: TerminalRecording; position: number; playing: boolean }>();
   const mounted = useRef(true);
   const pending = useRef<ReturnType<typeof ChooseTerminalRecording>>();
-  useEffect(() => { mounted.current = true; return () => { mounted.current = false; pending.current?.cancel(); }; }, []);
+  const closed = useRef(onClose); closed.current = onClose;
+  useEffect(() => {
+    mounted.current = true;
+    let ended = false;
+    setBusy(true);
+    const request = terminal ? ReadTerminalRecording(terminal) : ChooseTerminalRecording();
+    pending.current = request;
+    request.then(value => { if (!ended) { if (value.content) setRecording(value); else closed.current(); } }).catch(e => { if (!ended) setError(errorMessage(e)); }).finally(() => { if (!ended) setBusy(false); });
+    return () => { ended = true; mounted.current = false; pending.current?.cancel(); };
+  }, [terminal]);
   useEffect(() => {
     if (!recording || !host.current) return;
     setError('');
@@ -45,8 +54,8 @@ export default function RecordingPlayer({ onClose }: { onClose(): void }) {
     catch (e) { if (mounted.current) setError(errorMessage(e)); }
     finally { if (mounted.current) setBusy(false); }
   }
-  return <Modal isOpen onClose={onClose} size="5xl" className="app-dialog" scrollBehavior="inside"><ModalContent><ModalHeader>终端录制回放</ModalHeader><ModalBody>
-    <div className="button-row"><Button size="sm" variant="light" isLoading={busy} onPress={() => void choose()}>打开本机录制</Button>{recording && <span>{recording.name}</span>}<SelectControl aria-label="回放倍速" value={speed} onChange={event => setSpeed(Number(event.target.value))}>{[0.5, 1, 1.5, 2, 4].map(value => <option key={value} value={value}>{value}×</option>)}</SelectControl><label className="checkbox-label"><input type="checkbox" checked={skipIdle} onChange={event => setSkipIdle(event.target.checked)} />跳过长时间空闲</label></div>
+  return <Modal isOpen onClose={onClose} size="5xl" className="app-dialog" scrollBehavior="inside"><ModalContent><ModalHeader>终端录制回放{recording && ` · ${recording.name}`}</ModalHeader><ModalBody>
+    <div className="button-row"><Button size="sm" variant="light" isLoading={busy} onPress={() => void choose()}>{recording ? '打开其他录制…' : '选择 .cast 文件…'}</Button>{recording && <><SelectControl aria-label="回放倍速" value={speed} onChange={event => setSpeed(Number(event.target.value))}>{[0.5, 1, 1.5, 2, 4].map(value => <option key={value} value={value}>{value}×</option>)}</SelectControl><label className="checkbox-label"><input type="checkbox" checked={skipIdle} onChange={event => setSkipIdle(event.target.checked)} />跳过长时间空闲</label></>}</div>
     {error && <p className="error" role="alert">{error}</p>}<div className="recording-player" ref={host} />
   </ModalBody><ModalFooter><Button variant="light" onPress={onClose}>关闭</Button></ModalFooter></ModalContent></Modal>;
 }

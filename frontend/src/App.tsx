@@ -467,7 +467,7 @@ export default function App() {
     { id: 'docker', label: 'Docker 容器工作区', kind: 'command', run: () => setDockerOpen(true) },
     { id: 'diagnostic-snapshots', label: '采集与比较排障快照', kind: 'command', run: () => setDiagnosticSnapshotsOpen(true) },
     { id: 'file-compare', label: '文件管理、对比与跨工作区复制', kind: 'command', run: () => setFileCompareOpen(true) },
-    { id: 'recording-playback', label: '打开本机终端录制回放', kind: 'command', run: () => setRecordingOpen(true) },
+    { id: 'recording-playback', label: '打开终端录制…', search: '回放 cast 本机', kind: 'command', run: () => setRecordingOpen(true) },
     ...(current?.ssh ? [{ id: 'sudo-edit', label: '以 sudo 编辑文件', kind: 'command' as const, run: () => current.ssh?.current?.sudoEdit() }] : []),
     { id: 'diagnostics', label: '导出脱敏诊断信息', kind: 'command', run: () => { ExportDiagnostics().catch(e => setPreferenceError(errorMessage(e))); } },
     ...(attempt.steps.length ? [{ id: 'connection-diagnostics', label: '查看上次 SSH 连接诊断', kind: 'command' as const, run: () => setConnectionDiagnosticsOpen(true) }] : []),

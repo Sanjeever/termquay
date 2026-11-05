@@ -324,6 +324,10 @@ export function ExportTerminalBuffer(content: string): $CancellablePromise<void>
     return $Call.ByID(2167589366, content);
 }
 
+export function FinishTerminalLog(id: string): $CancellablePromise<ssh$0.TerminalLogStatus> {
+    return $Call.ByID(3901519905, id);
+}
+
 export function GetApplicationLock(): $CancellablePromise<$models.ApplicationLockStatus> {
     return $Call.ByID(3288919527);
 }
@@ -584,6 +588,10 @@ export function OpenTerminal(r: ssh$0.Request): $CancellablePromise<$models.Open
     return $Call.ByID(2015705590, r);
 }
 
+export function OpenTerminalLogDirectory(id: string): $CancellablePromise<void> {
+    return $Call.ByID(3685691751, id);
+}
+
 export function ParseQuickConnection(value: string): $CancellablePromise<store$0.Connection> {
     return $Call.ByID(2288405752, value);
 }
@@ -714,6 +722,10 @@ export function ReadRemoteLog(workspace: string, remote: string, offset: number,
 
 export function ReadSudoFile(id: string, remote: string, charset: string, password: string): $CancellablePromise<files$0.Document> {
     return $Call.ByID(4059759733, id, remote, charset, password);
+}
+
+export function ReadTerminalRecording(id: string): $CancellablePromise<$models.TerminalRecording> {
+    return $Call.ByID(2684298909, id);
 }
 
 export function ReconnectSavedSSH(id: string, expected: $models.SSHRouteHop[] | null): $CancellablePromise<$models.SSHReconnectResult> {

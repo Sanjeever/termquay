@@ -115,6 +115,11 @@
 .command-index-command { display: block; max-width: 440px; padding: 0; font-family: var(--font-mono); text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; }
 .command-index-command:not(:disabled):hover { color: var(--color-primary); }
 .command-index-empty { padding: 36px 0; text-align: center; }
+.terminal-recording-status { flex-wrap: wrap; gap: 8px; }
+.recording-indicator::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: var(--color-danger); }
+.recording-duration { font-variant-numeric: tabular-nums; }
+.recording-file { color: var(--color-muted); }
+.recording-destination { display: flex; flex-direction: column; gap: 5px; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: var(--radius); font-size: 12px; overflow-wrap: anywhere; }
 .inspection-matrix { max-width: 100%; overflow: auto; }
 .inspection-matrix th,.inspection-matrix td { white-space: nowrap; }
 .terminal-tmux { display: flex; align-items: center; gap: 8px; padding: 3px 8px; font-size: 11px; border-bottom: 1px solid var(--color-border); }

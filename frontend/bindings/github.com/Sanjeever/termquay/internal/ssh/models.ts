@@ -64,4 +64,5 @@ export interface TerminalLogStatus {
     "error": string;
     "format": string;
     "file": string;
+    "finished": boolean;
 }

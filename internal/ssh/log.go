@@ -17,6 +17,7 @@ type TerminalLogStatus struct {
 	Error     string `json:"error"`
 	Format    string `json:"format"`
 	File      string `json:"file"`
+	Finished  bool   `json:"finished"`
 }
 
 type terminalLog struct {
@@ -34,6 +35,9 @@ func (t *Terminal) StartLog(parent string) (TerminalLogStatus, error) {
 	defer t.logMu.Unlock()
 	if t.logClosed {
 		return TerminalLogStatus{}, errors.New("终端已关闭")
+	}
+	if t.log != nil && t.log.status.Finished {
+		t.log = nil
 	}
 	if t.log != nil && t.log.cast != nil {
 		if t.log.file != nil {
@@ -66,11 +70,25 @@ func (t *Terminal) PauseLog() TerminalLogStatus {
 	return t.pauseLogLocked()
 }
 
+func (t *Terminal) FinishLog() TerminalLogStatus {
+	t.logMu.Lock()
+	defer t.logMu.Unlock()
+	t.pauseLogLocked()
+	if t.log == nil {
+		return TerminalLogStatus{}
+	}
+	t.log.status.Finished = true
+	return t.log.status
+}
+
 func (t *Terminal) closeLog() {
 	t.logMu.Lock()
 	defer t.logMu.Unlock()
 	t.logClosed = true
 	t.pauseLogLocked()
+	if t.log != nil {
+		t.log.status.Finished = true
+	}
 }
 
 func (t *Terminal) pauseLogLocked() TerminalLogStatus {
@@ -169,6 +187,9 @@ func (t *Terminal) StartTimedLog(parent string) (TerminalLogStatus, error) {
 	}
 	if t.logCols < 1 || t.logRows < 1 {
 		return TerminalLogStatus{}, errors.New("终端尺寸尚未就绪")
+	}
+	if t.log != nil && t.log.status.Finished {
+		t.log = nil
 	}
 	if t.log != nil && t.log.file != nil {
 		return t.log.status, errors.New("请先暂停当前记录")

@@ -23,8 +23,8 @@ func (a *AppService) StartTerminalRecording(id string) (terminal.TerminalLogStat
 	}
 	status := t.LogStatus()
 	parent := filepath.Dir(status.Directory)
-	if status.Directory == "" || status.Format != "asciicast" {
-		parent, err = application.Get().Dialog.OpenFile().SetTitle("选择带时间轴录制目录").CanChooseFiles(false).CanChooseDirectories(true).PromptForSingleSelection()
+	if status.Directory == "" || status.Format != "asciicast" || status.Finished {
+		parent, err = application.Get().Dialog.OpenFile().SetTitle("选择终端录制的保存位置").CanChooseFiles(false).CanChooseDirectories(true).PromptForSingleSelection()
 		if err != nil || parent == "" {
 			return terminal.TerminalLogStatus{}, err
 		}
@@ -43,9 +43,31 @@ type TerminalRecording struct {
 }
 
 func (a *AppService) ChooseTerminalRecording() (TerminalRecording, error) {
-	filename, err := application.Get().Dialog.OpenFile().SetTitle("打开 asciicast v2 录制").PromptForSingleSelection()
+	filename, err := application.Get().Dialog.OpenFile().SetTitle("打开终端录制").AddFilter("终端录制 (*.cast)", "*.cast").PromptForSingleSelection()
 	if err != nil || filename == "" {
 		return TerminalRecording{}, err
+	}
+	return readTerminalRecording(filename)
+}
+
+func (a *AppService) ReadTerminalRecording(id string) (TerminalRecording, error) {
+	t, err := a.terminalInstance(id)
+	if err != nil {
+		return TerminalRecording{}, err
+	}
+	status := t.LogStatus()
+	if status.Format != "asciicast" || status.File == "" {
+		return TerminalRecording{}, errors.New("本次终端尚未生成可回放录制；ANSI 输出日志不能按时间回放")
+	}
+	if status.Recording {
+		return TerminalRecording{}, errors.New("请先暂停或结束录制，再打开回放")
+	}
+	return readTerminalRecording(status.File)
+}
+
+func readTerminalRecording(filename string) (TerminalRecording, error) {
+	if strings.EqualFold(filepath.Ext(filename), ".ansi") {
+		return TerminalRecording{}, errors.New("该文件是 ANSI 输出日志，不能按时间回放，请选择 .cast 录制")
 	}
 	file, err := os.Open(filename)
 	if err != nil {
