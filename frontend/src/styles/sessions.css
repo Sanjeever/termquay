@@ -103,6 +103,18 @@
 .service-url { grid-column: 1 / -1; }
 .service-list { max-height: 260px; overflow-y: auto; }
 .command-check-editor { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; }
+.command-recording-setup { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius); }
+.command-recording-setup p { margin: 0; }
+.command-recording-setup .muted { margin-top: 4px; }
+.command-index-search { min-height: var(--control-height); padding: 6px 10px; border: 1px solid var(--color-border-strong); background: var(--color-control); border-radius: var(--radius); }
+.session-commands-dialog .form-field > input { min-width: 0; min-height: var(--control-height); padding: 6px 8px; border: 1px solid var(--color-border-strong); border-radius: var(--radius); background: var(--color-control); }
+.command-index-table { overflow: auto; }
+.command-index-table table { width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; }
+.command-index-table th,.command-index-table td { padding: 10px 8px; border-bottom: 1px solid var(--color-border); vertical-align: top; }
+.command-index-table th { color: var(--color-muted); font-weight: 500; white-space: nowrap; }
+.command-index-command { display: block; max-width: 440px; padding: 0; font-family: var(--font-mono); text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; }
+.command-index-command:not(:disabled):hover { color: var(--color-primary); }
+.command-index-empty { padding: 36px 0; text-align: center; }
 .inspection-matrix { max-width: 100%; overflow: auto; }
 .inspection-matrix th,.inspection-matrix td { white-space: nowrap; }
 .terminal-tmux { display: flex; align-items: center; gap: 8px; padding: 3px 8px; font-size: 11px; border-bottom: 1px solid var(--color-border); }

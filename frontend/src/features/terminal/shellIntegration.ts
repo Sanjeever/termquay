@@ -1,6 +1,6 @@
 import type { IMarker, Terminal } from '@xterm/xterm';
 
-export type CommandIndexEntry = { id: number; command?: string; directory: string; startedAt: number; duration?: number; exitCode?: string };
+export type CommandIndexEntry = { id: number; command?: string; directory: string; startedAt: number; duration?: number; exitCode?: string; canLocate?: boolean; canCopyOutput?: boolean };
 
 export function shellQuote(value: string) { return "'" + value.replace(/'/g, "'\\''") + "'"; }
 
@@ -35,10 +35,11 @@ export function addShellIntegration(term: Terminal, onDirectory: (path: string, 
   let currentDirectory = '', pendingCommand: string | undefined, sequence = 0;
   const entries: { view: CommandIndexEntry; start: IMarker; end?: IMarker }[] = [];
   let current: typeof entries[number] | undefined;
-  function publishIndex() { onIndex?.(entries.map(entry => ({ ...entry.view }))); }
+  let disposed = false;
+  function publishIndex() { if (!disposed) onIndex?.(entries.map(entry => ({ ...entry.view, canLocate: !entry.start.isDisposed, canCopyOutput: !!entry.end && !entry.start.isDisposed && !entry.end.isDisposed }))); }
   function marker() {
     const value = term.registerMarker(0);
-    if (value) { marks.push(value); if (marks.length > 128) marks.shift()?.dispose(); }
+    if (value) { value.onDispose(publishIndex); marks.push(value); if (marks.length > 128) marks.shift()?.dispose(); }
     return value;
   }
   const cwd = term.parser.registerOscHandler(7, data => {
@@ -84,6 +85,6 @@ export function addShellIntegration(term: Terminal, onDirectory: (path: string, 
     },
     previous() { const before = term.buffer.active.viewportY; const mark = marks.filter(m => !m.isDisposed && m.line < before).slice(-1)[0]; if (mark) term.scrollToLine(mark.line); },
     selectOutput() { if (completed && !completed.start.isDisposed && !completed.end.isDisposed) term.selectLines(completed.start.line, Math.max(completed.start.line, completed.end.line - 1)); },
-    dispose() { cwd.dispose(); command.dispose(); completion.dispose(); files.dispose(); marks.forEach(m => m.dispose()); },
+    dispose() { disposed = true; cwd.dispose(); command.dispose(); completion.dispose(); files.dispose(); marks.forEach(m => m.dispose()); },
   };
 }
