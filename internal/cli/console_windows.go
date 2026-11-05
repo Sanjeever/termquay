@@ -28,7 +28,7 @@ func PrepareConsole() {
 		} else {
 			windows.SetStdHandle(s.kind, h)
 		}
-		if h != 0 && h != windows.InvalidHandle {
+		if h != 0 && h != windows.InvalidHandle && (*s.file).Fd() != uintptr(h) {
 			*s.file = os.NewFile(uintptr(h), s.name)
 		}
 	}

@@ -39,3 +39,23 @@ func TestDisconnectCancelsHandler(t *testing.T) {
 		t.Fatal("断开没有取消请求")
 	}
 }
+
+func TestNativeTransportAndEndpointConflict(t *testing.T) {
+	t.Setenv("TMPDIR", t.TempDir())
+	server, err := Listen(func(_ context.Context, r Request) Response { return Result(r.Operation) })
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+	other, err := Listen(func(context.Context, Request) Response { return Result(nil) })
+	if err == nil {
+		other.Close()
+		t.Fatal("活跃实例端点被重复占用")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	response := Call(ctx, Request{Operation: "status"})
+	if response.Error != nil || string(response.Data) != `"status"` {
+		t.Fatalf("原生 IPC 往返失败：%+v", response)
+	}
+}
