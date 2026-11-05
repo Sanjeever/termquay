@@ -54,6 +54,9 @@ func (a *AppService) uploadPath(id, local, remote string, overwrite bool) (Trans
 	return a.startTransfer(id, path.Base(remote), "upload", size, run, transferSpec{workspace: id, local: local, remote: remote, direction: "upload", overwrite: overwrite})
 }
 func (a *AppService) uploadOperation(id, local, remote string, overwrite bool, expected ...transferExpectation) (int64, func(context.Context, func(int64, int64)) error, error) {
+	if err := a.requireFileWrite(id); err != nil {
+		return 0, nil, err
+	}
 	if !filepath.IsAbs(local) || !path.IsAbs(remote) || len(local) > 4096 || len(remote) > 4096 {
 		return 0, nil, errors.New("传输路径无效")
 	}
@@ -69,7 +72,7 @@ func (a *AppService) uploadOperation(id, local, remote string, overwrite bool, e
 		return 0, nil, errors.New("上传支持普通文件")
 	}
 	return info.Size(), func(ctx context.Context, report func(int64, int64)) (result error) {
-		c, close, err := a.fileClient(ctx, id)
+		c, close, err := a.fileWriteClient(ctx, id)
 		if err != nil {
 			return err
 		}

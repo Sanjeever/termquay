@@ -80,6 +80,11 @@ func (a *AppService) ResumeTransfer(id, workspace string) (Transfer, error) {
 }
 
 func (a *AppService) resumeTransferOperation(ctx context.Context, workspace string, spec transferSpec, state *transferResume, report func(int64, int64)) error {
+	if spec.direction == "upload" {
+		if err := a.requireFileWrite(workspace); err != nil {
+			return err
+		}
+	}
 	var restoreErr error
 	var restored os.FileInfo
 	if spec.direction == "upload" {

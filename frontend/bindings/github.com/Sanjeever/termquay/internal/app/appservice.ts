@@ -900,6 +900,10 @@ export function SetUpdateCheck(enabled: boolean): $CancellablePromise<void> {
     return $Call.ByID(2070596057, enabled);
 }
 
+export function SetWorkspaceBrowseOnly(id: string, enabled: boolean): $CancellablePromise<void> {
+    return $Call.ByID(1714932167, id, enabled);
+}
+
 export function SetWorkspaceDirty(id: string, dirty: boolean): $CancellablePromise<void> {
     return $Call.ByID(3255489445, id, dirty);
 }

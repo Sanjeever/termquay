@@ -213,6 +213,11 @@ func (a *AppService) ExecuteDirectorySync(id string, selected []string) (Transfe
 	return view, err
 }
 func (a *AppService) syncEntry(ctx context.Context, p *directorySyncPlan, entry files.SyncEntry, report func(int64, int64)) error {
+	if p.preview.Direction == "upload" {
+		if err := a.requireFileWrite(p.workspace); err != nil {
+			return err
+		}
+	}
 	if p.sourceWorkspace != "" {
 		return a.remoteSyncEntry(ctx, p, entry, report)
 	}

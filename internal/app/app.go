@@ -38,15 +38,16 @@ type pendingTerminal struct {
 }
 
 type workspaceOwner struct {
-	target   string
-	identity string
-	terminal *terminal.Terminal
-	ctx      context.Context
-	cancel   context.CancelFunc
-	timer    *time.Timer
-	stream   *application.StreamConn
-	opening  int
-	route    []latencyHop
+	browseOnly bool
+	target     string
+	identity   string
+	terminal   *terminal.Terminal
+	ctx        context.Context
+	cancel     context.CancelFunc
+	timer      *time.Timer
+	stream     *application.StreamConn
+	opening    int
+	route      []latencyHop
 }
 
 type AppService struct {

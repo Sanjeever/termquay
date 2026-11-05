@@ -147,3 +147,5 @@
 .md-token-keyword { color: #c586c0; }.md-token-string { color: #ce9178; }.md-token-comment { color: #7f9f72; font-style: italic; }.md-token-number { color: #b5cea8; }.md-token-type { color: #4ec9b0; }.md-token-property { color: #9cdcfe; }.md-token-function { color: #dcdcaa; }
 :root.light .md-token-keyword { color: #8a287b; }:root.light .md-token-string { color: #a31515; }:root.light .md-token-comment { color: #557747; }:root.light .md-token-number { color: #096b30; }:root.light .md-token-type { color: #267f99; }:root.light .md-token-property { color: #0451a5; }:root.light .md-token-function { color: #795e26; }
 @container (max-width: 600px) { .markdown-split { grid-template-columns: minmax(0,1fr); grid-template-rows: minmax(0,1fr) minmax(0,1fr); } .markdown-split .markdown-source { border-right: 0; border-bottom: 1px solid var(--color-border); } .markdown-preview { padding: 16px; } }
+.file-browse-mode { flex-shrink: 0; text-align: left; padding: 6px 12px; border-bottom: 1px solid var(--color-border); }
+.file-browse-mode[aria-pressed=true] { color: var(--color-warning); }

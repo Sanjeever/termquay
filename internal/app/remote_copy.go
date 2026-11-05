@@ -76,7 +76,7 @@ func (a *AppService) remoteCopyOperation(sourceID, sourcePath, targetID, targetP
 			return err
 		}
 		defer releaseSource()
-		d, releaseTarget, err := a.fileClient(ctx, targetID)
+		d, releaseTarget, err := a.fileWriteClient(ctx, targetID)
 		if err != nil {
 			return err
 		}

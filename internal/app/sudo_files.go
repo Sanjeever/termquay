@@ -78,6 +78,9 @@ test "$before" = "$(revision)" || { echo '读取期间文件已变化' >&2; exit
 }
 
 func (a *AppService) SaveSudoFile(ctx context.Context, id string, document files.Document, password string) (files.Document, error) {
+	if err := a.requireFileWrite(id); err != nil {
+		return files.Document{}, err
+	}
 	history, err := a.GetFileHistory(id, document.Path)
 	if err != nil {
 		return files.Document{}, err

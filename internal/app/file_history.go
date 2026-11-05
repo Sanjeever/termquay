@@ -240,6 +240,11 @@ func (a *AppService) ReadFileVersion(workspace, remote, versionID string) (files
 	return files.Document{}, errors.New("配置历史版本不存在或已淘汰")
 }
 func (a *AppService) RunFileAction(ctx context.Context, workspace, remote, action, expectedScript string) (terminal.CommandResult, error) {
+	if action == "reload" {
+		if err := a.requireFileWrite(workspace); err != nil {
+			return terminal.CommandResult{}, err
+		}
+	}
 	history, err := a.GetFileHistory(workspace, remote)
 	if err != nil {
 		return terminal.CommandResult{}, err

@@ -28,6 +28,7 @@ import useFileDrafts from './useFileDrafts';
 import { CreateTmuxTerminal } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import { isDirty, savedEncoding } from './fileDrafts';
 import type { CommandAttention } from '../terminal/commandAttention';
+import { SetWorkspaceBrowseOnly } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 
 const TextDocument = lazy(() => import('./TextDocument'));
 const ImagePreview = lazy(() => import('./ImagePreview'));
@@ -46,7 +47,16 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   const [error, setError] = useState('');
   const disposed = useRef(false);
   const instance = useRef(sessionID); instance.current = sessionID;
-  const { drafts, draftsRef, updateDrafts, reads, saves, save, rereading, setRereading, requestReload, reread } = useFileDrafts({ sessionID, disposed, instance, authorizeSudo, setError });
+  const [browseOnly, setBrowseOnly] = useState(false);
+  const [changingMode, setChangingMode] = useState(false);
+  const { drafts, draftsRef, updateDrafts, reads, saves, save: saveFile, rereading, setRereading, requestReload, reread } = useFileDrafts({ sessionID, disposed, instance, authorizeSudo, setError });
+  async function save(path: string) { if (browseOnly) { setError('当前工作区处于文件浏览模式，请先允许文件写入'); return false; } return saveFile(path); }
+  async function toggleBrowseOnly() {
+    setChangingMode(true); setError('');
+    try { await SetWorkspaceBrowseOnly(sessionID, !browseOnly); setBrowseOnly(!browseOnly); }
+    catch (e) { setError(errorMessage(e)); } finally { setChangingMode(false); }
+  }
+  useEffect(() => { if (browseOnly) SetWorkspaceBrowseOnly(sessionID, true).catch(e => setError(errorMessage(e))); }, [sessionID]);
   const [selection,setSelection]=useState<[string,string]>(initialLayout?[initialIDs[initialLayout.selected[0]]||'',initialIDs[initialLayout.selected[1]]||'']:[sessionID,'']);
   const [activePane,setActivePane]=useState(initialLayout?.active_pane||0);
   const [secondary,setSecondary]=useState<string[]>((initialLayout?.tabs||[]).flatMap((tab,index)=>tab.pane===1?[initialIDs[index]]:[]));
@@ -290,7 +300,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
     {reconnect.status && <div className="session-status" role="status"><span>{reconnect.status}</span><button className="session-tool" onClick={() => { reconnect.toggle(); onCancelReconnect(); }}>停止自动重连</button></div>}
     <div className="ssh-panels">
     {narrow && narrowPanel && <button className="panel-scrim" aria-label="关闭辅助面板" tabIndex={-1} onClick={()=>{const panel=narrowPanel;setNarrowPanel(null);(panel==='files'?filesToggle:monitorToggle).current?.focus();}} />}
-    <div className="file-dock" hidden={!filesShown} style={{ width: filesWidth }}><FileBrowser id={sessionID} connectionID={connectionID} initialDirectory={initialLayout?.directory} onDirectory={setDirectory} directoryRequest={directoryRequest} followDirectory={followDirectory} onFollowDirectory={() => setFollowDirectory(value => !value)} onTerminalDirectory={locateInTerminal} visible={visible && filesShown} onOpen={open} onOpenFile={openTerminalFile} onClose={() => { toggleFiles(); filesToggle.current?.focus(); }} /></div>
+    <div className="file-dock" hidden={!filesShown} style={{ width: filesWidth }}><FileBrowser readOnly={browseOnly} onToggleReadOnly={() => void toggleBrowseOnly()} changingMode={changingMode} id={sessionID} connectionID={connectionID} initialDirectory={initialLayout?.directory} onDirectory={setDirectory} directoryRequest={directoryRequest} followDirectory={followDirectory} onFollowDirectory={() => setFollowDirectory(value => !value)} onTerminalDirectory={locateInTerminal} visible={visible && filesShown} onOpen={open} onOpenFile={openTerminalFile} onClose={() => { toggleFiles(); filesToggle.current?.focus(); }} /></div>
     {filesShown && !narrow && <ResizeHandle label="文件面板宽度" value={filesWidth} min={200} max={420} onChange={setFilesWidth} />}
     <div className="ssh-center" ref={center}>
       <ErrorNotice message={error} onDismiss={() => setError('')} className="connection-feedback" />

@@ -52,6 +52,13 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
   const search = useRef<SearchAddon>();
   const [searchOpen, setSearchOpen] = useState(false);
   const [paste, setPaste] = useState<string>();
+  const [locked, setLocked] = useState(false);
+  const inputLocked = useRef(false);
+  function toggleInputLock() { inputLocked.current = !inputLocked.current; setLocked(inputLocked.current); }
+  useEffect(() => {
+    if (terminal.current) terminal.current.options.disableStdin = locked || connected !== true || demoOutput !== undefined;
+    if (locked) { complete.current.dismiss(); setPaste(undefined); setIntegrationOpen(false); nextIntegration.current = undefined; }
+  }, [locked, connected, id, demoOutput]);
   const [zoom, setZoom] = useState(0);
   const [cwd, setCwd] = useState('');
   const [exitCode, setExitCode] = useState('');
@@ -109,6 +116,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
   }, [id, demoOutput]);
   useEffect(() => { if (visible && appFocused.current && !running.current) callbacks.current.onAttention?.(); }, [visible]);
   function sendFrame(data:string):boolean {
+    if (inputLocked.current) { reportError('input', '终端输入已锁定'); return false; }
     const stream=inputStream.current,bytes=new TextEncoder().encode(data);
     if(!stream||stream.readyState!==stream.OPEN){reportError('completion','终端已断开');return false;}
     if(stream.bufferedAmount+bytes.length+Math.ceil(bytes.length/32768)>256*1024){reportError('completion','输入队列已满，请等待远端响应');return false;}
@@ -116,8 +124,9 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
     return true;
   }
   function openIntegration(){completion.dismiss();setPathCompletion(false);setSetupToken(Array.from(crypto.getRandomValues(new Uint8Array(32)),byte=>byte.toString(16).padStart(2,'0')).join(''));setIntegrationOpen(true);}
-  function confirmPaste(){if(nextIntegration.current){clearError('completion');commandToken.current=nextIntegration.current.token;completion.activate(nextIntegration.current.token,nextIntegration.current.paths&&!containerConsole);nextIntegration.current=undefined;}terminal.current?.paste(paste||'');setPaste(undefined);terminal.current?.focus();}
+  function confirmPaste(){if(inputLocked.current)return;if(nextIntegration.current){clearError('completion');commandToken.current=nextIntegration.current.token;completion.activate(nextIntegration.current.token,nextIntegration.current.paths&&!containerConsole);nextIntegration.current=undefined;}terminal.current?.paste(paste||'');setPaste(undefined);terminal.current?.focus();}
   function insert(text: string):boolean {
+    if (inputLocked.current) { reportError('input', '终端输入已锁定'); return false; }
     if (demoOutput !== undefined) { reportError('input','演示终端不执行命令'); return false; }
     const size=new TextEncoder().encode(text).length;
     if (size > 256 * 1024 - 16) { reportError('input','粘贴内容超过输入队列上限（256 KiB）'); return false; }
@@ -212,6 +221,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
     stream.onclose = () => { if (!disposed) { running.current = false; reminderCommand.current = undefined; setRunningCommand(false); setReminder(false); callbacks.current.onAttention?.(); complete.current.invalidate();setConnected(false); term.options.disableStdin = true;stateCallback.current?.(); } };
     stream.onerror = () => { if (!disposed) setStreamError('终端数据流中断'); };
     const input = term.onData((data) => {
+      if (inputLocked.current) return;
       complete.current.input(data);
       const bytes = new TextEncoder().encode(data);
       if (stream.readyState !== stream.OPEN) return;
@@ -238,7 +248,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
   useLayoutEffect(() => { if (visible) { requestFit.current?.(); if (focusRequested.current&&!document.activeElement?.closest('[role=tablist]')) terminal.current?.focus(); } }, [id, visible]);
   function closeSearch() { setSearchOpen(false); search.current?.clearDecorations(); terminal.current?.focus(); }
   return <div className="terminal-view" onPasteCapture={e => { if (!(e.target as HTMLElement).closest('.xterm')) return; e.preventDefault(); e.stopPropagation(); insert(e.clipboardData.getData('text/plain')); }}>
-    <div className="terminal-tools">{!containerConsole && <Tooltip content="命令片段"><button className="icon-button" aria-label="命令片段" disabled={demoOutput !== undefined} onClick={onSnippets}><Icon name="list" width="14" /></button></Tooltip>}<Tooltip content="终端查找"><button className="icon-button" aria-label="终端查找" onClick={() => action('find')}><Icon name="search" width="14" /></button></Tooltip>
+    <div className="terminal-tools">{demoOutput === undefined && <button className="session-tool" aria-pressed={locked} onClick={toggleInputLock}>{locked ? '输入已锁定 · 解锁' : '锁定输入'}</button>}{!containerConsole && <Tooltip content="命令片段"><button className="icon-button" aria-label="命令片段" disabled={demoOutput !== undefined || locked} onClick={onSnippets}><Icon name="list" width="14" /></button></Tooltip>}<Tooltip content="终端查找"><button className="icon-button" aria-label="终端查找" onClick={() => action('find')}><Icon name="search" width="14" /></button></Tooltip>
       <Dropdown><DropdownTrigger><Tooltip content="终端操作"><button className="icon-button" aria-label="终端操作"><Icon name="more" width="14" /></button></Tooltip></DropdownTrigger><DropdownMenu aria-label="终端操作" disabledKeys={demoOutput !== undefined ? ['paste','export','log','tmux','integration'] : []} onAction={key => { if(demoOutput !== undefined && ['paste','export','log','tmux','integration'].includes(String(key)))return; if (key === 'keyword') setKeywordOpen(value => !value); else if (key === 'export') void exportBuffer(); else if (key === 'log') { if (log?.recording) void pauseLog(); else setLogConfirm(true); } else if (key === 'tmux') setTmuxOpen(true); else if (key === 'integration') openIntegration();  else if (key === 'previousCommand') integration.current?.previous(); else if (key === 'commandOutput') integration.current?.selectOutput(); else action(key as TerminalAction); }}>
         <DropdownItem key="copy">复制</DropdownItem><DropdownItem key="paste">粘贴</DropdownItem><DropdownItem key="selectAll">全选</DropdownItem><DropdownItem key="find" showDivider>查找</DropdownItem><DropdownItem key="clear">清空显示</DropdownItem><DropdownItem key="zoomIn">放大字号</DropdownItem><DropdownItem key="zoomOut">缩小字号</DropdownItem><DropdownItem key="zoomReset" showDivider>复位字号</DropdownItem>
         <DropdownItem key="previousCommand">跳到上一条命令</DropdownItem><DropdownItem key="commandOutput">选择上次命令输出</DropdownItem><DropdownItem key="integration" isDisabled={!connected}>启用当前 Shell 集成…</DropdownItem>

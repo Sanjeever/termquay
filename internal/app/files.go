@@ -42,6 +42,37 @@ func (a *AppService) fileClient(ctx context.Context, id string) (*sftp.Client, f
 	return c, func() { stop(); c.Close(); <-a.fileSlots }, nil
 }
 
+func (a *AppService) SetWorkspaceBrowseOnly(id string, enabled bool) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	owner := a.workspaces[id]
+	if owner == nil {
+		return errors.New("SSH 工作区已关闭")
+	}
+	owner.browseOnly = enabled
+	return nil
+}
+
+func (a *AppService) requireFileWrite(id string) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	owner := a.workspaces[id]
+	if owner == nil {
+		return errors.New("SSH 工作区已关闭")
+	}
+	if owner.browseOnly {
+		return errors.New("当前工作区处于文件浏览模式，请先允许文件写入")
+	}
+	return nil
+}
+
+func (a *AppService) fileWriteClient(ctx context.Context, id string) (*sftp.Client, func(), error) {
+	if err := a.requireFileWrite(id); err != nil {
+		return nil, nil, err
+	}
+	return a.fileClient(ctx, id)
+}
+
 func (a *AppService) ReadDirectory(ctx context.Context, id, remote string) (files.Directory, error) {
 	c, close, err := a.fileClient(ctx, id)
 	if err != nil {
@@ -75,7 +106,7 @@ func (a *AppService) DownloadFileDraft(document files.Document) error {
 	return os.WriteFile(filename, data, 0600)
 }
 func (a *AppService) SaveRemoteFile(ctx context.Context, id string, document files.Document) (files.Document, error) {
-	c, close, err := a.fileClient(ctx, id)
+	c, close, err := a.fileWriteClient(ctx, id)
 	if err != nil {
 		return files.Document{}, err
 	}
@@ -104,7 +135,7 @@ func (a *AppService) SaveRemoteFile(ctx context.Context, id string, document fil
 }
 
 func (a *AppService) CreateRemoteDirectory(ctx context.Context, id, remote string) error {
-	c, close, err := a.fileClient(ctx, id)
+	c, close, err := a.fileWriteClient(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -112,7 +143,7 @@ func (a *AppService) CreateRemoteDirectory(ctx context.Context, id, remote strin
 	return c.Mkdir(remote)
 }
 func (a *AppService) RenameRemotePath(ctx context.Context, id, oldPath, newPath string) error {
-	c, close, err := a.fileClient(ctx, id)
+	c, close, err := a.fileWriteClient(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -120,6 +151,9 @@ func (a *AppService) RenameRemotePath(ctx context.Context, id, oldPath, newPath 
 	return c.Rename(oldPath, newPath)
 }
 func (a *AppService) DeleteRemotePath(ctx context.Context, id, remote string) error {
+	if err := a.requireFileWrite(id); err != nil {
+		return err
+	}
 	if remote == "" || path.Clean(remote) == "/" || path.Clean(remote) == "." {
 		return errors.New("不能删除远端根目录或当前目录")
 	}
@@ -164,6 +198,9 @@ func validateRemotePaths(paths []string) error {
 }
 
 func (a *AppService) MoveRemotePaths(ctx context.Context, id string, paths []string, directory string) ([]RemotePathResult, error) {
+	if err := a.requireFileWrite(id); err != nil {
+		return nil, err
+	}
 	if err := validateRemotePaths(paths); err != nil {
 		return nil, err
 	}
@@ -218,6 +255,9 @@ func (a *AppService) MoveRemotePaths(ctx context.Context, id string, paths []str
 }
 
 func (a *AppService) DeleteRemotePaths(ctx context.Context, id string, paths []string) ([]RemotePathResult, error) {
+	if err := a.requireFileWrite(id); err != nil {
+		return nil, err
+	}
 	if err := validateRemotePaths(paths); err != nil {
 		return nil, err
 	}

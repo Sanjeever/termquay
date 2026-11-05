@@ -114,7 +114,7 @@ func (a *AppService) remoteSyncEntry(ctx context.Context, plan *directorySyncPla
 	if !files.SameSyncNode(files.SyncInfo(info), plan.source[entry.Path]) {
 		return errors.New("来源自预览后已变化")
 	}
-	target, releaseTarget, err := a.fileClient(ctx, plan.workspace)
+	target, releaseTarget, err := a.fileWriteClient(ctx, plan.workspace)
 	if err != nil {
 		return err
 	}
