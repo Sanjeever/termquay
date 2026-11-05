@@ -20,19 +20,22 @@ type CommandResult struct {
 }
 
 type commandOutput struct {
-	bytes.Buffer
+	buffer    bytes.Buffer
 	limit     int
 	truncated bool
 }
 
+func (w *commandOutput) String() string { return w.buffer.String() }
+func (w *commandOutput) Bytes() []byte  { return w.buffer.Bytes() }
+
 func (w *commandOutput) Write(data []byte) (int, error) {
 	n := len(data)
-	remaining := w.limit - w.Len()
+	remaining := w.limit - w.buffer.Len()
 	if len(data) > remaining {
 		data = data[:remaining]
 		w.truncated = true
 	}
-	w.Buffer.Write(data)
+	w.buffer.Write(data)
 	return n, nil
 }
 

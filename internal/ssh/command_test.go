@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"fmt"
+	"io"
 	"net"
 	"strings"
 	"testing"
@@ -11,6 +13,24 @@ import (
 
 	gossh "golang.org/x/crypto/ssh"
 )
+
+func TestCommandOutputCopyBoundary(t *testing.T) {
+	for _, limit := range []int{64 << 10, 16 << 10} {
+		for _, size := range []int{limit - 1, limit, limit + 100} {
+			t.Run(fmt.Sprintf("limit_%d_bytes_%d", limit, size), func(t *testing.T) {
+				output := &commandOutput{limit: limit}
+				input := struct{ io.Reader }{strings.NewReader(strings.Repeat("x", size))}
+				n, err := io.Copy(output, input)
+				if err != nil || n != int64(size) {
+					t.Fatalf("输出未持续排空: bytes=%d, error=%v", n, err)
+				}
+				if got := output.String(); got != strings.Repeat("x", min(size, limit)) || output.truncated != (size > limit) {
+					t.Fatalf("输出边界失效: bytes=%d, truncated=%v", len(got), output.truncated)
+				}
+			})
+		}
+	}
+}
 
 func TestCommandOpeningCancellationRetainsSlots(t *testing.T) {
 	_, key, err := ed25519.GenerateKey(rand.Reader)
