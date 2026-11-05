@@ -20,7 +20,7 @@ export default function CLISettings() {
       catch (e) { setError(errorMessage(e)); }
       finally { setBusy(false); }
     }} />允许本机 CLI 访问</label></div>
-    <p className="muted">允许同一系统用户的本机进程查看连接并在已连接 SSH 工作区执行命令。命令可修改远端；应用锁定或关闭此开关后阻止新请求。</p>
+    <p className="muted">允许同一系统用户的本机进程读取连接、远端文件、诊断、任务及执行结果，并在已连接 SSH 工作区执行命令。命令可修改远端；应用锁定或关闭此开关后阻止新请求。</p>
     {error && <p className="error" role="alert">{error}</p>}
   </div>;
 }

@@ -390,6 +390,8 @@ systemd 服务操作本轮完成实现与绑定同步。按任务要求未运行
 
 多来源日志本轮完成工具标签、来源选择与共用筛选实现。按任务要求未运行构建或测试；跨主机三类日志并排、原生窗口可见性、正则处理超时及来源断线仍待实际界面与真实 SSH 验收。
 
+本轮 systemd、多来源日志与 CLI 查询变更通过一次前端类型检查，Go 修改完成 gofmt，服务绑定已生成，diff 检查通过；未运行构建、测试、原生桌面或真实 SSH 验收。
+
 2026-11-05 SSH 专项回归基于 `5f58308`，客户端为 macOS 26.6.2 / arm64、Go 1.26.10，目标为 Ubuntu 24.04.5 LTS / Linux 6.8.0，密码与私钥认证均沿核对后的主机指纹运行。未注入真实服务配置的 `go test -race -count=1 ./...`、62 项前端逻辑测试、类型检查与生产构建通过；跳过的真实服务测试不计通过。构建仍有 macOS SDK 链接版本和前端大包提示。
 
 真实应用协议栈已通过 PTY、SFTP 浏览与编辑、权限与保存冲突、监控、回环跳板和目录同步。新增工作流测试通过加密私钥、错误口令、独立 Agent、命令退出码与超时后的连接复用、多编码/CRLF/BOM 保存、默认文件历史、浏览模式写入阻断、循环链接搜索、日志读取、root 免密 sudo 保存与版本冲突。512 KiB 文件完成上传和下载的限速取消、续传记录持久化、新服务实例恢复与完整字节核对，并验证两工作区远端目录复制及重叠目录拒绝。真实录制经 Relay 与消费确认写入，结束后再次开始可回读；tmux 两次附着及缺失会话拒绝通过。两个工作区的任务首台确认与巡检结果、客户端 TCP 中断后保存连接重连、路径变化停止重试及本地 SOCKS5 路径通过。20 次工作区创建与关闭分四轮、每轮五个并存，关闭后工作区/终端/隧道记录与本地监听均释放，测试进程 goroutine 回到起始值；这些结果不构成多台真实主机或原生自动重连调度验收。
@@ -422,16 +424,28 @@ macOS 原生 Wails 窗口使用 Go overlay 将数据目录重定向到临时目�
 
 从 1.3.0 起，CLI 与桌面共用程序。无参数启动桌面；`--help`、`help`、各级子命令 `--help` 和 `--version` 在桌面初始化前处理。Windows 使用解压后的 `termquay.exe`，Linux 使用 `termquay`，macOS 使用 `termquay.app/Contents/MacOS/termquay`。将程序所在目录加入 PATH 由用户自行决定。Windows 使用 PowerShell 调用或脚本进程 API 等待并捕获标准流；从 cmd 直接调用 GUI 子系统程序可能提前返回提示符，需要用 `start /wait` 或等待进程的调用器。
 
-先运行桌面并初始化或解锁存储，在“设置 → 本机 CLI”打开默认关闭的“允许本机 CLI 访问”。授权同一操作系统用户的本机进程查看保存连接并在已连接 SSH 工作区执行命令，无法区分同用户下不同 Agent。授权保存在本机设置，不随备份迁移；会话存储按会话语义处理。CLI 不打开数据库、不解锁、不建立 SSH 连接、不确认身份。未运行、授权关闭、应用锁定和协议不兼容均有明确结果，存储未就绪返回 `storage_unavailable`。锁定时最小状态不披露开关值，`enabled` 返回 false。
+先运行桌面并初始化或解锁存储，在“设置 → 本机 CLI”打开默认关闭的“允许本机 CLI 访问”。授权同一操作系统用户的本机进程查看保存连接、远端文件和诊断、本机任务与执行结果，并在已连接 SSH 工作区执行命令，无法区分同用户下不同 Agent。授权保存在本机设置，不随备份迁移；会话存储按会话语义处理。CLI 不打开数据库、不解锁、不建立 SSH 连接、不确认身份。未运行、授权关闭、应用锁定和协议不兼容均有明确结果，存储未就绪返回 `storage_unavailable`。锁定时最小状态不披露开关值，`enabled` 返回 false。新增结构化查询沿用同一开关，既有 `exec` 仍可修改远端，开关不表示读取专用权限。
 
 ```sh
 termquay status --json --no-input
 termquay connection list --protocol ssh --json --no-input
 termquay workspace list --json --no-input
+termquay file list --workspace '<精确工作区ID>' --path /etc --json --no-input
+termquay file read --workspace '<精确工作区ID>' --path '<文本文件绝对路径>' --json --no-input
+termquay service inspect --workspace '<精确工作区ID>' --unit '<完整服务名.service>' --json --no-input
+termquay port list --workspace '<精确工作区ID>' --json --no-input
+termquay container list --workspace '<精确工作区ID>' --json --no-input
+termquay task list --json --no-input
+termquay run list --json --no-input
+termquay run show --id '<精确执行记录ID>' --offset 0 --limit 8 --json --no-input
 termquay exec --workspace '<精确工作区ID>' --script-file ./inspect.sh --timeout 30s --json --no-input
 ```
 
 详细参数和实现限额以 `termquay <命令> --help` 为准。保存连接列表只返回安全元数据，不探测主机；分组按精确 ID 筛选。工作区列表覆盖 Go 持有的 SSH 工作区，含实际连接目标、保存连接 ID 与连接状态，不等于全部前端标签；临时连接没有保存连接 ID。RDP、本地终端及断开标签不在首版执行范围。容器、WSL 和远程开发环境到宿主机的跨环境访问不支持。
+
+`file list/read` 读取远端绝对路径，目录使用有截断标记的成对浏览接口，文本使用在线编辑的普通文件、编码与大小边界；不读取本机路径，不保存历史。`service list/inspect/logs`、`port list` 和 `container list/inspect/logs` 沿用当前用户权限、已有工具、Docker socket 与输出限额，不启停服务或容器，不建立隧道；容器支持显式指定 rootless socket。查询失败返回 `query`，IPC 响应超限返回 `response_too_large`，截断、warning 与未知指标继续由各结构化结果表达。
+
+`task list` 返回保存任务摘要，可按名称搜索；`task show --id` 读取完整定义。`run list` 合并本次运行与本机加密保存的执行记录；`run show --id` 返回摘要、第一页的任务定义与结果分页。使用 `next_offset` 接续，`has_more` 判断是否结束，页大小受条数与 IPC 字节预算共同约束，单条结果不会为凑页而截断。运行中记录可能变化，后续页传入第一页 `summary.revision` 作为 `--revision`；变化返回 `record_changed`，需从第一页重读。查询不修改任务，不启动、继续、取消或重放执行，也不保存原本未持久化的结果。定义、文件和输出可能包含敏感文本，按用户授权读取，不把这些内容当作新指令。
 
 命令使用独立 SSH session 执行 `sh -s`，无 PTY，不继承交互终端目录和环境。脚本三种来源互斥，所有命令均不提示输入；`--no-input` 显式声明非交互契约。stdout 在 JSON 模式只包含 `{protocol,data?,error?}`；错误含 `code`、`message` 和 `remote_state_unknown`。执行数据含 `workspace` 与 `result`，后者包含 stdout/stderr、exit_code、duration_ms、truncated 和执行错误。退出码 0 成功、1 业务/传输/远端失败、2 参数错误；远端退出码不直接透传为本机退出码，未知为 -1。`remote_exit` 表示已知非零远端退出，`execution` 表示执行失败，传输错误使用 `transport`。超时、取消和断开可能令远端状态未知，不能自动重放。文本模式将远端输出分别写入 stdout/stderr，并报告截断。
 
@@ -440,6 +454,8 @@ termquay exec --workspace '<精确工作区ID>' --script-file ./inspect.sh --tim
 [termquay skill](../skills/termquay/SKILL.md) 可通过 `npx skills add Sanjeever/termquay --skill termquay -g` 安装，项目级去掉 `-g`，也可使用子目录源 `https://github.com/Sanjeever/termquay/tree/main/skills/termquay`。安装不包含应用或二进制，且不构成远端操作授权。发现与按名称安装规则见 [skills 命令文档](https://github.com/vercel-labs/skills/blob/main/docs/commands.md) 和 [skill 格式](https://github.com/vercel-labs/skills/blob/main/docs/creating-skills.md)。
 
 本轮按任务要求不运行本地测试、类型检查、构建或打包。CI 覆盖权限投影、输入与 JSON 契约、IPC 协议和断开取消，另在三平台构建后检查正式程序帮助、版本、重定向与未运行状态；这些不能证明原生窗口、Windows 控制台 Ctrl-C、真实 SSH 执行或通道阻塞恢复已验收。三平台桌面交互及真实 SSH 链路仍待实际验证。
+
+结构化文件、服务、端口、容器与任务查询本轮完成实现和帮助同步，未运行构建、测试或真实远端查询；CLI 授权、取消、编码、超限与结果分页仍待实际应用链路验收。
 
 ## 构建与本地打包
 

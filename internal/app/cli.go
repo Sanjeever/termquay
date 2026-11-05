@@ -66,6 +66,10 @@ func (a *AppService) handleCLI(ctx context.Context, r localapi.Request) localapi
 		a.mu.Unlock()
 		sort.Slice(items, func(i, j int) bool { return items[i].ID < items[j].ID })
 		return localapi.Result(items)
+	case "file.list", "file.read", "service.list", "service.inspect", "service.logs", "port.list", "container.list", "container.inspect", "container.logs":
+		return a.readCLIWorkspace(ctx, r)
+	case "task.list", "task.show", "run.list", "run.show":
+		return a.readCLITasks(r)
 	case "exec":
 		if r.Workspace == "" {
 			return localapi.Failure("invalid_request", "必须提供精确工作区 ID", false)

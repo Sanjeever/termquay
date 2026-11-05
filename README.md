@@ -20,7 +20,7 @@ TermQuay 是使用 Go、Wails v3 和 React 构建的开源远程连接工作台�
 
 ## CLI 与 Agent Skill
 
-TermQuay 1.3.0 起，同一程序无参数启动桌面，`termquay --help` 查看 CLI 帮助。先在桌面“设置 → 本机 CLI”启用访问并解锁，再通过 `termquay workspace list --json --no-input` 查询 SSH 工作区，使用精确工作区 ID 执行命令。CLI 可修改远端，运行前提、平台程序路径和取消限制见 [本机 CLI](docs/development.md#本机-cli)。
+TermQuay 1.3.0 起，同一程序无参数启动桌面，`termquay --help` 查看 CLI 帮助。先在桌面“设置 → 本机 CLI”启用访问并解锁，再通过 `termquay workspace list --json --no-input` 查询 SSH 工作区，使用精确工作区 ID 读取文件、服务、端口与容器信息或执行命令；也可查询保存任务和分页执行记录。CLI 可修改远端，具体命令以所用程序帮助为准，运行前提、平台程序路径和取消限制见 [本机 CLI](docs/development.md#本机-cli)。
 
 安装供外部 AI Agent 使用的 [termquay skill](skills/termquay/SKILL.md)：
 

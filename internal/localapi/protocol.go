@@ -16,6 +16,14 @@ type Request struct {
 	Workspace      string `json:"workspace,omitempty"`
 	Script         string `json:"script,omitempty"`
 	TimeoutSeconds int    `json:"timeout_seconds,omitempty"`
+	Path           string `json:"path,omitempty"`
+	Encoding       string `json:"encoding,omitempty"`
+	Unit           string `json:"unit,omitempty"`
+	Socket         string `json:"socket,omitempty"`
+	ID             string `json:"id,omitempty"`
+	Offset         int    `json:"offset,omitempty"`
+	Limit          int    `json:"limit,omitempty"`
+	Revision       uint64 `json:"revision,omitempty"`
 }
 
 type Error struct {
