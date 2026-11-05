@@ -11,7 +11,7 @@ import type { RDPOptions } from '../rdp/RDPView';
 
 type Attempt = { cancelled: boolean; progressEpoch: number; workspaceID?: string; operation?: { cancel(): void }; resolve?: (accept: boolean) => void };
 
-export default function useConnectionAttempt(onSSH: (id: string, connection: Connection, reuse?: string, automatic?: boolean, route?: SSHRouteHop[]) => void, beginRDP: (connection: Connection, reuse?: string, options?: RDPOptions) => string, onRDP: (id: string, grant: Grant, username: string, password: string, domain: string) => Promise<void>, failRDP: (id: string, error: string) => void, cancelRDP: (id: string) => void, remove: (id: string) => void) {
+export default function useConnectionAttempt(onSSH: (id: string, connection: Connection, reuse?: string, automatic?: boolean, route?: SSHRouteHop[]) => void, beginRDP: (connection: Connection, reuse?: string, options?: RDPOptions) => string, onRDP: (id: string, grant: Grant, username: string, password: string, domain: string) => Promise<void>, failRDP: (id: string, error: string) => void, cancelRDP: (id: string) => void, remove: (id: string) => void, prepareSSH: () => Promise<unknown>) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [target, setTarget] = useState('');
@@ -39,12 +39,14 @@ export default function useConnectionAttempt(onSSH: (id: string, connection: Con
     let poll: ReturnType<typeof setTimeout> | undefined;
     const check = () => { if (attempt.cancelled) throw new Error('连接已取消'); };
     const ask = (fingerprint: string, reason?: string,host=connection.host,port=connection.port) => new Promise<boolean>(resolve => { attempt.resolve = resolve; setTrust({ host, port, protocol: connection.protocol, fingerprint, reason }); });
+    const view = connection.protocol === 'ssh' ? prepareSSH().then(() => undefined, error => new Error(`载入 SSH 工作区失败：${errorMessage(error)}`)) : undefined;
     try {
       if (automatic) {
         const operation = ReconnectSavedSSH(connection.id, expectedRoute); attempt.operation = operation;
         const result = await operation; owned = result.result.id; check();
         setSteps(result.steps?.length ? result.steps : result.result.steps || []);
         if (result.error) { retryable.current = result.retryable; throw new Error(result.error); }
+        const viewError = await view; check(); if (viewError) throw viewError;
         setConnectedWorkspace(result.result.id);
         onSSH(result.result.id, connection, reuse, true, result.result.route || undefined); owned = '';
       } else if (connection.protocol === 'ssh') {
@@ -61,6 +63,7 @@ export default function useConnectionAttempt(onSSH: (id: string, connection: Con
           check(); await TrustSSHHost(result.trust_host||connection.host, result.trust_port||connection.port, result.fingerprint,result.trust_via||''); check();
           operation = open(); attempt.operation = operation; result = await operation; attempt.progressEpoch++; owned = result.id; check(); setSteps(result.steps || []);
         }
+        const viewError = await view; check(); if (viewError) throw viewError;
         setConnectedWorkspace(result.id);
         onSSH(result.id, connection, reuse, false, result.route || undefined); owned = '';
       } else if (options?.client === 'system') {
