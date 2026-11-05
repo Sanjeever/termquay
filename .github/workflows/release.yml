@@ -112,6 +112,8 @@ jobs:
         run: wails3 build ARCH=amd64
       - name: 检查依赖和生成绑定一致性
         run: git diff --exit-code -- go.mod go.sum frontend/bindings
+      - name: 检查 CLI 正式程序入口与标准流
+        run: node scripts/cli-smoke.mjs
       - name: macOS 签名与公证
         if: runner.os == 'macOS'
         env:

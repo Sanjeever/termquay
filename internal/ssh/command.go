@@ -38,6 +38,35 @@ func (w *commandOutput) Write(data []byte) (int, error) {
 
 func (t *Terminal) RunCommand(ctx context.Context, script string) CommandResult {
 	started := time.Now()
+	if err := ctx.Err(); err != nil {
+		return CommandResult{ExitCode: -1, Error: err.Error()}
+	}
+	t.mu.Lock()
+	if t.commandRequests == nil {
+		t.commandRequests = make(chan struct{}, 4)
+	}
+	slots := t.commandRequests
+	t.mu.Unlock()
+	select {
+	case slots <- struct{}{}:
+	default:
+		return CommandResult{ExitCode: -1, Error: "SSH 命令未完成请求达到上限"}
+	}
+	ready := make(chan CommandResult, 1)
+	go func() {
+		defer func() { <-slots }()
+		ready <- t.runCommand(ctx, script)
+	}()
+	select {
+	case result := <-ready:
+		return result
+	case <-ctx.Done():
+		return CommandResult{ExitCode: -1, DurationMS: time.Since(started).Milliseconds(), Error: ctx.Err().Error()}
+	}
+}
+
+func (t *Terminal) runCommand(ctx context.Context, script string) CommandResult {
+	started := time.Now()
 	result := CommandResult{ExitCode: -1}
 	session, err := t.client.NewSession()
 	if err != nil {
@@ -45,6 +74,10 @@ func (t *Terminal) RunCommand(ctx context.Context, script string) CommandResult 
 		return result
 	}
 	defer session.Close()
+	if ctx.Err() != nil {
+		result.Error = ctx.Err().Error()
+		return result
+	}
 	stop := context.AfterFunc(ctx, func() { session.Close() })
 	defer stop()
 	stdout := &commandOutput{limit: 64 << 10}

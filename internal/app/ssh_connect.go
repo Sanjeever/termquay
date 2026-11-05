@@ -17,6 +17,7 @@ func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (resu
 }
 
 func (a *AppService) openTerminal(ctx context.Context, r terminal.Request, expected []SSHRouteHop) (result OpenResult, failure error) {
+	connectionID := r.ConnectionID
 	if r.ProxyAddress != "" && r.JumpID != "" {
 		return OpenResult{}, errors.New("目标不能同时配置跳板与连接代理，请在首个跳板配置代理")
 	}
@@ -146,6 +147,7 @@ func (a *AppService) openTerminal(ctx context.Context, r terminal.Request, expec
 	t.KeepConnection()
 	ownerCtx, ownerCancel := context.WithCancel(context.Background())
 	owner := &workspaceOwner{terminal: t, ctx: ownerCtx, cancel: ownerCancel, target: r.Username + "@" + net.JoinHostPort(r.Host, strconv.Itoa(r.Port)), identity: strings.Join(fingerprints, "/") + ":" + r.JumpID}
+	owner.connectionID = connectionID
 	for _, request := range chain {
 		owner.route = append(owner.route, latencyHop{request.Host, request.Port, request.Username, request.JumpID, request.ProxyAddress})
 	}

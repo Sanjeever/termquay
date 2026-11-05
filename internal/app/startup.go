@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"runtime"
 
+	"github.com/Sanjeever/termquay/internal/localapi"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 )
@@ -18,6 +19,12 @@ func Run(assets fs.FS, appIcons fs.ReadFileFS, build BuildInfo, licenses fs.Read
 		return err
 	}
 	service := NewAppService(build, licenses)
+	cliServer, err := localapi.Listen(service.handleCLI)
+	if err != nil {
+		return err
+	}
+	defer cliServer.Close()
+	service.cliServer = cliServer
 	app := application.New(application.Options{
 		Name: "TermQuay", Description: "TermQuay 远程连接工作台",
 		Icon:       appIcon,

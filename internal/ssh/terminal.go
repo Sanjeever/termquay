@@ -19,6 +19,7 @@ import (
 const ChunkSize = 32 << 10
 
 type Request struct {
+	ConnectionID    string `json:"connection_id,omitempty"`
 	Host            string `json:"host"`
 	Port            int    `json:"port"`
 	Username        string `json:"username"`
@@ -65,6 +66,7 @@ type Terminal struct {
 	forwardSlots     chan struct{}
 	forwardRequests  chan struct{}
 	probeSlots       chan struct{}
+	commandRequests  chan struct{}
 	session          *gossh.Session
 	Input            io.WriteCloser
 	Output           *io.PipeReader

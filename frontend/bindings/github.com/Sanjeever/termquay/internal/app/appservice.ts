@@ -348,6 +348,10 @@ export function GetBackupSettings(): $CancellablePromise<$models.BackupSettings>
     return $Call.ByID(804346713);
 }
 
+export function GetCLIAccess(): $CancellablePromise<boolean> {
+    return $Call.ByID(1660263702);
+}
+
 export function GetCatalog(): $CancellablePromise<$models.Catalog> {
     return $Call.ByID(3198086081);
 }
@@ -802,6 +806,10 @@ export function RunRemoteCommand(workspace: string, script: string, timeoutSecon
 
 export function SaveBackupSettings(options: backup$0.WebDAVOptions, password: string, deviceName: string, selection: $models.BackupSelection): $CancellablePromise<void> {
     return $Call.ByID(3551534060, options, password, deviceName, selection);
+}
+
+export function SaveCLIAccess(enabled: boolean): $CancellablePromise<void> {
+    return $Call.ByID(2816498133, enabled);
 }
 
 export function SaveCommandRun(id: string): $CancellablePromise<$models.CommandRunSummary> {

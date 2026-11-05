@@ -11,7 +11,8 @@ import type useUpdates from './useUpdates';
 import type { Connection } from '../../../bindings/github.com/Sanjeever/termquay/internal/store/models';
 import Icon from '../../components/Icon';
 
-const sections = [['appearance','外观','settings'],['terminal','终端与编辑器','terminal'],['keyboard','快捷键','list'],['snippets','命令片段','terminal'],['credentials','凭据','eyeOff'],['recovery','本地草稿恢复','undo'],['trust','身份信任','connections'],['backup','备份恢复','transfer'],['about','关于','desktop']] as const;
+const sections = [['appearance','外观','settings'],['terminal','终端与编辑器','terminal'],['keyboard','快捷键','list'],['snippets','命令片段','terminal'],['credentials','凭据','eyeOff'],['recovery','本地草稿恢复','undo'],['trust','身份信任','connections'],['cli','本机 CLI','terminal'],['backup','备份恢复','transfer'],['about','关于','desktop']] as const;
+const CLISettings = lazy(() => import('./CLISettings'));
 const BackupSettings = lazy(() => import('./BackupSettings'));
 const SnippetSettings = lazy(() => import('./SnippetSettings'));
 const TrustSettings = lazy(() => import('./TrustSettings'));
@@ -31,6 +32,7 @@ export default function SettingsView({ fontSize, onFontSize, onRestore, onClose,
         {section === 'snippets' && <SnippetSettings/>}
         {section === 'recovery'&&<RecoverySettings recovery={recovery}/>}
         {section === 'trust'&&<TrustSettings/>}
+        {section === 'cli'&&<CLISettings/>}
         {section === 'credentials'&&<><StorageSettings/><CredentialSettings onChanged={onRestore}/></>}
         {section === 'about' && <AboutSettings updates={updates} onRestart={onRestart} activeWorkspaces={activeWorkspaces} activeTransfers={activeTransfers}/>}
       </Suspense></div>

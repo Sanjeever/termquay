@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/Sanjeever/termquay/internal/localapi"
 	"github.com/Sanjeever/termquay/internal/rdp"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 	"github.com/Sanjeever/termquay/internal/store"
@@ -38,19 +39,21 @@ type pendingTerminal struct {
 }
 
 type workspaceOwner struct {
-	browseOnly bool
-	target     string
-	identity   string
-	terminal   *terminal.Terminal
-	ctx        context.Context
-	cancel     context.CancelFunc
-	timer      *time.Timer
-	stream     *application.StreamConn
-	opening    int
-	route      []latencyHop
+	connectionID string
+	browseOnly   bool
+	target       string
+	identity     string
+	terminal     *terminal.Terminal
+	ctx          context.Context
+	cancel       context.CancelFunc
+	timer        *time.Timer
+	stream       *application.StreamConn
+	opening      int
+	route        []latencyHop
 }
 
 type AppService struct {
+	cliServer              *localapi.Server
 	appLocked              atomic.Bool
 	snapshotCapturing      bool
 	lockMu                 sync.Mutex
@@ -230,6 +233,9 @@ func (a *AppService) CloseWorkspace(id string) {
 }
 
 func (a *AppService) ServiceShutdown() (result error) {
+	if a.cliServer != nil {
+		a.cliServer.Close()
+	}
 	a.lockMu.Lock()
 	a.lockDeadline = time.Time{}
 	if a.lockTimer != nil {

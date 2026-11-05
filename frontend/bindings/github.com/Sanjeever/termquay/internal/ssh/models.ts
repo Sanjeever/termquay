@@ -39,6 +39,7 @@ export interface ForwardSpec {
 }
 
 export interface Request {
+    "connection_id"?: string;
     "host": string;
     "port": number;
     "username": string;
