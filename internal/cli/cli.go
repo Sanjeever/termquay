@@ -16,9 +16,14 @@ import (
 
 func Run(ctx context.Context, args []string, version string, in io.Reader, out, stderr io.Writer) int {
 	jsonMode := false
-	for _, arg := range args {
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
 		if arg == "--json" || arg == "--json=true" {
 			jsonMode = true
+		}
+		switch arg {
+		case "--command", "--script-file", "--workspace", "--timeout", "--protocol", "--group", "--search":
+			i++
 		}
 	}
 	fail := func(message string) int {

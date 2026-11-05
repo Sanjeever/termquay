@@ -57,7 +57,7 @@ func serve(parent context.Context, conn net.Conn, handler func(context.Context, 
 		return
 	}
 	conn.SetReadDeadline(time.Time{})
-	go func() { var b [1]byte; conn.Read(b[:]); cancel() }()
+	go func() { var extra any; decoder.Decode(&extra); cancel() }()
 	if request.Protocol != Protocol {
 		writeResponse(conn, Failure("incompatible", "CLI 与桌面 IPC 协议不兼容", false))
 		return
