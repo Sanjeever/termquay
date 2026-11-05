@@ -11,7 +11,7 @@ import '../../styles/docker.css';
 import ContainerResources from './ContainerResources';
 
 type Target = { id: string; name: string };
-export default function DockerDialog({ targets, initial, fontSize, onDirectory, onClose }: { targets: Target[]; initial?: string; fontSize: number; onDirectory?(workspace: string, path: string): void; onClose(): void }) {
+export default function DockerDialog({ targets, initial, initialContainer, fontSize, onDirectory, onClose }: { targets: Target[]; initial?: string; initialContainer?: string; fontSize: number; onDirectory?(workspace: string, path: string): void; onClose(): void }) {
   const [workspace, setWorkspace] = useState(initial || targets[0]?.id || '');
   const [socket, setSocket] = useState('/var/run/docker.sock');
   const [containers, setContainers] = useState<Container[]>([]);
@@ -52,10 +52,11 @@ export default function DockerDialog({ targets, initial, fontSize, onDirectory, 
     void read();
     return () => { ended = true; clearTimeout(timer); request?.cancel(); };
   }, [follow, visible, minimised, view, selected?.id, workspace, socket, targets.some(target => target.id === workspace)]);
+  useEffect(() => { if (initialContainer) void load(); }, [initialContainer, workspace, socket]);
   async function load() {
     const epoch = generation.current; setBusy(true); setError('');
     const request = ListContainers(workspace, socket); pending.current.add(request);
-    try { const values = await request; if (mounted.current && epoch === generation.current) { setContainers(values || []); setSelected(previous => previous ? values?.find(item => item.id === previous.id) : undefined); } }
+    try { const values = await request; if (mounted.current && epoch === generation.current) { setContainers(values || []); setSelected(previous => previous ? values?.find(item => item.id === previous.id) : undefined); if (initialContainer) { const item = values?.find(item => item.id === initialContainer || item.name === initialContainer); if (!item) throw new Error('操作手册关联的容器不存在'); await inspect(item); } } }
     catch (e) { if (mounted.current && epoch === generation.current) setError(errorMessage(e)); }
     finally { pending.current.delete(request); if (mounted.current) setBusy(false); }
   }

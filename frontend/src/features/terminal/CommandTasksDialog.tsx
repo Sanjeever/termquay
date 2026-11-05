@@ -16,7 +16,7 @@ type Result = CommandRunItem & { key: string };
 type TaskDraft = CommandTask & { steps: CommandStep[] };
 const emptyTask = (): TaskDraft => ({ id: '', name: '', steps: [{ name: '步骤 1', script: '', timeout_seconds: 60 }], stop_on_failure: true });
 
-export default function CommandTasksDialog({ open, targets, groups: catalogGroups, runs, historyError, onRun, onRefresh, onClose }: { open: boolean; targets: Target[]; groups?: Group[]; runs: CommandRunSummary[]; historyError: string; onRun(value: CommandRunSummary): void; onRefresh(): void; onClose(): void }) {
+export default function CommandTasksDialog({ open, targets, groups: catalogGroups, initialTask = '', runs, historyError, onRun, onRefresh, onClose }: { open: boolean; targets: Target[]; groups?: Group[]; initialTask?: string; runs: CommandRunSummary[]; historyError: string; onRun(value: CommandRunSummary): void; onRefresh(): void; onClose(): void }) {
   const [tasks, setTasks] = useState<CommandTask[]>([]);
   const [task, setTask] = useState<TaskDraft>(emptyTask);
   const [baseline, setBaseline] = useState(() => JSON.stringify(emptyTask()));
@@ -65,6 +65,11 @@ export default function CommandTasksDialog({ open, targets, groups: catalogGroup
     return () => { ended = true; request.cancel(); };
   }, [open]);
   const finishedAt = summary?.finished_at;
+  useEffect(() => {
+    if (!open || !initialTask || loading || activeRun) return;
+    const value = tasks.find(item => item.id === initialTask);
+    if (value) requestChoose(value, true); else setError('任务引用已失效，请编辑操作手册');
+  }, [open, initialTask, loading]);
   useEffect(() => {
     setResults([]); setRecord(undefined); setComparison(['', '']); setExportSelection(new Set());
     setLoadingRecord(false);

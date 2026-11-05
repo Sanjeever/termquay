@@ -131,3 +131,9 @@
 .host-port { display: grid; grid-template-columns: minmax(0, 1fr) 100px; gap: 12px; }
 .saved-credential { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--color-muted); }
 .fingerprint { padding: 12px; font: 12px/1.6 var(--font-mono); background: var(--color-background); border-radius: 6px; overflow-wrap: anywhere; }
+.playbook-notes { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
+.playbook-resource { display: grid; grid-template-columns: minmax(90px, 1fr) 130px minmax(120px, 2fr) auto; gap: 8px; align-items: center; }
+.playbook-resource input { min-width: 0; }
+.playbook-link { display: flex; flex-direction: column; gap: 4px; padding: 10px 0; text-align: left; border-bottom: 1px solid var(--color-border); overflow-wrap: anywhere; }
+.playbook-link:hover { color: var(--color-accent); }
+@media (max-width: 760px) { .playbook-resource { grid-template-columns: minmax(0, 1fr) auto; } }

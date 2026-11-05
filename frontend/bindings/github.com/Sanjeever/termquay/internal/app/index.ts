@@ -26,6 +26,8 @@ export type {
     CompletionPaths,
     ConnectionFilter,
     ConnectionLatency,
+    ConnectionPlaybook,
+    ConnectionResource,
     CredentialReference,
     DirectorySyncPreview,
     DraftRecoveryState,

@@ -177,6 +177,17 @@ export interface ConnectionLatency {
     "error"?: string;
 }
 
+export interface ConnectionPlaybook {
+    "notes": string;
+    "resources": ConnectionResource[] | null;
+}
+
+export interface ConnectionResource {
+    "name": string;
+    "kind": string;
+    "target": string;
+}
+
 export interface CredentialReference {
     "id": string;
     "kind": string;

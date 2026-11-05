@@ -336,6 +336,10 @@ export function GetConnectionPassword(id: string): $CancellablePromise<string> {
     return $Call.ByID(2914636331, id);
 }
 
+export function GetConnectionPlaybook(id: string): $CancellablePromise<$models.ConnectionPlaybook> {
+    return $Call.ByID(1116677693, id);
+}
+
 export function GetConnectionPreferences(): $CancellablePromise<{ [_ in string]?: store$0.ConnectionPreference } | null> {
     return $Call.ByID(1489462748);
 }
@@ -762,6 +766,10 @@ export function SaveConnection(c: store$0.Connection, auth: ssh$0.Request): $Can
 
 export function SaveConnectionFilters(filters: $models.ConnectionFilter[] | null): $CancellablePromise<void> {
     return $Call.ByID(1840224794, filters);
+}
+
+export function SaveConnectionPlaybook(id: string, item: $models.ConnectionPlaybook): $CancellablePromise<void> {
+    return $Call.ByID(1762406300, id, item);
 }
 
 export function SaveConnectionWithCredential(c: store$0.Connection, auth: ssh$0.Request, referenceID: string): $CancellablePromise<store$0.Connection> {

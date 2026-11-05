@@ -120,9 +120,9 @@ function ServiceInspection({ workspace, initialUnit, ...navigation }: { workspac
   </>;
 }
 
-export default function LinuxInspectionDialog({ workspace, initialOrder, onDirectory, onFile, onClose }: { workspace: string; initialOrder: 'cpu' | 'memory' | 'services'; onDirectory?(path: string): void; onFile?(path: string): Promise<void>; onClose(): void }) {
+export default function LinuxInspectionDialog({ workspace, initialOrder, initialUnit = '', onDirectory, onFile, onClose }: { workspace: string; initialOrder: 'cpu' | 'memory' | 'services'; initialUnit?: string; onDirectory?(path: string): void; onFile?(path: string): Promise<void>; onClose(): void }) {
   const [tab, setTab] = useState(initialOrder === 'services' ? 'services' : 'processes');
-  const [service, setService] = useState('');
+  const [service, setService] = useState(initialUnit);
   function openDirectory(path: string) { onDirectory?.(path); onClose(); }
   async function openFile(path: string) { await onFile?.(path); onClose(); }
   function openService(unit: string) { setService(unit); setTab('services'); }
