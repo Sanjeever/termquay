@@ -2,8 +2,6 @@
 
 本文维护 TermQuay 的设计意图、长期约束和行为契约。“必须”“不得”和目标描述约束后续实现，不表示所有能力已验收。当前实现细节以代码及有效测试为准。调整既有决策时，记录原因、受影响契约与必要迁移，避免用实现现状抹掉约束。
 
-## 产品与技术边界
-
 ## 本机 CLI 访问
 
 CLI 是短生命周期客户端，桌面继续拥有连接、凭据、存储与工作区状态。[CLI](../internal/cli/cli.go) 在 GUI 初始化前处理帮助和版本，通过 [localapi](../internal/localapi/protocol.go) 显式允许的 status、connection.list、workspace.list 和 exec 请求调用桌面，不反射暴露 Wails 方法，不监听网络端口。协议兼容版本独立于应用版本。

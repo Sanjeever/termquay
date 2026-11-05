@@ -393,8 +393,6 @@ macOS 菜单栏提供连接、终端、标签关闭、显示、界面缩放和�
 
 原生回环测试使用过内存文件系统和合成监控指标，其结果限于本地集成。此前 Windows 图标检查不能替代 macOS/Linux 系统入口验收；后续图标、标题栏、本地 PTY、SSH 网关桌面、目录树与延迟探测等改动需按实际影响补验。持续负载与整个桌面应用的资源占用尚无完整验收证据。
 
-## 构建与本地打包
-
 ## 本机 CLI
 
 从 1.3.0 起，CLI 与桌面共用程序。无参数启动桌面；`--help`、`help`、各级子命令 `--help` 和 `--version` 在桌面初始化前处理。Windows 使用解压后的 `termquay.exe`，Linux 使用 `termquay`，macOS 使用 `termquay.app/Contents/MacOS/termquay`。将程序所在目录加入 PATH 由用户自行决定。Windows 使用 PowerShell 调用或脚本进程 API 等待并捕获标准流；从 cmd 直接调用 GUI 子系统程序可能提前返回提示符，需要用 `start /wait` 或等待进程的调用器。
