@@ -52,6 +52,7 @@ type workspaceOwner struct {
 
 type AppService struct {
 	appLocked              atomic.Bool
+	snapshotCapturing      bool
 	lockMu                 sync.Mutex
 	lockAuthMu             sync.Mutex
 	lockTimer              *time.Timer

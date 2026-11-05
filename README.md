@@ -11,7 +11,7 @@ TermQuay 是使用 Go、Wails v3 和 React 构建的开源远程连接工作台�
 - [文件管理与传输](docs/development.md#远端文件与传输)：递归搜索、批量传输、文件复制粘贴、本地剪贴板上传、持久存储下跨重启显式续传、单向目录同步、成对浏览、文本对比与跨主机流式复制。
 - [文件编辑](docs/development.md#文件编辑)：多编码、高亮与补全、JSON/YAML 诊断、冲突合并、加密版本历史及显式验证/reload；[预览](docs/development.md#文件预览) 支持 Markdown 与常见图片。
 - [终端工具](docs/development.md#终端工具与命令片段)：查找、加密片段、会话命令索引、命令完成提醒、POSIX 命令参考与主动启用的 Bash/Zsh 补全、tmux 绑定与显式续接、输出日志、带时间轴录制与离线回放；多主机任务支持后台执行、参数、分批执行、首台确认、巡检判定、文件基线比较、结果对比、加密执行记录与导出。
-- [Linux 诊断](docs/development.md#linux-监控与日志查看)：按需监控、趋势、文件系统容量、进程与 systemd 服务、监听端口关联及双来源 TCP 探测；大日志分片跟随与筛选，Docker 容器、Compose 分组、终端、健康与资源诊断及显式启停。
+- [Linux 诊断](docs/development.md#linux-监控与日志查看)：按需监控、趋势、文件系统容量、进程与 systemd 服务、监听端口关联及双来源 TCP 探测；大日志分片跟随与筛选，Docker 容器、Compose 分组、终端、健康与资源诊断及显式启停；手动排障快照支持加密保存、前后比较与分项导出。
 - [远程桌面](docs/development.md#远程桌面)：内嵌 RDP、经 SSH 访问内网桌面，以及 Windows 系统客户端入口。
 - [本机工作环境](docs/development.md#本地草稿与布局恢复)：命名工作集、工作布局、加密草稿恢复，以及[外观和快捷键设置](docs/development.md#设置与演示模式)。
 - [加密备份](docs/development.md#备份与恢复)：本地文件与 WebDAV 快照、设备历史、分项预览恢复、导入连接副本、工作环境配置迁移及自动备份。

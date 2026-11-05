@@ -72,6 +72,10 @@ export function CancelUpdate(): $CancellablePromise<void> {
     return $Call.ByID(33469453);
 }
 
+export function CaptureDiagnosticSnapshot(workspace: string, options: $models.DiagnosticCaptureOptions): $CancellablePromise<$models.DiagnosticSnapshot> {
+    return $Call.ByID(2033663163, workspace, options);
+}
+
 export function ChangeContainerState(workspace: string, socket: string, id: string, action: string): $CancellablePromise<void> {
     return $Call.ByID(1293882578, workspace, socket, id, action);
 }
@@ -224,6 +228,10 @@ export function DeleteConnection(id: string): $CancellablePromise<void> {
     return $Call.ByID(2843121549, id);
 }
 
+export function DeleteDiagnosticSnapshot(id: string): $CancellablePromise<void> {
+    return $Call.ByID(2926896430, id);
+}
+
 export function DeleteGroup(id: string): $CancellablePromise<void> {
     return $Call.ByID(781925736, id);
 }
@@ -298,6 +306,10 @@ export function ExecuteDirectorySync(id: string, selected: string[] | null): $Ca
 
 export function ExportCommandResults(results: $models.CommandExportResult[] | null): $CancellablePromise<void> {
     return $Call.ByID(2404801317, results);
+}
+
+export function ExportDiagnosticSnapshot(snapshot: $models.DiagnosticSnapshot, selected: number[] | null): $CancellablePromise<void> {
+    return $Call.ByID(3896093219, snapshot, selected);
 }
 
 export function ExportDiagnostics(): $CancellablePromise<void> {
@@ -438,6 +450,10 @@ export function ListContainers(workspace: string, socket: string): $CancellableP
 
 export function ListCredentialReferences(): $CancellablePromise<$models.CredentialReference[] | null> {
     return $Call.ByID(1831277773);
+}
+
+export function ListDiagnosticSnapshots(): $CancellablePromise<$models.DiagnosticSnapshotInfo[] | null> {
+    return $Call.ByID(2579900690);
 }
 
 export function ListLinuxPorts(workspace: string): $CancellablePromise<$models.LinuxPortList> {
@@ -656,6 +672,10 @@ export function ReadContainerStats(workspace: string, socket: string, id: string
     return $Call.ByID(3965958036, workspace, socket, id);
 }
 
+export function ReadDiagnosticSnapshot(id: string): $CancellablePromise<$models.DiagnosticSnapshot> {
+    return $Call.ByID(2832832721, id);
+}
+
 export function ReadDirectory(id: string, remote: string): $CancellablePromise<files$0.Directory> {
     return $Call.ByID(504709045, id, remote);
 }
@@ -794,6 +814,10 @@ export function SaveConnectionPlaybook(id: string, item: $models.ConnectionPlayb
 
 export function SaveConnectionWithCredential(c: store$0.Connection, auth: ssh$0.Request, referenceID: string): $CancellablePromise<store$0.Connection> {
     return $Call.ByID(1100173426, c, auth, referenceID);
+}
+
+export function SaveDiagnosticSnapshot(snapshot: $models.DiagnosticSnapshot): $CancellablePromise<void> {
+    return $Call.ByID(2904982692, snapshot);
 }
 
 export function SaveGroup(g: store$0.Group): $CancellablePromise<void> {

@@ -82,3 +82,4 @@
   .transfer-heading { flex-wrap: wrap; gap: 8px; }
   .transfer-panel td, .transfer-panel th { padding-inline: 8px; }
 }
+.diagnostic-content { max-height: 420px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }

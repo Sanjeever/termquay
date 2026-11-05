@@ -70,6 +70,7 @@ const DockerDialog = lazy(() => import('./features/docker/DockerDialog'));
 const StorageAccess = lazy(() => import('./features/settings/StorageAccess'));
 const ServicesDialog = lazy(() => import('./features/tunnels/ServicesDialog'));
 const ConnectionPlaybookDialog = lazy(() => import('./features/connections/ConnectionPlaybookDialog'));
+const DiagnosticSnapshotsDialog = lazy(() => import('./features/monitor/DiagnosticSnapshotsDialog'));
 
 export default function App() {
   const { appearance, update: updateAppearance, beginPreview, endPreview } = useAppearance();
@@ -125,6 +126,7 @@ export default function App() {
   const commandRuns = useCommandRuns(backgroundReady || commandTasksOpen);
   useEffect(() => { if (commandTasksOpen) setCommandTasksCreated(true); }, [commandTasksOpen]);
   const [dockerOpen, setDockerOpen] = useState(false);
+  const [diagnosticSnapshotsOpen, setDiagnosticSnapshotsOpen] = useState(false);
   const [dockerResource, setDockerResource] = useState<{ workspace: string; container: string }>();
   const [playbookConnection, setPlaybookConnection] = useState<Connection>();
   const [resourceRequest, setResourceRequest] = useState<{ connection: string; resource: ConnectionResource }>();
@@ -459,6 +461,7 @@ export default function App() {
     { id: 'services', label: '管理远端服务', kind: 'command', run: () => setServicesOpen(true) },
     ...services.map(entry => ({ id: `service-${entry.connection_id}-${entry.name}`, label: `打开服务 ${entry.name}`, detail: catalog?.connections.find(c => c.id === entry.connection_id)?.name, search: '远端服务 隧道', kind: 'command' as const, run: () => { void openService(entry).catch(e => setPreferenceError(errorMessage(e))); } })),
     { id: 'docker', label: 'Docker 容器工作区', kind: 'command', run: () => setDockerOpen(true) },
+    { id: 'diagnostic-snapshots', label: '采集与比较排障快照', kind: 'command', run: () => setDiagnosticSnapshotsOpen(true) },
     { id: 'file-compare', label: '文件管理、对比与跨工作区复制', kind: 'command', run: () => setFileCompareOpen(true) },
     { id: 'recording-playback', label: '打开本机终端录制回放', kind: 'command', run: () => setRecordingOpen(true) },
     ...(current?.ssh ? [{ id: 'sudo-edit', label: '以 sudo 编辑文件', kind: 'command' as const, run: () => current.ssh?.current?.sudoEdit() }] : []),
@@ -512,6 +515,7 @@ export default function App() {
     {servicesOpen && <Suspense fallback={<div role="status">正在载入远端服务…</div>}><ServicesDialog entries={services} connections={catalog?.connections || []} initial={current?.connectionID} error={serviceError} onChanged={values => { setServices(values); setServiceError(''); }} onOpen={openService} onClose={() => setServicesOpen(false)} /></Suspense>}
     {attempt.challenge && <SSHChallengeDialog key={attempt.challenge.id} challenge={attempt.challenge} target={attempt.target} onAnswer={attempt.answer} onCancel={attempt.cancel} />}
     {recordingOpen && <Suspense fallback={<div role="status">正在载入录制回放…</div>}><RecordingPlayer onClose={() => setRecordingOpen(false)} /></Suspense>}
+    {diagnosticSnapshotsOpen && <Suspense fallback={<p role="status">正在载入排障快照…</p>}><DiagnosticSnapshotsDialog targets={workspaces.filter(workspace => workspace.ssh && workspace.sessionID && workspace.state === '已连接').map(workspace => ({ id: workspace.sessionID!, name: workspace.name }))} initial={current?.ssh ? current.sessionID : undefined} onClose={() => setDiagnosticSnapshotsOpen(false)} /></Suspense>}
     {batchCommandOpen && <Suspense fallback={<div role="status">正在载入批量命令…</div>}><BatchCommandDialog groups={catalog?.groups} targets={workspaces.filter(w => w.sessionID && w.state === '已连接').map(w => ({ id: w.sessionID!, name: w.name, address: `${w.connection?.username}@${w.connection?.host}:${w.connection?.port}`, connection: w.connection, preference: preferences[w.connectionID] }))} initial={current?.sessionID} snippets={snippets} onClose={() => setBatchCommandOpen(false)} /></Suspense>}
     {fileCompareOpen && <Suspense fallback={<div role="status">正在载入文件对比…</div>}><FileCompareDialog targets={workspaces.filter(w => !w.local && !w.rdp && w.sessionID && w.state === '已连接').map(w => ({ id: w.sessionID!, name: w.name }))} initial={current?.ssh ? current.sessionID : undefined} onTransfer={item => { transfers.accept([item]); setTransferReveal(item.id); setTransfersOpen(true); }} onClose={() => setFileCompareOpen(false)} /></Suspense>}
     {(commandTasksOpen || commandTasksCreated) && <Suspense fallback={commandTasksOpen ? <div role="status">正在载入命令任务…</div> : null}><CommandTasksDialog initialTask={initialTask} open={commandTasksOpen} runs={commandRuns.items} historyError={commandRuns.error} onRefresh={commandRuns.refresh} onRun={commandRuns.update} groups={catalog?.groups} targets={taskTargets} onConnectTargets={connectTaskTargets} onClose={() => { setCommandTasksOpen(false); setInitialTask(''); }} /></Suspense>}

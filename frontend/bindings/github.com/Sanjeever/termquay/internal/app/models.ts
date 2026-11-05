@@ -204,6 +204,41 @@ export interface CredentialReference {
     "names": string[] | null;
 }
 
+export interface DiagnosticCaptureOptions {
+    "system": boolean;
+    "file_systems": boolean;
+    "processes": boolean;
+    "ports": boolean;
+    "containers": boolean;
+    "docker_socket": string;
+    "services": string[] | null;
+    "service_logs": boolean;
+    "logs": string[] | null;
+}
+
+export interface DiagnosticSection {
+    "kind": string;
+    "name": string;
+    "time": string;
+    "content": string;
+    "error": string;
+    "truncated": boolean;
+}
+
+export interface DiagnosticSnapshot {
+    "version": number;
+    "info": DiagnosticSnapshotInfo;
+    "sections": DiagnosticSection[] | null;
+}
+
+export interface DiagnosticSnapshotInfo {
+    "id": string;
+    "name": string;
+    "time": string;
+    "target": string;
+    "identity": string;
+}
+
 export interface DirectorySyncPreview {
     "id": string;
     "direction": string;
