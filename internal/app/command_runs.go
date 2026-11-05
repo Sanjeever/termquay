@@ -18,9 +18,11 @@ const maxCommandRuns = 8
 const maxCommandRunOutput = 4 << 20
 
 type CommandRunTarget struct {
-	ID      string `json:"id"`
-	Name    string `json:"name"`
-	Address string `json:"address"`
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Address      string `json:"address"`
+	ConnectionID string `json:"connection_id,omitempty"`
+	Identity     string `json:"identity,omitempty"`
 }
 
 type CommandRunItem struct {
@@ -98,6 +100,7 @@ func (a *AppService) StartCommandRun(ctx context.Context, task CommandTask, targ
 		}
 		seen[target.ID] = true
 		targets[i].Address = owner.target
+		targets[i].Identity = owner.identity
 		if target.Name == "" {
 			targets[i].Name = owner.target
 		}

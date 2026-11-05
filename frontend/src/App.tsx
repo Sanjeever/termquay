@@ -29,6 +29,7 @@ import { ListLocalShells, OpenLocalTerminal, CloseLocalTerminal } from '../bindi
 import type { LocalShell } from '../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import type { TerminalHandle } from './features/terminal/TerminalView';
 import type { CommandAttention } from './features/terminal/commandAttention';
+import type { CommandTarget } from './features/terminal/CommandTargets';
 import useCommandRuns from './features/terminal/useCommandRuns';
 import useConnectionAttempt from './features/connections/useConnectionAttempt';
 import ConnectionDiagnostics from './features/connections/ConnectionDiagnostics';
@@ -312,6 +313,34 @@ export default function App() {
     return attempt.start(connection,auth,reuse,options);
   }
   function sameTarget(a:Connection,b:Connection){return a.protocol===b.protocol&&a.host===b.host&&a.port===b.port&&a.username===b.username&&(a.domain||'')===(b.domain||'')&&(a.jump_id||'')===(b.jump_id||'')&&(a.proxy_address||'')===(b.proxy_address||'');}
+  const taskTargets = useMemo<CommandTarget[]>(() => {
+    const connected = workspaces.filter(workspace => workspace.ssh && workspace.sessionID && workspace.state === '已连接').map(workspace => ({ id: workspace.sessionID!, name: workspace.name, address: `${workspace.connection?.username}@${workspace.connection?.host?.includes(':') ? `[${workspace.connection.host}]` : workspace.connection?.host}:${workspace.connection?.port}`, connection: workspace.connection, preference: preferences[workspace.connectionID] }));
+    return [...connected, ...(catalog?.connections || []).filter(connection => connection.protocol === 'ssh' && !connected.some(target => target.connection?.id === connection.id && sameTarget(target.connection, connection))).map(connection => ({ id: `saved:${connection.id}`, name: connection.name, address: `${connection.username}@${connection.host.includes(':') ? `[${connection.host}]` : connection.host}:${connection.port}`, connection, preference: preferences[connection.id], disconnected: true }))];
+  }, [workspaces, catalog, preferences]);
+  async function connectTaskTargets(targets: CommandTarget[]) {
+    if (attempt.busy || localOpening.current) throw new Error('请等待当前连接完成');
+    const connected: { before: string; target: CommandTarget }[] = [], failures: string[] = [];
+    setCommandTasksOpen(false);
+    try {
+      for (const target of targets) {
+        const connection = catalog?.connections.find(item => item.id === target.connection?.id && item.protocol === 'ssh');
+        if (!connection) { failures.push(`${target.name}：保存连接已删除`); continue; }
+        const existing = latestWorkspaces.current.find(item => item.ssh && item.sessionID && item.state === '已连接' && item.connectionID === connection.id && item.connection && sameTarget(item.connection, connection));
+        let session = existing?.sessionID;
+        if (!session) {
+          if (!await connect(connection)) {
+            const message = attempt.lastError() || '连接已取消'; failures.push(`${target.name}：${message}`);
+            if (message === '连接已取消') { failures.push('剩余目标未连接'); break; }
+            continue;
+          }
+          session = lastSSH.current?.connectionID === connection.id ? lastSSH.current.id : undefined;
+        }
+        if (session) connected.push({ before: target.id, target: { ...target, id: session, disconnected: false } });
+        else failures.push(`${target.name}：连接未交接到工作区`);
+      }
+      return { connected, failures };
+    } finally { setCommandTasksOpen(true); }
+  }
   function reconnectSSH(w:Workspace){const saved=catalog?.connections.find(c=>c.id===w.connectionID);if(saved&&saved.protocol!=='ssh'){setPreferenceError('保存配置的协议已改变，请新建工作区');return;}if(saved&&w.restored&&w.connection&&!sameTarget(saved,w.connection)){setPreferenceError('保存配置目标已改变，请重新填写恢复入口后确认连接');return;}if(saved)void connect(saved,undefined,w.id);else if(w.connection)setDialog({connection:{...w.connection,id:'',credential_id:''},temporary:true,workspaceID:w.id});}
   function canAutomaticallyReconnectSSH(w: Workspace) {
     const saved = catalog?.connections.find(c => c.id === w.connectionID);
@@ -478,7 +507,7 @@ export default function App() {
     {recordingOpen && <Suspense fallback={<div role="status">正在载入录制回放…</div>}><RecordingPlayer onClose={() => setRecordingOpen(false)} /></Suspense>}
     {batchCommandOpen && <Suspense fallback={<div role="status">正在载入批量命令…</div>}><BatchCommandDialog groups={catalog?.groups} targets={workspaces.filter(w => w.sessionID && w.state === '已连接').map(w => ({ id: w.sessionID!, name: w.name, address: `${w.connection?.username}@${w.connection?.host}:${w.connection?.port}`, connection: w.connection, preference: preferences[w.connectionID] }))} initial={current?.sessionID} snippets={snippets} onClose={() => setBatchCommandOpen(false)} /></Suspense>}
     {fileCompareOpen && <Suspense fallback={<div role="status">正在载入文件对比…</div>}><FileCompareDialog targets={workspaces.filter(w => !w.local && !w.rdp && w.sessionID && w.state === '已连接').map(w => ({ id: w.sessionID!, name: w.name }))} initial={current?.ssh ? current.sessionID : undefined} onTransfer={item => { transfers.accept([item]); setTransferReveal(item.id); setTransfersOpen(true); }} onClose={() => setFileCompareOpen(false)} /></Suspense>}
-    {(commandTasksOpen || commandTasksCreated) && <Suspense fallback={commandTasksOpen ? <div role="status">正在载入命令任务…</div> : null}><CommandTasksDialog initialTask={initialTask} open={commandTasksOpen} runs={commandRuns.items} historyError={commandRuns.error} onRefresh={commandRuns.refresh} onRun={commandRuns.update} groups={catalog?.groups} targets={workspaces.filter(w => w.ssh && w.sessionID && w.state === '已连接').map(w => ({ id: w.sessionID!, name: w.name, address: `${w.connection?.username}@${w.connection?.host}:${w.connection?.port}`, connection: w.connection, preference: preferences[w.connectionID] }))} onClose={() => { setCommandTasksOpen(false); setInitialTask(''); }} /></Suspense>}
+    {(commandTasksOpen || commandTasksCreated) && <Suspense fallback={commandTasksOpen ? <div role="status">正在载入命令任务…</div> : null}><CommandTasksDialog initialTask={initialTask} open={commandTasksOpen} runs={commandRuns.items} historyError={commandRuns.error} onRefresh={commandRuns.refresh} onRun={commandRuns.update} groups={catalog?.groups} targets={taskTargets} onConnectTargets={connectTaskTargets} onClose={() => { setCommandTasksOpen(false); setInitialTask(''); }} /></Suspense>}
     {dockerOpen && <Suspense fallback={<div role="status">正在载入 Docker…</div>}><DockerDialog targets={workspaces.filter(w => w.ssh && w.sessionID && w.state === '已连接').map(w => ({ id: w.sessionID!, name: w.name }))} initial={dockerResource?.workspace || (current?.ssh ? current.sessionID : undefined)} initialContainer={dockerResource?.container} fontSize={fontSize} onDirectory={(session, path) => { const target = workspaces.find(value => value.sessionID === session); if (target) { setActive(target.id); target.ssh?.current?.locateDirectory(path); setDockerOpen(false); setDockerResource(undefined); } }} onClose={() => { setDockerOpen(false); setDockerResource(undefined); }} /></Suspense>}
     {restoreDialog&&<WorkspaceRestoreDialog layout={restoreDialog} connections={catalog?.connections||[]} openIDs={workspaces.map(w=>w.id)} onRestore={restoreWorkspaces} onClose={()=>setRestoreDialog(undefined)}/>}
     {workspaceSetLayout && <Suspense fallback={<div className="session-status" role="status">正在载入工作集…</div>}><WorkspaceSetsDialog layout={workspaceSetLayout} localCount={workspaces.filter(workspace => !!workspace.local).length} connections={catalog?.connections || []} onOpen={openWorkspaceSet} onClose={() => setWorkspaceSetLayout(undefined)} /></Suspense>}

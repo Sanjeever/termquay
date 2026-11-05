@@ -22,6 +22,7 @@ export default function useConnectionAttempt(onSSH: (id: string, connection: Con
   const [connectedWorkspace, setConnectedWorkspace] = useState('');
   const authID = useRef('');
   const retryable = useRef(false);
+  const failure = useRef('');
   const current = useRef<Attempt>();
   function cancel() { const attempt = current.current; if (!attempt) return; attempt.cancelled = true; attempt.operation?.cancel(); attempt.resolve?.(false); setTrust(undefined); setChallenge(undefined); }
   async function answer(answers: string[]) { if (!challenge) throw new Error('认证提示已失效'); await AnswerSSHChallenge(authID.current, challenge.id, answers); setChallenge(undefined); }
@@ -34,6 +35,7 @@ export default function useConnectionAttempt(onSSH: (id: string, connection: Con
     current.current = attempt; setBusy(true); setWorkspaceID(reuse||'');setError(''); setTarget(connection.name || connection.host);
     setSteps([]); setConnectedWorkspace('');
     retryable.current = false;
+    failure.current = '';
     let owned = '';
     let rdpWorkspace = '';
     let poll: ReturnType<typeof setTimeout> | undefined;
@@ -94,7 +96,7 @@ export default function useConnectionAttempt(onSSH: (id: string, connection: Con
         owned = '';
       }
       return true;
-    } catch (e) { const progress = (e as { cause?: { steps?: ConnectionStep[] } } | null)?.cause?.steps; if (Array.isArray(progress)) setSteps(progress); const message = attempt.cancelled ? '连接已取消' : errorMessage(e); if (rdpWorkspace) failRDP(rdpWorkspace, message); if (!attempt.cancelled) setError(message); return false; }
+    } catch (e) { const progress = (e as { cause?: { steps?: ConnectionStep[] } } | null)?.cause?.steps; if (Array.isArray(progress)) setSteps(progress); const message = attempt.cancelled ? '连接已取消' : errorMessage(e); failure.current = message; if (rdpWorkspace) failRDP(rdpWorkspace, message); if (!attempt.cancelled) setError(message); return false; }
     finally {
       attempt.progressEpoch++;
       clearTimeout(poll); setChallenge(undefined);
@@ -104,5 +106,5 @@ export default function useConnectionAttempt(onSSH: (id: string, connection: Con
       finally { current.current = undefined; setSteps(previous => previous.map(step => step.state === 'running' ? { ...step, state: 'cancelled' } : step)); setBusy(false); setTrust(undefined); }
     }
   }
-  return { start, busy, workspaceID,error, target, trust, confirm, challenge, answer, cancel, steps, connectedWorkspace, canRetry: () => retryable.current, cancelWorkspace: (id: string) => { if (current.current?.workspaceID === id) cancel(); }, clearError: () => setError('') };
+  return { start, busy, workspaceID,error, target, trust, confirm, challenge, answer, cancel, steps, connectedWorkspace, lastError: () => failure.current, canRetry: () => retryable.current, cancelWorkspace: (id: string) => { if (current.current?.workspaceID === id) cancel(); }, clearError: () => setError('') };
 }

@@ -126,6 +126,8 @@ export interface CommandRunTarget {
     "id": string;
     "name": string;
     "address": string;
+    "connection_id"?: string;
+    "identity"?: string;
 }
 
 export interface CommandStep {

@@ -10,13 +10,14 @@ import ReadonlyDiffView from '../files/ReadonlyDiffView';
 import CommandTargets, { type CommandTarget } from './CommandTargets';
 import type { Group } from '../../../bindings/github.com/Sanjeever/termquay/internal/store/models';
 import CommandCheckEditor from './CommandCheckEditor';
+import CommandRunComparison from './CommandRunComparison';
 
 type Target = CommandTarget;
 type Result = CommandRunItem & { key: string };
 type TaskDraft = CommandTask & { steps: CommandStep[] };
 const emptyTask = (): TaskDraft => ({ id: '', name: '', steps: [{ name: '步骤 1', script: '', timeout_seconds: 60 }], stop_on_failure: true });
 
-export default function CommandTasksDialog({ open, targets, groups: catalogGroups, initialTask = '', runs, historyError, onRun, onRefresh, onClose }: { open: boolean; targets: Target[]; groups?: Group[]; initialTask?: string; runs: CommandRunSummary[]; historyError: string; onRun(value: CommandRunSummary): void; onRefresh(): void; onClose(): void }) {
+export default function CommandTasksDialog({ open, targets, groups: catalogGroups, initialTask = '', onConnectTargets, runs, historyError, onRun, onRefresh, onClose }: { open: boolean; targets: Target[]; groups?: Group[]; initialTask?: string; onConnectTargets(targets: Target[]): Promise<{ connected: { before: string; target: Target }[]; failures: string[] }>; runs: CommandRunSummary[]; historyError: string; onRun(value: CommandRunSummary): void; onRefresh(): void; onClose(): void }) {
   const [tasks, setTasks] = useState<CommandTask[]>([]);
   const [task, setTask] = useState<TaskDraft>(emptyTask);
   const [baseline, setBaseline] = useState(() => JSON.stringify(emptyTask()));
@@ -34,7 +35,8 @@ export default function CommandTasksDialog({ open, targets, groups: catalogGroup
   const [savingHistory, setSavingHistory] = useState(false);
   const [deletingHistory, setDeletingHistory] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [discard, setDiscard] = useState<{ task: CommandTask; clearRun: boolean }>();
+  const [discard, setDiscard] = useState<{ task: CommandTask; clearRun: boolean; selection?: string[] }>();
+  const [connectionFailures, setConnectionFailures] = useState<string[]>([]);
   const [deleting, setDeleting] = useState(false);
   const [group, setGroup] = useState('target');
   const [comparison, setComparison] = useState<[string, string]>(['', '']);
@@ -44,6 +46,7 @@ export default function CommandTasksDialog({ open, targets, groups: catalogGroup
   const [loadingRecord, setLoadingRecord] = useState(false);
   const [exportSelection, setExportSelection] = useState(new Set<string>());
   const [baselineTarget, setBaselineTarget] = useState('');
+  const initialHandled = useRef('');
   useEffect(() => { if (open) { const waiting = runs.find(item => item.state === '等待确认'); if (waiting) setRunID(waiting.id); } }, [open]);
   const dirty = JSON.stringify(task) !== baseline;
   const names = [...new Set(task.steps.flatMap(step => snippetParameters(step.check?.kind === 'file' ? step.check.file_path || '' : step.script)))];
@@ -66,7 +69,9 @@ export default function CommandTasksDialog({ open, targets, groups: catalogGroup
   }, [open]);
   const finishedAt = summary?.finished_at;
   useEffect(() => {
-    if (!open || !initialTask || loading || activeRun) return;
+    if (!initialTask) { initialHandled.current = ''; return; }
+    if (!open || loading || activeRun || initialHandled.current === initialTask) return;
+    initialHandled.current = initialTask;
     const value = tasks.find(item => item.id === initialTask);
     if (value) requestChoose(value, true); else setError('任务引用已失效，请编辑操作手册');
   }, [open, initialTask, loading]);
@@ -95,7 +100,28 @@ export default function CommandTasksDialog({ open, targets, groups: catalogGroup
     return () => { ended = true; off(); request.cancel(); };
   }, [runID, finishedAt, open]);
   function choose(value: CommandTask) { if (!value.steps?.length) { setError('命令任务缺少步骤'); return; } const draft = { ...value, steps: value.steps }; setTask(draft); setBaseline(JSON.stringify(!value.id && value.name ? emptyTask() : draft)); setParameters({}); setError(''); }
-  function requestChoose(value: CommandTask, clearRun = false) { if (dirty) setDiscard({ task: value, clearRun }); else { choose(value); if (clearRun) setRunID(''); } }
+  function requestChoose(value: CommandTask, clearRun = false, selection?: string[]) { if (dirty) setDiscard({ task: value, clearRun, selection }); else { choose(value); if (clearRun) setRunID(''); if (selection) setSelected(new Set(selection)); } }
+  async function connectSelected() {
+    const chosen = targets.filter(target => selected.has(target.id) && target.disconnected);
+    if (!chosen.length || busy) return;
+    if (chosen.length > 64) { setError('每次最多连接 64 个目标'); return; }
+    setBusy(true); setError(''); setConnectionFailures([]);
+    try { const result = await onConnectTargets(chosen); if (mounted.current) { setSelected(previous => { const next = new Set(previous); for (const item of result.connected) { next.delete(item.before); next.add(item.target.id); } return next; }); setConnectionFailures(result.failures); } }
+    catch (e) { if (mounted.current) setError(errorMessage(e)); }
+    finally { if (mounted.current) setBusy(false); }
+  }
+  function retryFailed() {
+    if (!record) return;
+    const failed = new Map(results.filter(item => ['失败', '非零退出', '不通过', '无法判定', '已请求取消'].includes(item.state)).map(item => [item.target.id, item.target]));
+    const selection: string[] = [], missing: string[] = [];
+    for (const old of failed.values()) {
+      const candidates = targets.filter(target => target.address === old.address && (!old.connection_id || target.connection?.id === old.connection_id));
+      if (candidates.length === 1) selection.push(candidates[0].id); else missing.push(old.name);
+    }
+    if (missing.length) { setError(`无法唯一匹配原目标，请核对连接配置后重试：${missing.join('、')}`); return; }
+    if (!selection.length) { setError('没有可重跑的失败主机'); return; }
+    requestChoose({ ...record.task, id: '' }, true, selection);
+  }
   function updateStep(index: number, patch: Partial<CommandStep>) { setTask(previous => ({ ...previous, steps: previous.steps.map((step, i) => i === index ? { ...step, ...patch } : step) })); }
   async function save() {
     setBusy(true); setError('');
@@ -107,12 +133,13 @@ export default function CommandTasksDialog({ open, targets, groups: catalogGroup
     if (starting.current || busy || invalid || expansionError || !selected.size) return;
     const chosen = targets.filter(target => selected.has(target.id));
     if (!chosen.length) return;
+    if (chosen.length !== selected.size || chosen.some(target => target.disconnected)) { setError('请先连接全部所选目标，并核对失效的目标选择'); return; }
     if (chosen.length > 64) { setError('每次最多执行 64 个工作区'); return; }
     if (needsBaseline && !targets.some(target => target.id === baselineTarget)) { setError('请选择已连接的基线主机'); return; }
     const steps: CommandStep[] = expanded.map(step => ({ name: step.name, script: step.text, timeout_seconds: step.timeout_seconds, check: step.check }));
     starting.current = true; setBusy(true); setError('');
     try {
-      const value = await StartCommandRun({ ...task, steps }, chosen.map(({ id, name, address }) => ({ id, name, address })), baselineTarget);
+      const value = await StartCommandRun({ ...task, steps }, chosen.map(({ id, name, address, connection }) => ({ id, name, address, connection_id: connection?.id })), baselineTarget);
       onRun(value);
       if (mounted.current) { setRunID(value.id); setRecord(undefined); }
     } catch (e) { if (mounted.current) setError(errorMessage(e)); }
@@ -135,6 +162,7 @@ export default function CommandTasksDialog({ open, targets, groups: catalogGroup
     {summary?.error && <p role="alert" className="error">{summary.error}</p>}
     {loadingRecord && <p role="status" className="muted">正在读取执行记录…</p>}
     {record && <details><summary>本次执行定义</summary>{record.task.steps?.map((step, index) => <div key={index}><strong>{step.name}</strong><pre className="inspection-command">{step.check?.kind === 'file' ? step.check.file_path : step.script}</pre></div>)}</details>}
+    {record && !activeRun && <><Button className="self-start" size="sm" variant="light" isDisabled={submitting || loadingRecord} onPress={retryFailed}>准备失败主机重跑（全部步骤）</Button><details><summary>比较不同执行记录</summary><CommandRunComparison current={{ ...record, results }} runs={runs} /></details></>}
     <label className="form-field">任务<SelectControl disabled={busy || loading} value={task.id} onChange={event => requestChoose(tasks.find(item => item.id === event.target.value) || emptyTask())}><option value="">新任务</option>{tasks.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</SelectControl></label>
     <label className="form-field">名称<input disabled={busy} maxLength={128} value={task.name} onChange={event => setTask({ ...task, name: event.target.value })} /></label>
     <div className="button-row"><label className="form-field">并发主机数<input type="number" min={1} max={3} value={task.concurrency || 3} disabled={busy} onChange={event => setTask({ ...task, concurrency: Number(event.target.value) })} /></label><label className="form-field">每批主机数<input type="number" min={1} max={64} value={task.batch_size || ''} placeholder="全部目标" disabled={busy} onChange={event => setTask({ ...task, batch_size: Number(event.target.value) })} /></label><label className="checkbox-label"><input type="checkbox" checked={!!task.first_host_approval} disabled={busy} onChange={event => setTask({ ...task, first_host_approval: event.target.checked })} />首台完成后人工确认</label><label className="checkbox-label"><input type="checkbox" checked={!!task.stop_all_on_failure} disabled={busy} onChange={event => setTask({ ...task, stop_all_on_failure: event.target.checked })} />任一失败停止后续主机与批次</label></div>
@@ -150,7 +178,9 @@ export default function CommandTasksDialog({ open, targets, groups: catalogGroup
     {names.map(name => <label className="form-field" key={name}>{name}<input maxLength={4096} disabled={busy} value={parameters[name] || ''} onChange={event => setParameters({ ...parameters, [name]: event.target.value })} /></label>)}
     {!!names.length && <details><summary>展开后的命令</summary>{expanded.map((step, index) => <pre key={index}>{step.text}</pre>)}</details>}
     <CommandTargets targets={targets} groups={catalogGroups} selected={selected} onChange={setSelected} busy={busy} />
-    {needsBaseline && <label className="form-field">文件基线主机<SelectControl value={baselineTarget} disabled={busy} onChange={event => setBaselineTarget(event.target.value)}><option value="">选择已连接 SSH 工作区</option>{targets.map(target => <option key={target.id} value={target.id}>{target.name} · {target.address}</option>)}</SelectControl></label>}
+    {targets.some(target => selected.has(target.id) && target.disconnected) && <Button size="sm" className="self-start" isDisabled={busy} onPress={() => void connectSelected()}>连接所选未连接主机</Button>}
+    {connectionFailures.map((message, index) => <p className="error" role="alert" key={index}>{message}</p>)}
+    {needsBaseline && <label className="form-field">文件基线主机<SelectControl value={baselineTarget} disabled={busy} onChange={event => setBaselineTarget(event.target.value)}><option value="">选择已连接 SSH 工作区</option>{targets.filter(target => !target.disconnected).map(target => <option key={target.id} value={target.id}>{target.name} · {target.address}</option>)}</SelectControl></label>}
     {error && <p className="error" role="alert">{error}</p>}{expansionError && <p className="error" role="alert">{expansionError.error || '替换后命令超过 32 KiB'}</p>}
     {!!results.length && <><label className="form-field">结果视图<SelectControl value={group} onChange={event => setGroup(event.target.value)}><option value="matrix">巡检总览</option><option value="target">按主机</option><option value="exit">按退出码</option><option value="output">按相同输出</option></SelectControl></label>
       {group === 'matrix' ? <div className="inspection-matrix"><table><thead><tr><th>主机</th>{Array.from(matrixSteps, ([index, name]) => <th key={index}>{name}</th>)}</tr></thead><tbody>{Array.from(matrixTargets.values(), target => <tr key={target.id}><th scope="row">{target.name}</th>{Array.from(matrixSteps.keys(), index => { const item = matrixResults.get(`${target.id}:${index}`); return <td key={index}><span className={item?.check?.state === 'fail' || item?.check?.state === 'unknown' ? 'error' : ''} title={item?.check?.message || item?.error}>{item?.state || '未执行'}</span></td>; })}</tr>)}</tbody></table></div> : Array.from(groups.values(), (items, index) => <details key={index} open={group === 'target'}><summary>{group === 'target' ? items[0].target.name : group === 'exit' ? items[0].result ? `退出码 ${items[0].result.exit_code}` : items[0].state : `输出组 ${index + 1}`} · {items.length} 项</summary><table><thead><tr><th>主机</th><th>步骤</th><th>状态</th><th>退出码</th><th>耗时</th><th>详情</th></tr></thead><tbody>{items.map(item => <tr key={item.key}><td>{item.target.name}</td><td>{item.step}</td><td>{item.state}</td><td>{item.result?.exit_code ?? '—'}</td><td>{item.result ? `${(item.result.duration_ms / 1000).toFixed(2)}s` : '—'}</td><td><details><summary>查看</summary>{item.check && <><p>{item.check.message}</p>{item.check.actual !== undefined && <pre>实际值 {item.check.actual}</pre>}{item.check.expected !== undefined && <pre>预期值 {item.check.expected}</pre>}</>}{item.baseline && <p>基线 {item.baseline}</p>}{(item.error || item.result?.error) && <p className="error">{item.error || item.result?.error}</p>}<pre>{item.result?.stdout}</pre><pre className="error">{item.result?.stderr}</pre>{item.result?.truncated && <p>输出已截断</p>}</details></td></tr>)}</tbody></table></details>)}
@@ -161,7 +191,7 @@ export default function CommandTasksDialog({ open, targets, groups: catalogGroup
     </>}
   </ModalBody><ModalFooter><Button variant="light" isDisabled={submitting} onPress={onClose}>{activeRun ? '收起到后台' : '关闭'}</Button>{task.id && <Button color="danger" variant="light" isDisabled={busy} onPress={() => setDeleting(true)}>删除任务</Button>}<Button variant="light" isDisabled={busy || loading || !task.name.trim() || invalid || !dirty} onPress={() => void save()}>保存任务</Button>{activeRun ? <Button color="danger" variant="light" onPress={cancel}>请求取消</Button> : <Button color="primary" isDisabled={busy || loading || !selected.size || invalid || !!expansionError} onPress={() => void run()}>在 {selected.size} 个工作区执行</Button>}</ModalFooter>
   </ModalContent>
-    <Modal isOpen={!!discard} onClose={() => setDiscard(undefined)} className="app-dialog"><ModalContent><ModalHeader>任务尚未保存</ModalHeader><ModalFooter><Button variant="light" onPress={() => setDiscard(undefined)}>返回编辑</Button><Button color="danger" onPress={() => { const next = discard; setDiscard(undefined); if (next) { choose(next.task); if (next.clearRun) setRunID(''); } }}>放弃修改</Button></ModalFooter></ModalContent></Modal>
+    <Modal isOpen={!!discard} onClose={() => setDiscard(undefined)} className="app-dialog"><ModalContent><ModalHeader>任务尚未保存</ModalHeader><ModalFooter><Button variant="light" onPress={() => setDiscard(undefined)}>返回编辑</Button><Button color="danger" onPress={() => { const next = discard; setDiscard(undefined); if (next) { choose(next.task); if (next.clearRun) setRunID(''); if (next.selection) setSelected(new Set(next.selection)); } }}>放弃修改</Button></ModalFooter></ModalContent></Modal>
     <Modal isOpen={savingHistory} onClose={() => !submitting && setSavingHistory(false)} className="app-dialog"><ModalContent><ModalHeader>保存执行记录</ModalHeader><ModalBody><p>展开后的命令、目标地址和输出将加密保存在本机，不进入常规备份。</p>{error && <p role="alert" className="error">{error}</p>}</ModalBody><ModalFooter><Button variant="light" isDisabled={submitting} onPress={() => setSavingHistory(false)}>取消</Button><Button color="primary" isLoading={submitting} onPress={async () => { setBusy(true); setError(''); try { const value = await SaveCommandRun(runID); onRun(value); setSavingHistory(false); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); } }}>加密保存</Button></ModalFooter></ModalContent></Modal>
     <Modal isOpen={deletingHistory} onClose={() => !submitting && setDeletingHistory(false)} className="app-dialog"><ModalContent><ModalHeader>移除执行记录？</ModalHeader><ModalBody><p>{summary?.saved ? '将删除本机加密记录和本次运行中的结果。' : '将丢弃本次运行中的结果。'}</p>{error && <p role="alert" className="error">{error}</p>}</ModalBody><ModalFooter><Button variant="light" isDisabled={submitting} onPress={() => setDeletingHistory(false)}>取消</Button><Button color="danger" isLoading={submitting} onPress={async () => { setBusy(true); setError(''); try { await DeleteCommandRun(runID); setRunID(''); setDeletingHistory(false); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); } }}>移除</Button></ModalFooter></ModalContent></Modal>
     <Modal isOpen={deleting} onClose={() => !busy && setDeleting(false)} className="app-dialog"><ModalContent><ModalHeader>删除任务“{task.name}”？</ModalHeader><ModalFooter><Button variant="light" isDisabled={busy} onPress={() => setDeleting(false)}>取消</Button><Button color="danger" isLoading={busy} onPress={async () => { setBusy(true); try { await DeleteCommandTask(task.id); setTasks(previous => previous.filter(item => item.id !== task.id)); choose(emptyTask()); setDeleting(false); } catch (e) { setError(errorMessage(e)); setDeleting(false); } finally { setBusy(false); } }}>删除</Button></ModalFooter></ModalContent></Modal>
