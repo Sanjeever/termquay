@@ -19,12 +19,6 @@ func Run(assets fs.FS, appIcons fs.ReadFileFS, build BuildInfo, licenses fs.Read
 		return err
 	}
 	service := NewAppService(build, licenses)
-	cliServer, err := localapi.Listen(service.handleCLI)
-	if err != nil {
-		return err
-	}
-	defer cliServer.Close()
-	service.cliServer = cliServer
 	app := application.New(application.Options{
 		Name: "TermQuay", Description: "TermQuay 远程连接工作台",
 		Icon:       appIcon,
@@ -33,6 +27,12 @@ func Run(assets fs.FS, appIcons fs.ReadFileFS, build BuildInfo, licenses fs.Read
 		Assets:     application.AssetOptions{Handler: service.imageAssetHandler(application.AssetFileServerFS(assets))},
 		Mac:        application.MacOptions{ApplicationShouldTerminateAfterLastWindowClosed: true},
 	})
+	cliServer, err := localapi.Listen(service.handleCLI)
+	if err != nil {
+		return err
+	}
+	defer cliServer.Close()
+	service.cliServer = cliServer
 	installWorkbenchMenu(app)
 	app.Event.OnApplicationEvent(events.Common.ScreenLocked, func(_ *application.ApplicationEvent) { service.lockForSystem() })
 	app.Event.OnApplicationEvent(events.Common.SystemWillSleep, func(_ *application.ApplicationEvent) { service.lockForSystem() })

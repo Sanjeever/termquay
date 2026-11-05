@@ -5,11 +5,13 @@ package localapi
 import (
 	"context"
 	"fmt"
-	"golang.org/x/sys/unix"
 	"net"
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
+
+	"golang.org/x/sys/unix"
 )
 
 func endpoint() (string, error) {
@@ -78,5 +80,5 @@ func dial(ctx context.Context) (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return (&net.Dialer{Timeout: 2e9}).DialContext(ctx, "unix", path)
+	return (&net.Dialer{Timeout: 2 * time.Second}).DialContext(ctx, "unix", path)
 }
