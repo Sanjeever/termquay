@@ -342,6 +342,7 @@ export interface LinuxService {
 }
 
 export interface LinuxServiceDetails {
+    "target": string;
     "properties": { [_ in string]?: string } | null;
     "warning": string;
 }

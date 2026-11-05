@@ -56,6 +56,7 @@ type LinuxServiceList struct {
 }
 
 type LinuxServiceDetails struct {
+	Target     string            `json:"target"`
 	Properties map[string]string `json:"properties"`
 	Warning    string            `json:"warning"`
 }
@@ -206,7 +207,12 @@ func (a *AppService) ReadLinuxServiceDetails(ctx context.Context, workspace, uni
 	if !validServiceUnit(unit) {
 		return view, errors.New("服务名称无效")
 	}
-	result, err := a.inspectLinux(ctx, workspace, "exec systemctl --no-pager --no-ask-password show --all --property=Id,Description,LoadState,ActiveState,SubState,MainPID,ExecMainStartTimestamp,ExecMainStatus,FragmentPath,User,WorkingDirectory,Result -- '"+unit+"'")
+	a.mu.Lock()
+	if owner := a.workspaces[workspace]; owner != nil {
+		view.Target = owner.target
+	}
+	a.mu.Unlock()
+	result, err := a.inspectLinux(ctx, workspace, "exec systemctl --no-pager --no-ask-password show --all --property=Id,Description,LoadState,ActiveState,SubState,MainPID,ExecMainStartTimestamp,ExecMainStatus,FragmentPath,User,WorkingDirectory,Result,UnitFileState,CanReload -- '"+unit+"'")
 	if err != nil {
 		return view, err
 	}
@@ -223,6 +229,18 @@ func (a *AppService) ReadLinuxServiceDetails(ctx context.Context, workspace, uni
 		return view, errors.New("服务不存在或无法读取")
 	}
 	return view, nil
+}
+
+func (a *AppService) ChangeLinuxServiceState(ctx context.Context, workspace, unit, action string) (terminal.CommandResult, error) {
+	if !validServiceUnit(unit) {
+		return terminal.CommandResult{}, errors.New("服务名称无效")
+	}
+	switch action {
+	case "start", "stop", "restart", "reload", "enable", "disable":
+	default:
+		return terminal.CommandResult{}, errors.New("服务操作无效")
+	}
+	return a.RunRemoteCommand(ctx, workspace, "export LC_ALL=C SYSTEMD_COLORS=0\nexec systemctl --no-pager --no-ask-password "+action+" -- '"+unit+"'", 60)
 }
 
 func (a *AppService) ReadLinuxServiceLog(ctx context.Context, workspace, unit string) (terminal.CommandResult, error) {

@@ -80,6 +80,10 @@ export function ChangeContainerState(workspace: string, socket: string, id: stri
     return $Call.ByID(1293882578, workspace, socket, id, action);
 }
 
+export function ChangeLinuxServiceState(workspace: string, unit: string, action: string): $CancellablePromise<ssh$0.CommandResult> {
+    return $Call.ByID(2570689052, workspace, unit, action);
+}
+
 export function CheckSSHFileAccess(workspace: string): $CancellablePromise<void> {
     return $Call.ByID(354512916, workspace);
 }

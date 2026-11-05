@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
-import { ListLinuxProcesses, ListLinuxServices, ReadLinuxProcessDetails, ReadLinuxServiceDetails, ReadLinuxServiceLog } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
+import { ChangeLinuxServiceState, ListLinuxProcesses, ListLinuxServices, ReadLinuxProcessDetails, ReadLinuxServiceDetails, ReadLinuxServiceLog } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { LinuxProcess, LinuxProcessDetails, LinuxProcessList, LinuxServiceDetails, LinuxServiceList } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import type { CommandResult } from '../../../bindings/github.com/Sanjeever/termquay/internal/ssh/models';
 import ErrorNotice from '../../components/ErrorNotice';
@@ -63,14 +63,21 @@ function ProcessInspection({ workspace, initialOrder, ...navigation }: { workspa
   </>;
 }
 
-const serviceProperties = [['Description', '描述'], ['LoadState', '加载状态'], ['ActiveState', '活动状态'], ['SubState', '子状态'], ['Result', '运行结果'], ['MainPID', '主进程'], ['ExecMainStatus', '退出状态'], ['ExecMainStartTimestamp', '启动时间'], ['User', '运行用户']] as const;
+const serviceProperties = [['Description', '描述'], ['LoadState', '加载状态'], ['ActiveState', '活动状态'], ['SubState', '子状态'], ['UnitFileState', '开机启动'], ['Result', '运行结果'], ['MainPID', '主进程'], ['ExecMainStatus', '退出状态'], ['ExecMainStartTimestamp', '启动时间'], ['User', '运行用户']] as const;
+const serviceActions = { start: '启动', stop: '停止', restart: '重启', reload: '重新加载', enable: '启用开机启动', disable: '禁用开机启动' } as const;
 
-function ServiceDetails({ workspace, unit, onDirectory, onFile }: { workspace: string; unit: string } & Navigation) {
+function ServiceDetails({ workspace, unit, onDirectory, onFile, onChanged }: { workspace: string; unit: string; onChanged(): void } & Navigation) {
   const [details, setDetails] = useState<LinuxServiceDetails>();
   const [log, setLog] = useState<CommandResult>();
   const [error, setError] = useState('');
   const [logError, setLogError] = useState('');
   const [revision, setRevision] = useState(0);
+  const [action, setAction] = useState<keyof typeof serviceActions>();
+  const [changing, setChanging] = useState(false);
+  const [actionError, setActionError] = useState('');
+  const mutation = useRef<ReturnType<typeof ChangeLinuxServiceState>>();
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; mutation.current?.cancel(); }; }, []);
   useEffect(() => {
     let ended = false;
     setDetails(undefined); setLog(undefined); setError(''); setLogError('');
@@ -80,9 +87,30 @@ function ServiceDetails({ workspace, unit, onDirectory, onFile }: { workspace: s
     logs.then(value => { if (!ended) setLog(value); }).catch(e => { if (!ended) setLogError(errorMessage(e)); });
     return () => { ended = true; request.cancel(); logs.cancel(); };
   }, [workspace, unit, revision]);
+  async function changeState() {
+    if (!action || mutation.current) return;
+    setChanging(true); setActionError('');
+    const request = ChangeLinuxServiceState(workspace, unit, action);
+    mutation.current = request;
+    try {
+      const result = await request;
+      if (!mounted.current) return;
+      setAction(undefined);
+      if (result.error || result.exit_code !== 0) setActionError(`${result.error || result.stderr.trim() || `服务操作失败（退出码 ${result.exit_code}）`}${result.exit_code < 0 ? '；远端状态未知，请核对服务状态，不要自动重试' : ''}${result.truncated ? '；输出已截断' : ''}`);
+      else if (result.stderr.trim()) setActionError(result.stderr.trim());
+    } catch (e) {
+      if (mounted.current) { setAction(undefined); setActionError(`${errorMessage(e)}；请刷新核对服务状态`); }
+    } finally {
+      mutation.current = undefined;
+      if (mounted.current) { setChanging(false); setRevision(value => value + 1); onChanged(); }
+    }
+  }
   const properties = details?.properties || {};
   return <section className="inspection-detail" aria-label={`${unit} 详情`}>
-    <div className="inspection-toolbar"><strong>{unit}</strong><Button size="sm" variant="light" onPress={() => setRevision(value => value + 1)}>刷新详情与日志</Button></div>
+    <div className="inspection-toolbar"><strong>{unit}</strong><Button size="sm" variant="light" isDisabled={changing} onPress={() => setRevision(value => value + 1)}>刷新详情与日志</Button></div>
+    {details && <div className="button-row">{(Object.keys(serviceActions) as (keyof typeof serviceActions)[]).map(value => <Button key={value} size="sm" variant="light" isDisabled={changing || (value === 'reload' && properties.CanReload !== 'yes')} onPress={() => { setAction(value); setActionError(''); }}>{serviceActions[value]}</Button>)}</div>}
+    {action && details && <section className="inspection-detail" aria-label="确认服务操作"><p>{details.target} · {unit} · {serviceActions[action]}</p><code>systemctl {action} -- '{unit}'</code><div className="button-row"><Button size="sm" variant="light" isDisabled={changing} onPress={() => setAction(undefined)}>取消</Button><Button size="sm" color="danger" isLoading={changing} onPress={() => void changeState()}>确认执行</Button></div></section>}
+    <ErrorNotice message={actionError} />
     <ErrorNotice message={error} />
     {details?.warning && <p className="error" role="status">{details.warning}</p>}
     {!details && !error && <p role="status" className="muted">正在读取服务详情…</p>}
@@ -116,7 +144,7 @@ function ServiceInspection({ workspace, initialUnit, ...navigation }: { workspac
     {list && <div className="session-status" role="status">{list.items?.length || 0} 个已加载服务 · {new Date(list.time).toLocaleTimeString()}{list.truncated && ' · 结果已截断，请缩小筛选范围'}</div>}
     <div className="inspection-table-scroll"><table className="inspection-table inspection-services"><thead><tr><th>服务</th><th>活动状态</th><th>描述</th></tr></thead><tbody>{(list?.items || []).map(service => <tr key={service.unit} className={selected === service.unit ? 'selected' : ''}><td><Tooltip content={service.unit}><button className="inspection-pick" aria-label={`查看服务 ${service.unit}`} aria-pressed={selected === service.unit} onClick={() => setSelected(service.unit)}>{service.unit}</button></Tooltip></td><td className={service.active === 'failed' ? 'error' : ''}>{service.active}</td><td><span className="inspection-description">{service.description}</span></td></tr>)}</tbody></table></div>
     {list && !list.items?.length && <p className="sidebar-empty">没有匹配的已加载服务</p>}
-    {selected && <ServiceDetails key={`${workspace}:${selected}`} workspace={workspace} unit={selected} {...navigation} />}
+    {selected && <ServiceDetails key={`${workspace}:${selected}`} workspace={workspace} unit={selected} onChanged={() => setRevision(value => value + 1)} {...navigation} />}
   </>;
 }
 
