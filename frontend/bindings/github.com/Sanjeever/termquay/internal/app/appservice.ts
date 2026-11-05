@@ -728,6 +728,10 @@ export function RestartForUpdate(): $CancellablePromise<void> {
     return $Call.ByID(2620859277);
 }
 
+export function RestoreTransferResumes(): $CancellablePromise<void> {
+    return $Call.ByID(2561407277);
+}
+
 export function ResumeTransfer(id: string, workspace: string): $CancellablePromise<$models.Transfer> {
     return $Call.ByID(1510581714, id, workspace);
 }

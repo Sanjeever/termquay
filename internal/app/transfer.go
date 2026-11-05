@@ -31,6 +31,7 @@ type Transfer struct {
 	SourcePath       string `json:"source_path"`
 	DestinationPath  string `json:"destination_path"`
 	Resumable        bool   `json:"resumable"`
+	ResumePersisted  bool   `json:"resume_persisted"`
 	TemporaryPath    string `json:"temporary_path,omitempty"`
 	BatchID          string `json:"batch_id"`
 	Phase            string `json:"phase"`
@@ -292,10 +293,16 @@ sampling:
 	if task.spec != nil && task.spec.syncPlanID != "" {
 		delete(a.syncPlans, task.spec.syncPlanID)
 	}
-	close(task.done)
 	a.transferEvent(task.view)
 	a.dispatchTransfersLocked()
 	a.mu.Unlock()
+	if persistErr := a.persistTransferResumes(); persistErr != nil {
+		a.mu.Lock()
+		task.view.Error = strings.TrimSpace(task.view.Error + "\n续传记录保存失败：" + persistErr.Error())
+		a.transferEvent(task.view)
+		a.mu.Unlock()
+	}
+	close(task.done)
 }
 
 type transferWriter struct {

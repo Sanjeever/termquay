@@ -559,6 +559,7 @@ export interface Transfer {
     "source_path": string;
     "destination_path": string;
     "resumable": boolean;
+    "resume_persisted": boolean;
     "temporary_path"?: string;
     "batch_id": string;
     "phase": string;

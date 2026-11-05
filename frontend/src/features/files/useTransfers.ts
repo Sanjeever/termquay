@@ -1,7 +1,7 @@
 import { errorMessage } from "../../lib/errors";
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Events } from '@wailsio/runtime';
-import { CancelTransfer, ClearTransfer, ClearFinishedTransfers, ListTransfers, RetryTransfer, ResumeTransfer, DiscardTransferResume } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
+import { CancelTransfer, ClearTransfer, ClearFinishedTransfers, ListTransfers, RestoreTransferResumes, RetryTransfer, ResumeTransfer, DiscardTransferResume } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { Transfer } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import { transferSummary } from './transferFormat';
 
@@ -17,6 +17,7 @@ export default function useTransfers(ready: boolean) {
   async function refresh() {
     const version = ++loadVersion.current;
     try {
+      await RestoreTransferResumes();
       const list = await ListTransfers();
       if (!live.current || loadVersion.current !== version) return;
       setTransfers(previous=>({...Object.fromEntries((list || []).map(task=>[task.id,task])),...previous})); setLoadError('');

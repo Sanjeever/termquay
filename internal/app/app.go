@@ -75,6 +75,8 @@ type AppService struct {
 	imagePixels            int64
 	monitors               map[string]context.CancelFunc
 	transfers              map[string]*transferTask
+	transferPersistenceMu  sync.Mutex
+	transferResumesLoaded  bool
 	transferQueue          []string
 	transferSequence       uint64
 	transferEvent          func(Transfer)
@@ -253,6 +255,21 @@ func (a *AppService) ServiceShutdown() (result error) {
 	}
 	for _, id := range ids {
 		a.CloseWorkspace(id)
+	}
+	a.mu.Lock()
+	transferDone := make([]<-chan struct{}, 0, len(a.transfers))
+	for _, task := range a.transfers {
+		transferDone = append(transferDone, task.done)
+	}
+	a.mu.Unlock()
+	transferWait, cancelTransferWait := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelTransferWait()
+	for _, done := range transferDone {
+		select {
+		case <-done:
+		case <-transferWait.Done():
+			result = errors.Join(result, errors.New("退出时传输记录尚未完成保存"))
+		}
 	}
 	for _, run := range commandRuns {
 		<-run.done

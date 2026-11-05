@@ -18,6 +18,7 @@ type transferResume struct {
 	source, before     os.FileInfo
 	offset             int64
 	temporary, staging string
+	partial            *savedTransferFile
 }
 
 func (a *AppService) retainTransfer(ctx context.Context, state *transferResume) bool {
@@ -61,18 +62,46 @@ func (a *AppService) ResumeTransfer(id, workspace string) (Transfer, error) {
 	}
 	view, err := a.startTransfer(workspace, path.Base(spec.remote), spec.direction, state.source.Size(), run, spec)
 	a.mu.Lock()
-	defer a.mu.Unlock()
 	previous.resumeClaimed = false
 	if err == nil {
 		previous.resume = nil
 		previous.view.Resumable = false
+		previous.view.ResumePersisted = false
 		previous.view.TemporaryPath = ""
 		a.transferEvent(previous.view)
+	}
+	a.mu.Unlock()
+	if err == nil {
+		if persistErr := a.persistTransferResumes(); persistErr != nil {
+			return view, fmt.Errorf("续传已入队，但旧记录更新失败：%w", persistErr)
+		}
 	}
 	return view, err
 }
 
 func (a *AppService) resumeTransferOperation(ctx context.Context, workspace string, spec transferSpec, state *transferResume, report func(int64, int64)) error {
+	var restoreErr error
+	var restored os.FileInfo
+	if spec.direction == "upload" {
+		restored, restoreErr = restoreLocalTransferFile(state.source, spec.local)
+		if restoreErr == nil {
+			state.source = restored
+		}
+	} else {
+		restored, restoreErr = restoreLocalTransferFile(state.before, spec.local)
+		if restoreErr == nil {
+			state.before = restored
+		}
+		if restoreErr == nil && state.partial != nil {
+			_, restoreErr = restoreLocalTransferFile(state.partial, state.temporary)
+			if restoreErr == nil {
+				state.partial = nil
+			}
+		}
+	}
+	if restoreErr != nil {
+		return restoreErr
+	}
 	client, release, err := a.fileClient(ctx, workspace)
 	if err != nil {
 		return err
@@ -278,16 +307,24 @@ func (a *AppService) DiscardTransferResume(id, workspace string) error {
 			release()
 		}
 	} else {
-		err = os.Remove(state.temporary)
+		if state.partial != nil {
+			_, err = restoreLocalTransferFile(state.partial, state.temporary)
+		}
+		if err == nil {
+			err = os.Remove(state.temporary)
+		}
 		if os.IsNotExist(err) {
 			err = nil
 		}
 	}
 	a.mu.Lock()
-	defer a.mu.Unlock()
 	task.resumeClaimed = false
 	if err == nil {
 		delete(a.transfers, id)
+	}
+	a.mu.Unlock()
+	if err == nil {
+		err = a.persistTransferResumes()
 	}
 	return err
 }
@@ -296,7 +333,7 @@ func (a *AppService) cleanupLocalTransferResumes() error {
 	a.mu.Lock()
 	paths := []string{}
 	for _, task := range a.transfers {
-		if task.resume != nil && task.spec != nil && task.spec.direction == "download" {
+		if task.resume != nil && task.spec != nil && task.spec.direction == "download" && !task.view.ResumePersisted {
 			paths = append(paths, task.resume.temporary)
 		}
 	}
