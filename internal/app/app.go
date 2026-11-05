@@ -291,6 +291,7 @@ func (a *AppService) ServiceShutdown() (result error) {
 	if a.rdp != nil {
 		a.rdp.Close()
 	}
+	result = errors.Join(result, a.persistTransferResumes())
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
 	if a.store != nil {

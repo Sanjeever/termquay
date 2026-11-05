@@ -105,10 +105,19 @@ func (a *AppService) ListTransfers() []Transfer {
 }
 func (a *AppService) CancelTransfer(id string) {
 	a.mu.Lock()
-	defer a.mu.Unlock()
 	task := a.transfers[id]
+	queuedResume := task != nil && task.view.State == "queued" && task.resume != nil
 	if task != nil {
 		a.cancelTransferLocked(task)
+	}
+	a.mu.Unlock()
+	if queuedResume {
+		if err := a.persistTransferResumes(); err != nil {
+			a.mu.Lock()
+			task.view.Error = "续传记录保存失败：" + err.Error()
+			a.transferEvent(task.view)
+			a.mu.Unlock()
+		}
 	}
 }
 func (a *AppService) cancelTransferLocked(task *transferTask) {

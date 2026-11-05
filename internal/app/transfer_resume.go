@@ -322,14 +322,20 @@ func (a *AppService) DiscardTransferResume(id, workspace string) error {
 			err = nil
 		}
 	}
-	a.mu.Lock()
-	task.resumeClaimed = false
-	if err == nil {
-		delete(a.transfers, id)
+	if os.IsNotExist(err) {
+		err = nil
 	}
+	a.mu.Lock()
+	task.resumeClaimed = err == nil
 	a.mu.Unlock()
 	if err == nil {
 		err = a.persistTransferResumes()
+		a.mu.Lock()
+		task.resumeClaimed = false
+		if err == nil {
+			delete(a.transfers, id)
+		}
+		a.mu.Unlock()
 	}
 	return err
 }
