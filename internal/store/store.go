@@ -203,6 +203,32 @@ func (s *Store) Connection(ctx context.Context, id string) (Connection, error) {
 }
 
 func (s *Store) Read() (Data, error) {
+	return s.read(true)
+}
+
+func (s *Store) ReadCatalog() ([]Group, []Connection, error) {
+	d, err := s.read(false)
+	return d.Groups, d.Connections, err
+}
+
+func (s *Store) ConnectionIDs() (map[string]bool, error) {
+	rows, err := s.db.Query("SELECT id FROM connections")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	ids := map[string]bool{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids[id] = true
+	}
+	return ids, rows.Err()
+}
+
+func (s *Store) read(includeCredentials bool) (Data, error) {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return Data{}, err
@@ -239,6 +265,9 @@ func (s *Store) Read() (Data, error) {
 		if err != nil {
 			return Data{}, err
 		}
+	}
+	if !includeCredentials {
+		return d, tx.Commit()
 	}
 	rows, err := tx.Query("SELECT id, kind, ciphertext FROM credentials ORDER BY id")
 	if err != nil {

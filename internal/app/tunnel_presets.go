@@ -52,12 +52,12 @@ func (a *AppService) ListServiceEntries() ([]TunnelPreset, error) {
 	if err != nil {
 		return nil, err
 	}
-	data, err := a.store.Read()
+	_, catalog, err := a.store.ReadCatalog()
 	if err != nil {
 		return nil, err
 	}
 	connections := map[string]bool{}
-	for _, c := range data.Connections {
+	for _, c := range catalog {
 		connections[c.ID] = c.Protocol == "ssh"
 	}
 	result := []TunnelPreset{}

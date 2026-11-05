@@ -14,17 +14,13 @@ func (a *AppService) connectionPreferences() (map[string]store.ConnectionPrefere
 	if err := a.openStorage(); err != nil {
 		return nil, err
 	}
-	d, err := a.store.Read()
+	valid, err := a.store.ConnectionIDs()
 	if err != nil {
 		return nil, err
 	}
 	preferences, err := a.store.ConnectionPreferences()
 	if err != nil {
 		return nil, err
-	}
-	valid := make(map[string]bool, len(d.Connections))
-	for _, c := range d.Connections {
-		valid[c.ID] = true
 	}
 	removed := false
 	for id := range preferences {

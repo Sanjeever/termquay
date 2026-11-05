@@ -20,8 +20,8 @@ func (a *AppService) GetCatalog() (Catalog, error) {
 	if err := a.openStorage(); err != nil {
 		return Catalog{}, err
 	}
-	d, err := a.store.Read()
-	return Catalog{Groups: d.Groups, Connections: d.Connections, SessionOnly: a.sessionDir != ""}, err
+	groups, connections, err := a.store.ReadCatalog()
+	return Catalog{Groups: groups, Connections: connections, SessionOnly: a.sessionDir != ""}, err
 }
 
 func (a *AppService) SaveGroup(g store.Group) error {
