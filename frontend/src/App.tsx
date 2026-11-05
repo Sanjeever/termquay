@@ -4,7 +4,8 @@ import { createRef, lazy, Suspense, useEffect, useMemo, useRef, useState } from 
 import { flushSync } from 'react-dom';
 import { AnimatePresence } from 'framer-motion';
 import { Browser, Events, System } from '@wailsio/runtime';
-import { Button, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from '@heroui/react';
+import { Button, DropdownTrigger, DropdownMenu, DropdownItem, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from '@heroui/react';
+import { Dropdown } from './components/Popover';
 import Tooltip from './components/Tooltip';
 import { GetCatalog, GetConnectionPreferences, RecordConnectionSuccess, SetRDPResolution, SetRDPClient, SystemRDPAvailable, ListSnippets } from '../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { ConnectionResource, Snippet, TunnelPreset, WorkspaceLayout, WorkspaceLayoutEntry } from '../bindings/github.com/Sanjeever/termquay/internal/app/models';
@@ -31,6 +32,7 @@ import type { TerminalHandle } from './features/terminal/TerminalView';
 import type { CommandAttention } from './features/terminal/commandAttention';
 import type { CommandTarget } from './features/terminal/CommandTargets';
 import useCommandRuns from './features/terminal/useCommandRuns';
+import type { CommandTasksRequest } from './features/terminal/CommandTasksWorkspace';
 import useConnectionAttempt from './features/connections/useConnectionAttempt';
 import ConnectionDiagnostics from './features/connections/ConnectionDiagnostics';
 import Icon from './components/Icon';
@@ -58,19 +60,19 @@ const loadTerminalView = () => import('./features/terminal/TerminalView');
 const SSHWorkspace = lazy(loadSSHWorkspace);
 const TerminalView = lazy(loadTerminalView);
 const ConnectionDialog = lazy(() => import('./features/connections/ConnectionDialog'));
-const BatchCommandDialog = lazy(() => import('./features/terminal/BatchCommandDialog'));
 const TransferPanel = lazy(() => import('./features/files/TransferPanel'));
 const SettingsView = lazy(() => import('./features/settings/SettingsView'));
 const DemoWorkbench = lazy(() => import('./features/demo/DemoWorkbench'));
 const WorkspaceSetsDialog = lazy(() => import('./features/workspaces/WorkspaceSetsDialog'));
 const FileCompareDialog = lazy(() => import('./features/files/FileCompareDialog'));
-const CommandTasksDialog = lazy(() => import('./features/terminal/CommandTasksDialog'));
+const CommandTasksWorkspace = lazy(() => import('./features/terminal/CommandTasksWorkspace'));
 const RecordingPlayer = lazy(() => import('./features/terminal/RecordingPlayer'));
 const DockerDialog = lazy(() => import('./features/docker/DockerDialog'));
 const StorageAccess = lazy(() => import('./features/settings/StorageAccess'));
 const ServicesDialog = lazy(() => import('./features/tunnels/ServicesDialog'));
 const ConnectionPlaybookDialog = lazy(() => import('./features/connections/ConnectionPlaybookDialog'));
 const DiagnosticSnapshotsDialog = lazy(() => import('./features/monitor/DiagnosticSnapshotsDialog'));
+const commandTasksTabID = 'multi-host-operations';
 
 export default function App() {
   const { appearance, update: updateAppearance, beginPreview, endPreview } = useAppearance();
@@ -118,10 +120,12 @@ export default function App() {
   const [snippets,setSnippets]=useState<Snippet[]>([]);
   const [snippetError,setSnippetError]=useState('');
   const [snippetInsert,setSnippetInsert]=useState<{snippet:Snippet;workspace:string;terminal:string}>();
-  const [batchCommandOpen, setBatchCommandOpen] = useState(false);
   const [fileCompareOpen, setFileCompareOpen] = useState(false);
   const [recordingOpen, setRecordingOpen] = useState(false);
-  const [commandTasksOpen, setCommandTasksOpen] = useState(false);
+  const [commandTasksTab, setCommandTasksTab] = useState(false);
+  const commandTasksOpen = commandTasksTab && active === commandTasksTabID && !settings && !demoScene;
+  const [commandTasksRequest, setCommandTasksRequest] = useState<CommandTasksRequest>();
+  const commandTasksRequestID = useRef(0);
   const [commandTasksCreated, setCommandTasksCreated] = useState(false);
   const commandRuns = useCommandRuns(backgroundReady || commandTasksOpen);
   useEffect(() => { if (commandTasksOpen) setCommandTasksCreated(true); }, [commandTasksOpen]);
@@ -130,7 +134,6 @@ export default function App() {
   const [dockerResource, setDockerResource] = useState<{ workspace: string; container: string }>();
   const [playbookConnection, setPlaybookConnection] = useState<Connection>();
   const [resourceRequest, setResourceRequest] = useState<{ session: string; resource: ConnectionResource }>();
-  const [initialTask, setInitialTask] = useState('');
   const [servicesOpen, setServicesOpen] = useState(false);
   const [services, setServices] = useState<TunnelPreset[]>([]);
   const [serviceError, setServiceError] = useState('');
@@ -196,7 +199,15 @@ export default function App() {
     if (keyboard) { tabNavigation.current = true; requestAnimationFrame(() => document.querySelector<HTMLElement>('.workspace-tabs [role=tab][aria-selected=true]')?.focus()); }
   }
   function select(id: string, keyboard = false) { tabNavigation.current = keyboard; setActive(id); setSettings(false); }
-  function closeWorkspace(id = active, keyboard = true) { if (id) workbenchClose.requestClose(id, keyboard); }
+  function closeWorkspace(id = active, keyboard = true) {
+    if (id === commandTasksTabID) { setCommandTasksTab(false); if (active === id) select(recentWorkspaces.current.find(value => workspaces.some(workspace => workspace.id === value)) || '', keyboard); return; }
+    if (id) workbenchClose.requestClose(id, keyboard);
+  }
+  function openCommandTasks(section: CommandTasksRequest['section'] = 'execute', targets?: string[], task?: string) {
+    setCommandTasksTab(true);
+    setCommandTasksRequest({ id: ++commandTasksRequestID.current, section, targets: targets ?? (section !== 'history' && current?.ssh && current.sessionID ? [current.sessionID] : undefined), task });
+    select(commandTasksTabID);
+  }
   function closeCurrentTab() { if (settings) { setSettings(false); return; } if (current?.ssh?.current?.workspaceAction('closeContent')) return; closeWorkspace(); }
   function newTerminal() { if (current?.ssh && !settings) { current.ssh.current?.workspaceAction('newTerminal'); return; } const shell = localShells.find(shell=>shell.name===current?.local?.shell) || localShells[0]; if(shell)void openLocalShell(shell.id); }
   function moveWorkspace(id: string, target: string) {
@@ -234,7 +245,7 @@ export default function App() {
   function selectDemoScene(scene: DemoScene) { setDemoScene(scene);setDemoRevision(value=>value+1); }
   function exitDemo() { setDemoScene(null);endPreview(); }
   useEffect(() => { void reload(); }, []);
-  useEffect(()=>{if(!palette&&!batchCommandOpen){setSnippets([]);return;}let ended=false;const request=ListSnippets();request.then(values=>{if(!ended){setSnippets(values||[]);setSnippetError('');}}).catch(e=>{if(!ended)setSnippetError(errorMessage(e));});return()=>{ended=true;request.cancel();};},[palette,active,batchCommandOpen]);
+  useEffect(()=>{if(!palette&&!commandTasksOpen){setSnippets([]);return;}let ended=false;const request=ListSnippets();request.then(values=>{if(!ended){setSnippets(values||[]);setSnippetError('');}}).catch(e=>{if(!ended)setSnippetError(errorMessage(e));});return()=>{ended=true;request.cancel();};},[palette,commandTasksOpen]);
   useEffect(() => {
     try {
       const stored = localStorage.getItem(shortcutStorageKey); if (!stored) return;
@@ -283,12 +294,12 @@ export default function App() {
       else if (action.id === 'newTerminal') newTerminal();
       else if (action.id === 'closeTab') closeCurrentTab();
       else if (action.id === 'closeWorkspace') closeWorkspace();
-      else if (action.id === 'nextWorkspace' || action.id === 'previousWorkspace') { const ids = ['', ...workspaces.map(w=>w.id)]; select(ids[(ids.indexOf(active) + (action.id === 'nextWorkspace' ? 1 : -1) + ids.length) % ids.length]); }
+      else if (action.id === 'nextWorkspace' || action.id === 'previousWorkspace') { const ids = ['', ...workspaces.map(w=>w.id), ...(commandTasksTab ? [commandTasksTabID] : [])]; select(ids[(ids.indexOf(active) + (action.id === 'nextWorkspace' ? 1 : -1) + ids.length) % ids.length]); }
       else if (action.scope === 'workspace') current?.ssh?.current?.workspaceAction(action.id);
       else if(action.scope==='terminal'){if(current?.local)current.local.terminal.current?.action(action.id);else current?.ssh?.current?.terminalAction(action.id);}
     };
     window.addEventListener('keydown', key, true); return () => window.removeEventListener('keydown', key, true);
-  }, [dialog, attempt.trust, closing, quitConfirm, restarting, shortcuts, settings, current, workspaces, active,demoScene]);
+  }, [dialog, attempt.trust, closing, quitConfirm, restarting, shortcuts, settings, current, workspaces, active,demoScene,commandTasksTab]);
   function openDialog(temporary: boolean, connection?: Connection) { if (attempt.busy) return; attempt.clearError(); setDialog({ temporary, connection, rdpOptions:{clipboard:false,resolution:preferences[connection?.id || '']?.rdp_resolution || 'dynamic'} }); }
   function openSaved(c: Connection, another = false, clientOverride?: string) {
     const client = clientOverride || preferences[c.id]?.rdp_client || 'internal';
@@ -323,10 +334,16 @@ export default function App() {
     const connected = workspaces.filter(workspace => workspace.ssh && workspace.sessionID && workspace.state === '已连接').map(workspace => ({ id: workspace.sessionID!, name: workspace.name, address: `${workspace.connection?.username}@${workspace.connection?.host?.includes(':') ? `[${workspace.connection.host}]` : workspace.connection?.host}:${workspace.connection?.port}`, connection: workspace.connection, preference: preferences[workspace.connectionID] }));
     return [...connected, ...(catalog?.connections || []).filter(connection => connection.protocol === 'ssh' && !connected.some(target => target.connection?.id === connection.id && sameTarget(target.connection, connection))).map(connection => ({ id: `saved:${connection.id}`, name: connection.name, address: `${connection.username}@${connection.host.includes(':') ? `[${connection.host}]` : connection.host}:${connection.port}`, connection, preference: preferences[connection.id], disconnected: true }))];
   }, [workspaces, catalog, preferences]);
+  function openConnectionTasks(ids: string[]) {
+    openCommandTasks('execute', ids.flatMap(id => {
+      const connection = catalog?.connections.find(item => item.id === id);
+      const target = taskTargets.find(item => item.connection?.id === id && connection && sameTarget(item.connection, connection));
+      return target ? [target.id] : [];
+    }));
+  }
   async function connectTaskTargets(targets: CommandTarget[]) {
     if (attempt.busy || localOpening.current) throw new Error('请等待当前连接完成');
     const connected: { before: string; target: CommandTarget }[] = [], failures: string[] = [];
-    setCommandTasksOpen(false);
     try {
       for (const target of targets) {
         const connection = catalog?.connections.find(item => item.id === target.connection?.id && item.protocol === 'ssh');
@@ -345,7 +362,7 @@ export default function App() {
         else failures.push(`${target.name}：连接未交接到工作区`);
       }
       return { connected, failures };
-    } finally { setCommandTasksOpen(true); }
+    } finally { setCommandTasksTab(true); select(commandTasksTabID); }
   }
   function reconnectSSH(w:Workspace){const saved=catalog?.connections.find(c=>c.id===w.connectionID);if(saved&&saved.protocol!=='ssh'){setPreferenceError('保存配置的协议已改变，请新建工作区');return;}if(saved&&w.restored&&w.connection&&!sameTarget(saved,w.connection)){setPreferenceError('保存配置目标已改变，请重新填写恢复入口后确认连接');return;}if(saved)void connect(saved,undefined,w.id);else if(w.connection)setDialog({connection:{...w.connection,id:'',credential_id:''},temporary:true,workspaceID:w.id});}
   function canAutomaticallyReconnectSSH(w: Workspace) {
@@ -401,7 +418,7 @@ export default function App() {
       if (!entry) throw new Error('远端服务引用已失效，请编辑操作手册');
       setPlaybookConnection(undefined); await openService(entry); return;
     }
-    if (resource.kind === 'task') { setInitialTask(resource.target); setCommandTasksOpen(true); return; }
+    if (resource.kind === 'task') { setPlaybookConnection(undefined); openCommandTasks('execute', undefined, resource.target); return; }
     const workspace = latestWorkspaces.current.find(item => item.ssh && item.connectionID === connection.id && item.state === '已连接' && item.connection && sameTarget(item.connection, connection));
     let session = workspace?.sessionID;
     if (!workspace) {
@@ -441,10 +458,12 @@ export default function App() {
     {appLock.status?.available && <button className="session-tool" onClick={() => void appLock.lock()}>锁定</button>}
     {current?.connectionID && <Tooltip content="连接操作手册"><button className="icon-button" aria-label="连接操作手册" onClick={() => setPlaybookConnection(catalog?.connections.find(item => item.id === current.connectionID))}><Icon name="files" /></button></Tooltip>}
     <Tooltip content="命名工作集"><button className="icon-button" aria-label="命名工作集" disabled={attempt.busy || openingLocal || !catalog} onClick={manageWorkspaceSets}><Icon name="list" /></button></Tooltip>
+    <Dropdown><DropdownTrigger><button className="session-tool" aria-label="工作台工具">工具<Icon name="chevron" width="11" style={{ transform: 'rotate(90deg)' }} /></button></DropdownTrigger><DropdownMenu aria-label="工作台工具" onAction={key => { if (key === 'execute') openCommandTasks(); else if (key === 'inspect') openCommandTasks('inspect'); else if (key === 'history') openCommandTasks('history'); else if (key === 'recording') setRecordingOpen(true); }}><DropdownItem key="execute">多主机操作…</DropdownItem><DropdownItem key="inspect">多主机巡检…</DropdownItem><DropdownItem key="history">任务记录</DropdownItem><DropdownItem key="recording" showDivider>打开终端录制…</DropdownItem></DropdownMenu></Dropdown>
     <Tooltip content={`命令搜索 · ${shortcutLabel(shortcuts.palette)}`}><button className="icon-button" aria-label="命令搜索" onClick={() => { setPaletteScope('all'); setPaletteQuery(''); setPalette(true); }}><Icon name="search" /></button></Tooltip>
     <Tooltip content={updates.status?.version ? '设置 · 有可用更新' : '设置'}><button className="icon-button relative" aria-label={updates.status?.version ? '设置，有可用更新' : '设置'} aria-pressed={settings} onClick={() => { if(updates.status?.version)setSettingsSection('about');setSettings(!settings); }}><Icon name="settings" />{updates.status?.version && <span className="update-indicator" aria-hidden="true" />}</button></Tooltip>
   </>;
   const commands: WorkbenchCommand[] = [
+    ...(commandTasksTab ? [{ id: 'workspace-multi-host', label: '多主机操作', kind: 'workspace' as const, run: () => select(commandTasksTabID) }] : []),
     ...workspaces.map(w => { const c = w.rdp?.connection || w.connection; return { id: `workspace-${w.id}`, label: w.name, detail: w.local ? '本地终端' : c ? `${c.protocol.toUpperCase()} · ${c.username}@${c.host}:${c.port}` : undefined, search: catalog?.groups.find(g=>g.id===c?.group_id)?.name, kind: 'workspace' as const, run: () => select(w.id) }; }),
     ...(palette ? (catalog?.connections || []).map(c => ({ id: `connection-${c.id}`, label: c.name, detail: `${c.protocol.toUpperCase()} · ${c.username}@${c.host}:${c.port}`, search: catalog?.groups.find(g=>g.id===c.group_id)?.name, kind: 'connection' as const, run: () => openSaved(c) })) : []),
     { id: 'new', label: '新建连接', shortcut: shortcutLabel(shortcuts.newConnection), kind: 'command', run: () => openDialog(false) },
@@ -459,9 +478,9 @@ export default function App() {
     ...(current?.ssh||current?.local ? shortcutDefinitions.filter(d => d.scope === 'terminal').map(d => ({ id: `terminal-${d.id}`, label: d.label, detail: shortcutLabel(shortcuts[d.id]), kind: 'command' as const, run: () => {if(current.local)current.local.terminal.current?.action(d.id);else current.ssh?.current?.terminalAction(d.id);} })) : []),
     ...(current?.ssh ? shortcutDefinitions.filter(d=>d.scope==='workspace').map(d=>({id:d.id,label:d.label,detail:shortcutLabel(shortcuts[d.id]),kind:'command' as const,run:()=>current.ssh?.current?.workspaceAction(d.id)})) : []),
     { id: 'transfers', label: '查看传输任务', kind: 'command', run: () => setTransfersOpen(true) },
-    { id: 'batch-command', label: '多主机执行命令', kind: 'command', run: () => setBatchCommandOpen(true) },
-    { id: 'command-tasks', label: '管理与执行多主机任务', kind: 'command', run: () => setCommandTasksOpen(true) },
-    { id: 'inspections', label: '多主机巡检与基线比较', kind: 'command', run: () => setCommandTasksOpen(true) },
+    { id: 'command-tasks', label: '多主机操作', search: '执行 命令 批量 管理 任务', kind: 'command', run: () => openCommandTasks() },
+    { id: 'inspections', label: '多主机巡检', search: '检查 基线 比较', kind: 'command', run: () => openCommandTasks('inspect') },
+    { id: 'command-history', label: '查看任务记录', kind: 'command', run: () => openCommandTasks('history') },
     { id: 'services', label: '管理远端服务', kind: 'command', run: () => setServicesOpen(true) },
     ...services.map(entry => ({ id: `service-${entry.connection_id}-${entry.name}`, label: `打开服务 ${entry.name}`, detail: catalog?.connections.find(c => c.id === entry.connection_id)?.name, search: '远端服务 隧道', kind: 'command' as const, run: () => { void openService(entry).catch(e => setPreferenceError(errorMessage(e))); } })),
     { id: 'docker', label: 'Docker 容器工作区', kind: 'command', run: () => setDockerOpen(true) },
@@ -475,9 +494,9 @@ export default function App() {
     { id: 'about', label: '关于 TermQuay', kind: 'command', run: () => { setSettingsSection('about'); setSettings(true); } },
     { id: 'palette', label: '命令搜索', shortcut: shortcutLabel(shortcuts.palette), kind: 'command', run: () => { setPaletteScope('all'); setPaletteQuery(''); setPalette(true); } },
     ...(current?.ssh || localShells.length ? [{ id: 'newTerminal', label: '新建终端', shortcut: shortcutLabel(shortcuts.newTerminal), kind: 'command' as const, run: newTerminal }] : []),
-    ...(current || settings ? [{ id: 'closeTab', label: '关闭当前标签', shortcut: shortcutLabel(shortcuts.closeTab), kind: 'command' as const, run: closeCurrentTab }] : []),
+    ...(current || settings || commandTasksOpen ? [{ id: 'closeTab', label: '关闭当前标签', shortcut: shortcutLabel(shortcuts.closeTab), kind: 'command' as const, run: closeCurrentTab }] : []),
     ...(current ? [{ id: 'closeWorkspace', label: '关闭工作区', shortcut: shortcutLabel(shortcuts.closeWorkspace), kind: 'command' as const, run: () => closeWorkspace() }] : []),
-    ...(['nextWorkspace','previousWorkspace'] as const).filter(()=>workspaces.length>0).map(id=>({id,label:id==='nextWorkspace'?'下一个工作区':'上一个工作区',shortcut:shortcutLabel(shortcuts[id]),kind:'command' as const,run:()=>{const ids=['',...workspaces.map(workspace=>workspace.id)];select(ids[(ids.indexOf(active)+(id==='nextWorkspace'?1:-1)+ids.length)%ids.length]);}})),
+    ...(['nextWorkspace','previousWorkspace'] as const).filter(()=>workspaces.length>0||commandTasksTab).map(id=>({id,label:id==='nextWorkspace'?'下一个工作区':'上一个工作区',shortcut:shortcutLabel(shortcuts[id]),kind:'command' as const,run:()=>{const ids=['',...workspaces.map(workspace=>workspace.id),...(commandTasksTab?[commandTasksTabID]:[])];select(ids[(ids.indexOf(active)+(id==='nextWorkspace'?1:-1)+ids.length)%ids.length]);}})),
     ...(['uiZoomIn','uiZoomOut','uiZoomReset'] as const).filter(id=>id==='uiZoomIn'?appearance.uiZoom<uiZoomLevels[uiZoomLevels.length-1]:id==='uiZoomOut'?appearance.uiZoom>1:appearance.uiZoom!==1).map(id=>({id,label:id==='uiZoomIn'?'放大界面':id==='uiZoomOut'?'缩小界面':'界面实际大小',kind:'command' as const,run:()=>updateAppearance({...appearance,uiZoom:id==='uiZoomReset'?1:uiZoomLevels[uiZoomLevels.indexOf(appearance.uiZoom)+(id==='uiZoomIn'?1:-1)]})})),
     ...(workspaceRestore.startup?.entries?.length?[{id:'restore-layout',label:'恢复上次工作布局',kind:'command' as const,run:()=>setRestoreDialog(workspaceRestore.startup)}]:[]),
     ...(current?.ssh?.current?.insertionTarget()||current?.local?snippets.map(snippet=>({id:`snippet-${snippet.id}`,label:`插入片段 ${snippet.name}`,detail:snippet.group,kind:'command' as const,run:()=>{const target=current?.local?current.id:current?.ssh?.current?.insertionTarget();if(target&&current)setSnippetInsert({snippet,workspace:current.id,terminal:target});}})):[]),
@@ -485,13 +504,13 @@ export default function App() {
   const menuCommand = useRef<(id:string)=>void>(()=>{});
   menuCommand.current = id => { if (appLock.locked.current || demoScene || dialog || rdpStart || restoreDialog || snippetInsert || attempt.trust || closing || quitConfirm || restarting || document.querySelector('[role=dialog]')) return; commands.find(command=>command.id===id)?.run(); };
   useEffect(()=>Events.On('app:menu-command',event=>menuCommand.current(event.data as string)),[]);
-  const menuState = JSON.stringify(appLock.status?.locked || dialog || rdpStart || restoreDialog || workspaceSetLayout || snippetInsert || attempt.trust || closing || quitConfirm || restarting || palette || batchCommandOpen ? {} : Object.fromEntries(commands.map(command=>[command.id,command.shortcut==='未分配'?'':command.shortcut||''])));
+  const menuState = JSON.stringify(appLock.status?.locked || dialog || rdpStart || restoreDialog || workspaceSetLayout || snippetInsert || attempt.trust || closing || quitConfirm || restarting || palette ? {} : Object.fromEntries(commands.map(command=>[command.id,command.shortcut==='未分配'?'':command.shortcut||''])));
   useEffect(()=>{if(!demoScene&&System.IsMac())void Events.Emit('app:menu-state',JSON.parse(menuState) as Record<string,string>).catch(error=>setPreferenceError(`菜单更新失败：${errorMessage(error)}`));},[menuState,demoScene]);
   return <>
     <div className="live-workbench" hidden={demoScene!==null}>
-    <Workbench tabs={<WorkspaceTabs items={workspaces.map(workspace => ({ ...workspace, environment: preferences[workspace.connectionID]?.environment }))} active={active} onSelect={select} onClose={closeWorkspace} onSearch={() => { setPaletteScope('workspace'); setPalette(true); }} onNew={() => openDialog(false)} onMove={moveWorkspace} onRename={(id, name) => setWorkspaces(prev => prev.map(w => w.id === id ? { ...w, name } : w))} />} tools={tools} settings={settings}
+    <Workbench tabs={<WorkspaceTabs items={[...workspaces.map(workspace => ({ ...workspace, environment: preferences[workspace.connectionID]?.environment })), ...(commandTasksTab ? [{ id: commandTasksTabID, name: '多主机操作', tool: true }] : [])]} active={active} onSelect={select} onClose={closeWorkspace} onSearch={() => { setPaletteScope('workspace'); setPalette(true); }} onNew={() => openDialog(false)} onMove={moveWorkspace} onRename={(id, name) => setWorkspaces(prev => prev.map(w => w.id === id ? { ...w, name } : w))} />} tools={tools} settings={settings}
       status={<><span>{catalog?.session_only ? '会话存储' : '本地工作台'}</span><span>{workspaces.length} 个工作区</span><div className="status-spacer" />{recovery.error&&<button className="error" onClick={()=>{setSettingsSection('recovery');setSettings(true);}}>本地草稿保存失败</button>}{portableError&&<button className="error" onClick={()=>setDismissedPortable(0)}>界面设置未保存</button>}{(automaticBackup.error||automaticBackup.status?.error)&&<button className="error" onClick={()=>{setSettingsSection('backup');setSettings(true);}}>备份失败</button>}
-        <button className={commandRuns.error ? 'error' : ''} aria-expanded={commandTasksOpen} onClick={() => setCommandTasksOpen(true)}><Icon name="list" width="14" />{commandRuns.waiting ? `任务 · ${commandRuns.waiting} 等待确认` : commandRuns.active ? `任务 · ${commandRuns.active} 进行中` : '任务'}{commandRuns.error ? ' · 读取失败' : ''}</button>
+        <button className={commandRuns.error ? 'error' : ''} aria-expanded={commandTasksOpen} onClick={() => openCommandTasks('history')}><Icon name="list" width="14" />{commandRuns.waiting ? `任务 · ${commandRuns.waiting} 待确认` : commandRuns.active ? `任务 · ${commandRuns.active} 运行中` : '任务记录'}{commandRuns.error ? ' · 读取失败' : ''}</button>
         <Tooltip content={transfers.summary}><button className={transfers.failed || transfers.error ? 'error' : ''} aria-expanded={transfersOpen} onClick={() => setTransfersOpen(!transfersOpen)}><Icon name="transfer" width="14" />{transfers.running ? `传输 ${transfers.running} 进行中` : transfers.waiting ? '传输' : transfers.items.length ? '传输结束' : '传输'}{transfers.running > 0 && <span aria-hidden="true"> · {bytes(transfers.speed)}/s</span>}{transfers.waiting ? ` · ${transfers.waiting} 等待` : !transfers.running && transfers.items.length ? ` · ${transfers.summary}` : ''}{transfers.running > 0 && transfers.failed ? ` · ${transfers.failed} 失败` : ''}{transfers.error ? ' · 加载失败' : ''}</button></Tooltip></>}>
       {storageError && !catalog && <Suspense fallback={<div role="status">正在读取存储保护…</div>}><StorageAccess error={storageError} onOpened={async () => { await reload(); await recovery.refresh(); }} /></Suspense>}
       {storageError && catalog && <ErrorNotice message={storageError} />}
@@ -502,7 +521,8 @@ export default function App() {
       <ErrorNotice message={preferenceLoadError} className="connection-feedback"><button className="session-tool" onClick={()=>void reload()}>重新读取连接偏好</button></ErrorNotice>
       {portableError && portableFailure!==dismissedPortable && <ErrorNotice message={`界面设置未保存：${portableError}`} onDismiss={()=>setDismissedPortable(portableFailure)} className="connection-feedback"><button className="session-tool" onClick={()=>void savePortable()}>重试保存</button></ErrorNotice>}
       {automaticBackup.bannerVisible && !settings && <ErrorNotice message="备份失败" onDismiss={automaticBackup.dismiss} className="connection-feedback"><button className="session-tool" onClick={() => { setSettingsSection('backup'); setSettings(true); }}>查看详情</button></ErrorNotice>}
-      <div className="connection-center-page" hidden={settings || !!current}><ConnectionCenter connections={catalog?.connections || []} groups={catalog?.groups || []} preferences={preferences} sessions={connectionSessions} onOpen={openSaved} onEdit={c => openDialog(false, c)} onNew={openDialog} onReload={() => void reload()} onPlaybook={setPlaybookConnection} busy={attempt.busy||openingLocal} loading={catalogLoading} loadError={storageError} systemRDP={systemRDP} shells={localShells} onLocal={kind=>{void openLocalShell(kind);}} active={!demoScene && !settings && !current} /></div>
+      <div className="connection-center-page" hidden={settings || active !== ''}><ConnectionCenter connections={catalog?.connections || []} groups={catalog?.groups || []} preferences={preferences} sessions={connectionSessions} onOpen={openSaved} onEdit={c => openDialog(false, c)} onNew={openDialog} onReload={() => void reload()} onPlaybook={setPlaybookConnection} onMultiHost={openConnectionTasks} busy={attempt.busy||openingLocal} loading={catalogLoading} loadError={storageError} systemRDP={systemRDP} shells={localShells} onLocal={kind=>{void openLocalShell(kind);}} active={!demoScene && !settings && active === ''} /></div>
+      {commandTasksCreated && <div className="workspace" hidden={!commandTasksOpen}><Suspense fallback={commandTasksOpen ? <div className="view-loading" role="status">正在载入多主机操作…</div> : null}><CommandTasksWorkspace request={commandTasksRequest} open={commandTasksOpen} runs={commandRuns.items} historyError={commandRuns.error} onRefresh={commandRuns.refresh} onRun={commandRuns.update} groups={catalog?.groups} targets={taskTargets} snippets={snippets} snippetError={snippetError} onConnectTargets={connectTaskTargets} onNewConnection={() => openDialog(false)} /></Suspense></div>}
       {workspaces.map(w => <div className="workspace" hidden={settings || active !== w.id} key={w.id}><Suspense fallback={<div className="view-loading" role="status">正在载入工作区…</div>}>{w.rdp ? <RDPView target={`${w.rdp.connection.username}@${w.rdp.connection.host}:${w.rdp.connection.port}`} environment={preferences[w.connectionID]?.environment || ''} grant={w.rdp.grant} failure={w.rdp.error} busy={attempt.busy} pending={attempt.busy&&attempt.workspaceID===w.id} options={w.rdp.options} onResolution={value=>saveRDPResolution(w.connectionID,value)} onRetry={() => retryRDP(w)} onEdit={() => editRDP(w)} ref={w.view} visible={!demoScene && !settings && active === w.id} onState={state => workspaceState(w.id, state)} /> : w.local && w.sessionID ? <div className="local-workspace"><TerminalView local id={w.sessionID} workspace={w.sessionID} ref={w.local.terminal} visible={!demoScene&&!settings&&active===w.id} fontSize={fontSize} onAttention={value => workspaceAttention(w.id, value)} onActivate={() => select(w.id)} onSnippets={()=>{setPaletteScope('command');setPaletteQuery('插入片段 ');setPalette(true);}} onConnectionChange={()=>workspaceState(w.id,w.local?.terminal.current?.ended()?'已退出':'运行中')}/></div> : w.sessionID ?
         <SSHWorkspace onSnippets={()=>{setPaletteScope('command');setPaletteQuery('插入片段 ');setPalette(true);}} id={w.id} sessionID={w.sessionID} initialLayout={w.restore} connectionID={w.connectionID} target={`${w.connection?.username}@${w.connection?.host}:${w.connection?.port}`} environment={preferences[w.connectionID]?.environment || ''} state={w.state || '连接中'} shortcuts={shortcuts} ref={w.ssh} fontSize={fontSize} busy={attempt.busy} onAttention={value => workspaceAttention(w.id, value)} onActivate={() => select(w.id)} onStateChange={()=>notifyLocalState()} onReconnect={()=>reconnectSSH(w)} onAutomaticReconnect={() => automaticReconnectSSH(w)} automaticReconnect={canAutomaticallyReconnectSSH(w)} onCancelReconnect={() => attempt.cancelWorkspace(w.id)} visible={!demoScene && !settings && active === w.id} onDirtyChange={dirty => setWorkspaces(prev => prev.map(item => item.id === w.id ? { ...item, dirty } : item))} onState={state => workspaceState(w.id, state)} /> :
         <div className="restored-workspace"><h2>尚未连接</h2><p>{w.connection?.username}@{w.connection?.host}:{w.connection?.port}</p><div className="button-row"><Button size="sm" color="primary" isDisabled={attempt.busy} onPress={()=>reconnectSSH(w)}>连接</Button><Button size="sm" variant="light" isDisabled={attempt.busy} onPress={()=>{if(w.connection)setDialog({connection:{...w.connection,id:'',credential_id:''},temporary:true,workspaceID:w.id});}}>重新填写连接</Button></div><ul>{(w.restore?.tabs||[]).filter(t=>t.kind==='file').map(t=><li className="file-path" key={t.path}>{t.path}</li>)}</ul></div>}
@@ -520,9 +540,7 @@ export default function App() {
     {attempt.challenge && <SSHChallengeDialog key={attempt.challenge.id} challenge={attempt.challenge} target={attempt.target} onAnswer={attempt.answer} onCancel={attempt.cancel} />}
     {recordingOpen && <Suspense fallback={<div role="status">正在载入录制回放…</div>}><RecordingPlayer onClose={() => setRecordingOpen(false)} /></Suspense>}
     {diagnosticSnapshotsOpen && <Suspense fallback={<p role="status">正在载入排障快照…</p>}><DiagnosticSnapshotsDialog targets={workspaces.filter(workspace => workspace.ssh && workspace.sessionID && workspace.state === '已连接').map(workspace => ({ id: workspace.sessionID!, name: workspace.name }))} initial={current?.ssh ? current.sessionID : undefined} onClose={() => setDiagnosticSnapshotsOpen(false)} /></Suspense>}
-    {batchCommandOpen && <Suspense fallback={<div role="status">正在载入批量命令…</div>}><BatchCommandDialog groups={catalog?.groups} targets={workspaces.filter(w => w.sessionID && w.state === '已连接').map(w => ({ id: w.sessionID!, name: w.name, address: `${w.connection?.username}@${w.connection?.host}:${w.connection?.port}`, connection: w.connection, preference: preferences[w.connectionID] }))} initial={current?.sessionID} snippets={snippets} onClose={() => setBatchCommandOpen(false)} /></Suspense>}
     {fileCompareOpen && <Suspense fallback={<div role="status">正在载入文件对比…</div>}><FileCompareDialog targets={workspaces.filter(w => !w.local && !w.rdp && w.sessionID && w.state === '已连接').map(w => ({ id: w.sessionID!, name: w.name }))} initial={current?.ssh ? current.sessionID : undefined} onTransfer={item => { transfers.accept([item]); setTransferReveal(item.id); setTransfersOpen(true); }} onClose={() => setFileCompareOpen(false)} /></Suspense>}
-    {(commandTasksOpen || commandTasksCreated) && <Suspense fallback={commandTasksOpen ? <div role="status">正在载入命令任务…</div> : null}><CommandTasksDialog initialTask={initialTask} open={commandTasksOpen} runs={commandRuns.items} historyError={commandRuns.error} onRefresh={commandRuns.refresh} onRun={commandRuns.update} groups={catalog?.groups} targets={taskTargets} onConnectTargets={connectTaskTargets} onClose={() => { setCommandTasksOpen(false); setInitialTask(''); }} /></Suspense>}
     {dockerOpen && <Suspense fallback={<div role="status">正在载入 Docker…</div>}><DockerDialog targets={workspaces.filter(w => w.ssh && w.sessionID && w.state === '已连接').map(w => ({ id: w.sessionID!, name: w.name }))} initial={dockerResource?.workspace || (current?.ssh ? current.sessionID : undefined)} initialContainer={dockerResource?.container} fontSize={fontSize} onDirectory={(session, path) => { const target = workspaces.find(value => value.sessionID === session); if (target) { setActive(target.id); target.ssh?.current?.locateDirectory(path); setDockerOpen(false); setDockerResource(undefined); } }} onClose={() => { setDockerOpen(false); setDockerResource(undefined); }} /></Suspense>}
     {restoreDialog&&<WorkspaceRestoreDialog layout={restoreDialog} connections={catalog?.connections||[]} openIDs={workspaces.map(w=>w.id)} onRestore={restoreWorkspaces} onClose={()=>setRestoreDialog(undefined)}/>}
     {workspaceSetLayout && <Suspense fallback={<div className="session-status" role="status">正在载入工作集…</div>}><WorkspaceSetsDialog layout={workspaceSetLayout} localCount={workspaces.filter(workspace => !!workspace.local).length} connections={catalog?.connections || []} onOpen={openWorkspaceSet} onClose={() => setWorkspaceSetLayout(undefined)} /></Suspense>}
