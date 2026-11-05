@@ -20,7 +20,7 @@ TermQuay 是使用 Go、Wails v3 和 React 构建的开源远程连接工作台�
 
 ## 界面预览
 
-以下截图来自 [演示模式](docs/development.md#设置与演示模式)。
+以下截图在 macOS 原生应用的 [演示模式](docs/development.md#设置与演示模式) 中截取。
 
 连接中心
 
