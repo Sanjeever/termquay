@@ -87,14 +87,21 @@ pnpm --dir frontend test
 
 | 测试 | 必要变量 | 范围 |
 | --- | --- | --- |
-| `TestSG1*` | `SSH_MCP_SERVER_SG1_HOST`、`SSH_MCP_SERVER_SG1_PORT`、`SSH_MCP_SERVER_SG1_USERNAME`、`SSH_MCP_SERVER_SG1_PASSWORD`、`TERMQUAY_TEST_HOST_FINGERPRINT` | PTY、SFTP 文件操作、Linux 采集、批量传输、移动与非递归删除、端口转发，以及 [跳板](../internal/app/jump_test.go) 和 [目录同步](../internal/app/sync_test.go) |
+| 既有 `TestSG1*` 密码入口 | `SSH_MCP_SERVER_SG1_HOST`、`SSH_MCP_SERVER_SG1_PORT`、`SSH_MCP_SERVER_SG1_USERNAME`、`SSH_MCP_SERVER_SG1_PASSWORD`、`TERMQUAY_TEST_HOST_FINGERPRINT` | PTY、SFTP 文件操作、Linux 采集、批量传输、移动与非递归删除、端口转发，以及 [跳板](../internal/app/jump_test.go) 和 [目录同步](../internal/app/sync_test.go) |
+| `TestSG1Workflow*` | 上述主机、端口、用户名、指纹，以及 `TERMQUAY_TEST_PRIVATE_KEY_PATH`；无需密码变量 | 私钥与加密私钥、独立 Agent、命令边界、文件历史、搜索、sudo、续传记录恢复、远端复制、录制、tmux、任务首台确认、断线重连、SOCKS5 和工作区资源释放 |
 | `TestRealWebDAV` | `TERMQUAY_WEBDAV_URL`、`TERMQUAY_WEBDAV_USERNAME`、`TERMQUAY_WEBDAV_PASSWORD`、`TERMQUAY_WEBDAV_DIRECTORY` | 真实服务的密文往返、列表、解密和同名拒绝 |
 
 SSH 指纹须来自已核对的测试目标，不能为跑通测试关闭身份校验。文件和同步测试创建并清理本次 `/tmp/termquay-*` 目录；监控运行只读 Linux 采集。跳板测试要求目标允许 TCP 转发，并能经自身回环地址访问配置的 SSH 端口。WebDAV 目录指定已有可写测试集合，测试在其中创建唯一子目录并清理。遵守 [远端操作边界](../AGENTS.md#凭据与远端操作)，MCP 连通不能替代应用自身链路验证。
 
 ```sh
-go test -race -v ./internal/app ./internal/ssh ./internal/files ./internal/monitor -run '^TestSG1'
+go test -race -count=1 -v ./internal/app ./internal/ssh ./internal/files ./internal/monitor -run '^TestSG1'
 go test -race -v ./internal/backup -run '^TestRealWebDAV$'
+```
+
+私钥工作流测试使用临时数据库和本次远端测试目录，不读取本机已保存连接；仅按显式提供的路径读取私钥，不输出内容。测试目标须已有 sudo、tmux、Docker Unix socket 与相应权限，独立 Agent 场景使用本机 Unix socket；root 账户下 sudo 验证限免密路径。续传测试从相同加密存储创建新的服务实例，不等于原生进程退出再启动。单独运行：
+
+```sh
+go test -race -count=1 -v -timeout=10m ./internal/app -run '^TestSG1Workflow'
 ```
 
 RDP 自动化使用隔离 TLS 目标验证桥接、TLS 1.2 与身份策略，没有真实 Windows 桌面自动测试入口。真实画面、输入、剪贴板、多会话和各原生 WebView 必须另外验收。当前 TLS 版本边界及原因见 [内嵌 RDP](architecture.md#内嵌-rdp)。
@@ -374,6 +381,16 @@ macOS 菜单栏提供连接、终端、标签关闭、显示、界面缩放和�
 本轮服务入口、tmux 绑定续接与巡检实现已生成绑定，通过前端类型检查及局部 Go 逻辑回归。按任务约定未运行完整构建、全量测试、真实 SSH 或原生界面验收；服务浏览器/剪贴板、tmux 实际附着与断线恢复、跨主机文件基线及新设置的真实 WebDAV 迁移仍待验证。
 
 ## 已有验收记录与缺口
+
+2026-11-05 SSH 专项回归基于 `5f58308`，客户端为 macOS 26.6.2 / arm64、Go 1.26.10，目标为 Ubuntu 24.04.5 LTS / Linux 6.8.0，密码与私钥认证均沿核对后的主机指纹运行。未注入真实服务配置的 `go test -race -count=1 ./...`、62 项前端逻辑测试、类型检查与生产构建通过；跳过的真实服务测试不计通过。构建仍有 macOS SDK 链接版本和前端大包提示。
+
+真实应用协议栈已通过 PTY、SFTP 浏览与编辑、权限与保存冲突、监控、回环跳板和目录同步。新增工作流测试通过加密私钥、错误口令、独立 Agent、命令退出码与超时后的连接复用、多编码/CRLF/BOM 保存、默认文件历史、浏览模式写入阻断、循环链接搜索、日志读取、root 免密 sudo 保存与版本冲突。512 KiB 文件完成上传和下载的限速取消、续传记录持久化、新服务实例恢复与完整字节核对，并验证两工作区远端目录复制及重叠目录拒绝。真实录制经 Relay 与消费确认写入，结束后再次开始可回读；tmux 两次附着及缺失会话拒绝通过。两个工作区的任务首台确认与巡检结果、客户端 TCP 中断后保存连接重连、路径变化停止重试及本地 SOCKS5 路径通过。20 次工作区创建与关闭分四轮、每轮五个并存，关闭后工作区/终端/隧道记录与本地监听均释放，测试进程 goroutine 回到起始值；这些结果不构成多台真实主机或原生自动重连调度验收。
+
+macOS 原生 Wails 窗口使用 Go overlay 将数据目录重定向到临时目录，业务实现与生产前端资源沿用测试开始时的代码；输出边界修复另经后端真实链路复验。实际完成快速连接解析、主机指纹确认、密码登录、第二个 PTY、关闭另一 PTY 后保留输入输出、监控显示、原生文件选择与确认上传，以及文件保存后的内容与 0640 权限核对。远端文件被外部改写后，保存阻止覆盖并保留草稿，关闭确认选择取消后草稿继续保留，应用退出也被未保存文件阻止且可返回编辑。保留本地草稿并退出后，原生进程重新启动、恢复布局、重新认证，冲突对比中保留原草稿并展示最新远端内容。终端输出 50000 行后继续输入可用，锁定输入时测试写入命令未执行；录制经过原生目录选择，结束后回放可见真实命令输出，再次开始生成独立录制文件。部分身份确认、冲突与退出弹窗显示期间，System Events 无障碍树未暴露弹窗控件，截图仍可见且可点击；需进一步验证 VoiceOver 与键盘访问，不能把该场景记为页面空白。
+
+本次发现并修复命令输出边界缺陷，提交为 `d646775`：[command.go](../internal/ssh/command.go) 原先嵌入 `bytes.Buffer`，继承的 `ReadFrom` 使 SSH 输出复制绕过限长 `Write`。真实命令输出 100000 字节时全部返回，`Truncated` 为 false。修复改用具名缓冲字段，保留有界写入与超出部分持续排空。新增 [本地回归](../internal/ssh/command_test.go) 验证两个输出限额以下、恰好达到及超限共六种情况，先失败后通过；[真实工作流](../internal/app/ssh_workflow_integration_test.go) 的标准输出与错误输出截断均已复验通过。修复后八组真实工作流及未注入真实服务配置的全量 Go 竞态检查通过，sudo 复用的输出缓冲读取接口保持可用。本次测试桌面进程及其新增 WebKit 进程均已退出，远端测试目录、本机临时数据与测试密钥库条目完成清理；原生持续负载与内存趋势仍需单独量化验收。
+
+原始 `TestSG1Transfers` 在 45 秒总时限内超时并留下私有暂存，`TestSG1Forwarding` 在 5 秒读写时限内超时。OpenSSH 对照使用相同目标与密钥，1 MiB 下载约 6.6 秒，上传约 70.8 秒，表明本轮链路上下行差异明显，不能由此推导应用吞吐。保持数据量、通过临时 overlay 延长诊断时限后，三种转发与资源释放在约 26 秒内通过；完整传输测试将总时限改为 20 分钟后，在约 739 秒内通过 4 MiB 上传、同名跳过、另存、覆盖、下载、批量下载与文件操作，并完成原测试清理。原测试时限未修改，首次残留另行清理。更大文件、跨原生进程重启续传、MFA/用户证书、独立多主机与其他客户端平台仍须补验；Docker 本轮限只读列表，未操作现有业务容器。
 
 2026-11-05 终端工具与多主机交互调整已同步绑定，通过一次前端类型检查及 diff 检查。隔离浏览器替身检查覆盖主机选择、巡检示例填入、结果矩阵与异常详情，以及桌面宽度下的布局；替身数据不代表远端执行通过。按任务要求未运行完整构建、Go 测试、全量测试、真实 SSH 或原生桌面验收。录制结束与再次开始、原生文件选择和文件夹定位、任务后台执行与首台确认、认证交接和系统退出仍待应用链路验证。
 
