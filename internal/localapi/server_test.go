@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net"
+	"os"
 	"testing"
 	"time"
 )
@@ -41,7 +42,12 @@ func TestDisconnectCancelsHandler(t *testing.T) {
 }
 
 func TestNativeTransportAndEndpointConflict(t *testing.T) {
-	t.Setenv("TMPDIR", t.TempDir())
+	dir, err := os.MkdirTemp("", "tq-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	t.Setenv("TMPDIR", dir)
 	server, err := Listen(func(_ context.Context, r Request) Response { return Result(r.Operation) })
 	if err != nil {
 		t.Fatal(err)
