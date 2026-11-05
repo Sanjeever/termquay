@@ -152,6 +152,10 @@ export function CompleteTerminalPath(workspace: string, terminal: string, direct
     return $Call.ByID(3874034242, workspace, terminal, directory, prefix, directoriesOnly);
 }
 
+export function ConfigureFileWorkflow(workspace: string, remote: string, enabled: boolean, validate: string, reload: string, health: string): $CancellablePromise<void> {
+    return $Call.ByID(687753709, workspace, remote, enabled, validate, reload, health);
+}
+
 export function ConfirmRestore(id: string): $CancellablePromise<void> {
     return $Call.ByID(2803702404, id);
 }

@@ -24,10 +24,11 @@ type FileVersion struct {
 	Revision string    `json:"revision"`
 }
 type FileHistory struct {
-	Enabled  bool          `json:"enabled"`
-	Validate string        `json:"validate"`
-	Reload   string        `json:"reload"`
-	Versions []FileVersion `json:"versions"`
+	Enabled     bool          `json:"enabled"`
+	Validate    string        `json:"validate"`
+	Reload      string        `json:"reload"`
+	HealthCheck string        `json:"health_check,omitempty"`
+	Versions    []FileVersion `json:"versions"`
 }
 type storedFileHistory struct {
 	FileHistory
@@ -75,8 +76,16 @@ func (a *AppService) GetFileHistory(workspace, remote string) (FileHistory, erro
 	return FileHistory{Enabled: true}, err
 }
 func (a *AppService) SetFileHistory(workspace, remote string, enabled bool, validate, reload string) error {
-	if len(validate) > 8192 || len(reload) > 8192 || strings.ContainsRune(validate+reload, 0) {
-		return errors.New("验证与 reload 命令各最多 8 KiB，不能含空字符")
+	return a.setFileWorkflow(workspace, remote, enabled, validate, reload, nil)
+}
+
+func (a *AppService) ConfigureFileWorkflow(workspace, remote string, enabled bool, validate, reload, health string) error {
+	return a.setFileWorkflow(workspace, remote, enabled, validate, reload, &health)
+}
+
+func (a *AppService) setFileWorkflow(workspace, remote string, enabled bool, validate, reload string, health *string) error {
+	if len(validate) > 8192 || len(reload) > 8192 || strings.ContainsRune(validate+reload, 0) || health != nil && (len(*health) > 8192 || strings.ContainsRune(*health, 0)) {
+		return errors.New("验证、reload 与健康检查命令各最多 8 KiB，不能含空字符")
 	}
 	key, err := a.fileHistoryKey(workspace, remote)
 	if err != nil {
@@ -102,6 +111,9 @@ func (a *AppService) SetFileHistory(workspace, remote string, enabled bool, vali
 	item.Enabled = enabled
 	item.Validate = validate
 	item.Reload = reload
+	if health != nil {
+		item.HealthCheck = *health
+	}
 	items[key] = item
 	data, err := json.Marshal(items)
 	if err != nil {
@@ -235,6 +247,8 @@ func (a *AppService) RunFileAction(ctx context.Context, workspace, remote, actio
 	script := history.Validate
 	if action == "reload" {
 		script = history.Reload
+	} else if action == "health" {
+		script = history.HealthCheck
 	} else if action != "validate" {
 		return terminal.CommandResult{}, errors.New("文件操作类型无效")
 	}

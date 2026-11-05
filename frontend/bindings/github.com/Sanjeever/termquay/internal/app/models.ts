@@ -214,6 +214,7 @@ export interface FileHistory {
     "enabled": boolean;
     "validate": string;
     "reload": string;
+    "health_check"?: string;
     "versions": FileVersion[] | null;
 }
 
