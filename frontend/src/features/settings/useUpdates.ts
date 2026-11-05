@@ -11,12 +11,13 @@ export default function useUpdates(ready: boolean) {
   const mounted = useRef(false);
   const running = useRef(false);
   useEffect(() => {
+    if (!ready) return;
     let ended = false;
     mounted.current = true;
     const off = Events.On('update:changed', event => setStatus(event.data as UpdateStatus));
     async function initialise() {
       try {
-        if (ready) await StartUpdates();
+        await StartUpdates();
         const status = await GetUpdateStatus();
         if (!ended) { setStatus(status); setError(''); }
       } catch (error) { if (!ended) setError(errorMessage(error)); }

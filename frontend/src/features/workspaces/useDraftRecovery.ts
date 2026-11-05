@@ -3,12 +3,12 @@ import{useEffect,useRef,useState}from'react';
 import{GetDraftRecoveryState,SetDraftRecoveryEnabled,SaveRecoveryDrafts,ClearRecoveryDrafts}from'../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type{DraftRecoveryState,RecoveryDraftInput,WorkspaceDraftUpdate}from'../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 
-export default function useDraftRecovery(){
+export default function useDraftRecovery(ready: boolean){
  const names=useRef(new Map<string,string>());
  const generation=useRef(0);
  const[state,setState]=useState<DraftRecoveryState>();const[error,setError]=useState('');const enabled=useRef(false);const suspended=useRef(false);const pending=useRef(new Map<string,RecoveryDraftInput[]>());const snapshots=useRef(new Map<string,RecoveryDraftInput[]>());const live=useRef(new Set<string>());const writing=useRef<Promise<void>>();const timer=useRef<ReturnType<typeof setTimeout>>();const constraint=useRef('');
  async function refresh(){const request=++generation.current;try{const value=await GetDraftRecoveryState();if(request!==generation.current)return;enabled.current=value.enabled;setState(value);if(constraint.current)setError(constraint.current);else if(!pending.current.size)setError('');}catch(e){if(request===generation.current)setError(errorMessage(e));}}
- useEffect(()=>{void refresh();return()=>clearTimeout(timer.current);},[]);
+ useEffect(()=>{if(!ready)return;void refresh();return()=>clearTimeout(timer.current);},[ready]);
  async function flush():Promise<void>{
   clearTimeout(timer.current);if(constraint.current)throw new Error(constraint.current);if(writing.current){await writing.current;return flush();}if(!pending.current.size)return;
   const operation=(async()=>{while(pending.current.size){const batch=pending.current;pending.current=new Map();try{await SaveRecoveryDrafts([...batch].map(([workspace,documents])=>({workspace,documents,name:names.current.get(workspace)||''})));setError('');for(const[id,documents]of batch){if(!documents.length&&!live.current.has(id)){snapshots.current.delete(id);names.current.delete(id);if(!pending.current.get(id)?.length)pending.current.delete(id);}}}catch(e){for(const[id,documents]of batch)if(!pending.current.has(id))pending.current.set(id,documents);setError(errorMessage(e));throw e;}}})();writing.current=operation;try{await operation;}finally{writing.current=undefined;}

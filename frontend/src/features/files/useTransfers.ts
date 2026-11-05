@@ -5,7 +5,7 @@ import { CancelTransfer, ClearTransfer, ClearFinishedTransfers, ListTransfers, R
 import type { Transfer } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import { transferSummary } from './transferFormat';
 
-export default function useTransfers() {
+export default function useTransfers(ready: boolean) {
   const [transfers, setTransfers] = useState<Record<string, Transfer>>({});
   const [actionError, setActionError] = useState<{ task: string; message: string }>();
   const [loadError, setLoadError] = useState('');
@@ -26,9 +26,9 @@ export default function useTransfers() {
     live.current = true;
     let frame = 0;
     const off = Events.On('transfer:changed', event => { const t = event.data as Transfer; pending.current.set(t.id,t); if(!frame)frame=requestAnimationFrame(()=>{frame=0;const updates=Object.fromEntries(pending.current);pending.current.clear();setTransfers(prev=>({...prev,...updates}));}); });
-    void refresh();
     return () => { live.current = false; off(); cancelAnimationFrame(frame); pending.current.clear(); operations.current.clear(); };
   }, []);
+  useEffect(() => { if (ready) void refresh(); }, [ready]);
   const items = useMemo(()=>Object.values(transfers).sort((a,b)=>a.sequence-b.sequence),[transfers]);
   function accept(items: Transfer[]) { setTransfers(previous => ({ ...Object.fromEntries(items.map(item => [item.id, item])), ...previous })); }
   function clearError(id: string) { setActionError(previous=>previous?.task===id?undefined:previous); }

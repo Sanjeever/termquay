@@ -63,11 +63,11 @@ export default function ConnectionCenter({ connections, groups, preferences, ses
   const latency = useConnectionLatency(connections, active && !demo && !loading && !loadError, demo ? [] : visible);
   const tags = [...new Set(Object.values(preferences).flatMap(value => value?.tags || []))].sort((a,b) => a.localeCompare(b, 'zh-CN'));
   useEffect(() => {
-    if (demo) return;
+    if (demo || loading || loadError) return;
     let ended = false; const request = GetConnectionFilters();
     request.then(values => { if (!ended) { setFilters(values || []); setFilterLoaded(true); } }).catch(e => { if (!ended) setError(errorMessage(e)); });
     return () => { ended = true; request.cancel(); };
-  }, [demo]);
+  }, [demo, loading, loadError]);
   async function saveFilters(next: ConnectionFilter[]) {
     setSavingFilter(true); setError('');
     try { await SaveConnectionFilters(next); setFilters(next); setSaveFilterOpen(false); }
