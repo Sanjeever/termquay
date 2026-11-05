@@ -10,15 +10,15 @@ Windows 命名管道按当前用户 SID 设置 ACL，底层拒绝远端客户端
 
 [服务适配](../internal/app/cli.go) 检查本机授权和应用锁，默认关闭，连接列表显式投影安全元数据。访问设置不进入备份白名单；未初始化存储时要求在桌面处理，CLI 不触发解锁或凭据输入。最小 status 可在禁用或锁定时读取；锁定不披露授权值。工作区 ID 指向真实 SSH 所有者，并快照保存连接 ID 和实际目标，不把前端标签当作后端会话。
 
-单个连接只处理一个有界 JSON 请求；服务最多同时处理八个客户端，超额立即断开，请求与响应、读取与写入时限见 [协议](../internal/localapi/protocol.go) 和 [服务](../internal/localapi/server.go)。执行复用现有全局命令槽和工作区生命周期，额外限制每条 SSH 连接未完成的底层命令请求。取消本地等待不提前释放底层槽位；底层实际结束才释放，避免通道打开阻塞导致无界 goroutine。不通过关闭共享 SSH 连接取消单个命令。
+单个连接只处理一个有界 JSON 请求；客户端并发有界，超额立即断开。字节预算、并发及读写时限见 [协议](../internal/localapi/protocol.go) 和 [服务](../internal/localapi/server.go)。执行复用现有全局命令槽和工作区生命周期，额外限制每条 SSH 连接未完成的底层命令请求。取消本地等待不提前释放底层槽位；底层实际结束才释放，避免通道打开阻塞导致无界 goroutine。不通过关闭共享 SSH 连接取消单个命令。
 
 关闭开关或锁定应用阻止新操作，已获准操作继续受原超时、断开、工作区关闭和退出约束。远端退出未知、截断及结构化错误分别表达；取消不证明远端进程退出，客户端禁止自动重放未知状态的命令。
 
-结构化查询复用现有有界服务；远端查询必须绑定精确且仍有效的 SSH 实例，不允许以空工作区回落到本机文件系统。目录采用成对浏览的分页扫描，文本沿用编辑边界，Docker 使用只读 HTTP API。任务列表投影摘要，明确读取定义或执行记录时才返回命令与输出。执行记录分页保留来源、退出状态及截断信息，按 IPC 字节预算提前结束本页，不能静默截断单项；任务定义随第一页返回，后续页可校验修订，记录变化时拒绝拼接不同时刻的结果。新增查询不扩大为上传、远端状态变更或任务启动入口，既有 exec 权限继续有效，不构成读取专用授权模式。
+结构化查询复用既有服务的扫描、编辑和输出边界；远端查询必须绑定精确且仍有效的 SSH 实例，不允许以空工作区回落到本机文件系统。任务列表投影摘要，明确读取定义或执行记录时才返回命令与输出。执行记录分页保留来源、退出状态及截断信息，按 IPC 字节预算提前结束本页，不能静默截断单项；后续页须支持修订核对，避免拼接不同时刻的结果。查询不扩大为上传、远端状态变更或任务启动入口，既有 exec 权限继续有效，不构成读取专用授权模式。参数及分页用法见 [本机 CLI](development.md#本机-cli)。
 
 ## 产品与技术边界
 
-TermQuay 面向个人桌面的 SSH/RDP 连接管理。外层标签保留固定连接中心入口与连接工作区，SSH 内层标签表示独立终端或文件。多主机操作使用独立工具标签，覆盖多个连接，避免将编辑、执行与结果查看挤入模态窗口；该标签不持有网络会话，不占连接工作区数量，不进入连接布局与命名工作集。连接中心集中管理分组、搜索、筛选和连接操作，远端文件与监控属于连接工作区。两者分开，避免连接目录与文件浏览互相替换，使连接切换和服务器内操作各有稳定入口。切换面板、标签和设置保留会话所有者；监控订阅跟随当前工作区实际可见性。持久配置、运行时会话和本机布局分别管理；恢复布局不等于恢复远端 Shell，不自动重放输入或命令。
+TermQuay 面向个人桌面的 SSH/RDP 连接管理。外层标签保留固定连接中心入口与连接工作区，SSH 内层标签表示独立终端或文件。多主机操作和多来源日志使用独立工具标签，覆盖多个连接，避免将编辑、执行与结果查看挤入模态窗口；工具标签不持有网络会话，不占连接工作区数量，不进入连接布局与命名工作集。连接中心集中管理分组、搜索、筛选和连接操作，远端文件与监控属于连接工作区。两者分开，避免连接目录与文件浏览互相替换，使连接切换和服务器内操作各有稳定入口。切换面板、标签和设置保留会话所有者；监控订阅跟随当前工作区实际可见性。持久配置、运行时会话和本机布局分别管理；恢复布局不等于恢复远端 Shell，不自动重放输入或命令。
 
 采用单机 Go/Wails 应用，React 管理视图与编辑草稿，Go 管理连接、认证、传输、采集、存储和备份。不引入账号服务、云端控制面、分布式服务、通用插件框架或团队同步系统。连接配置数量无商业限制；网络会话、任务、缓冲和排队须有界，普通远端目录列表是下文明确的例外，见 [远端文件与监控](#远端文件与监控)。不能把产品不限量解释为运行资源无限。
 
@@ -64,7 +64,7 @@ RDP 图形队列与 WASM 内存也属于资源边界，其上界需要持续真�
 
 tmux 绑定保存会话名称，布局及工作集恢复后保持待附着。用户点击续接时重新查询当前远端会话，并通过独立 PTY 执行固定附着命令，不向未知 Shell 重放输入；会话缺失必须报错。名称不承诺远端重启后的任务身份，绑定不扩大认证或信任范围。布局版本及字段以 [工作布局模型](../internal/app/workspace.go) 为准。
 
-多主机巡检扩展既有加密任务步骤，Go 校验条件并判定命令结果。JSON 字段、正则及数字比较有界，截断、读取或解析失败不得呈现为通过；条件失败沿用任务停止策略。文件基线复用独立 SFTP 读取，在本次运行固定版本并逐目标核对，不承诺跨主机快照。定义可随任务迁移，基线选择、版本及结果不持久化；显式导出包含判定与来源，不能夹带文件正文。实现见 [巡检判定](../internal/app/command_checks.go)。
+多主机巡检扩展既有加密任务步骤，Go 校验条件并判定命令结果。JSON 字段、正则及数字比较有界；内容判定遇到截断、读取或解析失败不得呈现为通过，退出码判定独立于输出截断，执行错误仍为无法判定。条件失败沿用任务停止策略，语义见 [判定回归](../internal/app/command_checks_test.go)。文件基线复用独立 SFTP 读取，在本次运行固定版本并逐目标核对，不承诺跨主机快照。定义可随任务迁移；判定结果与基线来源、版本可随执行记录显式加密保存，不进入常规备份，也不恢复基线授权或运行状态。保存与导出均不夹带基线文件正文。实现见 [巡检判定](../internal/app/command_checks.go) 与 [记录存储](../internal/app/command_run_history.go)。
 
 ## 身份、凭据与本地数据
 
@@ -170,7 +170,8 @@ WebDAV 使用追加式快照，不覆盖或自动清理历史。备份目录由�
 | --- | --- | --- |
 | 工作区、布局与退出 | [app.go](../internal/app/app.go)、[lifecycle.go](../internal/app/lifecycle.go)、[workspace.go](../internal/app/workspace.go)、[App.tsx](../frontend/src/App.tsx)、[前端工作区与退出协调](../frontend/src/features/workspaces)、[工作台布局](../frontend/src/components/layout) | `lifecycle_test.go`、`workspace_test.go`、`workspace_state_test.go`、前端 `workspaceLayout.test.ts`、原生关闭与重载验证 |
 | 版本发布与应用更新 | [assets.go](../assets.go)、[version.go](../internal/app/version.go)、[update.go](../internal/app/update.go)、[internal/update](../internal/update)、[发布工作流](../.github/workflows/release.yml)、[版本工具](../scripts/version.mjs) | `internal/update/provider_test.go`、`scripts/version.test.mjs`、原生替换与重启验收 |
-| SSH、PTY 与消费确认 | [internal/ssh](../internal/ssh)、[ssh_connect.go](../internal/app/ssh_connect.go)、[terminal_sessions.go](../internal/app/terminal_sessions.go)、[TerminalView](../frontend/src/features/terminal/TerminalView.tsx) | [terminal_test.go](../internal/ssh/terminal_test.go)、[重连修复与验证缺口](development.md#重连修复与本轮验证缺口) |
+| SSH、PTY 与消费确认 | [internal/ssh](../internal/ssh)、[ssh_connect.go](../internal/app/ssh_connect.go)、[terminal_sessions.go](../internal/app/terminal_sessions.go)、[TerminalView](../frontend/src/features/terminal/TerminalView.tsx) | [terminal_test.go](../internal/ssh/terminal_test.go)、[重连修复与验证缺口](development.md#重连修复与验证缺口) |
+| 本机 CLI 与 IPC | [internal/cli](../internal/cli)、[internal/localapi](../internal/localapi)、[cli.go](../internal/app/cli.go)、[cli_queries.go](../internal/app/cli_queries.go) | `internal/cli/cli_test.go`、`internal/localapi/server_test.go`、`internal/app/cli_test.go`、[原生程序检查](../scripts/cli-smoke.mjs) |
 | 本地 Shell 与 PTY | [local_terminal.go](../internal/app/local_terminal.go)、[TerminalView](../frontend/src/features/terminal/TerminalView.tsx) | 各平台原生进程、输入与关闭验证 |
 | 目录延迟探测 | [latency.go](../internal/app/latency.go)、[internal/ssh/latency.go](../internal/ssh/latency.go)、[前端调度](../frontend/src/features/connections/useConnectionLatency.ts) | `latency_test.go` 验证本地 TCP、代理请求合并、取消与并发边界；真实代理、跳板路径与前端可见性调度仍需验证 |
 | 文件、草稿与传输 | [internal/files](../internal/files)、[files.go](../internal/app/files.go)、[transfer.go](../internal/app/transfer.go)、[前端文件工作区](../frontend/src/features/files) | `internal/files/service_test.go`、`transfer_test.go`、原生传输流程 |

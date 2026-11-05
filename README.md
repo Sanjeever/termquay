@@ -6,21 +6,21 @@ TermQuay 是使用 Go、Wails v3 和 React 构建的开源远程连接工作台�
 
 ## 当前能力
 
-- [连接管理](docs/development.md#连接与工作区)：分组、多标签、组合筛选、收藏、最近记录及 OpenSSH / PuTTY 预览导入；连接操作手册关联常用资源，凭据加密保存、显式共享与统一更新，可选主密码保护与应用锁。
-- [SSH 与本地终端](docs/development.md#ssh-工作区与本地终端)：多种认证、用户证书、跳板链、SOCKS5 代理、端口转发与命名服务入口、多工作区与双窗格，以及自动重连和连接诊断。
-- [文件管理与传输](docs/development.md#远端文件与传输)：递归搜索、批量传输、文件复制粘贴、本地剪贴板上传、持久存储下跨重启显式续传、单向目录同步、成对浏览、文本对比与跨主机流式复制。
-- [文件编辑](docs/development.md#文件编辑)：多编码、高亮与补全、JSON/YAML 诊断、冲突合并、加密版本历史及显式验证/reload 与健康检查；[预览](docs/development.md#文件预览) 支持 Markdown 与常见图片。
-- [终端工具](docs/development.md#终端工具与命令片段)：查找、加密片段、本次会话命令、命令完成提醒、POSIX 命令参考与主动启用的 Bash/Zsh 补全、tmux 绑定与显式续接、输出日志、终端录制与直接回放；“工具 → 多主机操作”提供独立标签页，支持命令执行、巡检、后台任务、分批与首台确认、文件基线比较、结果对比、加密执行记录与导出。
-- [Linux 诊断](docs/development.md#linux-监控与日志查看)：按需监控、趋势、文件系统容量、进程与 systemd 服务诊断及显式启停、监听端口关联及双来源 TCP 探测；大日志分片跟随与筛选，跨主机文件、systemd 与 Docker 日志并排查看及统一过滤；Docker 容器、Compose 分组、终端、健康与资源诊断及显式启停；手动排障快照支持加密保存、前后比较与分项导出。
-- [远程桌面](docs/development.md#远程桌面)：内嵌 RDP、经 SSH 访问内网桌面，以及 Windows 系统客户端入口。
-- [本机工作环境](docs/development.md#本地草稿与布局恢复)：命名工作集、工作布局、加密草稿恢复，以及[外观和快捷键设置](docs/development.md#设置与演示模式)。
-- [加密备份](docs/development.md#备份与恢复)：本地文件与 WebDAV 快照、设备历史、分项预览恢复、导入连接副本、工作环境配置迁移及自动备份。
+- [连接管理](docs/development.md#连接与工作区)：分组与筛选、配置导入、操作手册、加密凭据与主密码保护。
+- [SSH 与本地终端](docs/development.md#ssh-工作区与本地终端)：多种认证、跳板与代理、端口转发、双窗格、重连与连接诊断。
+- [文件管理与传输](docs/development.md#远端文件与传输)：搜索、批量传输、显式续传、目录同步、文件对比与跨主机复制。
+- [文件编辑](docs/development.md#文件编辑)：多编码、补全、冲突合并、版本历史与配置验证；[文件预览](docs/development.md#文件预览) 支持 Markdown 与常见图片。
+- [终端工具与多主机操作](docs/development.md#终端工具与命令片段)：片段与补全、tmux、录制回放、后台执行、巡检与结果比较。
+- [Linux 监控与日志](docs/development.md#linux-监控与日志查看)：资源趋势、进程与服务、端口、Docker、多来源日志与排障快照。
+- [远程桌面](docs/development.md#远程桌面)：内嵌 RDP、SSH 网关与 Windows 系统客户端。
+- [本机工作环境](docs/development.md#本地草稿与布局恢复)：命名工作集、布局与草稿恢复，以及[外观和快捷键](docs/development.md#设置与演示模式)。
+- [加密备份](docs/development.md#备份与恢复)：本地文件与 WebDAV 快照、预览恢复与配置迁移。
 
-操作方式与限制见 [使用说明](docs/development.md#使用说明)，重连修复与本轮验证范围见 [修复及验证缺口](docs/development.md#重连修复与本轮验证缺口)。内嵌 RDP 的 TLS 兼容边界见 [RDP 设计说明](docs/architecture.md#内嵌-rdp)；已记录的原生验证范围与缺口见 [验收记录](docs/development.md#已有验收记录与缺口)，不能据此推断所有目标平台均已验收。
+操作方式与限制见 [使用说明](docs/development.md#使用说明)，各平台已记录的验证范围与待验事项见 [验收记录](docs/development.md#已有验收记录与缺口)。内嵌 RDP 的 TLS 兼容边界见 [RDP 设计说明](docs/architecture.md#内嵌-rdp)。
 
 ## CLI 与 Agent Skill
 
-TermQuay 1.3.0 起，同一程序无参数启动桌面，`termquay --help` 查看 CLI 帮助。先在桌面“设置 → 本机 CLI”启用访问并解锁，再通过 `termquay workspace list --json --no-input` 查询 SSH 工作区，使用精确工作区 ID 读取文件、服务、端口与容器信息或执行命令；也可查询保存任务和分页执行记录。CLI 可修改远端，具体命令以所用程序帮助为准，运行前提、平台程序路径和取消限制见 [本机 CLI](docs/development.md#本机-cli)。
+同一程序无参数启动桌面，`termquay --help` 查看 CLI 帮助。先在桌面“设置 → 本机 CLI”启用访问并解锁，再用精确 SSH 工作区 ID 查询远端或执行命令。CLI 可修改远端，支持命令、平台程序路径与取消限制见 [本机 CLI](docs/development.md#本机-cli)。
 
 安装供外部 AI Agent 使用的 [termquay skill](skills/termquay/SKILL.md)：
 
