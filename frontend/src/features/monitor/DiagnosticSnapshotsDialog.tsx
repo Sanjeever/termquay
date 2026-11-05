@@ -37,7 +37,7 @@ export default function DiagnosticSnapshotsDialog({ targets, initial, onClose }:
   }
   function show(value: DiagnosticSnapshot, isSaved: boolean) { setSnapshot({ ...value, sections: value.sections || [] }); setSelected(new Set((value.sections || []).map((_, index) => index))); setExpanded(-1); setSection(''); setSaved(isSaved ? JSON.stringify([value.info.id, value.info.name]) : ''); if (value.info.id === baselineID) { setBaseline(undefined); setBaselineID(''); } }
   function capture() {
-    void operation(CaptureDiagnosticSnapshot(workspace, { ...options, services: lines(services), logs: lines(logs) }), value => { if (snapshot) { setBaseline(snapshot); setBaselineID(snapshot.info.id); } show({ ...value, info: { ...value.info, name: `${targets.find(target => target.id === workspace)?.name || '主机'} · ${new Date(value.info.time).toLocaleString()}`.slice(0, 60) } }, false); });
+    void operation(CaptureDiagnosticSnapshot(workspace, { ...options, services: lines(services), logs: lines(logs) }), value => { if (snapshot) { setBaseline(snapshot); setBaselineID(snapshot.info.id); } show({ ...value, info: { ...value.info, name: `${(targets.find(target => target.id === workspace)?.name || '主机').slice(0, 24)} · ${new Date(value.info.time).toLocaleString()}` } }, false); });
   }
   useEffect(() => {
     if (!baselineID || baselineID === baseline?.info.id) return;

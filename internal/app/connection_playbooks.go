@@ -53,6 +53,9 @@ func (a *AppService) SaveConnectionPlaybook(id string, item ConnectionPlaybook) 
 		}
 		switch resource.Kind {
 		case "file", "directory", "log":
+			if resource.Kind == "directory" && resource.Target == "/" {
+				continue
+			}
 			if err := validateRemotePaths([]string{resource.Target}); err != nil {
 				return err
 			}

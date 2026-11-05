@@ -129,7 +129,7 @@ export default function App() {
   const [diagnosticSnapshotsOpen, setDiagnosticSnapshotsOpen] = useState(false);
   const [dockerResource, setDockerResource] = useState<{ workspace: string; container: string }>();
   const [playbookConnection, setPlaybookConnection] = useState<Connection>();
-  const [resourceRequest, setResourceRequest] = useState<{ connection: string; resource: ConnectionResource }>();
+  const [resourceRequest, setResourceRequest] = useState<{ session: string; resource: ConnectionResource }>();
   const [initialTask, setInitialTask] = useState('');
   const [servicesOpen, setServicesOpen] = useState(false);
   const [services, setServices] = useState<TunnelPreset[]>([]);
@@ -403,16 +403,20 @@ export default function App() {
     }
     if (resource.kind === 'task') { setInitialTask(resource.target); setCommandTasksOpen(true); return; }
     const workspace = latestWorkspaces.current.find(item => item.ssh && item.connectionID === connection.id && item.state === '已连接' && item.connection && sameTarget(item.connection, connection));
+    let session = workspace?.sessionID;
     if (!workspace) {
       setPlaybookConnection(undefined);
       if (!await connect(connection)) throw new Error('连接未完成，请查看连接错误');
+      session = lastSSH.current?.connectionID === connection.id ? lastSSH.current.id : undefined;
     }
-    setResourceRequest({ connection: connection.id, resource });
+    if (!session) throw new Error('快捷资源的 SSH 会话已失效');
+    setResourceRequest({ session, resource });
   }
   useEffect(() => {
     if (!resourceRequest) return;
-    const workspace = workspaces.find(item => item.ssh && item.connectionID === resourceRequest.connection && item.state === '已连接');
-    if (!workspace?.ssh?.current) return;
+    const workspace = workspaces.find(item => item.ssh && item.sessionID === resourceRequest.session);
+    if (workspace?.state === '已断开') { setResourceRequest(undefined); setPreferenceError('快捷资源所属的 SSH 会话已断开'); return; }
+    if (workspace?.state !== '已连接' || !workspace.ssh?.current) return;
     setResourceRequest(undefined); select(workspace.id);
     const resource = resourceRequest.resource;
     if (resource.kind === 'container') { setDockerResource({ workspace: workspace.sessionID!, container: resource.target }); setDockerOpen(true); }
