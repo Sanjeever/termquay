@@ -84,7 +84,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
   const [logBusy, setLogBusy] = useState(false);
   const [recordingStarted, setRecordingStarted] = useState(0);
   const [recordingElapsed, setRecordingElapsed] = useState(0);
-  useEffect(() => { if (!recordingStarted || !log?.recording || !visible) return; const update = () => setRecordingElapsed(Math.floor((Date.now() - recordingStarted) / 1000)); update(); const timer = setInterval(update, 1000); return () => clearInterval(timer); }, [recordingStarted, log?.recording, visible]);
+  useEffect(() => { if (!recordingStarted || !log?.recording || !connected || !visible) return; const update = () => setRecordingElapsed(Math.floor((Date.now() - recordingStarted) / 1000)); update(); const timer = setInterval(update, 1000); return () => clearInterval(timer); }, [recordingStarted, log?.recording, connected, visible]);
   async function startLog(format = logFormat) {
     if (logBusy) return;
     setLogBusy(true); clearError('log'); setLogErrorDismissed(false);
@@ -97,7 +97,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
   async function finishLog() {
     if (logBusy) return;
     setLogBusy(true); clearError('log');
-    try { const value = await FinishTerminalLog(id); setLog(value); setLogError(value.error ? `保存失败：${value.error}` : ''); setLogErrorDismissed(false); }
+    try { const value = await FinishTerminalLog(id); setLog(value); setLogError(value.error ? `记录停止：${value.error}` : ''); setLogErrorDismissed(false); }
     catch (e) { reportError('log', e); }
     finally { setLogBusy(false); }
   }
@@ -238,7 +238,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
         stream.send(ack);
       });
     };
-    stream.onclose = () => { if (!disposed) { running.current = false; reminderCommand.current = undefined; setRunningCommand(false); setReminder(false); callbacks.current.onAttention?.(); complete.current.invalidate();setConnected(false); term.options.disableStdin = true;stateCallback.current?.(); } };
+    stream.onclose = () => { if (!disposed) { running.current = false; reminderCommand.current = undefined; setRunningCommand(false); setReminder(false); callbacks.current.onAttention?.(); complete.current.invalidate();setConnected(false); setLog(previous => previous ? { ...previous, recording: false, finished: true } : previous); term.options.disableStdin = true;stateCallback.current?.(); } };
     stream.onerror = () => { if (!disposed) setStreamError('终端数据流中断'); };
     const input = term.onData((data) => {
       if (inputLocked.current) return;
@@ -288,7 +288,15 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
     <div className="terminal-canvas" ref={container} style={{ background: colors.background }} />
     <TerminalCompletion completion={completion} onHelp={command=>{completion.dismiss();setHelp({command});}}/>
     {help&&<CommandHelpDialog initial={help.command} enabled={completion.enabled} onEnable={()=>{setHelp(undefined);openIntegration();}} onClose={()=>{setHelp(undefined);terminal.current?.focus();}}/>}
-    {log?.directory && <div className="session-status terminal-recording-status" role="status"><span className={log.recording ? 'recording-indicator' : ''}>{log.error ? '记录异常停止' : log.finished || !connected ? `${log.format === 'asciicast' ? '录制' : '日志'}已保存` : log.recording ? log.format === 'asciicast' ? '录制中' : '日志记录中' : '已暂停'}</span>{log.format === 'asciicast' && !log.finished && <span className="recording-duration">{Math.floor(recordingElapsed / 60).toString().padStart(2, '0')}:{(recordingElapsed % 60).toString().padStart(2, '0')}</span>}<Tooltip content={log.file || log.directory}><span className="recording-file file-path">{log.format === 'asciicast' ? 'session.cast' : 'ANSI 输出日志'}</span></Tooltip><div className="status-spacer" />{connected && !log.finished && <>{log.recording ? <button className="session-tool" disabled={logBusy} onClick={() => void pauseLog()}>暂停</button> : <button className="session-tool" disabled={logBusy || !!log.error} onClick={() => void startLog(log.format === 'asciicast' ? 'asciicast' : 'ansi')}>继续</button>}<button className="session-tool" disabled={logBusy} onClick={() => void finishLog()}>{log.format === 'asciicast' ? '结束录制' : '结束记录'}</button></>}{!log.recording && log.format === 'asciicast' && <button className="session-tool" disabled={logBusy} onClick={() => setPlayback('current')}>回放</button>}<button className="session-tool" onClick={() => { OpenTerminalLogDirectory(id).then(() => clearError('log')).catch(e => reportError('log', e)); }}>在文件夹中显示</button>{logError && <button className="session-tool error" onClick={()=>setLogErrorDismissed(false)}>查看错误</button>}</div>}
+    {log?.directory && <div className="session-status terminal-recording-status" role="status">
+      <span className={log.recording ? 'recording-indicator' : ''}>{log.error ? '记录异常停止' : !connected ? '记录已结束' : log.finished ? `${log.format === 'asciicast' ? '录制' : '日志'}已保存` : log.recording ? log.format === 'asciicast' ? '录制中' : '日志记录中' : '已暂停'}</span>
+      {log.format === 'asciicast' && !log.finished && <span className="recording-duration" aria-hidden="true">{Math.floor(recordingElapsed / 60).toString().padStart(2, '0')}:{(recordingElapsed % 60).toString().padStart(2, '0')}</span>}
+      <Tooltip content={log.file || log.directory}><span className="recording-file file-path">{log.format === 'asciicast' ? 'session.cast' : 'ANSI 输出日志'}</span></Tooltip><div className="status-spacer" />
+      {connected && !log.finished && <>{log.recording ? <button className="session-tool" disabled={logBusy} onClick={() => void pauseLog()}>暂停</button> : <button className="session-tool" disabled={logBusy || !!log.error} onClick={() => void startLog(log.format === 'asciicast' ? 'asciicast' : 'ansi')}>继续</button>}<button className="session-tool" disabled={logBusy} onClick={() => void finishLog()}>{log.format === 'asciicast' ? '结束录制' : '结束记录'}</button></>}
+      {!log.recording && log.format === 'asciicast' && <button className="session-tool" disabled={logBusy} onClick={() => setPlayback(connected ? 'current' : 'file')}>{connected ? '回放' : '打开录制…'}</button>}
+      {connected ? <button className="session-tool" onClick={() => { OpenTerminalLogDirectory(id).then(() => clearError('log')).catch(e => reportError('log', e)); }}>在文件夹中显示</button> : <button className="session-tool" onClick={() => { navigator.clipboard.writeText(log.file || log.directory).then(() => clearError('clipboard')).catch(e => reportError('clipboard', e)); }}>复制保存位置</button>}
+      {logError && <button className="session-tool error" onClick={()=>setLogErrorDismissed(false)}>查看错误</button>}
+    </div>}
     <Modal isOpen={logConfirm} onClose={() => { if (!logBusy) { setLogConfirm(false); clearError('log'); } }} isDismissable={!logBusy} isKeyboardDismissDisabled={logBusy} className="app-dialog"><ModalContent><ModalHeader>{logFormat === 'asciicast' ? '开始终端录制' : '保存输出日志'}</ModalHeader><ModalBody><p>{logFormat === 'asciicast' ? '从现在开始记录终端输出，可在本机回放。' : '从现在开始保存原始 ANSI 输出，适合排查日志，不能按时间回放。'}</p><div className="recording-destination"><span className="muted">保存到本机</span><span>{logFormat === 'asciicast' ? '选择的文件夹 / 独立录制目录 / session.cast' : '选择的文件夹 / 独立会话目录 / *.ansi'}</span></div><p className="muted">输出可能包含密码、令牌等敏感内容，文件不进入常规备份。</p><details><summary>记录限制</summary><p className="muted">{logFormat === 'asciicast' ? '达到 16 MiB 或 100000 个事件时停止，并保留已录制内容。' : '最多保留三段日志，每段 8 MiB，循环覆盖最旧段。'}</p></details><ErrorNotice message={error?.source==='log'?error.message:''} onDismiss={()=>clearError('log')}/></ModalBody><ModalFooter><Button variant="light" isDisabled={logBusy} onPress={() => {setLogConfirm(false);clearError('log');}}>取消</Button><Button color="primary" isLoading={logBusy} onPress={() => void startLog()}>{logFormat === 'asciicast' ? '选择位置并开始录制' : '选择位置并开始记录'}</Button></ModalFooter></ModalContent></Modal>
     <ErrorNotice message={logConfirm&&error?.source==='log'?'':error?.message || ''} onDismiss={()=>setError(undefined)}/>
     {logError && !logErrorDismissed && <ErrorNotice message={logError} onDismiss={()=>setLogErrorDismissed(true)}/>}
