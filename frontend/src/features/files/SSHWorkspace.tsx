@@ -1,7 +1,8 @@
 import Tooltip from '../../components/Tooltip';
 import { errorCode, errorMessage } from "../../lib/errors";
 import { forwardRef, lazy, Suspense, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { Button, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
+import { Button, DropdownTrigger, DropdownMenu, DropdownItem, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
+import { Dropdown } from '../../components/Popover';
 import { Stream } from '@wailsio/runtime';
 import { ReadRemoteFileEncoded, DownloadFileDraft, StartDownload, CreateTerminal, CloseTerminal, WorkspaceRecoveryDrafts, CloseWorkspace, RegisterWorkspaceView, ReleaseWorkspaceView, SetWorkspaceDirty } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import SelectControl from '../../components/SelectControl';

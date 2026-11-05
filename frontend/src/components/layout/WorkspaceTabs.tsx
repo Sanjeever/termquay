@@ -1,7 +1,8 @@
 import Tooltip from '../Tooltip';
 import Icon from '../Icon';
 import { useEffect, useRef, useState } from 'react';
-import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from '@heroui/react';
+import { DropdownTrigger, DropdownMenu, DropdownItem } from '@heroui/react';
+import { Dropdown } from '../Popover';
 import { commandAttentionLabels, type CommandAttention } from '../../features/terminal/commandAttention';
 
 export default function WorkspaceTabs({ items, active, onSelect, onClose, onNew, onRename, onMove, onSearch, disableNew = false }: {

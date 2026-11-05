@@ -8,7 +8,8 @@ import ResizeHandle from '../../components/layout/ResizeHandle';
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { GetTransferRate, SetTransferRate } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
-import { Button, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Popover, PopoverTrigger, PopoverContent } from '@heroui/react';
+import { Button, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, PopoverTrigger, PopoverContent } from '@heroui/react';
+import { Popover } from '../../components/Popover';
 import { bytes, remaining, transferState, transferSummary } from './transferFormat';
 
 const states: Record<string, string> = { queued:'等待中',running: '传输中', done: '已完成', cancelled: '已取消', failed: '失败',skipped:'已跳过' };

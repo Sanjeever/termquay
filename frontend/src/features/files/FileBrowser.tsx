@@ -1,6 +1,7 @@
 import { errorMessage } from "../../lib/errors";
 import { Fragment, lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { Button, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Modal, ModalBody, ModalContent, ModalHeader, ModalFooter } from '@heroui/react';
+import { Button, DropdownTrigger, DropdownMenu, DropdownItem, Modal, ModalBody, ModalContent, ModalHeader, ModalFooter } from '@heroui/react';
+import { Dropdown } from '../../components/Popover';
 import Tooltip from '../../components/Tooltip';
 import { GetDirectoryBookmarks, SetDirectoryBookmarks, CreateRemoteDirectory, RenameRemotePath, DeleteRemotePath, StartDownload, StartDownloads, MoveRemotePaths, DeleteRemotePaths } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { Entry } from '../../../bindings/github.com/Sanjeever/termquay/internal/files/models';

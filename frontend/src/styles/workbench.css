@@ -33,8 +33,13 @@ input[type=checkbox], input[type=range] { accent-color: var(--color-primary); }
 input[type=checkbox] { width: 14px; height: 14px; flex-shrink: 0; }
 button, summary, [data-slot=input-wrapper], .select-trigger { transition: background-color var(--motion-fast) ease, border-color var(--motion-fast) ease, color var(--motion-fast) ease, box-shadow var(--motion-fast) ease; }
 button:active:not(:disabled):not([role=tab]) { filter: brightness(.93); }
-[data-slot=content]:has(> [role=menu]), [data-slot=content]:has(> [data-slot=base] > [role=menu]) { background: var(--color-elevated); color: var(--color-text); border: 1px solid var(--color-border-strong); border-radius: var(--radius-menu); box-shadow: var(--shadow-floating); padding: 5px; }
-[role=menuitem] { min-height: 30px; border-radius: 5px; font-size: 12px; }
+[data-app-menu] { max-width: calc(100vw - 24px); max-height: calc(100dvh - 24px); }
+[data-app-menu] > div, [data-app-menu] [data-slot=base], [data-app-menu] [data-slot=content] { min-height: 0; max-height: inherit; }
+[data-app-menu] [data-slot=content] { overflow: hidden; background: var(--color-elevated); color: var(--color-text); border: 1px solid var(--color-border-strong); border-radius: var(--radius-menu); box-shadow: var(--shadow-floating); padding: 5px; -webkit-font-smoothing: antialiased; }
+[data-app-menu] [data-slot=base]:has(> [role=menu]) { max-height: none; overflow-y: auto; overscroll-behavior: contain; }
+[data-app-menu] [role=menu] { flex-shrink: 0; }
+[role=menuitem] { height: auto; min-height: 30px; padding-block: 5px; border-radius: 5px; font-size: 12px; -webkit-font-smoothing: antialiased; }
+[role=menuitem] > span, [role=menuitem] [data-slot=title] { font-size: inherit; line-height: inherit; white-space: normal; overflow-wrap: anywhere; }
 [role=menuitem][data-hover=true], [role=menuitem][data-focus=true] { background: var(--color-hover); }
 .app-tooltip { background: var(--color-elevated); color: var(--color-text); border: 1px solid var(--color-border); box-shadow: var(--shadow-floating); font-size: 11px; border-radius: 6px; padding: 5px 8px; max-width: min(440px, calc(100vw - 24px)); }
 .app-tooltip-body { white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; max-height: min(360px, 60vh); overflow: auto; }
