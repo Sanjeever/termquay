@@ -100,7 +100,7 @@
 .storage-error, .connection-feedback { padding: 8px 16px; border-bottom: 1px solid var(--color-border); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-shrink: 0; background: var(--color-surface); }
 .app-dialog { background: var(--color-elevated); border: 1px solid var(--color-border-strong); border-radius: var(--radius-dialog); color: var(--color-text); box-shadow: var(--shadow-floating); }
 .app-dialog header { font-size: 16px; font-weight: 600; }
-.app-dialog { max-width: 520px; }
+.app-dialog.max-w-md { max-width: 520px; }
 .app-dialog footer button { height: 32px; min-width: 64px; font-size: 13px; }
 .connection-form { display: flex; flex-direction: column; gap: 14px; padding: 4px 0 8px; }
 .connection-target { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 12px; }
