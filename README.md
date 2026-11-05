@@ -18,6 +18,18 @@ TermQuay 是使用 Go、Wails v3 和 React 构建的开源远程连接工作台�
 
 操作方式与限制见 [使用说明](docs/development.md#使用说明)，重连修复与本轮验证范围见 [修复及验证缺口](docs/development.md#重连修复与本轮验证缺口)。内嵌 RDP 的 TLS 兼容边界见 [RDP 设计说明](docs/architecture.md#内嵌-rdp)；已记录的原生验证范围与缺口见 [验收记录](docs/development.md#已有验收记录与缺口)，不能据此推断所有目标平台均已验收。
 
+## CLI 与 Agent Skill
+
+TermQuay 1.3.0 起，同一程序无参数启动桌面，`termquay --help` 查看 CLI 帮助。先在桌面“设置 → 本机 CLI”启用访问并解锁，再通过 `termquay workspace list --json --no-input` 查询 SSH 工作区，使用精确工作区 ID 执行命令。CLI 可修改远端，运行前提、平台程序路径和取消限制见 [本机 CLI](docs/development.md#本机-cli)。
+
+安装供外部 AI Agent 使用的 [termquay skill](skills/termquay/SKILL.md)：
+
+```sh
+npx skills add Sanjeever/termquay --skill termquay -g
+```
+
+项目级安装去掉 `-g`。指定 `--skill termquay`，避免同时安装仓库开发技能。Skill 不安装 TermQuay；Node 仅供 skill 安装使用。
+
 ## 界面预览
 
 以下截图在 macOS 原生应用的 [演示模式](docs/development.md#设置与演示模式) 中截取。

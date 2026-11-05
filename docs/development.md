@@ -395,6 +395,31 @@ macOS 菜单栏提供连接、终端、标签关闭、显示、界面缩放和�
 
 ## 构建与本地打包
 
+## 本机 CLI
+
+从 1.3.0 起，CLI 与桌面共用程序。无参数启动桌面；`--help`、`help`、各级子命令 `--help` 和 `--version` 在桌面初始化前处理。Windows 使用解压后的 `termquay.exe`，Linux 使用 `termquay`，macOS 使用 `termquay.app/Contents/MacOS/termquay`。将程序所在目录加入 PATH 由用户自行决定。Windows 使用 PowerShell 调用或脚本进程 API 等待并捕获标准流；从 cmd 直接调用 GUI 子系统程序可能提前返回提示符，需要用 `start /wait` 或等待进程的调用器。
+
+先运行桌面并初始化或解锁存储，在“设置 → 本机 CLI”打开默认关闭的“允许本机 CLI 访问”。授权同一操作系统用户的本机进程查看保存连接并在已连接 SSH 工作区执行命令，无法区分同用户下不同 Agent。授权保存在本机设置，不随备份迁移；会话存储按会话语义处理。CLI 不打开数据库、不解锁、不建立 SSH 连接、不确认身份。未运行、授权关闭、应用锁定和协议不兼容均有明确结果，存储未就绪返回 `storage_unavailable`。锁定时最小状态不披露开关值，`enabled` 返回 false。
+
+```sh
+termquay status --json --no-input
+termquay connection list --protocol ssh --json --no-input
+termquay workspace list --json --no-input
+termquay exec --workspace '<精确工作区ID>' --script-file ./inspect.sh --timeout 30s --json --no-input
+```
+
+详细参数和实现限额以 `termquay <命令> --help` 为准。保存连接列表只返回安全元数据，不探测主机；分组按精确 ID 筛选。工作区列表覆盖 Go 持有的 SSH 工作区，含实际连接目标、保存连接 ID 与连接状态，不等于全部前端标签；临时连接没有保存连接 ID。RDP、本地终端及断开标签不在首版执行范围。容器、WSL 和远程开发环境到宿主机的跨环境访问不支持。
+
+命令使用独立 SSH session 执行 `sh -s`，无 PTY，不继承交互终端目录和环境。脚本三种来源互斥，所有命令均不提示输入；`--no-input` 显式声明非交互契约。stdout 在 JSON 模式只包含 `{protocol,data?,error?}`；错误含 `code`、`message` 和 `remote_state_unknown`。执行数据含 `workspace` 与 `result`，后者包含 stdout/stderr、exit_code、duration_ms、truncated 和执行错误。退出码 0 成功、1 业务/传输/远端失败、2 参数错误；远端退出码不直接透传为本机退出码，未知为 -1。`remote_exit` 表示已知非零远端退出，`execution` 表示执行失败，传输错误使用 `transport`。超时、取消和断开可能令远端状态未知，不能自动重放。文本模式将远端输出分别写入 stdout/stderr，并报告截断。
+
+关闭访问或锁定应用阻止新请求，已获准请求继续受原超时、客户端断开、工作区关闭和桌面退出约束。SSH 通道打开尚未返回时，本地取消等待，但底层槽位持续占用到实际结束，避免无限积压；不关闭共享连接来取消一个命令。取消不证明远端进程已退出。
+
+[termquay skill](../skills/termquay/SKILL.md) 可通过 `npx skills add Sanjeever/termquay --skill termquay -g` 安装，项目级去掉 `-g`，也可使用子目录源 `https://github.com/Sanjeever/termquay/tree/main/skills/termquay`。安装不包含应用或二进制，且不构成远端操作授权。发现与按名称安装规则见 [skills 命令文档](https://github.com/vercel-labs/skills/blob/main/docs/commands.md) 和 [skill 格式](https://github.com/vercel-labs/skills/blob/main/docs/creating-skills.md)。
+
+本轮按任务要求不运行本地测试、类型检查、构建或打包。CI 覆盖权限投影、输入与 JSON 契约、IPC 协议和断开取消，另在三平台构建后检查正式程序帮助、版本、重定向与未运行状态；这些不能证明原生窗口、Windows 控制台 Ctrl-C、真实 SSH 执行或通道阻塞恢复已验收。三平台桌面交互及真实 SSH 链路仍待实际验证。
+
+## 构建与本地打包
+
 ```sh
 wails3 build
 wails3 task package
