@@ -15,6 +15,7 @@ TermQuay 采用 Apache-2.0。各依赖保留其原有许可证、版权与声明
 - WebP 图片预览使用 `golang.org/x/image`，采用 BSD-3-Clause；LICENSE 与 PATENTS 原文保存在 Go 许可目录。
 - 有界目录扫描使用 `github.com/pkg/sftp/v2`，采用 BSD-2-Clause，许可原文保存在 Go 许可目录。采用预发布分页接口的理由及回归要求见 [远端文件契约](docs/architecture.md#远端文件与监控)。
 - Windows SSH Agent 命名管道使用 `github.com/Microsoft/go-winio`，采用 MIT；许可原文保存在 Go 许可目录。
+- Windows 系统通知经 Wails 使用 `git.sr.ht/~jackmordaunt/go-toast/v2`，采用 `Unlicense OR MIT`；许可原文保存在 Go 许可目录。
 - 本地终端使用 `github.com/aymanbagabas/go-pty`（MIT）；其 `github.com/creack/pty`（MIT）和 `github.com/u-root/u-root`（BSD-3-Clause）许可原文保存在 Go 许可目录。
 - 文件编码转换使用 `golang.org/x/text`，采用 BSD-3-Clause；LICENSE 与 PATENTS 原文保存在 Go 许可目录。
 - 动态转发使用 `github.com/armon/go-socks5`，采用 MIT；SOCKS 协议解析复用该库，许可原文保存在 Go 许可目录。

@@ -1,7 +1,7 @@
 {
   "inputs": {
-    "go.mod": "ec11aba0aabc60700f1672b4c90f329b4b9e47abda6a1fc4619bb92c109b254d",
-    "go.sum": "89cb51a6ca1fb4a451a33af3f02568592f5a766c90c1617663eccacd382e2725",
+    "go.mod": "5bfd8c50a965a77e09fa5f6ca21e018d19cbf63ad305cc13c74405a577e752da",
+    "go.sum": "fd768b80f892f3d3a26b993c1d50c3c393bbe5542c088751aebd049b09b15f78",
     "frontend/pnpm-lock.yaml": "f7070767aa79d2ca0260b9dff81dc696cfc3e421f90cced8e5252981a0d79948",
     "frontend/patches/@devolutions__iron-remote-desktop@0.11.0.patch": "53b4e282385f535f908c6399947350bff05c762c268b5060a9bba9d998fa0168"
   },

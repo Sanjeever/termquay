@@ -20,6 +20,10 @@
     "version": "v0.4.0"
   },
   {
+    "module": "git.sr.ht/~jackmordaunt/go-toast/v2",
+    "version": "v2.0.3"
+  },
+  {
     "module": "github.com/Microsoft/go-winio",
     "version": "v0.6.2"
   },
