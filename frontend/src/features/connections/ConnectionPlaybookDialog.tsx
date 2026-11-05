@@ -6,8 +6,9 @@ import SelectControl from '../../components/SelectControl';
 import { errorMessage } from '../../lib/errors';
 
 const kinds: Record<string, string> = { file: '配置文件', directory: '目录', log: '日志', service: 'systemd 服务', container: 'Docker 容器', snippet: '命令片段', task: '多主机任务', tunnel: '远端服务' };
+type PlaybookDraft = Omit<ConnectionPlaybook, 'resources'> & { resources: ConnectionResource[] };
 export default function ConnectionPlaybookDialog({ connection, onOpen, onClose }: { connection: { id: string; name: string; protocol: string }; onOpen(resource: ConnectionResource): Promise<void>; onClose(): void }) {
-  const [book, setBook] = useState<ConnectionPlaybook>();
+  const [book, setBook] = useState<PlaybookDraft>();
   const [saved, setSaved] = useState('');
   const [editing, setEditing] = useState(false);
   const [discard, setDiscard] = useState(false);
@@ -17,7 +18,7 @@ export default function ConnectionPlaybookDialog({ connection, onOpen, onClose }
   useEffect(() => {
     let ended = false;
     const request = GetConnectionPlaybook(connection.id);
-    request.then(value => { if (!ended) { setBook(value); setSaved(JSON.stringify(value)); setEditing(!value.notes && !value.resources?.length); } }).catch(e => { if (!ended) setError(errorMessage(e)); });
+    request.then(value => { if (!ended) { const draft = { ...value, resources: value.resources || [] }; setBook(draft); setSaved(JSON.stringify(draft)); setEditing(!draft.notes && !draft.resources.length); } }).catch(e => { if (!ended) setError(errorMessage(e)); });
     return () => { ended = true; request.cancel(); };
   }, [connection.id]);
   useEffect(() => {
