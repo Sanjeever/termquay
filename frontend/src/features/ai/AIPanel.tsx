@@ -6,7 +6,7 @@ import AIHistory from './AIHistory';
 import AIToolCall from './AIToolCall';
 import type { Reference } from '../../../bindings/github.com/Sanjeever/termquay/internal/ai/models';
 
-const states: Record<string, string> = { running: '正在回复', awaiting_approval: '等待命令批准', compressing: '正在压缩较早上下文', stopped: '已停止', failed: '失败' };
+const states: Record<string, string> = { running: '正在回复', awaiting_approval: '等待命令批准', compressing: '正在压缩较早上下文' };
 
 export default function AIPanel({ workspace, visible, configRevision, references, onRemoveReference, onReferencesSent, onClose }: { workspace: string; visible: boolean; configRevision: number; references: Reference[]; onRemoveReference(index: number): void; onReferencesSent(sent: Reference[]): void; onClose(): void }) {
   const ai = useAIConversation(workspace, visible, configRevision);
@@ -20,7 +20,8 @@ export default function AIPanel({ workspace, visible, configRevision, references
   const messages = ai.page?.messages || [];
   const targetChanged = !!ai.page && ai.page.current_target !== ai.page.conversation.target;
   useEffect(() => { setAcceptTarget(false); }, [ai.page?.conversation.id, ai.page?.current_target]);
-  useEffect(() => { if (visible && !history) input.current?.focus(); }, [visible, history]);
+  useEffect(() => { if (references.length) setHistory(false); }, [references]);
+  useEffect(() => { if (!visible || history) return; const frame=requestAnimationFrame(()=>input.current?.focus());return()=>cancelAnimationFrame(frame); }, [visible, history, references]);
   useEffect(() => { if (visible && pinned.current && !ai.browsing) transcript.current?.scrollTo({ top: transcript.current.scrollHeight }); }, [visible, ai.run?.revision, ai.page, history]);
   async function send() {
     if (!visible || running || ai.busy || ai.loading || (!text.trim() && !references.length)) return;
@@ -31,7 +32,7 @@ export default function AIPanel({ workspace, visible, configRevision, references
   const pendingInPage = pending && messages.some(item => item.run_id === ai.run?.id && item.message.tool_calls?.some(call => call.id === pending.call.id));
   return <section className="ai-panel" aria-label="AI 助手">
     <header className="ai-panel-header"><strong>AI 助手</strong><div><button className="icon-button" aria-label="新对话" disabled={ai.busy || ai.loading} onClick={async () => { if (await ai.newConversation()) { setHistory(false); pinned.current = true; } }}><Icon name="plus" width="15" /></button><button className="icon-button" aria-label="对话历史" aria-pressed={history} onClick={() => setHistory(value => !value)}><Icon name="list" width="15" /></button><button className="icon-button" aria-label="收起 AI 助手" onClick={onClose}><Icon name="close" width="15" /></button></div></header>
-    {history ? <AIHistory workspace={workspace} current={ai.run?.conversation_id} busy={ai.busy} onOpen={async id => { const ok = await ai.openConversation(id); if (ok) { setHistory(false); pinned.current = true; } return ok; }} onDelete={ai.deleteConversation} /> : <>
+    {history ? <AIHistory workspace={workspace} current={ai.run?.conversation_id} busy={ai.busy} operationError={ai.error} onOpen={async id => { const ok = await ai.openConversation(id); if (ok) { setHistory(false); pinned.current = true; } return ok; }} onDelete={ai.deleteConversation} /> : <>
       {ai.page?.conversation.summary_through ? <details className="ai-context-summary"><summary>较早上下文已压缩</summary><p>{ai.page.conversation.summary}</p></details> : null}
       {targetChanged && <div className="ai-target-change"><div>原目标 {ai.page!.conversation.target}</div><div>当前目标 {ai.page!.current_target}</div><label><input type="checkbox" checked={acceptTarget} onChange={event => setAcceptTarget(event.target.checked)} />在当前目标继续</label></div>}
       <div ref={transcript} className="ai-transcript" aria-label="AI 对话记录" onScroll={event => { const host = event.currentTarget; pinned.current = host.scrollHeight - host.scrollTop - host.clientHeight < 48; }}>

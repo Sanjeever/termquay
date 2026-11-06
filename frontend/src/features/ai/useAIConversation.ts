@@ -56,8 +56,9 @@ export default function useAIConversation(workspace: string, visible: boolean, c
     setLoading(true); setError('');
     void GetAIRun(workspace).then(async next => {
       if (!valid()) return;
-      receive(next);
-      if (next.conversation_id && !currentPage.current) await refreshPage();
+      current.current=next;setRun(next);
+      if (next.conversation_id) await refreshPage();
+      else {currentPage.current=undefined;setPage(undefined);}
       if (!valid()) return;
       stream = Stream('ai');
       stream.onopen = () => { if (valid()) stream?.send(new TextEncoder().encode(workspace)); };

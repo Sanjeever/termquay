@@ -20,7 +20,7 @@ export default function AIConversation({ messages, run, busy, onDecide, onError 
   const calls = useMemo(() => new Set(messages.flatMap(m => (m.message.tool_calls || []).map(call => `${m.run_id}:${call.id}`))), [messages]);
   return <>{messages.map(item => {
     const m = item.message;
-    if (m.role === 'status') return item.state === 'complete' ? null : <p className="ai-run-status muted" key={item.seq}>{m.content}</p>;
+    if (m.role === 'status') return item.state === 'complete' || run?.id === item.run_id ? null : <p className="ai-run-status muted" key={item.seq}>{m.content}</p>;
     if (m.role === 'tool') return calls.has(`${item.run_id}:${m.tool_call_id}`) ? null : <details className="ai-tool-call" key={item.seq}><summary>工具结果 · {m.tool_call_id}</summary><pre>{m.content}</pre></details>;
     return <article className={`ai-message ${m.role}`} key={item.seq}>
       <div className="ai-message-role">{m.role === 'user' ? '你' : '助手'}{item.state === 'interrupted' ? ' · 回复中断' : ''}</div>

@@ -13,7 +13,8 @@ function publish(next: typeof snapshot) { snapshot = next; for (const listener o
 function refresh() {
   if (request) return;
   const pending = GetAISettings(); request = pending;
-  pending.then(settings => publish({ settings, locked: false, revision: snapshot.revision + 1, error: '' }))
+  const revision=snapshot.revision;
+  pending.then(settings => {if(snapshot.revision===revision)publish({ settings, locked: false, revision: snapshot.revision + 1, error: '' });})
     .catch(error => publish({ ...snapshot, error: errorMessage(error) }))
     .finally(() => { if (request === pending) request = undefined; });
 }

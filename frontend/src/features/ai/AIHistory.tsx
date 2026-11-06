@@ -5,7 +5,7 @@ import type { AIConversation } from '../../../bindings/github.com/Sanjeever/term
 import Icon from '../../components/Icon';
 import { errorMessage } from '../../lib/errors';
 
-export default function AIHistory({ workspace, current, busy, onOpen, onDelete }: { workspace: string; current?: string; busy: boolean; onOpen(id: string): Promise<boolean>; onDelete(id: string): Promise<boolean> }) {
+export default function AIHistory({ workspace, current, busy, operationError, onOpen, onDelete }: { workspace: string; current?: string; busy: boolean; operationError: string; onOpen(id: string): Promise<boolean>; onDelete(id: string): Promise<boolean> }) {
   const [items, setItems] = useState<AIConversation[]>([]);
   const [offset, setOffset] = useState(0);
   const [epoch, setEpoch] = useState(0);
@@ -23,6 +23,6 @@ export default function AIHistory({ workspace, current, busy, onOpen, onDelete }
     {!loading && !items.length && <p className="muted">暂无历史</p>}
     <div className="ai-history-pages"><button className="session-tool" disabled={loading || offset === 0} onClick={() => setOffset(Math.max(0, offset - 20))}>上一页</button><button className="session-tool" disabled={loading || items.length < 20} onClick={() => setOffset(offset + 20)}>下一页</button></div>
     {error && <p role="alert" className="error">{error}</p>}
-    <Modal isOpen={!!deleting} onClose={() => { if (!busy) setDeleting(undefined); }} isDismissable={!busy} className="app-dialog"><ModalContent><ModalHeader>删除 AI 对话</ModalHeader><ModalBody><p>删除“{deleting?.title}”及全部消息？进行中的轮次会先停止。</p></ModalBody><ModalFooter><Button variant="light" isDisabled={busy} onPress={() => setDeleting(undefined)}>取消</Button><Button color="danger" isLoading={busy} onPress={async () => { if (deleting && await onDelete(deleting.id)) { setDeleting(undefined); setEpoch(value => value + 1); } }}>删除</Button></ModalFooter></ModalContent></Modal>
+    <Modal isOpen={!!deleting} onClose={() => { if (!busy) setDeleting(undefined); }} isDismissable={!busy} className="app-dialog"><ModalContent><ModalHeader>删除 AI 对话</ModalHeader><ModalBody><p>删除“{deleting?.title}”及全部消息？进行中的轮次会先停止。</p>{operationError && <p className="error" role="alert">{operationError}</p>}</ModalBody><ModalFooter><Button variant="light" isDisabled={busy} onPress={() => setDeleting(undefined)}>取消</Button><Button color="danger" isLoading={busy} onPress={async () => { if (deleting && await onDelete(deleting.id)) { setDeleting(undefined); setEpoch(value => value + 1); } }}>删除</Button></ModalFooter></ModalContent></Modal>
   </div>;
 }
