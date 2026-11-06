@@ -1,9 +1,17 @@
 {
   "inputs": {
-    "go.mod": "5bfd8c50a965a77e09fa5f6ca21e018d19cbf63ad305cc13c74405a577e752da",
-    "go.sum": "fd768b80f892f3d3a26b993c1d50c3c393bbe5542c088751aebd049b09b15f78",
+    "go.mod": "57b40eb728d9e9c729c90d91c4f1ff692068b6441ef3390e258c745966daa623",
+    "go.sum": "fd1af1931846cb0a351090b7d9efa66c25dc02b91906981590a7e4e45d7dba1c",
     "frontend/pnpm-lock.yaml": "f7070767aa79d2ca0260b9dff81dc696cfc3e421f90cced8e5252981a0d79948",
     "frontend/patches/@devolutions__iron-remote-desktop@0.11.0.patch": "53b4e282385f535f908c6399947350bff05c762c268b5060a9bba9d998fa0168"
+  },
+  "go_sse": {
+    "version": "v0.11.0",
+    "materials": "build/licenses/go/github.com/tmaxmax/go-sse/v0.11.0",
+    "license": "MIT",
+    "license_sha256": "a2c8b7b5420a27a7237412615bd2e053c1fb5c9116d9be251bae5b7f475478db",
+    "verification": "核对相对 v1.3.1 的 Go 依赖差异、模块 go.mod 无额外依赖，许可副本与固定版本模块原文逐字节一致",
+    "reviewed_at": "2026-11-06"
   },
   "wasm_source_commit": "e45f68c7e52297ca50d33b44c0ace36c9940fbe6",
   "asciinema_player": {
