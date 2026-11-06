@@ -39,6 +39,9 @@ func (c *Client) Stream(ctx context.Context, input Request, delta func(string) e
 	case "messages":
 		payload = messagesRequest(c.config, input)
 		parse = messagesParser(&r, delta)
+	case "responses":
+		payload = responsesRequest(c.config, input)
+		parse = responsesParser(&r, delta)
 	default:
 		return r, errors.New("AI 协议适配尚不可用")
 	}

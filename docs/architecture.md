@@ -9,6 +9,7 @@ AI 使用一份本机加密模型配置，与外部 CLI 授权独立。配置接
 模型 HTTP 请求不自动重试或跟随重定向，取消沿请求上下文传递。SSE 复用成熟解析库，网络读取、事件、正文与工具参数有界；工具参数必须收齐并校验，流提前结束、输出截断及协议错误阻止执行。Chat Completions 保留工具 ID 与结果关联，适配入口与预算见 [模型客户端](../internal/ai/client.go)。
 
 Messages 续接保留原始内容块、thinking 签名及工具结果关联，同批工具结果合并到同一 user 消息；服务商内置远端工具不进入应用工具集。
+Responses 使用无状态请求，保留完成项的顺序、call ID 和加密 reasoning 内容；收到完整完成状态后才允许执行工具。协议依据 [OpenAI 工具调用](https://developers.openai.com/api/docs/guides/function-calling)、[Responses 流事件](https://developers.openai.com/api/reference/resources/responses/streaming-events) 与 [Messages 流事件](https://platform.claude.com/docs/en/build-with-claude/streaming) 核对，本机协议测试不代表真实模型接入验收。
 
 AI 历史采用独立会话与分条消息表，数据库事务迁移保留既有目录与凭据。标题、目标快照、摘要和消息正文复用本机 AEAD，AAD 绑定会话及消息序号；分页读取、增量追加，删除后更新或追加不能重建会话。历史与配置排除常规备份，会话存储沿用临时数据库生命周期。边界与存储入口见 [AI 存储](../internal/store/ai.go)。
 
