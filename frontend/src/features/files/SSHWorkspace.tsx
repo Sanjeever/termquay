@@ -29,6 +29,7 @@ import { CreateTmuxTerminal } from '../../../bindings/github.com/Sanjeever/termq
 import { isDirty, savedEncoding } from './fileDrafts';
 import type { CommandAttention } from '../terminal/commandAttention';
 import { SetWorkspaceBrowseOnly } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
+import useAISettings from '../ai/useAISettings';
 
 const TextDocument = lazy(() => import('./TextDocument'));
 const ImagePreview = lazy(() => import('./ImagePreview'));
@@ -36,6 +37,7 @@ const FileConflictView = lazy(() => import('./FileConflictView'));
 const FileHistoryDialog = lazy(() => import('./FileHistoryDialog'));
 const RemoteLogDialog = lazy(() => import('./RemoteLogDialog'));
 const LinuxInspectionDialog = lazy(() => import('../monitor/LinuxInspectionDialog'));
+const AIPanel = lazy(() => import('../ai/AIPanel'));
 
 export type SSHWorkspaceHandle = { openResource(kind: string, target: string): Promise<void>; sudoEdit(): void; workspaceAction(action: 'switchPane' | 'closeContent' | 'newTerminal'): boolean; layout():SSHLayout; hasDirty():boolean; recoveryDrafts():RecoveryDraftInput[]|null; insertionTarget():string; insert(text:string,target:string):boolean; focus(): void; saveAll(): Promise<boolean>; prepareReconnect(): Promise<boolean>; showFiles(): void; locateDirectory(path: string): void; toggleMonitor(): void; toggleFocus(): void; terminalAction(action: TerminalAction): void };
 
@@ -147,9 +149,14 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   const [filesOpen, setFilesOpen] = useState(initialLayout?.files_open??(localStorage.getItem('termquay.layout.files-open') !== 'false'));
   const [filesWidth, setFilesWidth] = useState(initialLayout?.files_width??Math.max(200, Math.min(420, Number(localStorage.getItem('termquay.layout.files-width') || localStorage.getItem('termquay.layout.sidebar-width')) || 248)));
   const [monitorOpen, setMonitorOpen] = useState(initialLayout?.monitor_open??(localStorage.getItem('termquay.layout.monitor') === 'true'));
+  const aiSettings = useAISettings();
+  const aiEnabled = !!aiSettings.settings?.enabled && !aiSettings.locked;
+  const [aiOpen, setAIOpen] = useState(false);
+  const [aiVisited, setAIVisited] = useState(false);
+  const [aiWidth, setAIWidth] = useState(() => Math.max(300, Math.min(600, Number(localStorage.getItem('termquay.layout.ai-width')) || 380)));
   const [focus, setFocus] = useState(initialLayout?.focus||false);
   const [narrow, setNarrow] = useState(window.innerWidth <= 1100);
-  const [narrowPanel, setNarrowPanel] = useState<'files' | 'monitor' | null>(null);
+  const [narrowPanel, setNarrowPanel] = useState<'files' | 'monitor' | 'ai' | null>(null);
   const previousInstance = useRef(sessionID);
   const viewReady = useRef<Promise<void>>();
   const currentDirty = useRef(false);
@@ -157,6 +164,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   const terminalHandles = useRef(new Map<string, TerminalHandle>());
   const filesToggle = useRef<HTMLButtonElement>(null);
   const monitorToggle = useRef<HTMLButtonElement>(null);
+  const aiToggle = useRef<HTMLButtonElement>(null);
   const dirtyCallback = useRef(onDirtyChange); dirtyCallback.current = onDirtyChange;
   const stateCallback = useRef(onState); stateCallback.current = onState;
   const changeCallback=useRef(onStateChange);changeCallback.current=onStateChange;
@@ -164,7 +172,8 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   const dirty = drafts.some(d => isDirty(d));
   currentDirty.current = dirty;
   const filesShown = !focus && (narrow ? narrowPanel === 'files' : filesOpen);
-  const monitorShown = !focus && (narrow ? narrowPanel === 'monitor' : monitorOpen);
+  const aiShown = aiEnabled && !focus && (narrow ? narrowPanel === 'ai' : aiOpen);
+  const monitorShown = !aiShown && !focus && (narrow ? narrowPanel === 'monitor' : monitorOpen);
   const tabIDs=[...terminals,...fileOrder];
   const paneFor=(path:string)=>split&&secondary.includes(path)?1:0;
   const paneSelected=selection.map((path,pane)=>tabIDs.includes(path)&&paneFor(path)===pane?path:tabIDs.find(t=>paneFor(t)===pane)||'');
@@ -214,7 +223,11 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
 
   function showFiles() { setFocus(false); if (narrow) setNarrowPanel('files'); else setFilesOpen(true); }
   function toggleFiles() { setFocus(false); if (narrow) setNarrowPanel(prev => prev === 'files' ? null : 'files'); else setFilesOpen(prev => !prev); }
-  function toggleMonitor() { setFocus(false); if (narrow) setNarrowPanel(prev => prev === 'monitor' ? null : 'monitor'); else setMonitorOpen(prev => !prev); }
+  function toggleMonitor() { setFocus(false); if (aiShown) { setAIOpen(false); setMonitorOpen(true); if (narrow) setNarrowPanel('monitor'); } else if (narrow) setNarrowPanel(prev => prev === 'monitor' ? null : 'monitor'); else setMonitorOpen(prev => !prev); }
+  function toggleAI() { setFocus(false); setAIVisited(true); if (narrow) setNarrowPanel(previous => previous === 'ai' ? null : 'ai'); else setAIOpen(previous => !previous); }
+  function closeAI() { setAIOpen(false); if (narrow) setNarrowPanel(null); aiToggle.current?.focus(); }
+  function focusPanelToggle(panel: 'files' | 'monitor' | 'ai' | null) { (panel === 'files' ? filesToggle : panel === 'ai' ? aiToggle : monitorToggle).current?.focus(); }
+  useEffect(() => { localStorage.setItem('termquay.layout.ai-width', String(aiWidth)); }, [aiWidth]);
   useEffect(() => { localStorage.setItem('termquay.layout.files-open', String(filesOpen)); }, [filesOpen]);
   useEffect(() => { localStorage.setItem('termquay.layout.files-width', String(filesWidth)); }, [filesWidth]);
   useEffect(() => { localStorage.setItem('termquay.layout.monitor', String(monitorOpen)); }, [monitorOpen]);
@@ -294,12 +307,14 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   function closeTab(path: string) { if (!terminals.includes(path)) { close(path); return; } terminalOwners.current.delete(path); tmuxAttached.current.delete(path); unbindTmux(path); setTerminals(prev => prev.filter(t => t !== path)); setSecondary(prev => prev.filter(p => p !== path)); }
   function workspaceAction(action: 'switchPane' | 'closeContent' | 'newTerminal') { if (restoring) return true; if (action === 'newTerminal') void newTerminal(); if (action === 'closeContent') { if (!active) return false; closeTab(active); } if (action === 'switchPane' && split) { const pane = 1 - activePane; setActivePane(pane); requestAnimationFrame(() => focusTab(paneSelected[pane])); } return true; }
   const tabs = tabIDs.map(path => { const draft = drafts.find(d => d.path === path); const terminal = terminals.includes(path); const ended = terminal && (terminalOwners.current.get(path) !== sessionID || state === '已断开'); return { id: path, label: terminal ? `${tmuxBindings[path] ? `tmux · ${tmuxBindings[path]}` : `终端 ${terminals.indexOf(path) + 1}`}${ended ? ' · 已断开' : ''}` : path.split('/').pop() || path, terminal, attention: terminal ? attention[path] : undefined, dirty: !!draft && isDirty(draft), closingDisabled: restoring || draft?.saving }; });
-  return <div className="ssh-workspace" onKeyDown={event=>{if(event.key==='Escape'&&narrowPanel&&!event.defaultPrevented&&!event.nativeEvent.isComposing&&!(event.target as HTMLElement).closest('input,textarea,[role=dialog]')){event.preventDefault();const panel=narrowPanel;setNarrowPanel(null);(panel==='files'?filesToggle:monitorToggle).current?.focus();}}}>
-    <div className="workspace-toolbar" aria-label="SSH 工作区工具"><Tooltip content={target}><span className="session-target">{target}</span></Tooltip>{environment && <span className={`connection-environment ${environment}`}>{({production:'生产',staging:'预发布',development:'开发'} as Record<string,string>)[environment]}</span>}{state !== '已连接' && <span className="session-state" role="status">{state}</span>}<button ref={filesToggle} className="session-tool" aria-pressed={filesShown} onClick={toggleFiles}><Icon name="files" width="15" />文件</button><button ref={monitorToggle} className="session-tool" aria-pressed={monitorShown} onClick={toggleMonitor}><Icon name="monitor" width="15" />监控</button>{state === '已断开' && <Button size="sm" variant="light" isDisabled={busy||preparing} onPress={onReconnect}>重新连接</Button>}<Dropdown><DropdownTrigger><Tooltip content="窗格布局"><button className="icon-button" aria-label="窗格布局"><Icon name="sidebar" width="16" /></button></Tooltip></DropdownTrigger><DropdownMenu aria-label="窗格操作" disabledKeys={[...(creating||terminals.length>=16?['new']:[]),...(!active?['move']:[]),...(!split?['maximize','merge']:[])]} onAction={key=>{if(key==='new')void newTerminal(1);if(key==='move')moveActive();if(key==='maximize')setMaximized(v=>!v);if(key==='merge'){setSplit(false);setSecondary([]);setSelection([active||paneSelected[0],'']);setActivePane(0);setMaximized(false);}}}><DropdownItem key="new">新建终端到右侧</DropdownItem><DropdownItem key="move">移动当前标签到另一窗格</DropdownItem><DropdownItem key="maximize">{maximized?'恢复双窗格':'最大化当前窗格'}</DropdownItem><DropdownItem key="merge">合并窗格</DropdownItem></DropdownMenu></Dropdown><Tooltip content="专注模式"><button className="icon-button focus-toggle" aria-label="专注模式" aria-pressed={focus} onClick={() => setFocus(!focus)}><Icon name="focus" width="16" /></button></Tooltip><Dropdown><DropdownTrigger><Tooltip content="SSH 会话操作"><button className="icon-button" aria-label="SSH 会话操作"><Icon name="more" width="15" /></button></Tooltip></DropdownTrigger><DropdownMenu aria-label="SSH 会话操作" disabledKeys={[...(busy || preparing ? ['reconnect'] : []), ...(!automaticReconnect ? ['automatic'] : [])]} onAction={key => { if(key==='tunnels')setTunnelsOpen(v=>!v);else if (key === 'automatic') { reconnect.toggle(); if (reconnect.enabled) onCancelReconnect(); } else onReconnect(); }}><DropdownItem key="tunnels" showDivider endContent={tunnelsOpen?'✓':null}>端口转发</DropdownItem><DropdownItem key="reconnect">重新连接</DropdownItem><DropdownItem key="automatic" endContent={reconnect.enabled ? '✓' : null}>断线后自动重连</DropdownItem></DropdownMenu></Dropdown></div>
+  return <div className="ssh-workspace" onKeyDown={event=>{if(event.key==='Escape'&&narrowPanel&&!event.defaultPrevented&&!event.nativeEvent.isComposing&&!(event.target as HTMLElement).closest('input,textarea,[role=dialog]')){event.preventDefault();const panel=narrowPanel;setNarrowPanel(null);focusPanelToggle(panel);}}}>
+    <div className="workspace-toolbar" aria-label="SSH 工作区工具"><Tooltip content={target}><span className="session-target">{target}</span></Tooltip>{environment && <span className={`connection-environment ${environment}`}>{({production:'生产',staging:'预发布',development:'开发'} as Record<string,string>)[environment]}</span>}{state !== '已连接' && <span className="session-state" role="status">{state}</span>}<button ref={filesToggle} className="session-tool" aria-pressed={filesShown} onClick={toggleFiles}><Icon name="files" width="15" />文件</button><button ref={monitorToggle} className="session-tool" aria-pressed={monitorShown} onClick={toggleMonitor}><Icon name="monitor" width="15" />监控</button>
+      {aiEnabled && <button ref={aiToggle} className="session-tool" aria-pressed={aiShown} disabled={state !== '已连接'} onClick={toggleAI}>AI 助手</button>}
+      {state === '已断开' && <Button size="sm" variant="light" isDisabled={busy||preparing} onPress={onReconnect}>重新连接</Button>}<Dropdown><DropdownTrigger><Tooltip content="窗格布局"><button className="icon-button" aria-label="窗格布局"><Icon name="sidebar" width="16" /></button></Tooltip></DropdownTrigger><DropdownMenu aria-label="窗格操作" disabledKeys={[...(creating||terminals.length>=16?['new']:[]),...(!active?['move']:[]),...(!split?['maximize','merge']:[])]} onAction={key=>{if(key==='new')void newTerminal(1);if(key==='move')moveActive();if(key==='maximize')setMaximized(v=>!v);if(key==='merge'){setSplit(false);setSecondary([]);setSelection([active||paneSelected[0],'']);setActivePane(0);setMaximized(false);}}}><DropdownItem key="new">新建终端到右侧</DropdownItem><DropdownItem key="move">移动当前标签到另一窗格</DropdownItem><DropdownItem key="maximize">{maximized?'恢复双窗格':'最大化当前窗格'}</DropdownItem><DropdownItem key="merge">合并窗格</DropdownItem></DropdownMenu></Dropdown><Tooltip content="专注模式"><button className="icon-button focus-toggle" aria-label="专注模式" aria-pressed={focus} onClick={() => setFocus(!focus)}><Icon name="focus" width="16" /></button></Tooltip><Dropdown><DropdownTrigger><Tooltip content="SSH 会话操作"><button className="icon-button" aria-label="SSH 会话操作"><Icon name="more" width="15" /></button></Tooltip></DropdownTrigger><DropdownMenu aria-label="SSH 会话操作" disabledKeys={[...(busy || preparing ? ['reconnect'] : []), ...(!automaticReconnect ? ['automatic'] : [])]} onAction={key => { if(key==='tunnels')setTunnelsOpen(v=>!v);else if (key === 'automatic') { reconnect.toggle(); if (reconnect.enabled) onCancelReconnect(); } else onReconnect(); }}><DropdownItem key="tunnels" showDivider endContent={tunnelsOpen?'✓':null}>端口转发</DropdownItem><DropdownItem key="reconnect">重新连接</DropdownItem><DropdownItem key="automatic" endContent={reconnect.enabled ? '✓' : null}>断线后自动重连</DropdownItem></DropdownMenu></Dropdown></div>
     <div hidden={!tunnelsOpen}><TunnelPanel id={sessionID} connectionID={connectionID} visible={visible&&tunnelsOpen}/></div>
     {reconnect.status && <div className="session-status" role="status"><span>{reconnect.status}</span><button className="session-tool" onClick={() => { reconnect.toggle(); onCancelReconnect(); }}>停止自动重连</button></div>}
     <div className="ssh-panels">
-    {narrow && narrowPanel && <button className="panel-scrim" aria-label="关闭辅助面板" tabIndex={-1} onClick={()=>{const panel=narrowPanel;setNarrowPanel(null);(panel==='files'?filesToggle:monitorToggle).current?.focus();}} />}
+    {narrow && narrowPanel && <button className="panel-scrim" aria-label="关闭辅助面板" tabIndex={-1} onClick={()=>{const panel=narrowPanel;setNarrowPanel(null);focusPanelToggle(panel);}} />}
     <div className="file-dock" hidden={!filesShown} style={{ width: filesWidth }}><FileBrowser readOnly={browseOnly} onToggleReadOnly={() => void toggleBrowseOnly()} changingMode={changingMode} id={sessionID} connectionID={connectionID} initialDirectory={initialLayout?.directory} onDirectory={setDirectory} directoryRequest={directoryRequest} followDirectory={followDirectory} onFollowDirectory={() => setFollowDirectory(value => !value)} onTerminalDirectory={locateInTerminal} visible={visible && filesShown} onOpen={open} onOpenFile={openTerminalFile} onClose={() => { toggleFiles(); filesToggle.current?.focus(); }} /></div>
     {filesShown && !narrow && <ResizeHandle label="文件面板宽度" value={filesWidth} min={200} max={420} onChange={setFilesWidth} />}
     <div className="ssh-center" ref={center}>
@@ -336,6 +351,8 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
       {historyPath && drafts.filter(d => d.path === historyPath).map(d => <Suspense key={`history:${sessionID}:${d.path}`} fallback={<div role="status">正在载入配置历史…</div>}><FileHistoryDialog workspace={sessionID} target={target} document={d} dirty={isDirty(d)} onSave={() => save(d.path)} onClose={() => setHistoryPath('')} onRestore={version => updateDrafts(previous => previous.map(item => item.path === d.path ? { ...item, content: version.content, ...documentFormat(version), reloadEpoch: (item.reloadEpoch || 0) + 1 } : item))} /></Suspense>)}
     </div>
     <MonitorPanel id={sessionID} visible={visible && monitorShown} onDirectory={path => { showFiles(); setDirectoryRequest(previous => ({ path, sequence: (previous?.sequence || 0) + 1, locate: true })); }} onFile={path => openTerminalFile(path, 1)} onClose={() => { toggleMonitor(); monitorToggle.current?.focus(); }} />
+    {aiShown && !narrow && <ResizeHandle label="AI 面板宽度" value={aiWidth} min={300} max={600} reverse onChange={setAIWidth} />}
+    {aiSettings.settings?.enabled && aiVisited && <div className="ai-dock" hidden={!aiShown} style={{ width: aiWidth }}><Suspense fallback={<div className="view-loading" role="status">正在载入…</div>}><AIPanel key={sessionID} workspace={sessionID} visible={visible && aiShown && state === '已连接'} configRevision={aiSettings.revision} onClose={closeAI} /></Suspense></div>}
     </div>
     {conflict && drafts.find(d=>d.path===conflict) && <Suspense fallback={<div className="session-status" role="status">正在载入差异视图…</div>}><FileConflictView key={`${sessionID}:${conflict}`} sessionID={sessionID} path={conflict} content={drafts.find(d=>d.path===conflict)!.content} encoding={savedEncoding(drafts.find(d=>d.path===conflict)!)} lineEnding={drafts.find(d=>d.path===conflict)!.line_ending || 'LF'} remoteDocument={sudoConflict} onClose={()=>setConflict('')} onApply={(content,remote)=>{updateDrafts(prev=>prev.map(d=>d.path===conflict?{...d,content,saved:remote.content,savedFormat:formatKey(remote),revision:remote.revision,needsReview:false,recovery:false,error:''}:d));setConflict('');}} /></Suspense>}
     {resourceLog && <Suspense fallback={<p role="status">正在载入日志…</p>}><RemoteLogDialog workspace={sessionID} path={resourceLog} visible={visible} onClose={() => setResourceLog('')} /></Suspense>}

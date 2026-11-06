@@ -12,6 +12,7 @@ TermQuay 是使用 Go、Wails v3 和 React 构建的开源远程连接工作台�
 - [文件编辑](docs/development.md#文件编辑)：多编码、补全、冲突合并、版本历史与配置验证；[文件预览](docs/development.md#文件预览) 支持 Markdown 与常见图片。
 - [终端工具与多主机操作](docs/development.md#终端工具与命令片段)：片段与补全、tmux、录制回放、后台执行、巡检与结果比较。
 - [Linux 监控与日志](docs/development.md#linux-监控与日志查看)：资源趋势、进程与服务、端口、Docker、多来源日志与排障快照。
+- [内置 AI 助手](docs/development.md#内置-ai-助手)：单份模型配置、SSH 工作区对话、结构化查询、逐次命令批准与本机加密历史。
 - [远程桌面](docs/development.md#远程桌面)：内嵌 RDP、SSH 网关与 Windows 系统客户端。
 - [本机工作环境](docs/development.md#本地草稿与布局恢复)：命名工作集、布局与草稿恢复，以及[外观和快捷键](docs/development.md#设置与演示模式)。
 - [加密备份](docs/development.md#备份与恢复)：本地文件与 WebDAV 快照、预览恢复与配置迁移。
