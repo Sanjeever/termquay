@@ -20,10 +20,17 @@ type Client struct {
 }
 
 func NewClient(config Config) *Client {
-	return &Client{config: config, http: &http.Client{Timeout: 2 * time.Minute, CheckRedirect: func(*http.Request, []*http.Request) error {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.MaxIdleConns = 2
+	transport.MaxIdleConnsPerHost = 2
+	transport.MaxConnsPerHost = 2
+	transport.ResponseHeaderTimeout = 30 * time.Second
+	return &Client{config: config, http: &http.Client{Transport: transport, Timeout: 2 * time.Minute, CheckRedirect: func(*http.Request, []*http.Request) error {
 		return errors.New("AI 请求不允许重定向，请填写最终请求 URL")
 	}}}
 }
+
+func (c *Client) Close() { c.http.CloseIdleConnections() }
 
 func (c *Client) Stream(ctx context.Context, input Request, delta func(string) error) (Response, error) {
 	if err := c.config.Validate(); err != nil {

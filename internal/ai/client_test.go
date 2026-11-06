@@ -3,6 +3,8 @@ package ai
 import (
 	"context"
 	"fmt"
+	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -82,5 +84,43 @@ func TestMessagesPreservesEmptySignedThinking(t *testing.T) {
 	}
 	if !strings.Contains(r.Message.Native, `"thinking":""`) || !strings.Contains(r.Message.Native, `"signature":"synthetic-signature"`) {
 		t.Fatal("空 thinking 字段或签名丢失")
+	}
+}
+
+func TestClientCloseReleasesOnlyOwnedConnections(t *testing.T) {
+	var aiClosed, otherClosed atomic.Int32
+	server := func(closed *atomic.Int32) *httptest.Server {
+		s := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { fmt.Fprint(w, "body") }))
+		s.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+			if state == http.StateClosed {
+				closed.Add(1)
+			}
+		}
+		s.Start()
+		t.Cleanup(s.Close)
+		return s
+	}
+	other, model := server(&otherClosed), server(&aiClosed)
+	read := func(client *http.Client, url string) {
+		r, err := client.Get(url)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := io.Copy(io.Discard, r.Body); err != nil {
+			t.Fatal(err)
+		}
+		r.Body.Close()
+	}
+	read(http.DefaultClient, other.URL)
+	c := NewClient(Config{})
+	defer c.Close()
+	read(c.http, model.URL)
+	c.Close()
+	deadline := time.Now().Add(time.Second)
+	for aiClosed.Load() == 0 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if aiClosed.Load() != 1 || otherClosed.Load() != 0 {
+		t.Fatal("AI 连接未释放或误关共享 HTTP 连接")
 	}
 }

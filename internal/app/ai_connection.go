@@ -49,6 +49,7 @@ func (a *AppService) TestAIConnection(ctx context.Context, update AISettingsUpda
 	defer a.aiWorkers.Done()
 	defer func() { cancel(); a.aiMu.Lock(); delete(a.aiTests, id); a.aiMu.Unlock() }()
 	client := ai.NewClient(config)
+	defer client.Close()
 	result := AIConnectionTest{}
 	response, err := client.Stream(testCtx, ai.Request{System: "连接测试，请简短回复。", Messages: []ai.Message{{Role: "user", Content: "请回复连接正常。"}}}, nil)
 	if err == nil && (response.Message.Content == "" || len(response.Message.ToolCalls) > 0) {

@@ -58,6 +58,7 @@ func (a *AppService) executeAIRun(ctx context.Context, run *aiRun) {
 		a.emitAIChanged(run)
 	}()
 	client := ai.NewClient(run.config)
+	defer client.Close()
 	steps := 0
 	for round := 0; round <= maxAIToolSteps; round++ {
 		if err := ctx.Err(); err != nil {
