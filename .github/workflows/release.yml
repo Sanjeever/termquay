@@ -49,7 +49,7 @@ jobs:
         include:
           - os: windows-2022
             name: windows_amd64
-          - os: macos-14
+          - os: macos-15
             name: darwin_universal
           - os: ubuntu-24.04
             name: linux_amd64

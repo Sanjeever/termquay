@@ -520,6 +520,8 @@ node scripts/version.mjs check "v$next_version"
 
 [CI](../.github/workflows/ci.yml) 在 PR 和 `main` 上运行逻辑测试、前端构建、Go 测试及原生构建，Linux 另检查竞态。构建任务限制源码扫描范围，避免递归扫描 pnpm 依赖链接；新增源码目录或 Wails include 资源时同步 [任务输入](../build/Taskfile.yml)。
 
+2026-11-06 发布准备发现 `macos-14` 任务未启动即被取消，GitHub 返回构建配置不受支持。依据 [官方退役说明](https://github.blog/changelog/2026-10-01-github-actions-macos-14-runner-image-retirement/)，CI 和发布工作流已迁移到 `macos-15`；macOS 附件继续构建 arm64/amd64 通用程序。
+
 发布前，先在已进入 `main` 的候选提交上手动运行“发布桌面应用”工作流。手动运行执行相同正式构建，上传三平台附件及 `SHA256SUMS` 到 `release-bundle` artifact，不创建 Release。平台、架构和附件命名以工作流为准；压缩包内必须只有一个顶层程序或 `.app`，与 [更新 provider](../internal/update/provider.go) 的选择及框架解包约定一致。候选包同样带正式构建标记，启动后会查询当前公开稳定版本。
 
 验收候选包的启动、系统集成、核心连接、退出保护及旧程序升级到候选版本的链路。下载失败、取消、摘要不符、不可写目录和替换失败需要覆盖。测试替身和 CI 原生构建不能替代实际桌面运行；某个平台尚未验收时保留缺口，不能据构建成功宣称全面可用。
