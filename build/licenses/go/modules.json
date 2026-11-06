@@ -1,5 +1,9 @@
 [
   {
+    "module": "github.com/tmaxmax/go-sse",
+    "version": "v0.11.0"
+  },
+  {
     "module": "maze.io/x/asciicast",
     "version": "v1.0.1"
   },

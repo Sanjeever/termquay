@@ -1,0 +1,139 @@
+package ai
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/tmaxmax/go-sse"
+)
+
+type Client struct {
+	config Config
+	http   *http.Client
+}
+
+func NewClient(config Config) *Client {
+	return &Client{config: config, http: &http.Client{Timeout: 2 * time.Minute, CheckRedirect: func(*http.Request, []*http.Request) error {
+		return errors.New("AI 请求不允许重定向，请填写最终请求 URL")
+	}}}
+}
+
+func (c *Client) Stream(ctx context.Context, input Request, delta func(string) error) (Response, error) {
+	if err := c.config.Validate(); err != nil {
+		return Response{}, err
+	}
+	var payload any
+	var parse func(string) (bool, error)
+	r := Response{Message: Message{Role: "assistant", Protocol: c.config.Protocol}}
+	switch c.config.Protocol {
+	case "chat_completions":
+		payload = chatRequest(c.config, input)
+		parse = chatParser(&r, delta)
+	default:
+		return r, errors.New("AI 协议适配尚不可用")
+	}
+	b, err := json.Marshal(payload)
+	if err != nil {
+		return r, err
+	}
+	if len(b) > 2*MaxContextBytes {
+		return r, errors.New("模型请求超过上下文预算")
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.config.Endpoint, bytes.NewReader(b))
+	if err != nil {
+		return r, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "text/event-stream")
+	if c.config.Protocol == "messages" {
+		req.Header.Set("x-api-key", c.config.APIKey)
+		req.Header.Set("anthropic-version", "2023-06-01")
+	} else if c.config.APIKey != "" {
+		req.Header.Set("Authorization", "Bearer "+c.config.APIKey)
+	}
+	res, err := c.http.Do(req)
+	if err != nil {
+		return r, c.cleanError(err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		body, readErr := io.ReadAll(io.LimitReader(res.Body, 8192))
+		if readErr != nil {
+			return r, c.cleanError(readErr)
+		}
+		var detail struct {
+			Error struct {
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+		_ = json.Unmarshal(body, &detail)
+		return r, c.cleanError(fmt.Errorf("模型 HTTP %d: %s", res.StatusCode, detail.Error.Message))
+	}
+	if !strings.HasPrefix(res.Header.Get("Content-Type"), "text/event-stream") {
+		return r, errors.New("模型未返回 SSE 文本流")
+	}
+	reader := &io.LimitedReader{R: res.Body, N: MaxWireBytes + 1}
+	complete := false
+	for event, err := range sse.Read(reader, &sse.ReadConfig{MaxEventSize: 512 << 10}) {
+		if err != nil {
+			return r, c.cleanError(err)
+		}
+		if ctx.Err() != nil {
+			return r, ctx.Err()
+		}
+		complete, err = parse(event.Data)
+		if err != nil {
+			return r, c.cleanError(err)
+		}
+		if complete {
+			break
+		}
+	}
+	if reader.N <= 0 {
+		return r, errors.New("模型网络响应超过限制")
+	}
+	if !complete {
+		return r, errors.New("模型流提前结束，未收到完整结束标记")
+	}
+	if len(r.Message.Content) > MaxResponseBytes || len(r.Message.Native) > 256<<10 {
+		return r, errors.New("模型响应超过限制")
+	}
+	seen := map[string]bool{}
+	for _, call := range r.Message.ToolCalls {
+		var args map[string]json.RawMessage
+		if call.ID == "" || len(call.ID) > 256 || call.Name == "" || seen[call.ID] || len(call.Arguments) > MaxArgumentsBytes || json.Unmarshal([]byte(call.Arguments), &args) != nil || args == nil {
+			return r, errors.New("模型工具调用标识或参数无效")
+		}
+		seen[call.ID] = true
+	}
+	return r, nil
+}
+
+func (c *Client) cleanError(err error) error {
+	message := err.Error()
+	if c.config.APIKey != "" {
+		message = strings.ReplaceAll(message, c.config.APIKey, "[API Key]")
+	}
+	if len(message) > 2048 {
+		message = message[:2048] + "…"
+	}
+	return errors.New(message)
+}
+
+func appendText(r *Response, text string, delta func(string) error) error {
+	if len(r.Message.Content)+len(text) > MaxResponseBytes {
+		return errors.New("模型回复超过限制，已停止")
+	}
+	r.Message.Content += text
+	if text != "" && delta != nil {
+		return delta(text)
+	}
+	return nil
+}

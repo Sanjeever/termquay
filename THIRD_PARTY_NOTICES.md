@@ -9,6 +9,7 @@ TermQuay 采用 Apache-2.0。各依赖保留其原有许可证、版权与声明
 - 终端搜索与链接使用 `@xterm/addon-search`、`@xterm/addon-web-links`，均采用 MIT；许可原文随包保存在前端许可目录。
 - 带时间轴终端录制使用 `maze.io/x/asciicast`（MIT），离线回放使用 `asciinema-player`（Apache-2.0）；录制编码与播放器均在本机运行。Go 与 npm 包附带的许可原文已收集。[播放器 WASM 材料](build/licenses/asciinema-player/3.17.0/) 保存锁定源码的 normal/build 依赖清单及许可原文、npm 来源证明与签名验证结果、构建配置和内嵌制品摘要；清单可能包含未链接的依赖，未执行可复现重建。
 - 快速连接使用 `github.com/google/shlex` 解析引号与词法，采用 Apache-2.0；不执行解析内容。许可原文保存在 Go 许可目录。
+- AI 模型流使用 `github.com/tmaxmax/go-sse` 解析 SSE，采用 MIT；许可原文保存在 Go 许可目录。
 - 文件冲突对比使用 `@codemirror/merge`，采用 MIT；许可原文保存在前端许可目录。
 - 代码缩略图使用 `@replit/codemirror-minimap`。已核对发布包及对应源码提交的 `package.json`，均声明 MIT；许可目录保存原始包元数据和标准 MIT 条款。作者信息沿用原始元数据，未补写上游没有提供的版权年份或权利人。高亮标签使用的 `@lezer/highlight` 已收集许可原文。
 - 多语言高亮、补全与语法提示使用 CodeMirror、Lezer 语言包及 `@codemirror/legacy-modes`，采用 MIT。YAML 诊断使用 `yaml`，采用 ISC；Markdown 预览使用 `react-markdown`、`remark-gfm` 和 `rehype-slug`，采用 MIT。对应生产依赖和许可原文保存在前端许可目录。

@@ -17,6 +17,7 @@ require (
 	github.com/pkg/sftp v1.13.10
 	github.com/pkg/sftp/v2 v2.0.0-alpha2
 	github.com/studio-b12/gowebdav v0.13.0
+	github.com/tmaxmax/go-sse v0.11.0
 	github.com/wailsapp/wails/v3 v3.0.0
 	github.com/zalando/go-keyring v0.2.6
 	golang.org/x/crypto v0.57.0
