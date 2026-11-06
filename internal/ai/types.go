@@ -52,10 +52,11 @@ type Tool struct {
 }
 
 type Request struct {
-	System    string
-	Messages  []Message
-	Tools     []Tool
-	ForceTool string
+	OnActivity func()
+	System     string
+	Messages   []Message
+	Tools      []Tool
+	ForceTool  string
 }
 
 type Usage struct {

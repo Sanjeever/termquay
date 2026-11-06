@@ -5,8 +5,27 @@ import AIConversation from './AIConversation';
 import AIHistory from './AIHistory';
 import AIToolCall from './AIToolCall';
 import type { Reference } from '../../../bindings/github.com/Sanjeever/termquay/internal/ai/models';
+import type { AIRunView } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 
-const states: Record<string, string> = { running: '正在回复', awaiting_approval: '等待命令批准', compressing: '正在压缩较早上下文' };
+const states: Record<string, string> = { running: '正在处理', awaiting_approval: '等待命令批准', compressing: '正在压缩较早上下文' };
+
+function AIRequestStatus({run,visible}:{run?:AIRunView;visible:boolean}) {
+  const [now,setNow]=useState(Date.now);
+  const started=run?.model_started_at||0;
+  useEffect(()=>{
+    if(!visible||!started)return;
+    setNow(Date.now());
+    const timer=setInterval(()=>setNow(Date.now()),1000);
+    return()=>clearInterval(timer);
+  },[visible,started]);
+  let label=states[run?.state||'']||'';
+  if(started&&run?.state==='running') {
+    const idle=now-(run.model_last_activity_at||started);
+    label=!run.live_text?'等待模型响应':idle>=30000?'等待模型继续响应':'正在回复';
+  }
+  const seconds=started?Math.max(0,Math.floor((now-started)/1000)):0;
+  return <div className="ai-status" role="status">{label}{started?<span aria-live="off"> · {run?.live_text?'已用时':'已等待'} {Math.floor(seconds/60)}:{String(seconds%60).padStart(2,'0')}</span>:null}</div>;
+}
 
 export default function AIPanel({ workspace, visible, configRevision, references, onRemoveReference, onReferencesSent, onClose }: { workspace: string; visible: boolean; configRevision: number; references: Reference[]; onRemoveReference(index: number): void; onReferencesSent(sent: Reference[]): void; onClose(): void }) {
   const ai = useAIConversation(workspace, visible, configRevision);
@@ -43,7 +62,7 @@ export default function AIPanel({ workspace, visible, configRevision, references
         {!ai.browsing && ai.run?.live_text && <article className="ai-message assistant"><div className="ai-message-role">助手</div><div className="ai-stream-text">{ai.run.live_text}</div></article>}
       </div>
       {pending && !pendingInPage && <AIToolCall call={pending.call} pending active busy={ai.busy} onDecide={approved => void ai.decide(approved)} />}
-      <div className="ai-status" role="status">{states[ai.run?.state || ''] || ''}</div>
+      <AIRequestStatus run={ai.run} visible={visible}/>
       <form className="ai-composer" onSubmit={event => { event.preventDefault(); void send(); }}>
         {!!references.length && <div className="ai-pending-references" aria-label="待发送终端引用">{references.map((reference,index)=><div className="ai-pending-reference" key={index}><details><summary>{reference.label || `终端 ${reference.terminal.slice(0,8)}`}</summary><pre>{reference.text}</pre></details><button type="button" className="icon-button" aria-label={`移除引用 ${index+1}`} onClick={()=>onRemoveReference(index)}><Icon name="close" width="12"/></button></div>)}</div>}
         <textarea ref={input} disabled={ai.busy || !visible} aria-label="发送给 AI 的问题" placeholder="询问当前主机…" rows={3} maxLength={32768} value={text} onChange={event => setText(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void send(); } }} /><div className="ai-composer-actions">{running ? <button type="button" className="session-tool" disabled={ai.busy} onClick={() => void ai.stop()}>停止</button> : <button type="submit" className="session-tool ai-send" disabled={!visible || ai.busy || ai.loading || !text.trim() && !references.length || targetChanged && !acceptTarget}>发送</button>}</div></form>

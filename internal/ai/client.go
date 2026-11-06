@@ -133,7 +133,7 @@ func (c *Client) Stream(parent context.Context, input Request, delta func(string
 	if !strings.HasPrefix(res.Header.Get("Content-Type"), "text/event-stream") {
 		return r, errors.New("模型未返回 SSE 文本流")
 	}
-	reader := &io.LimitedReader{R: res.Body, N: MaxWireBytes + 1}
+	reader := &io.LimitedReader{R: modelActivityReader{Reader: res.Body, activity: input.OnActivity}, N: MaxWireBytes + 1}
 	complete := false
 	for event, err := range sse.Read(reader, &sse.ReadConfig{MaxEventSize: 512 << 10}) {
 		if err != nil {
@@ -179,6 +179,19 @@ func (c *Client) cleanError(err error) error {
 		message = message[:2048] + "…"
 	}
 	return errors.New(message)
+}
+
+type modelActivityReader struct {
+	io.Reader
+	activity func()
+}
+
+func (r modelActivityReader) Read(data []byte) (int, error) {
+	n, err := r.Reader.Read(data)
+	if n > 0 && r.activity != nil {
+		r.activity()
+	}
+	return n, err
 }
 
 func appendText(r *Response, text string, delta func(string) error) error {

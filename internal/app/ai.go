@@ -54,16 +54,18 @@ type AIToolDecision struct {
 }
 
 type AIRunView struct {
-	ID             string             `json:"id"`
-	Workspace      string             `json:"workspace"`
-	ConversationID string             `json:"conversation_id"`
-	State          string             `json:"state"`
-	LiveText       string             `json:"live_text"`
-	Pending        *AIPendingApproval `json:"pending,omitempty"`
-	LastSeq        int                `json:"last_seq"`
-	Revision       uint64             `json:"revision"`
-	Compressed     bool               `json:"compressed"`
-	Error          string             `json:"error"`
+	ModelStartedAt      int64              `json:"model_started_at"`
+	ModelLastActivityAt int64              `json:"model_last_activity_at"`
+	ID                  string             `json:"id"`
+	Workspace           string             `json:"workspace"`
+	ConversationID      string             `json:"conversation_id"`
+	State               string             `json:"state"`
+	LiveText            string             `json:"live_text"`
+	Pending             *AIPendingApproval `json:"pending,omitempty"`
+	LastSeq             int                `json:"last_seq"`
+	Revision            uint64             `json:"revision"`
+	Compressed          bool               `json:"compressed"`
+	Error               string             `json:"error"`
 }
 
 type AIStartRequest struct {

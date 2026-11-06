@@ -54,6 +54,8 @@ export interface AIPendingApproval {
 }
 
 export interface AIRunView {
+    "model_started_at": number;
+    "model_last_activity_at": number;
     "id": string;
     "workspace": string;
     "conversation_id": string;

@@ -179,3 +179,43 @@ func TestModelRequestTimeout(t *testing.T) {
 		}
 	})
 }
+
+func TestModelActivityIncludesSSEComments(t *testing.T) {
+	release := make(chan struct{})
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprint(w, ": heartbeat\n\n")
+		w.(http.Flusher).Flush()
+		<-release
+		sendEvents(w, `{"choices":[{"delta":{"content":"完成"},"finish_reason":"stop"}]}`, `[DONE]`)
+	}))
+	defer s.Close()
+	client := NewClient(Config{Enabled: true, Protocol: "chat_completions", Endpoint: s.URL, Model: "test"})
+	defer client.Close()
+	activity := make(chan struct{}, 1)
+	done := make(chan error, 1)
+	go func() {
+		_, err := client.Stream(context.Background(), Request{OnActivity: func() {
+			select {
+			case activity <- struct{}{}:
+			default:
+			}
+		}}, nil)
+		done <- err
+	}()
+	select {
+	case <-activity:
+		close(release)
+	case <-time.After(time.Second):
+		close(release)
+		t.Fatal("SSE 注释心跳未计入网络活动")
+	}
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("心跳后未继续处理回复")
+	}
+}
