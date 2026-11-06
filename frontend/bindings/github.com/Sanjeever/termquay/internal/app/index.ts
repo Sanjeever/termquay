@@ -7,6 +7,8 @@ export {
 };
 
 export type {
+    AISettings,
+    AISettingsUpdate,
     ApplicationLockStatus,
     AutomaticBackupStatus,
     BackupCoverage,

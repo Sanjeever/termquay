@@ -17,6 +17,25 @@ import * as ssh$0 from "../ssh/models.js";
 // @ts-ignore: Unused imports
 import * as store$0 from "../store/models.js";
 
+export interface AISettings {
+    "enabled": boolean;
+    "protocol": string;
+    "endpoint": string;
+    "model": string;
+    "has_api_key": boolean;
+    "confirm_exec": boolean;
+}
+
+export interface AISettingsUpdate {
+    "enabled": boolean;
+    "protocol": string;
+    "endpoint": string;
+    "model": string;
+    "api_key_action": string;
+    "api_key": string;
+    "confirm_exec": boolean;
+}
+
 export interface ApplicationLockStatus {
     "available": boolean;
     "locked": boolean;

@@ -332,6 +332,10 @@ export function FinishTerminalLog(id: string): $CancellablePromise<ssh$0.Termina
     return $Call.ByID(3901519905, id);
 }
 
+export function GetAISettings(): $CancellablePromise<$models.AISettings> {
+    return $Call.ByID(3529512205);
+}
+
 export function GetApplicationLock(): $CancellablePromise<$models.ApplicationLockStatus> {
     return $Call.ByID(3288919527);
 }
@@ -806,6 +810,10 @@ export function RunFileAction(workspace: string, remote: string, action: string,
 
 export function RunRemoteCommand(workspace: string, script: string, timeoutSeconds: number): $CancellablePromise<ssh$0.CommandResult> {
     return $Call.ByID(1951620378, workspace, script, timeoutSeconds);
+}
+
+export function SaveAISettings(update: $models.AISettingsUpdate): $CancellablePromise<$models.AISettings> {
+    return $Call.ByID(1941824464, update);
 }
 
 export function SaveBackupSettings(options: backup$0.WebDAVOptions, password: string, deviceName: string, selection: $models.BackupSelection): $CancellablePromise<void> {

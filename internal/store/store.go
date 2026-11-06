@@ -170,21 +170,43 @@ func Open(dir string, key []byte) (*Store, error) {
 		db.Close()
 		return nil, err
 	}
-	if version > 1 {
+	if version > 2 {
 		db.Close()
 		return nil, errors.New("数据库版本高于当前应用支持范围")
 	}
-	_, err = db.Exec(`PRAGMA foreign_keys = ON;
-CREATE TABLE IF NOT EXISTS groups (id TEXT PRIMARY KEY, data TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS connections (id TEXT PRIMARY KEY, data TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS credentials (id TEXT PRIMARY KEY, kind TEXT NOT NULL, ciphertext BLOB NOT NULL);
-CREATE TABLE IF NOT EXISTS settings (id TEXT PRIMARY KEY, data TEXT NOT NULL);
-PRAGMA user_version = 1;`)
+	_, err = db.Exec(`PRAGMA foreign_keys = ON;`)
+	if err == nil {
+		err = s.migrateAI()
+	}
 	if err != nil {
 		db.Close()
 		return nil, err
 	}
 	return s, nil
+}
+
+func (s *Store) migrateAI() error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	_, err = tx.Exec(`
+CREATE TABLE IF NOT EXISTS groups (id TEXT PRIMARY KEY, data TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS connections (id TEXT PRIMARY KEY, data TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS credentials (id TEXT PRIMARY KEY, kind TEXT NOT NULL, ciphertext BLOB NOT NULL);
+CREATE TABLE IF NOT EXISTS settings (id TEXT PRIMARY KEY, data TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS ai_conversations (
+ id TEXT PRIMARY KEY, archive TEXT NOT NULL, updated_at INTEGER NOT NULL, ciphertext TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS ai_archive ON ai_conversations(archive, updated_at DESC, id);
+CREATE TABLE IF NOT EXISTS ai_messages (
+ conversation_id TEXT NOT NULL REFERENCES ai_conversations(id) ON DELETE CASCADE,
+ seq INTEGER NOT NULL, ciphertext TEXT NOT NULL, PRIMARY KEY(conversation_id, seq));
+PRAGMA user_version = 2;`)
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (s *Store) Close() error { return s.db.Close() }
