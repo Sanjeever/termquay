@@ -81,10 +81,12 @@ func (s *Store) CreateAIConversation(ctx context.Context, c AIConversation) erro
 
 func (s *Store) AIConversation(ctx context.Context, id string) (AIConversation, error) {
 	var encoded string
-	err := s.db.QueryRowContext(ctx, "SELECT ciphertext FROM ai_conversations WHERE id = ?", id).Scan(&encoded)
+	var updated int64
+	err := s.db.QueryRowContext(ctx, "SELECT ciphertext,updated_at FROM ai_conversations WHERE id = ?", id).Scan(&encoded, &updated)
 	var c AIConversation
 	if err == nil {
 		err = s.openAIValue("ai:conversation:"+id, encoded, &c)
+		c.UpdatedAt = updated
 	}
 	return c, err
 }
@@ -93,7 +95,7 @@ func (s *Store) ListAIConversations(ctx context.Context, archive string, offset,
 	if offset < 0 || limit < 1 || limit > 50 {
 		return nil, errors.New("AI 历史分页参数无效")
 	}
-	rows, err := s.db.QueryContext(ctx, "SELECT id,ciphertext FROM ai_conversations WHERE archive = ? ORDER BY updated_at DESC,id LIMIT ? OFFSET ?", archive, limit, offset)
+	rows, err := s.db.QueryContext(ctx, "SELECT id,ciphertext,updated_at FROM ai_conversations WHERE archive = ? ORDER BY updated_at DESC,id LIMIT ? OFFSET ?", archive, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -101,13 +103,15 @@ func (s *Store) ListAIConversations(ctx context.Context, archive string, offset,
 	out := []AIConversation{}
 	for rows.Next() {
 		var id, encoded string
-		if err := rows.Scan(&id, &encoded); err != nil {
+		var updated int64
+		if err := rows.Scan(&id, &encoded, &updated); err != nil {
 			return nil, err
 		}
 		var c AIConversation
 		if err := s.openAIValue("ai:conversation:"+id, encoded, &c); err != nil {
 			return nil, err
 		}
+		c.UpdatedAt = updated
 		out = append(out, c)
 	}
 	return out, rows.Err()
@@ -203,4 +207,30 @@ func (s *Store) AIMessages(ctx context.Context, id string, before, limit int) ([
 func (s *Store) DeleteAIConversation(ctx context.Context, id string) error {
 	_, err := s.db.ExecContext(ctx, "DELETE FROM ai_conversations WHERE id=?", id)
 	return err
+}
+
+func (s *Store) AIMessagesAfter(ctx context.Context, id string, after, limit int) ([]AIStoredMessage, error) {
+	if after < 0 || limit < 1 || limit > 64 {
+		return nil, errors.New("AI 上下文分页无效")
+	}
+	rows, err := s.db.QueryContext(ctx, "SELECT seq,ciphertext FROM ai_messages WHERE conversation_id=? AND seq>? ORDER BY seq LIMIT ?", id, after, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []AIStoredMessage{}
+	for rows.Next() {
+		var m AIStoredMessage
+		var encoded string
+		if err := rows.Scan(&m.Seq, &encoded); err != nil {
+			return nil, err
+		}
+		var v json.RawMessage
+		if err := s.openAIValue(fmt.Sprintf("ai:message:%s:%d", id, m.Seq), encoded, &v); err != nil {
+			return nil, err
+		}
+		m.Data = string(v)
+		out = append(out, m)
+	}
+	return out, rows.Err()
 }

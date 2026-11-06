@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/Sanjeever/termquay/internal/ai"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 type AISettings struct {
@@ -25,6 +26,8 @@ type AISettingsUpdate struct {
 	APIKey       string `json:"api_key"`
 	ConfirmExec  bool   `json:"confirm_exec"`
 }
+
+func init() { application.RegisterEvent[AISettings]("ai:settings-changed") }
 
 func (a *AppService) aiConfig() (ai.Config, error) {
 	a.storeMu.Lock()
@@ -57,23 +60,16 @@ func (a *AppService) GetAISettings() (AISettings, error) {
 }
 
 func (a *AppService) SaveAISettings(update AISettingsUpdate) (AISettings, error) {
+	a.aiMu.Lock()
+	defer a.aiMu.Unlock()
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
 	c, err := a.aiConfigLocked()
 	if err != nil {
 		return AISettings{}, err
 	}
-	c.Enabled, c.Protocol, c.Endpoint, c.Model, c.ConfirmExec = update.Enabled, update.Protocol, update.Endpoint, update.Model, update.ConfirmExec
-	switch update.APIKeyAction {
-	case "keep":
-	case "replace":
-		c.APIKey = update.APIKey
-	case "clear":
-		c.APIKey = ""
-	default:
-		return AISettings{}, errors.New("API Key 更新方式无效")
-	}
-	if err := c.Validate(); err != nil {
+	c, err = updatedAIConfig(c, update)
+	if err != nil {
 		return AISettings{}, err
 	}
 	b, err := json.Marshal(c)
@@ -83,5 +79,30 @@ func (a *AppService) SaveAISettings(update AISettingsUpdate) (AISettings, error)
 	if err := a.store.SetSecretSetting("ai_config", string(b)); err != nil {
 		return AISettings{}, err
 	}
-	return aiSettingsView(c), nil
+	a.aiSettingsEpoch.Add(1)
+	if !c.Enabled {
+		a.cancelAILocked()
+	}
+	view := aiSettingsView(c)
+	if app := application.Get(); app != nil {
+		app.Event.Emit("ai:settings-changed", view)
+	}
+	return view, nil
+}
+
+func updatedAIConfig(c ai.Config, update AISettingsUpdate) (ai.Config, error) {
+	c.Enabled, c.Protocol, c.Endpoint, c.Model, c.ConfirmExec = update.Enabled, update.Protocol, update.Endpoint, update.Model, update.ConfirmExec
+	switch update.APIKeyAction {
+	case "keep":
+	case "replace":
+		c.APIKey = update.APIKey
+	case "clear":
+		c.APIKey = ""
+	default:
+		return c, errors.New("API Key 更新方式无效")
+	}
+	if err := c.Validate(); err != nil {
+		return c, err
+	}
+	return c, nil
 }

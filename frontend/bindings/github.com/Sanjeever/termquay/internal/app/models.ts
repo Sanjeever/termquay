@@ -3,6 +3,9 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as ai$0 from "../ai/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as files$0 from "../files/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -16,6 +19,51 @@ import * as ssh$0 from "../ssh/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as store$0 from "../store/models.js";
+
+export interface AIChanged {
+    "workspace": string;
+    "run_id": string;
+    "revision": number;
+}
+
+export interface AIConnectionTest {
+    "reply": AITestResult;
+    "tools": AITestResult;
+}
+
+export interface AIConversationPage {
+    "conversation": store$0.AIConversation;
+    "current_target": string;
+    "messages": AIMessage[] | null;
+    "has_more": boolean;
+}
+
+export interface AIMessage {
+    "seq": number;
+    "run_id": string;
+    "message": ai$0.Message;
+    "state": string;
+    "created_at": number;
+}
+
+export interface AIPendingApproval {
+    "token": string;
+    "call": ai$0.ToolCall;
+    "timeout_seconds": number;
+}
+
+export interface AIRunView {
+    "id": string;
+    "workspace": string;
+    "conversation_id": string;
+    "state": string;
+    "live_text": string;
+    "pending"?: AIPendingApproval | null;
+    "last_seq": number;
+    "revision": number;
+    "compressed": boolean;
+    "error": string;
+}
 
 export interface AISettings {
     "enabled": boolean;
@@ -34,6 +82,29 @@ export interface AISettingsUpdate {
     "api_key_action": string;
     "api_key": string;
     "confirm_exec": boolean;
+}
+
+export interface AIStartRequest {
+    "workspace": string;
+    "conversation_id": string;
+    "text": string;
+    "references": ai$0.Reference[] | null;
+    "accept_target_change": boolean;
+}
+
+export interface AITestResult {
+    "ok": boolean;
+    "error": string;
+}
+
+export interface AIToolDecision {
+    "workspace": string;
+    "run_id": string;
+    "conversation_id": string;
+    "token": string;
+    "call_id": string;
+    "arguments": string;
+    "timeout_seconds": number;
 }
 
 export interface ApplicationLockStatus {

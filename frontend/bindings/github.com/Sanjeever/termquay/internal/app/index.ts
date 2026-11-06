@@ -7,8 +7,17 @@ export {
 };
 
 export type {
+    AIChanged,
+    AIConnectionTest,
+    AIConversationPage,
+    AIMessage,
+    AIPendingApproval,
+    AIRunView,
     AISettings,
     AISettingsUpdate,
+    AIStartRequest,
+    AITestResult,
+    AIToolDecision,
     ApplicationLockStatus,
     AutomaticBackupStatus,
     BackupCoverage,

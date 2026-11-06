@@ -32,6 +32,10 @@ export function AnswerSSHChallenge(id: string, challengeID: string, answers: str
     return $Call.ByID(3155466387, id, challengeID, answers);
 }
 
+export function ApproveAIToolCall(decision: $models.AIToolDecision): $CancellablePromise<void> {
+    return $Call.ByID(1643667531, decision);
+}
+
 export function AssignCredential(connectionIDs: string[] | null, credentialID: string): $CancellablePromise<void> {
     return $Call.ByID(2755519190, connectionIDs, credentialID);
 }
@@ -204,6 +208,10 @@ export function CopyRemoteFiles(id: string, paths: string[] | null): $Cancellabl
     return $Call.ByID(1458740588, id, paths);
 }
 
+export function CreateAIConversation(workspace: string): $CancellablePromise<store$0.AIConversation> {
+    return $Call.ByID(3303965895, workspace);
+}
+
 export function CreatePasswordStorage(password: string): $CancellablePromise<void> {
     return $Call.ByID(949906388, password);
 }
@@ -218,6 +226,10 @@ export function CreateTerminal(workspace: string): $CancellablePromise<$models.O
 
 export function CreateTmuxTerminal(workspace: string, name: string): $CancellablePromise<$models.OpenResult> {
     return $Call.ByID(1598212760, workspace, name);
+}
+
+export function DeleteAIConversation(workspace: string, id: string): $CancellablePromise<void> {
+    return $Call.ByID(393927396, workspace, id);
 }
 
 export function DeleteCommandRun(id: string): $CancellablePromise<void> {
@@ -330,6 +342,14 @@ export function ExportTerminalBuffer(content: string): $CancellablePromise<void>
 
 export function FinishTerminalLog(id: string): $CancellablePromise<ssh$0.TerminalLogStatus> {
     return $Call.ByID(3901519905, id);
+}
+
+export function GetAIConversation(workspace: string, id: string, before: number, limit: number): $CancellablePromise<$models.AIConversationPage> {
+    return $Call.ByID(2699538183, workspace, id, before, limit);
+}
+
+export function GetAIRun(workspace: string): $CancellablePromise<$models.AIRunView> {
+    return $Call.ByID(3243110741, workspace);
 }
 
 export function GetAISettings(): $CancellablePromise<$models.AISettings> {
@@ -452,6 +472,10 @@ export function InspectContainer(workspace: string, socket: string, id: string):
     return $Call.ByID(1928224569, workspace, socket, id);
 }
 
+export function ListAIConversations(workspace: string, offset: number, limit: number): $CancellablePromise<store$0.AIConversation[] | null> {
+    return $Call.ByID(1010652812, workspace, offset, limit);
+}
+
 export function ListCommandRuns(): $CancellablePromise<$models.CommandRunSummary[] | null> {
     return $Call.ByID(1846872853);
 }
@@ -550,6 +574,10 @@ export function MoveRemotePaths(id: string, paths: string[] | null, directory: s
 
 export function NotifyCommandFinished(id: string, failed: boolean): $CancellablePromise<void> {
     return $Call.ByID(2465979134, id, failed);
+}
+
+export function OpenAIConversation(workspace: string, id: string): $CancellablePromise<void> {
+    return $Call.ByID(823861251, workspace, id);
 }
 
 export function OpenContainerTerminal(workspace: string, socket: string, id: string, shell: string): $CancellablePromise<$models.OpenResult> {
@@ -750,6 +778,10 @@ export function RecordConnectionSuccess(id: string): $CancellablePromise<void> {
 
 export function RegisterWorkspaceView(id: string): $CancellablePromise<void> {
     return $Call.ByID(3121833981, id);
+}
+
+export function RejectAIToolCall(decision: $models.AIToolDecision): $CancellablePromise<void> {
+    return $Call.ByID(3928731069, decision);
 }
 
 export function ReleaseImagePreview(id: string): $CancellablePromise<void> {
@@ -976,6 +1008,10 @@ export function SetWorkspaceDirty(id: string, dirty: boolean): $CancellablePromi
     return $Call.ByID(3255489445, id, dirty);
 }
 
+export function StartAIRun(request: $models.AIStartRequest): $CancellablePromise<$models.AIRunView> {
+    return $Call.ByID(1996449905, request);
+}
+
 export function StartCommandRun(task: $models.CommandTask, targets: $models.CommandRunTarget[] | null, baselineWorkspace: string): $CancellablePromise<$models.CommandRunSummary> {
     return $Call.ByID(3850444144, task, targets, baselineWorkspace);
 }
@@ -1012,12 +1048,20 @@ export function StartUploads(id: string, directory: string, overwrite: boolean):
     return $Call.ByID(565143592, id, directory, overwrite);
 }
 
+export function StopAIRun(workspace: string, runID: string): $CancellablePromise<void> {
+    return $Call.ByID(254570505, workspace, runID);
+}
+
 export function SubscribeMonitor(id: string): $CancellablePromise<void> {
     return $Call.ByID(510329004, id);
 }
 
 export function SystemRDPAvailable(): $CancellablePromise<boolean> {
     return $Call.ByID(2720104474);
+}
+
+export function TestAIConnection(update: $models.AISettingsUpdate): $CancellablePromise<$models.AIConnectionTest> {
+    return $Call.ByID(3027572284, update);
 }
 
 export function TestWebDAV(options: backup$0.WebDAVOptions): $CancellablePromise<void> {

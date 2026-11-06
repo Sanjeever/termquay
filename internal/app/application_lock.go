@@ -115,6 +115,7 @@ func (a *AppService) TouchApplication() {
 		a.lockState = status
 		a.lockDeadline = time.Time{}
 		a.lockMu.Unlock()
+		a.cancelAIWork()
 		application.Get().Event.Emit("app:lock-changed", status)
 	})
 }
@@ -137,6 +138,7 @@ func (a *AppService) LockApplication() error {
 	a.lockState = status
 	a.lockDeadline = time.Time{}
 	a.lockMu.Unlock()
+	a.cancelAIWork()
 	application.Get().Event.Emit("app:lock-changed", status)
 	return nil
 }

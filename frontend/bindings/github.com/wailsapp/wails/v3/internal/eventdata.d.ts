@@ -12,6 +12,8 @@ import type * as app$0 from "../../../../Sanjeever/termquay/internal/app/models.
 declare module "@wailsio/runtime" {
     namespace Events {
         interface CustomEvents {
+            "ai:changed": app$0.AIChanged;
+            "ai:settings-changed": app$0.AISettings;
             "app:lock-changed": app$0.ApplicationLockStatus;
             "app:menu-command": string;
             "app:menu-state": { [_ in string]?: string } | null;

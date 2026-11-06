@@ -9,6 +9,16 @@ import type {} from "../github.com/wailsapp/wails/v3/internal/eventdata.js";
 import "../github.com/wailsapp/wails/v3/internal/eventcreate.js";
 
 /**
+ * Name of the custom event "ai:changed".
+ */
+export const AiChanged = "ai:changed";
+
+/**
+ * Name of the custom event "ai:settings-changed".
+ */
+export const AiSettingsChanged = "ai:settings-changed";
+
+/**
  * Name of the custom event "app:lock-changed".
  */
 export const AppLockChanged = "app:lock-changed";

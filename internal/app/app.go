@@ -53,6 +53,14 @@ type workspaceOwner struct {
 }
 
 type AppService struct {
+	aiMu                   sync.Mutex
+	aiRuns                 map[string]*aiRun
+	aiCurrent              map[string]aiWorkspaceConversation
+	aiTests                map[string]context.CancelFunc
+	aiWorkers              sync.WaitGroup
+	aiStopped              bool
+	aiSettingsEpoch        atomic.Uint64
+	aiStreams              map[string]*application.StreamConn
 	cliServer              *localapi.Server
 	appLocked              atomic.Bool
 	snapshotCapturing      bool
@@ -197,6 +205,7 @@ func (a *AppService) CloseWorkspace(id string) {
 		}
 	}
 	a.mu.Unlock()
+	a.closeAIWorkspace(id)
 	for _, console := range containers {
 		console.close()
 	}
@@ -269,6 +278,7 @@ func (a *AppService) ServiceShutdown() (result error) {
 		ids = append(ids, id)
 	}
 	a.mu.Unlock()
+	a.shutdownAI()
 	a.stopAutomaticBackup()
 	for _, id := range localIDs {
 		a.CloseLocalTerminal(id)
