@@ -73,6 +73,9 @@ func aiTestSSH(t *testing.T) (*AppService, <-chan string) {
 							return
 						}
 						executed <- string(b)
+						if strings.Contains(string(b), "unknown_fixture") {
+							return
+						}
 						fmt.Fprint(channel, "synthetic-output")
 						channel.SendRequest("exit-status", false, gossh.Marshal(struct{ Status uint32 }{0}))
 						return
@@ -212,7 +215,7 @@ func TestAIRunApprovalAndRealLocalSSHChannel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(page.Messages) != 5 || page.Messages[2].Message.Role != "tool" || !strings.Contains(page.Messages[2].Message.Content, `"exit_code":0`) {
+	if len(page.Messages) != 5 || page.Messages[2].Message.Role != "tool" || page.Messages[2].Result == nil || page.Messages[2].Result.ExitCode == nil || *page.Messages[2].Result.ExitCode != 0 {
 		t.Fatalf("历史缺少工具结果: %+v", page.Messages)
 	}
 }
@@ -349,5 +352,35 @@ func TestAIToolBoundary(t *testing.T) {
 		if _, err := validateAITool(call); err == nil {
 			t.Fatal("接受无效工具参数")
 		}
+	}
+}
+
+func TestAIUnknownRemoteCommandIsNotReplayed(t *testing.T) {
+	a, executed := aiTestSSH(t)
+	var count atomic.Int32
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if n := count.Add(1); n <= 2 {
+			aiTestCall(w, fmt.Sprint(n), "printf unknown_fixture")
+		} else {
+			aiTestReply(w)
+		}
+	}))
+	defer s.Close()
+	aiTestConfigure(t, a, s.URL, false)
+	aiTestStart(t, a)
+	waitAI(t, a, func(v AIRunView) bool { return v.State == "complete" })
+	if len(executed) != 1 {
+		t.Fatal("状态未知的远端命令被自动重放")
+	}
+}
+
+func TestAIToolOutputKeepsStderrWhenStdoutIsTruncated(t *testing.T) {
+	r, state := boundedAIToolResult(terminal.CommandResult{Stdout: strings.Repeat("x", 80<<10), Stderr: "synthetic-important-error", ExitCode: 17}, nil)
+	if state != "failed" || !r.Truncated || r.Stderr != "synthetic-important-error" || r.ExitCode == nil || *r.ExitCode != 17 || len(r.Data)+len(r.Stderr) > maxAIToolResultBytes {
+		t.Fatal("标准输出截断丢失错误输出或退出状态")
+	}
+	r, _ = boundedAIToolResult(terminal.CommandResult{}, context.Canceled)
+	if r.ExitCode != nil {
+		t.Fatal("未执行的命令报告退出码 0")
 	}
 }

@@ -123,7 +123,7 @@ func (a *AppService) executeAIRun(ctx context.Context, run *aiRun) {
 		}
 		for _, call := range response.Message.ToolCalls {
 			steps++
-			result := aiToolResult{}
+			result := AIToolResult{}
 			state := "not_executed"
 			args, err := validateAITool(call)
 			if err != nil {
@@ -179,7 +179,7 @@ func (a *AppService) repairAITail(run *aiRun) error {
 		}
 	}
 	for _, call := range pending {
-		b, _ := json.Marshal(aiToolResult{Error: "上次运行已中断；未恢复执行或重放，远端状态未知", StatusUnknown: true})
+		b, _ := json.Marshal(AIToolResult{Error: "上次运行已中断；未恢复执行或重放，远端状态未知", StatusUnknown: true})
 		if _, err := a.persistAIMessage(run, ai.Message{Role: "tool", ToolCallID: call.ID, Content: string(b), IsError: true}, "interrupted"); err != nil {
 			return err
 		}

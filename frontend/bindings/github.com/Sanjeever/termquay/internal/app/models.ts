@@ -39,6 +39,7 @@ export interface AIConversationPage {
 }
 
 export interface AIMessage {
+    "result"?: AIToolResult | null;
     "seq": number;
     "run_id": string;
     "message": ai$0.Message;
@@ -105,6 +106,15 @@ export interface AIToolDecision {
     "call_id": string;
     "arguments": string;
     "timeout_seconds": number;
+}
+
+export interface AIToolResult {
+    "data": string;
+    "stderr"?: string;
+    "error"?: string;
+    "truncated": boolean;
+    "exit_code"?: number | null;
+    "status_unknown": boolean;
 }
 
 export interface ApplicationLockStatus {

@@ -18,6 +18,7 @@ export type {
     AIStartRequest,
     AITestResult,
     AIToolDecision,
+    AIToolResult,
     ApplicationLockStatus,
     AutomaticBackupStatus,
     BackupCoverage,

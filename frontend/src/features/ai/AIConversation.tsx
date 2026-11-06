@@ -4,7 +4,7 @@ import remarkGfm from 'remark-gfm';
 import { Browser } from '@wailsio/runtime';
 import type { AIMessage, AIRunView } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import { errorMessage } from '../../lib/errors';
-import AIToolCall from './AIToolCall';
+import AIToolCall, { ToolResult } from './AIToolCall';
 import { aiRunning } from './useAIConversation';
 
 const AIText = memo(function AIText({ text, onError }: { text: string; onError(error: string): void }) {
@@ -21,7 +21,7 @@ export default function AIConversation({ messages, run, busy, onDecide, onError 
   return <>{messages.map(item => {
     const m = item.message;
     if (m.role === 'status') return item.state === 'complete' || run?.id === item.run_id ? null : <p className="ai-run-status muted" key={item.seq}>{m.content}</p>;
-    if (m.role === 'tool') return calls.has(`${item.run_id}:${m.tool_call_id}`) ? null : <details className="ai-tool-call" key={item.seq}><summary>工具结果 · {m.tool_call_id}</summary><pre>{m.content}</pre></details>;
+    if (m.role === 'tool') return calls.has(`${item.run_id}:${m.tool_call_id}`) ? null : <details className="ai-tool-call" key={item.seq}><summary>工具结果 · {m.tool_call_id}</summary>{item.result && <ToolResult result={item.result}/>}</details>;
     return <article className={`ai-message ${m.role}`} key={item.seq}>
       <div className="ai-message-role">{m.role === 'user' ? '你' : '助手'}{item.state === 'interrupted' ? ' · 回复中断' : ''}</div>
       {m.role === 'user' ? <div className="ai-user-text">{m.content}</div> : <div className="ai-markdown"><AIText text={m.content} onError={onError} /></div>}

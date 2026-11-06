@@ -78,6 +78,14 @@ func (a *AppService) GetAIConversation(ctx context.Context, workspace, id string
 		}
 		message.Seq = item.Seq
 		message.Message.Native = ""
+		if message.Message.Role == "tool" {
+			var result AIToolResult
+			if err := json.Unmarshal([]byte(message.Message.Content), &result); err != nil {
+				return AIConversationPage{}, err
+			}
+			message.Result = &result
+			message.Message.Content = ""
+		}
 		page.Messages = append(page.Messages, message)
 	}
 	return page, nil

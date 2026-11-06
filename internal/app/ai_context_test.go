@@ -78,7 +78,7 @@ func TestAICompactionPreservesLocalHistoryAndCompleteToolPairs(t *testing.T) {
 	defer cancel()
 	run := &aiRun{ctx: ctx, view: AIRunView{ID: "test", Workspace: "workspace", ConversationID: c.ID}}
 	for i := 0; i < 18; i++ {
-		for _, m := range []ai.Message{{Role: "user", Content: strings.Repeat("data", 2048)}, {Role: "assistant", ToolCalls: []ai.ToolCall{{ID: "tool", Name: "port_list", Arguments: "{}"}}}, {Role: "tool", ToolCallID: "tool", Content: strings.Repeat("out", 1024)}} {
+		for _, m := range []ai.Message{{Role: "user", Content: strings.Repeat("data", 2048)}, {Role: "assistant", ToolCalls: []ai.ToolCall{{ID: "tool", Name: "port_list", Arguments: "{}"}}}, {Role: "tool", ToolCallID: "tool", Content: `{"data":"` + strings.Repeat("out", 1024) + `"}`}} {
 			if _, err := a.persistAIMessage(run, m, "complete"); err != nil {
 				t.Fatal(err)
 			}

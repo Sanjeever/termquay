@@ -19,11 +19,12 @@ const maxAIToolSteps = 32
 const maxAIToolResultBytes = 16 << 10
 
 type AIMessage struct {
-	Seq       int        `json:"seq"`
-	RunID     string     `json:"run_id"`
-	Message   ai.Message `json:"message"`
-	State     string     `json:"state"`
-	CreatedAt int64      `json:"created_at"`
+	Result    *AIToolResult `json:"result,omitempty"`
+	Seq       int           `json:"seq"`
+	RunID     string        `json:"run_id"`
+	Message   ai.Message    `json:"message"`
+	State     string        `json:"state"`
+	CreatedAt int64         `json:"created_at"`
 }
 
 type AIConversationPage struct {
@@ -85,6 +86,7 @@ type aiRun struct {
 	done           chan struct{}
 	approval       chan bool
 	rejected       map[string]bool
+	unknownScripts map[string]bool
 }
 
 func aiID() string { return base64.RawURLEncoding.EncodeToString(randomBytes(18)) }
@@ -263,7 +265,7 @@ func (a *AppService) StartAIRun(ctx context.Context, request AIStartRequest) (AI
 	}
 	runCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 15*time.Minute)
 	stopOwner := context.AfterFunc(owner.ctx, cancel)
-	run := &aiRun{owner: owner, originalTarget: c.Target, config: config, ctx: runCtx, cancel: cancel, done: make(chan struct{}), approval: make(chan bool, 1), rejected: map[string]bool{}}
+	run := &aiRun{owner: owner, originalTarget: c.Target, config: config, ctx: runCtx, cancel: cancel, done: make(chan struct{}), approval: make(chan bool, 1), rejected: map[string]bool{}, unknownScripts: map[string]bool{}}
 	run.view = AIRunView{ID: aiID(), Workspace: request.Workspace, ConversationID: c.ID, State: "running", Revision: 1, Compressed: c.SummaryThrough > 0}
 	if err := a.repairAITail(run); err != nil {
 		cancel()

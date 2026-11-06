@@ -36,8 +36,9 @@ type aiToolArguments struct {
 	TimeoutSeconds int    `json:"timeout_seconds"`
 }
 
-type aiToolResult struct {
+type AIToolResult struct {
 	Data          string `json:"data"`
+	Stderr        string `json:"stderr,omitempty"`
 	Error         string `json:"error,omitempty"`
 	Truncated     bool   `json:"truncated"`
 	ExitCode      *int   `json:"exit_code,omitempty"`
@@ -100,33 +101,36 @@ func validateAITool(call ai.ToolCall) (aiToolArguments, error) {
 	return args, nil
 }
 
-func (a *AppService) invokeAITool(ctx context.Context, run *aiRun, call ai.ToolCall, args aiToolArguments) (aiToolResult, string) {
+func (a *AppService) invokeAITool(ctx context.Context, run *aiRun, call ai.ToolCall, args aiToolArguments) (AIToolResult, string) {
 	if err := ctx.Err(); err != nil {
-		return aiToolResult{Error: "已取消，未执行"}, "not_executed"
+		return AIToolResult{Error: "已取消，未执行"}, "not_executed"
 	}
 	if _, err := a.aiOwner(run.view.Workspace, run.owner); err != nil {
-		return aiToolResult{Error: err.Error()}, "not_executed"
+		return AIToolResult{Error: err.Error()}, "not_executed"
 	}
 	if call.Name == "exec" {
+		if run.unknownScripts[args.Script] {
+			return AIToolResult{Error: "此脚本上次执行状态未知，本轮禁止自动重试，请先核对远端状态"}, "not_executed"
+		}
 		if run.rejected[args.Script] {
-			return aiToolResult{Error: "此脚本在本轮已被用户拒绝，禁止自动重试"}, "rejected"
+			return AIToolResult{Error: "此脚本在本轮已被用户拒绝，禁止自动重试"}, "rejected"
 		}
 		if run.config.ConfirmExec {
 			approved, err := a.awaitAIApproval(ctx, run, call, args.TimeoutSeconds)
 			if err != nil {
-				return aiToolResult{Error: err.Error()}, "not_executed"
+				return AIToolResult{Error: err.Error()}, "not_executed"
 			}
 			if !approved {
 				run.rejected[args.Script] = true
-				return aiToolResult{Error: "用户拒绝，命令未执行"}, "rejected"
+				return AIToolResult{Error: "用户拒绝，命令未执行"}, "rejected"
 			}
 		}
 	}
 	if err := ctx.Err(); err != nil {
-		return aiToolResult{Error: "已取消，未执行"}, "not_executed"
+		return AIToolResult{Error: "已取消，未执行"}, "not_executed"
 	}
 	if _, err := a.aiOwner(run.view.Workspace, run.owner); err != nil {
-		return aiToolResult{Error: err.Error()}, "not_executed"
+		return AIToolResult{Error: err.Error()}, "not_executed"
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	if call.Name == "exec" {
@@ -161,7 +165,15 @@ func (a *AppService) invokeAITool(ctx context.Context, run *aiRun, call ai.ToolC
 	default:
 		err = errors.New("未知 AI 工具")
 	}
-	result := aiToolResult{}
+	result, state := boundedAIToolResult(value, err)
+	if call.Name == "exec" && result.StatusUnknown {
+		run.unknownScripts[args.Script] = true
+	}
+	return result, state
+}
+
+func boundedAIToolResult(value any, err error) (AIToolResult, string) {
+	result := AIToolResult{}
 	state := "complete"
 	if command, ok := value.(terminal.CommandResult); ok {
 		result.ExitCode = &command.ExitCode
@@ -176,6 +188,23 @@ func (a *AppService) invokeAITool(ctx context.Context, run *aiRun, call ai.ToolC
 		if result.StatusUnknown {
 			state = "unknown"
 		}
+		stderrBytes := min(len(command.Stderr), maxAIToolResultBytes/2)
+		stdoutBytes := min(len(command.Stdout), maxAIToolResultBytes-stderrBytes)
+		result.Data = strings.ToValidUTF8(command.Stdout[:stdoutBytes], "")
+		result.Stderr = strings.ToValidUTF8(command.Stderr[:stderrBytes], "")
+		result.Truncated = result.Truncated || stdoutBytes < len(command.Stdout) || stderrBytes < len(command.Stderr)
+		if err != nil {
+			result.Error = err.Error()
+			state = "failed"
+			if command.ExitCode == 0 {
+				result.ExitCode = nil
+				result.StatusUnknown = false
+			}
+		}
+		if result.StatusUnknown {
+			result.Error += "；远端执行状态未知，不能据此认定远端进程已退出"
+		}
+		return result, state
 	}
 	if err != nil {
 		result.Error = err.Error()
@@ -196,9 +225,6 @@ func (a *AppService) invokeAITool(ctx context.Context, run *aiRun, call ai.ToolC
 		result.Truncated = true
 	}
 	result.Data = strings.ToValidUTF8(string(b), "�")
-	if result.StatusUnknown {
-		result.Error += "；远端执行状态未知，不能据此认定远端进程已退出"
-	}
 	return result, state
 }
 
