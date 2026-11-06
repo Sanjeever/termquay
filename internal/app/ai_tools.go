@@ -230,6 +230,11 @@ func boundedAIToolResult(value any, err error) (AIToolResult, string) {
 
 func (a *AppService) awaitAIApproval(ctx context.Context, run *aiRun, call ai.ToolCall, timeout int) (bool, error) {
 	run.mu.Lock()
+	run.pauseBudgetLocked()
+	if ctx.Err() != nil {
+		run.mu.Unlock()
+		return false, context.Cause(ctx)
+	}
 	run.view.Pending = &AIPendingApproval{Token: aiID(), Call: call, TimeoutSeconds: timeout}
 	run.view.State = "awaiting_approval"
 	run.view.Revision++
@@ -239,6 +244,7 @@ func (a *AppService) awaitAIApproval(ctx context.Context, run *aiRun, call ai.To
 		run.mu.Lock()
 		run.view.Pending = nil
 		run.view.State = "running"
+		run.resumeBudgetLocked()
 		run.view.Revision++
 		run.mu.Unlock()
 		a.emitAIChanged(run)
@@ -247,7 +253,7 @@ func (a *AppService) awaitAIApproval(ctx context.Context, run *aiRun, call ai.To
 	case approved := <-run.approval:
 		return approved, nil
 	case <-ctx.Done():
-		return false, ctx.Err()
+		return false, context.Cause(ctx)
 	}
 }
 

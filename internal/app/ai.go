@@ -17,6 +17,9 @@ import (
 const maxAIRuns = 2
 const maxAIToolSteps = 32
 const maxAIToolResultBytes = 16 << 10
+const maxAIRunDuration = 30 * time.Minute
+
+var errAIRunTimeout = errors.New("AI 轮次已达到运行时限，后续模型请求与工具已停止；已发出的远端操作需核对实际状态")
 
 type AIMessage struct {
 	Result    *AIToolResult `json:"result,omitempty"`
@@ -76,17 +79,21 @@ type aiWorkspaceConversation struct {
 	id    string
 }
 type aiRun struct {
-	mu             sync.Mutex
-	view           AIRunView
-	owner          *workspaceOwner
-	originalTarget string
-	config         ai.Config
-	ctx            context.Context
-	cancel         context.CancelFunc
-	done           chan struct{}
-	approval       chan bool
-	rejected       map[string]bool
-	unknownScripts map[string]bool
+	mu              sync.Mutex
+	view            AIRunView
+	owner           *workspaceOwner
+	originalTarget  string
+	config          ai.Config
+	ctx             context.Context
+	cancel          context.CancelFunc
+	done            chan struct{}
+	approval        chan bool
+	rejected        map[string]bool
+	unknownScripts  map[string]bool
+	cancelCause     context.CancelCauseFunc
+	budgetTimer     *time.Timer
+	budgetRemaining time.Duration
+	budgetStartedAt time.Time
 }
 
 func aiID() string { return base64.RawURLEncoding.EncodeToString(randomBytes(18)) }
@@ -263,9 +270,10 @@ func (a *AppService) StartAIRun(ctx context.Context, request AIStartRequest) (AI
 	if err := ctx.Err(); err != nil {
 		return AIRunView{}, err
 	}
-	runCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 15*time.Minute)
+	runCtx, cancelCause := context.WithCancelCause(context.WithoutCancel(ctx))
+	cancel := func() { cancelCause(context.Canceled) }
 	stopOwner := context.AfterFunc(owner.ctx, cancel)
-	run := &aiRun{owner: owner, originalTarget: c.Target, config: config, ctx: runCtx, cancel: cancel, done: make(chan struct{}), approval: make(chan bool, 1), rejected: map[string]bool{}, unknownScripts: map[string]bool{}}
+	run := &aiRun{owner: owner, originalTarget: c.Target, config: config, ctx: runCtx, cancel: cancel, done: make(chan struct{}), approval: make(chan bool, 1), rejected: map[string]bool{}, unknownScripts: map[string]bool{}, cancelCause: cancelCause, budgetRemaining: maxAIRunDuration}
 	run.view = AIRunView{ID: aiID(), Workspace: request.Workspace, ConversationID: c.ID, State: "running", Revision: 1, Compressed: c.SummaryThrough > 0}
 	if err := a.repairAITail(run); err != nil {
 		cancel()
@@ -296,9 +304,44 @@ func (a *AppService) StartAIRun(ctx context.Context, request AIStartRequest) (AI
 		a.aiRuns = map[string]*aiRun{}
 	}
 	a.aiRuns[request.Workspace] = run
+	run.mu.Lock()
+	run.resumeBudgetLocked()
+	run.mu.Unlock()
 	a.aiWorkers.Add(1)
 	go func() { defer a.aiWorkers.Done(); defer stopOwner(); a.executeAIRun(runCtx, run) }()
 	return run.snapshot(), nil
+}
+
+func (run *aiRun) resumeBudgetLocked() {
+	if run.ctx.Err() != nil {
+		return
+	}
+	if run.budgetRemaining <= 0 {
+		run.cancelCause(errAIRunTimeout)
+		return
+	}
+	run.budgetStartedAt = time.Now()
+	run.budgetTimer = time.AfterFunc(run.budgetRemaining, func() {
+		run.mu.Lock()
+		defer run.mu.Unlock()
+		if !run.budgetStartedAt.IsZero() && time.Since(run.budgetStartedAt) >= run.budgetRemaining {
+			run.cancelCause(errAIRunTimeout)
+		}
+	})
+}
+
+func (run *aiRun) pauseBudgetLocked() {
+	if run.budgetTimer != nil {
+		run.budgetTimer.Stop()
+	}
+	if run.budgetStartedAt.IsZero() {
+		return
+	}
+	run.budgetRemaining -= time.Since(run.budgetStartedAt)
+	run.budgetStartedAt = time.Time{}
+	if run.budgetRemaining <= 0 {
+		run.cancelCause(errAIRunTimeout)
+	}
 }
 
 func (a *AppService) persistAIMessage(run *aiRun, message ai.Message, state string) (AIMessage, error) {

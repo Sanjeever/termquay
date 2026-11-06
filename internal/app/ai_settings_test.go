@@ -66,3 +66,34 @@ func TestAISettingsSecretsAndIndependentCLI(t *testing.T) {
 		t.Fatal("锁定可读 AI 配置")
 	}
 }
+
+func TestAIRequestTimeoutSettingsCompatibility(t *testing.T) {
+	a := NewAppService(BuildInfo{}, nil)
+	if err := a.UseSessionStorage(); err != nil {
+		t.Fatal(err)
+	}
+	defer a.ServiceShutdown()
+	if err := a.store.SetSecretSetting("ai_config", `{"enabled":false,"protocol":"responses","confirm_exec":true}`); err != nil {
+		t.Fatal(err)
+	}
+	view, err := a.GetAISettings()
+	if err != nil || view.RequestTimeoutMinutes != 10 {
+		t.Fatal("旧配置未采用默认等待时间")
+	}
+	minutes := 20
+	u := AISettingsUpdate{Protocol: "responses", APIKeyAction: "keep", ConfirmExec: true, RequestTimeoutMinutes: &minutes}
+	view, err = a.SaveAISettings(u)
+	if err != nil || view.RequestTimeoutMinutes != 20 {
+		t.Fatal("等待时间未保存")
+	}
+	u.RequestTimeoutMinutes = nil
+	view, err = a.SaveAISettings(u)
+	if err != nil || view.RequestTimeoutMinutes != 20 {
+		t.Fatal("省略字段覆盖了已有等待时间")
+	}
+	minutes = 0
+	u.RequestTimeoutMinutes = &minutes
+	if _, err := a.SaveAISettings(u); err == nil {
+		t.Fatal("接受零分钟等待时间")
+	}
+}

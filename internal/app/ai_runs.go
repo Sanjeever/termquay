@@ -32,6 +32,11 @@ func (a *AppService) executeAIRun(ctx context.Context, run *aiRun) {
 	defer close(run.done)
 	defer run.cancel()
 	defer func() {
+		run.mu.Lock()
+		if run.budgetTimer != nil {
+			run.budgetTimer.Stop()
+		}
+		run.mu.Unlock()
 		state := "complete"
 		message := "已完成"
 		if runErr != nil {
@@ -39,8 +44,13 @@ func (a *AppService) executeAIRun(ctx context.Context, run *aiRun) {
 			message = runErr.Error()
 		}
 		if ctx.Err() != nil {
-			state = "stopped"
-			message = "已停止；已发出的远端操作可能仍在运行，请核对实际状态"
+			if errors.Is(context.Cause(ctx), errAIRunTimeout) {
+				state = "failed"
+				message = context.Cause(ctx).Error()
+			} else {
+				state = "stopped"
+				message = "已停止；已发出的远端操作可能仍在运行，请核对实际状态"
+			}
 		}
 		if _, err := a.persistAIMessage(run, ai.Message{Role: "status", Content: message}, state); err != nil {
 			state = "failed"

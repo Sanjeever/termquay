@@ -5,6 +5,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -382,5 +383,47 @@ func TestAIToolOutputKeepsStderrWhenStdoutIsTruncated(t *testing.T) {
 	r, _ = boundedAIToolResult(terminal.CommandResult{}, context.Canceled)
 	if r.ExitCode != nil {
 		t.Fatal("未执行的命令报告退出码 0")
+	}
+}
+
+func TestAIRunBudgetPausesForApproval(t *testing.T) {
+	ctx, cancel := context.WithCancelCause(context.Background())
+	defer cancel(context.Canceled)
+	run := &aiRun{ctx: ctx, cancelCause: cancel, budgetRemaining: 80 * time.Millisecond, approval: make(chan bool, 1)}
+	run.mu.Lock()
+	run.resumeBudgetLocked()
+	run.budgetStartedAt = time.Now().Add(-20 * time.Millisecond)
+	run.pauseBudgetLocked()
+	remaining := run.budgetRemaining
+	run.mu.Unlock()
+	if remaining >= 80*time.Millisecond || remaining <= 0 {
+		t.Fatal("暂停没有扣除已用运行预算")
+	}
+	a := NewAppService(BuildInfo{}, nil)
+	result := make(chan error, 1)
+	go func() {
+		_, err := a.awaitAIApproval(ctx, run, ai.ToolCall{ID: "budget", Name: "exec", Arguments: `{"script":"true","timeout_seconds":10}`}, 10)
+		result <- err
+	}()
+	time.Sleep(100 * time.Millisecond)
+	if ctx.Err() != nil {
+		t.Fatal("等待批准消耗了运行预算")
+	}
+	run.approval <- false
+	select {
+	case err := <-result:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("批准等待没有结束")
+	}
+	select {
+	case <-ctx.Done():
+		if !errors.Is(context.Cause(ctx), errAIRunTimeout) {
+			t.Fatal("轮次超时原因丢失")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("批准后没有恢复剩余运行预算")
 	}
 }
