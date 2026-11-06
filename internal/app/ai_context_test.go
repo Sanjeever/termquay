@@ -195,3 +195,125 @@ func TestAIConnectionProbeSeparatesTextAndTools(t *testing.T) {
 		t.Fatal("测试连接修改了配置")
 	}
 }
+
+func TestAITemporaryHistoryCanBeOpenedAfterReconnect(t *testing.T) {
+	a, _ := aiTestSSH(t)
+	aiTestConfigure(t, a, "https://example.invalid/chat", true)
+	a.workspaces["workspace"].connectionID = ""
+	old, err := a.CreateAIConversation(context.Background(), "workspace")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.closeAIWorkspace("workspace")
+	a.mu.Lock()
+	replacement := *a.workspaces["workspace"]
+	delete(a.workspaces, "workspace")
+	a.workspaces["reconnected"] = &replacement
+	a.mu.Unlock()
+	current, err := a.CreateAIConversation(context.Background(), "reconnected")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current.ID == old.ID || current.Archive == old.Archive {
+		t.Fatal("临时工作区合并了归档身份")
+	}
+	list, err := a.ListAIConversations(context.Background(), "reconnected", 0, 10)
+	if err != nil || len(list) != 2 {
+		t.Fatalf("重新连接无法查阅临时历史: %v", err)
+	}
+	if err := a.OpenAIConversation(context.Background(), "reconnected", old.ID); err != nil {
+		t.Fatal(err)
+	}
+	replacement.target = "different@example.invalid:22"
+	if _, err := a.GetAIConversation(context.Background(), "reconnected", old.ID, 0, 1); err == nil {
+		t.Fatal("其他临时目标可读取历史")
+	}
+}
+
+func TestAIChangedTargetNeedsExplicitContinuation(t *testing.T) {
+	a, _ := aiTestSSH(t)
+	var system string
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Messages []struct {
+				Role    string `json:"role"`
+				Content string `json:"content"`
+			} `json:"messages"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Error(err)
+		}
+		for _, m := range body.Messages {
+			if m.Role == "system" {
+				system = m.Content
+			}
+		}
+		aiTestReply(w)
+	}))
+	defer s.Close()
+	aiTestConfigure(t, a, s.URL, true)
+	c, err := a.CreateAIConversation(context.Background(), "workspace")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.closeAIWorkspace("workspace")
+	a.mu.Lock()
+	replacement := *a.workspaces["workspace"]
+	replacement.target = "changed@example.invalid:22"
+	a.workspaces["workspace"] = &replacement
+	a.mu.Unlock()
+	if err := a.OpenAIConversation(context.Background(), "workspace", c.ID); err != nil {
+		t.Fatal(err)
+	}
+	r := AIStartRequest{Workspace: "workspace", ConversationID: c.ID, Text: "继续"}
+	if _, err := a.StartAIRun(context.Background(), r); err == nil {
+		t.Fatal("未核对变化目标仍继续")
+	}
+	r.AcceptTargetChange = true
+	if _, err := a.StartAIRun(context.Background(), r); err != nil {
+		t.Fatal(err)
+	}
+	a.aiMu.Lock()
+	run := a.aiRuns["workspace"]
+	a.aiMu.Unlock()
+	select {
+	case <-run.done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("轮次未完成")
+	}
+	if !strings.Contains(system, c.Target) || !strings.Contains(system, replacement.target) {
+		t.Fatal("模型未区分原目标和当前目标")
+	}
+}
+
+func TestAIStorageFailureStopsToolsAndReportsOnShutdown(t *testing.T) {
+	a, executed := aiTestSSH(t)
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		a.storeMu.Lock()
+		a.store.Close()
+		a.storeMu.Unlock()
+		aiTestCall(w, "persist-failure", "printf must-not-run")
+	}))
+	defer s.Close()
+	aiTestConfigure(t, a, s.URL, false)
+	aiTestStart(t, a)
+	a.aiMu.Lock()
+	run := a.aiRuns["workspace"]
+	a.aiMu.Unlock()
+	select {
+	case <-run.done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("存储失败未停止")
+	}
+	if view := run.snapshot(); view.State != "failed" || !strings.Contains(view.Error, "保存失败") {
+		t.Fatalf("存储失败显示成功: %+v", view)
+	}
+	select {
+	case <-executed:
+		t.Fatal("助手消息未保存仍执行工具")
+	default:
+	}
+	if err := a.shutdownAI(); err == nil {
+		t.Fatal("退出未报告历史保存失败")
+	}
+}

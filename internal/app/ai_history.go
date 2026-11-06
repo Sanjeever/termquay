@@ -44,6 +44,9 @@ func (a *AppService) ListAIConversations(ctx context.Context, workspace string, 
 	}
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
+	if owner.connectionID == "" {
+		return a.store.ListAITemporaryConversations(ctx, owner.target, offset, limit)
+	}
 	return a.store.ListAIConversations(ctx, aiArchive(owner, workspace), offset, limit)
 }
 
@@ -60,7 +63,7 @@ func (a *AppService) GetAIConversation(ctx context.Context, workspace, id string
 	if err != nil {
 		return AIConversationPage{}, err
 	}
-	if c.Archive != aiArchive(owner, workspace) {
+	if !aiConversationAllowed(owner, workspace, c) {
 		return AIConversationPage{}, errors.New("AI 历史不属于当前连接")
 	}
 	items, err := a.store.AIMessages(ctx, id, before, limit)
@@ -93,7 +96,7 @@ func (a *AppService) OpenAIConversation(ctx context.Context, workspace, id strin
 	if err != nil {
 		return err
 	}
-	if c.Archive != aiArchive(owner, workspace) {
+	if !aiConversationAllowed(owner, workspace, c) {
 		return errors.New("AI 历史不属于当前连接")
 	}
 	for other, current := range a.aiCurrent {
@@ -128,7 +131,7 @@ func (a *AppService) DeleteAIConversation(ctx context.Context, workspace, id str
 	if err != nil {
 		return err
 	}
-	if c.Archive != aiArchive(owner, workspace) {
+	if !aiConversationAllowed(owner, workspace, c) {
 		return errors.New("AI 历史不属于当前连接")
 	}
 	for _, run := range a.aiRuns {

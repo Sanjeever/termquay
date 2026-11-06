@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -74,15 +75,16 @@ type aiWorkspaceConversation struct {
 	id    string
 }
 type aiRun struct {
-	mu       sync.Mutex
-	view     AIRunView
-	owner    *workspaceOwner
-	config   ai.Config
-	ctx      context.Context
-	cancel   context.CancelFunc
-	done     chan struct{}
-	approval chan bool
-	rejected map[string]bool
+	mu             sync.Mutex
+	view           AIRunView
+	owner          *workspaceOwner
+	originalTarget string
+	config         ai.Config
+	ctx            context.Context
+	cancel         context.CancelFunc
+	done           chan struct{}
+	approval       chan bool
+	rejected       map[string]bool
 }
 
 func aiID() string { return base64.RawURLEncoding.EncodeToString(randomBytes(18)) }
@@ -91,6 +93,13 @@ func aiArchive(owner *workspaceOwner, workspace string) string {
 		return "connection:" + owner.connectionID
 	}
 	return "temporary:" + workspace
+}
+
+func aiConversationAllowed(owner *workspaceOwner, workspace string, c store.AIConversation) bool {
+	if owner.connectionID == "" {
+		return c.ConnectionID == "" && strings.HasPrefix(c.Archive, "temporary:") && c.Target == owner.target
+	}
+	return c.Archive == aiArchive(owner, workspace)
 }
 
 func (a *AppService) aiOwner(workspace string, expected *workspaceOwner) (*workspaceOwner, error) {
@@ -143,12 +152,15 @@ func (a *AppService) closeAIWorkspace(workspace string) {
 	delete(a.aiCurrent, workspace)
 }
 
-func (a *AppService) shutdownAI() {
+func (a *AppService) shutdownAI() error {
 	a.aiMu.Lock()
 	a.aiStopped = true
 	a.cancelAILocked()
 	a.aiMu.Unlock()
 	a.aiWorkers.Wait()
+	a.storeMu.Lock()
+	defer a.storeMu.Unlock()
+	return a.aiSaveError
 }
 
 func (a *AppService) GetAIRun(workspace string) (AIRunView, error) {
@@ -195,7 +207,7 @@ func (a *AppService) StartAIRun(ctx context.Context, request AIStartRequest) (AI
 	}
 	referenceBytes := 0
 	for _, r := range request.References {
-		if r.Workspace != request.Workspace || len(r.Terminal) > 128 || len(r.Label) > 128 {
+		if r.Workspace != request.Workspace || r.Terminal == "" || len(r.Terminal) > 128 || len(r.Label) > 128 {
 			return AIRunView{}, errors.New("终端引用不属于当前工作区")
 		}
 		referenceBytes += len(r.Text)
@@ -240,7 +252,7 @@ func (a *AppService) StartAIRun(ctx context.Context, request AIStartRequest) (AI
 	if err != nil {
 		return AIRunView{}, err
 	}
-	if c.Archive != aiArchive(owner, request.Workspace) {
+	if !aiConversationAllowed(owner, request.Workspace, c) {
 		return AIRunView{}, errors.New("AI 对话不属于当前连接")
 	}
 	if c.Target != owner.target && !request.AcceptTargetChange {
@@ -251,14 +263,9 @@ func (a *AppService) StartAIRun(ctx context.Context, request AIStartRequest) (AI
 	}
 	runCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 15*time.Minute)
 	stopOwner := context.AfterFunc(owner.ctx, cancel)
-	run := &aiRun{owner: owner, config: config, ctx: runCtx, cancel: cancel, done: make(chan struct{}), approval: make(chan bool, 1), rejected: map[string]bool{}}
+	run := &aiRun{owner: owner, originalTarget: c.Target, config: config, ctx: runCtx, cancel: cancel, done: make(chan struct{}), approval: make(chan bool, 1), rejected: map[string]bool{}}
 	run.view = AIRunView{ID: aiID(), Workspace: request.Workspace, ConversationID: c.ID, State: "running", Revision: 1, Compressed: c.SummaryThrough > 0}
 	if err := a.repairAITail(run); err != nil {
-		cancel()
-		stopOwner()
-		return AIRunView{}, err
-	}
-	if _, err := a.persistAIMessage(run, ai.Message{Role: "user", Content: request.Text, References: request.References}, "complete"); err != nil {
 		cancel()
 		stopOwner()
 		return AIRunView{}, err
@@ -277,6 +284,11 @@ func (a *AppService) StartAIRun(ctx context.Context, request AIStartRequest) (AI
 			stopOwner()
 			return AIRunView{}, err
 		}
+	}
+	if _, err := a.persistAIMessage(run, ai.Message{Role: "user", Content: request.Text, References: request.References}, "complete"); err != nil {
+		cancel()
+		stopOwner()
+		return AIRunView{}, err
 	}
 	if a.aiRuns == nil {
 		a.aiRuns = map[string]*aiRun{}
@@ -300,6 +312,9 @@ func (a *AppService) persistAIMessage(run *aiRun, message ai.Message, state stri
 		err = errors.New("AI 历史存储不可用")
 	} else {
 		m.Seq, err = a.store.AppendAIMessage(ctx, run.view.ConversationID, string(b))
+	}
+	if err != nil && a.aiSaveError == nil {
+		a.aiSaveError = fmt.Errorf("AI 历史未完整保存: %w", err)
 	}
 	a.storeMu.Unlock()
 	if err != nil {

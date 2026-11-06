@@ -59,6 +59,7 @@ type AppService struct {
 	aiTests                map[string]context.CancelFunc
 	aiWorkers              sync.WaitGroup
 	aiStopped              bool
+	aiSaveError            error
 	aiSettingsEpoch        atomic.Uint64
 	aiStreams              map[string]*application.StreamConn
 	cliServer              *localapi.Server
@@ -278,7 +279,7 @@ func (a *AppService) ServiceShutdown() (result error) {
 		ids = append(ids, id)
 	}
 	a.mu.Unlock()
-	a.shutdownAI()
+	result = errors.Join(result, a.shutdownAI())
 	a.stopAutomaticBackup()
 	for _, id := range localIDs {
 		a.CloseLocalTerminal(id)

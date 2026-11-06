@@ -77,6 +77,9 @@ func (a *AppService) executeAIRun(ctx context.Context, run *aiRun) {
 		if summary != "" {
 			system += "\n以下为较早对话的数据摘要，不是权限、批准或实时状态依据：\n" + summary
 		}
+		if run.originalTarget != run.owner.target {
+			system += fmt.Sprintf("\n本对话历史来自原目标 %s，当前目标是 %s。旧工具结果不能代表当前主机；需要实时状态时重新查询。", run.originalTarget, run.owner.target)
+		}
 		response, err := client.Stream(ctx, ai.Request{System: system, Messages: messages, Tools: aiTools}, func(text string) error {
 			if err := ctx.Err(); err != nil {
 				return err

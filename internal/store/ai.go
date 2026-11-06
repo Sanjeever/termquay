@@ -137,6 +137,42 @@ func (s *Store) UpdateAIConversation(ctx context.Context, c AIConversation) erro
 	return err
 }
 
+func (s *Store) ListAITemporaryConversations(ctx context.Context, target string, offset, limit int) ([]AIConversation, error) {
+	if offset < 0 || limit < 1 || limit > 50 {
+		return nil, errors.New("AI 历史分页参数无效")
+	}
+	rows, err := s.db.QueryContext(ctx, "SELECT id,ciphertext,updated_at FROM ai_conversations WHERE archive LIKE 'temporary:%' ORDER BY updated_at DESC,id")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []AIConversation{}
+	for rows.Next() {
+		var id, encoded string
+		var updated int64
+		if err := rows.Scan(&id, &encoded, &updated); err != nil {
+			return nil, err
+		}
+		var c AIConversation
+		if err := s.openAIValue("ai:conversation:"+id, encoded, &c); err != nil {
+			return nil, err
+		}
+		if c.Target != target || c.ConnectionID != "" {
+			continue
+		}
+		if offset > 0 {
+			offset--
+			continue
+		}
+		c.UpdatedAt = updated
+		out = append(out, c)
+		if len(out) == limit {
+			break
+		}
+	}
+	return out, rows.Err()
+}
+
 func (s *Store) AppendAIMessage(ctx context.Context, id, data string) (int, error) {
 	if len(data) > MaxAIMessageBytes || !json.Valid([]byte(data)) {
 		return 0, errors.New("AI 消息无效或超过存储限制")

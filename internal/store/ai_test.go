@@ -102,3 +102,32 @@ func TestAIRejectFutureDatabase(t *testing.T) {
 		t.Fatal("接受未来数据库")
 	}
 }
+
+func TestAITemporaryArchivesSurviveReopenWithoutMerging(t *testing.T) {
+	dir := t.TempDir()
+	s, err := Open(dir, make([]byte, 32))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	for i, c := range []AIConversation{{ID: "a", Archive: "temporary:one", Target: "a@example.invalid:22", Title: "first"}, {ID: "b", Archive: "temporary:two", Target: "a@example.invalid:22", Title: "second"}, {ID: "c", Archive: "temporary:three", Target: "b@example.invalid:22", Title: "other"}} {
+		c.UpdatedAt = int64(i)
+		if err := s.CreateAIConversation(ctx, c); err != nil {
+			t.Fatal(err)
+		}
+	}
+	s.Close()
+	s, err = Open(dir, make([]byte, 32))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	first, err := s.ListAITemporaryConversations(ctx, "a@example.invalid:22", 0, 1)
+	if err != nil || len(first) != 1 || first[0].ID != "b" {
+		t.Fatalf("临时历史重开失败: %+v %v", first, err)
+	}
+	second, err := s.ListAITemporaryConversations(ctx, "a@example.invalid:22", 1, 1)
+	if err != nil || len(second) != 1 || second[0].ID != "a" || second[0].Archive == first[0].Archive {
+		t.Fatalf("临时归档被合并或分页错误: %+v %v", second, err)
+	}
+}
