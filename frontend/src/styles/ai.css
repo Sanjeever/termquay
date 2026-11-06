@@ -40,6 +40,7 @@
 .ai-composer { margin: 0 10px 10px; border: 1px solid var(--color-border); border-radius: 6px; overflow: hidden; background: var(--color-surface); }
 .ai-composer:focus-within { border-color: var(--color-primary); }
 .ai-composer textarea { display: block; width: 100%; resize: vertical; min-height: 64px; max-height: 200px; padding: 10px; background: transparent; border: 0; outline: none; font: inherit; }
+.ai-composer textarea:focus-visible { outline: none; }
 .ai-composer-actions { display: flex; justify-content: flex-end; padding: 0 7px 7px; }
 .ai-error { padding: 8px 12px; border-top: 1px solid var(--color-border); color: var(--color-danger); max-height: 140px; overflow: auto; overflow-wrap: anywhere; }
 .ai-context-summary, .ai-target-change { padding: 8px 12px; border-bottom: 1px solid var(--color-border); font-size: 11px; overflow-wrap: anywhere; }
