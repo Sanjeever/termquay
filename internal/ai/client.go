@@ -29,6 +29,15 @@ func (c *Client) Stream(ctx context.Context, input Request, delta func(string) e
 	if err := c.config.Validate(); err != nil {
 		return Response{}, err
 	}
+	for _, message := range input.Messages {
+		if message.Protocol != c.config.Protocol || message.Native == "" {
+			continue
+		}
+		var blocks []json.RawMessage
+		if err := json.Unmarshal([]byte(message.Native), &blocks); err != nil || blocks == nil {
+			return Response{}, errors.New("AI 协议续接内容损坏")
+		}
+	}
 	var payload any
 	var parse func(string) (bool, error)
 	r := Response{Message: Message{Role: "assistant", Protocol: c.config.Protocol}}

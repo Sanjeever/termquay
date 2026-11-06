@@ -161,7 +161,25 @@ func messagesParser(r *Response, delta func(string) error) func(string) (bool, e
 			if !started || len(closed) != len(blocks) || (reason != "end_turn" && reason != "tool_use" && reason != "stop_sequence") {
 				return false, errors.New("Messages 回复未完成: " + reason)
 			}
-			b, err := json.Marshal(blocks)
+			content := []map[string]any{}
+			for _, block := range blocks {
+				item := map[string]any{"type": block.Type}
+				switch block.Type {
+				case "text":
+					item["text"] = block.Text
+				case "thinking":
+					item["thinking"] = block.Thinking
+					item["signature"] = block.Signature
+				case "redacted_thinking":
+					item["data"] = block.Data
+				case "tool_use":
+					item["id"] = block.ID
+					item["name"] = block.Name
+					item["input"] = block.Input
+				}
+				content = append(content, item)
+			}
+			b, err := json.Marshal(content)
 			if err != nil {
 				return false, err
 			}
