@@ -13,6 +13,7 @@ export interface Message {
 }
 
 export interface Reference {
+    "label"?: string;
     "workspace": string;
     "terminal": string;
     "text": string;

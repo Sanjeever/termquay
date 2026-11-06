@@ -195,7 +195,7 @@ func (a *AppService) StartAIRun(ctx context.Context, request AIStartRequest) (AI
 	}
 	referenceBytes := 0
 	for _, r := range request.References {
-		if r.Workspace != request.Workspace || len(r.Terminal) > 128 {
+		if r.Workspace != request.Workspace || len(r.Terminal) > 128 || len(r.Label) > 128 {
 			return AIRunView{}, errors.New("终端引用不属于当前工作区")
 		}
 		referenceBytes += len(r.Text)

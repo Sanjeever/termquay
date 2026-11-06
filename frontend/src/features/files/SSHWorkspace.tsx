@@ -30,6 +30,8 @@ import { isDirty, savedEncoding } from './fileDrafts';
 import type { CommandAttention } from '../terminal/commandAttention';
 import { SetWorkspaceBrowseOnly } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import useAISettings from '../ai/useAISettings';
+import { addAIReference } from '../ai/references';
+import type { Reference } from '../../../bindings/github.com/Sanjeever/termquay/internal/ai/models';
 
 const TextDocument = lazy(() => import('./TextDocument'));
 const ImagePreview = lazy(() => import('./ImagePreview'));
@@ -153,6 +155,9 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   const aiEnabled = !!aiSettings.settings?.enabled && !aiSettings.locked;
   const [aiOpen, setAIOpen] = useState(false);
   const [aiVisited, setAIVisited] = useState(false);
+  const [aiReferences, setAIReferences] = useState<Reference[]>([]);
+  const aiReferencesRef = useRef(aiReferences); aiReferencesRef.current = aiReferences;
+  useEffect(() => { setAIReferences([]); aiReferencesRef.current=[]; }, [sessionID]);
   const [aiWidth, setAIWidth] = useState(() => Math.max(300, Math.min(600, Number(localStorage.getItem('termquay.layout.ai-width')) || 380)));
   const [focus, setFocus] = useState(initialLayout?.focus||false);
   const [narrow, setNarrow] = useState(window.innerWidth <= 1100);
@@ -226,6 +231,12 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   function toggleMonitor() { setFocus(false); if (aiShown) { setAIOpen(false); setMonitorOpen(true); if (narrow) setNarrowPanel('monitor'); } else if (narrow) setNarrowPanel(prev => prev === 'monitor' ? null : 'monitor'); else setMonitorOpen(prev => !prev); }
   function toggleAI() { setFocus(false); setAIVisited(true); if (narrow) setNarrowPanel(previous => previous === 'ai' ? null : 'ai'); else setAIOpen(previous => !previous); }
   function closeAI() { setAIOpen(false); if (narrow) setNarrowPanel(null); aiToggle.current?.focus(); }
+  function queueAIReference(reference: Reference) {
+    try {
+      const next=addAIReference(aiReferencesRef.current,{...reference,label:`终端 ${terminals.indexOf(reference.terminal)+1}`},sessionID);
+      aiReferencesRef.current=next;setAIReferences(next);setFocus(false);setAIVisited(true);setAIOpen(true);if(narrow)setNarrowPanel('ai');
+    } catch(e) { setError(errorMessage(e)); }
+  }
   function focusPanelToggle(panel: 'files' | 'monitor' | 'ai' | null) { (panel === 'files' ? filesToggle : panel === 'ai' ? aiToggle : monitorToggle).current?.focus(); }
   useEffect(() => { localStorage.setItem('termquay.layout.ai-width', String(aiWidth)); }, [aiWidth]);
   useEffect(() => { localStorage.setItem('termquay.layout.files-open', String(filesOpen)); }, [filesOpen]);
@@ -325,7 +336,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
       <WorkspacePanes split={split} maximized={maximized} ratio={ratio} onRatio={setRatio}>
       {terminals.filter(terminal => tmuxBindings[terminal] && !tmuxAttached.current.has(terminal)).map(terminal => <div className="terminal-tab workspace-empty" data-tab-id={terminal} key={`tmux-${terminal}`} hidden={!shown(terminal)} style={{gridColumn:maximized?1:paneFor(terminal)===0?1:3,gridRow:2}}><span>tmux · {tmuxBindings[terminal]}</span><Button size="sm" isDisabled={state !== '已连接' || creating || restoring} onPress={() => { void attachTmux(tmuxBindings[terminal], terminal); }}>继续附着</Button><Button size="sm" variant="light" onPress={() => closeTab(terminal)}>关闭入口</Button></div>)}
       {[0, 1].map(pane => <PaneTabs key={`pane-${pane}`} pane={pane} newShortcut={shortcutLabel(shortcuts.newTerminal)} closeShortcut={shortcutLabel(shortcuts.closeContent)} items={tabs.filter(t => paneFor(t.id) === pane)} selected={paneSelected[pane]} focused={pane === activePane} hidden={(!split && pane === 1) || (maximized && pane !== activePane)} column={maximized || pane === 0 ? 1 : 3} creating={creating || restoring || terminals.length >= 16} onSelect={activate} onClose={closeTab} onNew={() => void newTerminal(pane)} />)}
-      {terminals.filter(terminal => !tmuxBindings[terminal] || tmuxAttached.current.has(terminal)).map(terminal => <div className={`terminal-tab ${activePane===paneFor(terminal)?'focused-pane':''}`} data-tab-id={terminal} hidden={!shown(terminal)} style={{gridColumn:maximized?1:paneFor(terminal)===0?1:3,gridRow:2}} onFocusCapture={()=>setActivePane(paneFor(terminal))} key={terminal}><TerminalView ref={handle => { if (handle) terminalHandles.current.set(terminal, handle); else terminalHandles.current.delete(terminal); }} id={terminal} workspace={terminalOwners.current.get(terminal) || sessionID} tmuxSession={tmuxBindings[terminal]} tmuxAttached={tmuxAttached.current.has(terminal)} tmuxAvailable={state === '已连接' && !creating && !restoring} onTmuxAttach={name => attachTmux(name, terminal)} onTmuxUnbind={() => unbindTmux(terminal)} host={target.slice(target.lastIndexOf('@')+1,target.lastIndexOf(':')).replace(/^\[|\]$/g,'')} onDirectory={(path, host) => terminalDirectory(terminal, path, host)} onFile={openTerminalFile} onSnippets={()=>{setActive(terminal);onSnippets();}} onAttention={value => setAttention(previous => previous[terminal] === value ? previous : { ...previous, [terminal]: value })} onActivate={() => { activate(terminal); onActivate?.(); }} onConnectionChange={()=>changeCallback.current()} visible={visible && shown(terminal)} focusOnShow={activePane===paneFor(terminal)} fontSize={fontSize} /></div>)}
+      {terminals.filter(terminal => !tmuxBindings[terminal] || tmuxAttached.current.has(terminal)).map(terminal => <div className={`terminal-tab ${activePane===paneFor(terminal)?'focused-pane':''}`} data-tab-id={terminal} hidden={!shown(terminal)} style={{gridColumn:maximized?1:paneFor(terminal)===0?1:3,gridRow:2}} onFocusCapture={()=>setActivePane(paneFor(terminal))} key={terminal}><TerminalView onAIReference={aiEnabled && state === '已连接' && terminalOwners.current.get(terminal) === sessionID ? queueAIReference : undefined} ref={handle => { if (handle) terminalHandles.current.set(terminal, handle); else terminalHandles.current.delete(terminal); }} id={terminal} workspace={terminalOwners.current.get(terminal) || sessionID} tmuxSession={tmuxBindings[terminal]} tmuxAttached={tmuxAttached.current.has(terminal)} tmuxAvailable={state === '已连接' && !creating && !restoring} onTmuxAttach={name => attachTmux(name, terminal)} onTmuxUnbind={() => unbindTmux(terminal)} host={target.slice(target.lastIndexOf('@')+1,target.lastIndexOf(':')).replace(/^\[|\]$/g,'')} onDirectory={(path, host) => terminalDirectory(terminal, path, host)} onFile={openTerminalFile} onSnippets={()=>{setActive(terminal);onSnippets();}} onAttention={value => setAttention(previous => previous[terminal] === value ? previous : { ...previous, [terminal]: value })} onActivate={() => { activate(terminal); onActivate?.(); }} onConnectionChange={()=>changeCallback.current()} visible={visible && shown(terminal)} focusOnShow={activePane===paneFor(terminal)} fontSize={fontSize} /></div>)}
       {fileOrder.filter(path=>!imageFile(path)&&!drafts.some(d=>d.path===path)).map(path=>{
         const failure = pendingErrors[path];
         const retry = (encoding: string) => { void openPath(path,encoding,'text').catch(e=>setError(errorMessage(e))); };
@@ -352,7 +363,7 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
     </div>
     <MonitorPanel id={sessionID} visible={visible && monitorShown} onDirectory={path => { showFiles(); setDirectoryRequest(previous => ({ path, sequence: (previous?.sequence || 0) + 1, locate: true })); }} onFile={path => openTerminalFile(path, 1)} onClose={() => { toggleMonitor(); monitorToggle.current?.focus(); }} />
     {aiShown && !narrow && <ResizeHandle label="AI 面板宽度" value={aiWidth} min={300} max={600} reverse onChange={setAIWidth} />}
-    {aiSettings.settings?.enabled && aiVisited && <div className="ai-dock" hidden={!aiShown} style={{ width: aiWidth }}><Suspense fallback={<div className="view-loading" role="status">正在载入…</div>}><AIPanel key={sessionID} workspace={sessionID} visible={visible && aiShown && state === '已连接'} configRevision={aiSettings.revision} onClose={closeAI} /></Suspense></div>}
+    {aiSettings.settings?.enabled && aiVisited && <div className="ai-dock" hidden={!aiShown} style={{ width: aiWidth }}><Suspense fallback={<div className="view-loading" role="status">正在载入…</div>}><AIPanel key={sessionID} workspace={sessionID} visible={visible && aiShown && state === '已连接'} configRevision={aiSettings.revision} references={aiReferences} onRemoveReference={index=>setAIReferences(previous=>previous.filter((_,i)=>i!==index))} onReferencesSent={sent=>setAIReferences(previous=>previous.filter(reference=>!sent.includes(reference)))} onClose={closeAI} /></Suspense></div>}
     </div>
     {conflict && drafts.find(d=>d.path===conflict) && <Suspense fallback={<div className="session-status" role="status">正在载入差异视图…</div>}><FileConflictView key={`${sessionID}:${conflict}`} sessionID={sessionID} path={conflict} content={drafts.find(d=>d.path===conflict)!.content} encoding={savedEncoding(drafts.find(d=>d.path===conflict)!)} lineEnding={drafts.find(d=>d.path===conflict)!.line_ending || 'LF'} remoteDocument={sudoConflict} onClose={()=>setConflict('')} onApply={(content,remote)=>{updateDrafts(prev=>prev.map(d=>d.path===conflict?{...d,content,saved:remote.content,savedFormat:formatKey(remote),revision:remote.revision,needsReview:false,recovery:false,error:''}:d));setConflict('');}} /></Suspense>}
     {resourceLog && <Suspense fallback={<p role="status">正在载入日志…</p>}><RemoteLogDialog workspace={sessionID} path={resourceLog} visible={visible} onClose={() => setResourceLog('')} /></Suspense>}

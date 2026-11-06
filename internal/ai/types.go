@@ -13,6 +13,7 @@ const (
 )
 
 type Reference struct {
+	Label     string `json:"label,omitempty"`
 	Workspace string `json:"workspace"`
 	Terminal  string `json:"terminal"`
 	Text      string `json:"text"`

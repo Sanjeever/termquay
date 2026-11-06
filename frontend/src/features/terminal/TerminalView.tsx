@@ -24,6 +24,7 @@ import { EnableCommandNotification, NotifyCommandFinished } from '../../../bindi
 import type { TerminalLogStatus } from '../../../bindings/github.com/Sanjeever/termquay/internal/ssh/models';
 import Icon from '../../components/Icon';
 import ErrorNotice from '../../components/ErrorNotice';
+import type { Reference } from '../../../bindings/github.com/Sanjeever/termquay/internal/ai/models';
 import { useAppearance } from '../settings/AppearanceProvider';
 import { monoFonts, terminalTheme } from '../settings/appearance';
 import { CloseTerminal, ResizeTerminal } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
@@ -36,7 +37,7 @@ const RecordingPlayer = lazy(() => import('./RecordingPlayer'));
 
 export type TerminalAction = 'find' | 'terminalCompletion' | 'commandHelp' | 'copy' | 'paste' | 'selectAll' | 'clear' | 'zoomIn' | 'zoomOut' | 'zoomReset';
 export type TerminalHandle = { ended():boolean; action(action: TerminalAction): void; insert(text: string): boolean };
-const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string; host?:string; local?: boolean; container?: boolean; visible: boolean; fontSize: number; demoOutput?: string; focusOnShow?:boolean; tmuxSession?: string; tmuxAttached?: boolean; tmuxAvailable?: boolean; onTmuxAttach?(name: string): Promise<boolean>; onTmuxUnbind?(): void; onConnectionChange?():void; onAttention?(state?: CommandAttention): void; onActivate?(): void; onSnippets(): void; onDirectory?(path: string, host: string): void; onFile?(path: string, line: number): void }>(function TerminalView({ id, workspace, host='localhost', local=false, container: containerConsole=false, visible, fontSize, demoOutput, focusOnShow=true, tmuxSession, tmuxAttached=false, tmuxAvailable=false, onTmuxAttach, onTmuxUnbind, onConnectionChange, onAttention, onActivate, onSnippets, onDirectory, onFile }, ref) {
+const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string; host?:string; local?: boolean; container?: boolean; visible: boolean; fontSize: number; demoOutput?: string; focusOnShow?:boolean; tmuxSession?: string; tmuxAttached?: boolean; tmuxAvailable?: boolean; onTmuxAttach?(name: string): Promise<boolean>; onTmuxUnbind?(): void; onConnectionChange?():void; onAttention?(state?: CommandAttention): void; onActivate?(): void; onAIReference?(reference: Reference): void; onSnippets(): void; onDirectory?(path: string, host: string): void; onFile?(path: string, line: number): void }>(function TerminalView({ id, workspace, host='localhost', local=false, container: containerConsole=false, visible, fontSize, demoOutput, focusOnShow=true, tmuxSession, tmuxAttached=false, tmuxAvailable=false, onTmuxAttach, onTmuxUnbind, onConnectionChange, onAttention, onActivate, onAIReference, onSnippets, onDirectory, onFile }, ref) {
   const container = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<{ source: string; message: string }>();
   const [streamError, setStreamError] = useState('');
@@ -46,6 +47,19 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
   function clearError(source: string) { setError(previous=>previous?.source===source?undefined:previous); }
   const [connected, setConnected] = useState<boolean|null>(null);
   const terminal = useRef<Terminal>();
+  const canAI = !!onAIReference && !!connected && !local && !containerConsole && demoOutput === undefined;
+  const [hasAISelection, setHasAISelection] = useState(false);
+  const [aiContext, setAIContext] = useState<{x: number; y: number; reference: Reference}>();
+  useEffect(() => {
+    setAIContext(undefined);
+    const term = terminal.current;
+    if (!canAI || !term) { setHasAISelection(false); return; }
+    setHasAISelection(term.hasSelection());
+    const selection = term.onSelectionChange(() => setHasAISelection(term.hasSelection()));
+    return () => selection.dispose();
+  }, [canAI, id, workspace]);
+  useEffect(() => { if (!visible) setAIContext(undefined); }, [visible]);
+  function aiReference() { const text = terminal.current?.getSelection(); if (canAI && text) onAIReference?.({ workspace, terminal: id, text }); }
   const { appearance, dark } = useAppearance();
   const colors = terminalTheme(appearance.terminalPalette, dark);
   const requestFit = useRef<() => void>();
@@ -271,6 +285,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
     <div className="terminal-tools">{demoOutput === undefined && <button className="session-tool" aria-pressed={locked} onClick={toggleInputLock}>{locked ? '输入已锁定 · 解锁' : '锁定输入'}</button>}{!containerConsole && <Tooltip content="命令片段"><button className="icon-button" aria-label="命令片段" disabled={demoOutput !== undefined || locked} onClick={onSnippets}><Icon name="list" width="14" /></button></Tooltip>}<Tooltip content="终端查找"><button className="icon-button" aria-label="终端查找" onClick={() => action('find')}><Icon name="search" width="14" /></button></Tooltip>
       <Dropdown><DropdownTrigger><Tooltip content="终端操作"><button className="icon-button" aria-label="终端操作"><Icon name="more" width="14" /></button></Tooltip></DropdownTrigger><DropdownMenu aria-label="终端操作" disabledKeys={demoOutput !== undefined ? ['paste','export','log','outputLog','tmux','integration'] : []} onAction={key => { if(demoOutput !== undefined && ['paste','export','log','outputLog','tmux','integration'].includes(String(key)))return; if (key === 'keyword') setKeywordOpen(value => !value); else if (key === 'export') void exportBuffer(); else if (key === 'tmux') setTmuxOpen(true); else if (key === 'integration') openIntegration();  else if (key === 'previousCommand') integration.current?.previous(); else if (key === 'commandOutput') integration.current?.selectOutput(); else action(key as TerminalAction); }}>
         <DropdownItem key="copy">复制</DropdownItem><DropdownItem key="paste">粘贴</DropdownItem><DropdownItem key="selectAll">全选</DropdownItem><DropdownItem key="find" showDivider>查找</DropdownItem><DropdownItem key="clear">清空显示</DropdownItem><DropdownItem key="zoomIn">放大字号</DropdownItem><DropdownItem key="zoomOut">缩小字号</DropdownItem><DropdownItem key="zoomReset" showDivider>复位字号</DropdownItem>
+        {canAI ? <DropdownItem key="aiReference" isDisabled={!hasAISelection} onPress={aiReference}>加入 AI 对话</DropdownItem> : null}
         <DropdownItem key="previousCommand">跳到上一条命令</DropdownItem><DropdownItem key="commandOutput">选择上次命令输出</DropdownItem><DropdownItem key="integration" isDisabled={!connected}>启用当前 Shell 集成…</DropdownItem>
         <DropdownItem key="commandIndex" onPress={() => setCommandIndexOpen(true)}>本次会话命令…</DropdownItem>
         <DropdownItem key="reminder" isDisabled={!connected || !runningCommand || armingReminder || demoOutput !== undefined} onPress={() => void toggleReminder()} endContent={reminder ? '✓' : null}>完成时提醒</DropdownItem>
@@ -285,7 +300,8 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
     {keywordOpen && <div className="terminal-search"><input aria-label="临时高亮关键词" placeholder="高亮关键词" value={keyword} onChange={event => setKeyword(event.target.value)} maxLength={128} onKeyDown={event => { if (event.key === 'Escape' && !event.nativeEvent.isComposing) { setKeyword(''); setKeywordOpen(false); terminal.current?.focus(); } }}/><button className="icon-button" aria-label="清除临时高亮" onClick={() => { setKeyword(''); setKeywordOpen(false); }}><Icon name="close" width="14"/></button></div>}
     {tmuxSession && <div className="terminal-tmux"><span>tmux · {tmuxSession}</span>{(!tmuxAttached || connected === false) && <Button size="sm" variant="light" isDisabled={!tmuxAvailable} onPress={() => { void onTmuxAttach?.(tmuxSession); }}>继续附着</Button>}<Button size="sm" variant="light" onPress={onTmuxUnbind}>解除绑定</Button></div>}
     {tmuxOpen && <TmuxDialog workspace={workspace} onInsert={insert} onAttach={onTmuxAttach} onClose={() => setTmuxOpen(false)} />}
-    <div className="terminal-canvas" ref={container} style={{ background: colors.background }} />
+    <div className="terminal-canvas" ref={container} style={{ background: colors.background }} onContextMenu={event => { const text=terminal.current?.getSelection(); if(!canAI || !text)return;event.preventDefault();setAIContext({x:event.clientX,y:event.clientY,reference:{workspace,terminal:id,text}}); }} onKeyDownCapture={event=>{if(!canAI || !(event.key==='ContextMenu'||event.shiftKey&&event.key==='F10'))return;const text=terminal.current?.getSelection();if(!text)return;event.preventDefault();event.stopPropagation();const rect=event.currentTarget.getBoundingClientRect();setAIContext({x:rect.left+40,y:rect.top+40,reference:{workspace,terminal:id,text}});}} />
+    {canAI && <Dropdown isOpen={!!aiContext} onOpenChange={open=>{if(!open)setAIContext(undefined);}} placement="bottom-start"><DropdownTrigger><button type="button" tabIndex={-1} aria-label="终端选文菜单" className="terminal-context-trigger" style={{left:aiContext?.x||0,top:aiContext?.y||0}} /></DropdownTrigger><DropdownMenu aria-label="终端选文操作" disabledKeys={locked?['paste']:[]} onAction={key=>{const snapshot=aiContext;setAIContext(undefined);if(key==='ai'&&snapshot)onAIReference?.(snapshot.reference);else if(key==='copy'&&snapshot)navigator.clipboard.writeText(snapshot.reference.text).catch(e=>reportError('clipboard',e));else if(key==='paste')action('paste');}}><DropdownItem key="copy">复制</DropdownItem><DropdownItem key="paste">粘贴</DropdownItem><DropdownItem key="ai" showDivider>加入 AI 对话</DropdownItem></DropdownMenu></Dropdown>}
     <TerminalCompletion completion={completion} onHelp={command=>{completion.dismiss();setHelp({command});}}/>
     {help&&<CommandHelpDialog initial={help.command} enabled={completion.enabled} onEnable={()=>{setHelp(undefined);openIntegration();}} onClose={()=>{setHelp(undefined);terminal.current?.focus();}}/>}
     {log?.directory && <div className="session-status terminal-recording-status" role="status">

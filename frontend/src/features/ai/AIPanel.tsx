@@ -4,10 +4,11 @@ import useAIConversation, { aiRunning } from './useAIConversation';
 import AIConversation from './AIConversation';
 import AIHistory from './AIHistory';
 import AIToolCall from './AIToolCall';
+import type { Reference } from '../../../bindings/github.com/Sanjeever/termquay/internal/ai/models';
 
 const states: Record<string, string> = { running: '正在回复', awaiting_approval: '等待命令批准', compressing: '正在压缩较早上下文', stopped: '已停止', failed: '失败' };
 
-export default function AIPanel({ workspace, visible, configRevision, onClose }: { workspace: string; visible: boolean; configRevision: number; onClose(): void }) {
+export default function AIPanel({ workspace, visible, configRevision, references, onRemoveReference, onReferencesSent, onClose }: { workspace: string; visible: boolean; configRevision: number; references: Reference[]; onRemoveReference(index: number): void; onReferencesSent(sent: Reference[]): void; onClose(): void }) {
   const ai = useAIConversation(workspace, visible, configRevision);
   const [text, setText] = useState('');
   const [history, setHistory] = useState(false);
@@ -22,8 +23,9 @@ export default function AIPanel({ workspace, visible, configRevision, onClose }:
   useEffect(() => { if (visible && !history) input.current?.focus(); }, [visible, history]);
   useEffect(() => { if (visible && pinned.current && !ai.browsing) transcript.current?.scrollTo({ top: transcript.current.scrollHeight }); }, [visible, ai.run?.revision, ai.page, history]);
   async function send() {
-    if (!visible || running || ai.busy || ai.loading || !text.trim()) return;
-    if (await ai.send(text, [], acceptTarget)) { setText(''); pinned.current = true; input.current?.focus(); }
+    if (!visible || running || ai.busy || ai.loading || (!text.trim() && !references.length)) return;
+    const sent=references.slice();
+    if (await ai.send(text, sent, acceptTarget)) { setText(''); onReferencesSent(sent); pinned.current = true; input.current?.focus(); }
   }
   const pending = ai.run?.pending;
   const pendingInPage = pending && messages.some(item => item.run_id === ai.run?.id && item.message.tool_calls?.some(call => call.id === pending.call.id));
@@ -41,7 +43,9 @@ export default function AIPanel({ workspace, visible, configRevision, onClose }:
       </div>
       {pending && !pendingInPage && <AIToolCall call={pending.call} pending active busy={ai.busy} onDecide={approved => void ai.decide(approved)} />}
       <div className="ai-status" role="status">{states[ai.run?.state || ''] || ''}</div>
-      <form className="ai-composer" onSubmit={event => { event.preventDefault(); void send(); }}><textarea ref={input} aria-label="发送给 AI 的问题" placeholder="询问当前主机…" rows={3} maxLength={32768} value={text} onChange={event => setText(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void send(); } }} /><div className="ai-composer-actions">{running ? <button type="button" className="session-tool" disabled={ai.busy} onClick={() => void ai.stop()}>停止</button> : <button type="submit" className="session-tool ai-send" disabled={ai.busy || ai.loading || !text.trim() || targetChanged && !acceptTarget}>发送</button>}</div></form>
+      <form className="ai-composer" onSubmit={event => { event.preventDefault(); void send(); }}>
+        {!!references.length && <div className="ai-pending-references" aria-label="待发送终端引用">{references.map((reference,index)=><div className="ai-pending-reference" key={index}><details><summary>{reference.label || `终端 ${reference.terminal.slice(0,8)}`}</summary><pre>{reference.text}</pre></details><button type="button" className="icon-button" aria-label={`移除引用 ${index+1}`} onClick={()=>onRemoveReference(index)}><Icon name="close" width="12"/></button></div>)}</div>}
+        <textarea ref={input} disabled={ai.busy || !visible} aria-label="发送给 AI 的问题" placeholder="询问当前主机…" rows={3} maxLength={32768} value={text} onChange={event => setText(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void send(); } }} /><div className="ai-composer-actions">{running ? <button type="button" className="session-tool" disabled={ai.busy} onClick={() => void ai.stop()}>停止</button> : <button type="submit" className="session-tool ai-send" disabled={!visible || ai.busy || ai.loading || !text.trim() && !references.length || targetChanged && !acceptTarget}>发送</button>}</div></form>
     </>}
     {(ai.error || ai.run?.error) && <div className="ai-error" role="alert">{ai.error || ai.run?.error}{ai.error && <button className="session-tool" onClick={ai.retry}>重新载入</button>}</div>}
   </section>;

@@ -51,4 +51,10 @@
 .ai-history-row span, .ai-history-row small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ai-history-pages { justify-content: space-between; margin-top: 12px; }
 .ai-reference { margin-top: 8px; color: var(--color-muted); }
+.ai-pending-references { padding: 7px; display: flex; flex-direction: column; gap: 5px; border-bottom: 1px solid var(--color-border); max-height: 170px; overflow: auto; }
+.ai-pending-reference { display: flex; align-items: start; gap: 5px; font-size: 11px; }
+.ai-pending-reference details { flex: 1; min-width: 0; }
+.ai-pending-reference summary { cursor: pointer; }
+.ai-pending-reference pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: 5px; color: var(--color-muted); }
+.terminal-context-trigger { position: fixed; width: 1px; height: 1px; padding: 0; border: 0; pointer-events: none; }
 @media (max-width: 1100px) { .ai-dock { position: absolute; right: 0; top: 0; bottom: 0; z-index: 5; max-width: calc(100% - 32px); box-shadow: -12px 0 32px #0005; } }
