@@ -9,22 +9,24 @@ import (
 )
 
 type AISettings struct {
-	Enabled     bool   `json:"enabled"`
-	Protocol    string `json:"protocol"`
-	Endpoint    string `json:"endpoint"`
-	Model       string `json:"model"`
-	HasAPIKey   bool   `json:"has_api_key"`
-	ConfirmExec bool   `json:"confirm_exec"`
+	Enabled               bool   `json:"enabled"`
+	Protocol              string `json:"protocol"`
+	Endpoint              string `json:"endpoint"`
+	Model                 string `json:"model"`
+	HasAPIKey             bool   `json:"has_api_key"`
+	ConfirmExec           bool   `json:"confirm_exec"`
+	RequestTimeoutMinutes int    `json:"request_timeout_minutes"`
 }
 
 type AISettingsUpdate struct {
-	Enabled      bool   `json:"enabled"`
-	Protocol     string `json:"protocol"`
-	Endpoint     string `json:"endpoint"`
-	Model        string `json:"model"`
-	APIKeyAction string `json:"api_key_action"`
-	APIKey       string `json:"api_key"`
-	ConfirmExec  bool   `json:"confirm_exec"`
+	Enabled               bool   `json:"enabled"`
+	Protocol              string `json:"protocol"`
+	Endpoint              string `json:"endpoint"`
+	Model                 string `json:"model"`
+	APIKeyAction          string `json:"api_key_action"`
+	APIKey                string `json:"api_key"`
+	ConfirmExec           bool   `json:"confirm_exec"`
+	RequestTimeoutMinutes *int   `json:"request_timeout_minutes,omitempty"`
 }
 
 func init() { application.RegisterEvent[AISettings]("ai:settings-changed") }
@@ -51,7 +53,7 @@ func (a *AppService) aiConfigLocked() (ai.Config, error) {
 }
 
 func aiSettingsView(c ai.Config) AISettings {
-	return AISettings{Enabled: c.Enabled, Protocol: c.Protocol, Endpoint: c.Endpoint, Model: c.Model, HasAPIKey: c.APIKey != "", ConfirmExec: c.ConfirmExec}
+	return AISettings{Enabled: c.Enabled, Protocol: c.Protocol, Endpoint: c.Endpoint, Model: c.Model, HasAPIKey: c.APIKey != "", ConfirmExec: c.ConfirmExec, RequestTimeoutMinutes: int(c.RequestTimeout().Minutes())}
 }
 
 func (a *AppService) GetAISettings() (AISettings, error) {
@@ -92,6 +94,12 @@ func (a *AppService) SaveAISettings(update AISettingsUpdate) (AISettings, error)
 
 func updatedAIConfig(c ai.Config, update AISettingsUpdate) (ai.Config, error) {
 	c.Enabled, c.Protocol, c.Endpoint, c.Model, c.ConfirmExec = update.Enabled, update.Protocol, update.Endpoint, update.Model, update.ConfirmExec
+	if update.RequestTimeoutMinutes != nil {
+		if *update.RequestTimeoutMinutes < 1 || *update.RequestTimeoutMinutes > ai.MaxRequestTimeoutMinutes {
+			return c, errors.New("模型最长等待时间须为 1 至 30 分钟")
+		}
+		c.RequestTimeoutMinutes = *update.RequestTimeoutMinutes
+	}
 	switch update.APIKeyAction {
 	case "keep":
 	case "replace":

@@ -7,16 +7,20 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/http/httptrace"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/tmaxmax/go-sse"
 )
 
 type Client struct {
-	config Config
-	http   *http.Client
+	config         Config
+	http           *http.Client
+	requestTimeout time.Duration
 }
 
 func NewClient(config Config) *Client {
@@ -24,15 +28,30 @@ func NewClient(config Config) *Client {
 	transport.MaxIdleConns = 2
 	transport.MaxIdleConnsPerHost = 2
 	transport.MaxConnsPerHost = 2
-	transport.ResponseHeaderTimeout = 30 * time.Second
-	return &Client{config: config, http: &http.Client{Transport: transport, Timeout: 2 * time.Minute, CheckRedirect: func(*http.Request, []*http.Request) error {
+	transport.ResponseHeaderTimeout = 120 * time.Second
+	return &Client{config: config, requestTimeout: config.RequestTimeout(), http: &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error {
 		return errors.New("AI 请求不允许重定向，请填写最终请求 URL")
 	}}}
 }
 
 func (c *Client) Close() { c.http.CloseIdleConnections() }
 
-func (c *Client) Stream(ctx context.Context, input Request, delta func(string) error) (Response, error) {
+func (c *Client) Stream(parent context.Context, input Request, delta func(string) error) (response Response, resultErr error) {
+	ctx, cancel := context.WithTimeout(parent, c.requestTimeout)
+	defer cancel()
+	defer func() {
+		if resultErr == nil {
+			return
+		}
+		switch {
+		case parent.Err() != nil:
+			resultErr = context.Cause(parent)
+		case ctx.Err() == context.DeadlineExceeded:
+			resultErr = fmt.Errorf("等待模型超过设定时间（%d 分钟）: %w", int(c.config.RequestTimeout().Minutes()), context.DeadlineExceeded)
+		default:
+			resultErr = c.cleanError(resultErr)
+		}
+	}()
 	if err := c.config.Validate(); err != nil {
 		return Response{}, err
 	}
@@ -80,15 +99,28 @@ func (c *Client) Stream(ctx context.Context, input Request, delta func(string) e
 	} else if c.config.APIKey != "" {
 		req.Header.Set("Authorization", "Bearer "+c.config.APIKey)
 	}
+	var wroteRequest atomic.Bool
+	req = req.WithContext(httptrace.WithClientTrace(req.Context(), &httptrace.ClientTrace{WroteRequest: func(info httptrace.WroteRequestInfo) {
+		if info.Err == nil {
+			wroteRequest.Store(true)
+		}
+	}}))
 	res, err := c.http.Do(req)
 	if err != nil {
-		return r, c.cleanError(err)
+		var networkError net.Error
+		if errors.As(err, &networkError) && networkError.Timeout() {
+			if wroteRequest.Load() {
+				return r, fmt.Errorf("等待模型响应头超时: %w", err)
+			}
+			return r, fmt.Errorf("连接模型服务超时: %w", err)
+		}
+		return r, fmt.Errorf("连接模型服务失败: %w", err)
 	}
 	defer res.Body.Close()
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
 		body, readErr := io.ReadAll(io.LimitReader(res.Body, 8192))
 		if readErr != nil {
-			return r, c.cleanError(readErr)
+			return r, fmt.Errorf("读取模型错误响应失败: %w", readErr)
 		}
 		var detail struct {
 			Error struct {
@@ -105,7 +137,7 @@ func (c *Client) Stream(ctx context.Context, input Request, delta func(string) e
 	complete := false
 	for event, err := range sse.Read(reader, &sse.ReadConfig{MaxEventSize: 512 << 10}) {
 		if err != nil {
-			return r, c.cleanError(err)
+			return r, fmt.Errorf("模型响应流中断: %w", err)
 		}
 		if ctx.Err() != nil {
 			return r, ctx.Err()

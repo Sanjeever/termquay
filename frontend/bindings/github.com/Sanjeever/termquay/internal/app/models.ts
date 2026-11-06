@@ -73,6 +73,7 @@ export interface AISettings {
     "model": string;
     "has_api_key": boolean;
     "confirm_exec": boolean;
+    "request_timeout_minutes": number;
 }
 
 export interface AISettingsUpdate {
@@ -83,6 +84,7 @@ export interface AISettingsUpdate {
     "api_key_action": string;
     "api_key": string;
     "confirm_exec": boolean;
+    "request_timeout_minutes"?: number | null;
 }
 
 export interface AIStartRequest {

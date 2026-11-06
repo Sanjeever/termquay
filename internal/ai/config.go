@@ -4,20 +4,38 @@ import (
 	"errors"
 	"net/url"
 	"strings"
+	"time"
 )
 
 type Config struct {
-	Enabled     bool   `json:"enabled"`
-	Protocol    string `json:"protocol"`
-	Endpoint    string `json:"endpoint"`
-	Model       string `json:"model"`
-	APIKey      string `json:"api_key"`
-	ConfirmExec bool   `json:"confirm_exec"`
+	Enabled               bool   `json:"enabled"`
+	Protocol              string `json:"protocol"`
+	Endpoint              string `json:"endpoint"`
+	Model                 string `json:"model"`
+	APIKey                string `json:"api_key"`
+	ConfirmExec           bool   `json:"confirm_exec"`
+	RequestTimeoutMinutes int    `json:"request_timeout_minutes"`
 }
 
-func DefaultConfig() Config { return Config{Protocol: "chat_completions", ConfirmExec: true} }
+const DefaultRequestTimeoutMinutes = 10
+const MaxRequestTimeoutMinutes = 30
+
+func DefaultConfig() Config {
+	return Config{Protocol: "chat_completions", ConfirmExec: true, RequestTimeoutMinutes: DefaultRequestTimeoutMinutes}
+}
+
+func (c Config) RequestTimeout() time.Duration {
+	minutes := c.RequestTimeoutMinutes
+	if minutes == 0 {
+		minutes = DefaultRequestTimeoutMinutes
+	}
+	return time.Duration(minutes) * time.Minute
+}
 
 func (c Config) Validate() error {
+	if c.RequestTimeoutMinutes < 0 || c.RequestTimeoutMinutes > MaxRequestTimeoutMinutes {
+		return errors.New("模型最长等待时间须为 1 至 30 分钟")
+	}
 	if c.Protocol != "chat_completions" && c.Protocol != "messages" && c.Protocol != "responses" {
 		return errors.New("AI 接口类型无效")
 	}

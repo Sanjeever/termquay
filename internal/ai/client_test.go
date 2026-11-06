@@ -2,6 +2,7 @@ package ai
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -123,4 +124,58 @@ func TestClientCloseReleasesOnlyOwnedConnections(t *testing.T) {
 	if aiClosed.Load() != 1 || otherClosed.Load() != 0 {
 		t.Fatal("AI 连接未释放或误关共享 HTTP 连接")
 	}
+}
+
+func TestModelRequestTimeout(t *testing.T) {
+	config := Config{Enabled: true, Protocol: "chat_completions", Endpoint: "https://example.invalid/chat", Model: "test"}
+	c := NewClient(config)
+	defer c.Close()
+	if c.http.Timeout != 0 || c.requestTimeout != 10*time.Minute || c.http.Transport.(*http.Transport).ResponseHeaderTimeout != 120*time.Second {
+		t.Fatal("模型仍受固定短时限限制")
+	}
+	config.RequestTimeoutMinutes = 30
+	if err := config.Validate(); err != nil || config.RequestTimeout() != 30*time.Minute {
+		t.Fatal("无法设置最长等待时间")
+	}
+	for _, minutes := range []int{-1, 31} {
+		config.RequestTimeoutMinutes = minutes
+		if config.Validate() == nil {
+			t.Fatal("接受无效等待时间")
+		}
+	}
+	for _, protocol := range []string{"chat_completions", "messages", "responses"} {
+		t.Run(protocol, func(t *testing.T) {
+			s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "text/event-stream")
+				w.(http.Flusher).Flush()
+				<-r.Context().Done()
+			}))
+			defer s.Close()
+			client := NewClient(Config{Enabled: true, Protocol: protocol, Endpoint: s.URL, Model: "test"})
+			defer client.Close()
+			client.requestTimeout = 30 * time.Millisecond
+			_, err := client.Stream(context.Background(), Request{}, nil)
+			if err == nil || !errors.Is(err, context.DeadlineExceeded) || !strings.Contains(err.Error(), "等待模型超过设定时间") {
+				t.Fatalf("模型等待超时未单独报告: %v", err)
+			}
+			ctx, cancel := context.WithCancelCause(context.Background())
+			cause := errors.New("synthetic run stopped")
+			cancel(cause)
+			if _, err := client.Stream(ctx, Request{}, nil); !errors.Is(err, cause) {
+				t.Fatalf("调用者取消被误报模型超时: %v", err)
+			}
+		})
+	}
+	t.Run("response_headers", func(t *testing.T) {
+		release := make(chan struct{})
+		s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { <-release }))
+		defer s.Close()
+		defer close(release)
+		client := NewClient(Config{Enabled: true, Protocol: "chat_completions", Endpoint: s.URL, Model: "test"})
+		defer client.Close()
+		client.http.Transport.(*http.Transport).ResponseHeaderTimeout = 30 * time.Millisecond
+		if _, err := client.Stream(context.Background(), Request{}, nil); err == nil || !strings.Contains(err.Error(), "等待模型响应头超时") {
+			t.Fatalf("响应头超时未区分: %v", err)
+		}
+	})
 }

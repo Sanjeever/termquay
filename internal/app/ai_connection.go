@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"time"
 
 	"github.com/Sanjeever/termquay/internal/ai"
 )
@@ -38,7 +37,7 @@ func (a *AppService) TestAIConnection(ctx context.Context, update AISettingsUpda
 		a.aiMu.Unlock()
 		return AIConnectionTest{}, err
 	}
-	testCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
+	testCtx, cancel := context.WithCancel(ctx)
 	id := aiID()
 	if a.aiTests == nil {
 		a.aiTests = map[string]context.CancelFunc{}

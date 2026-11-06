@@ -16,7 +16,7 @@ func TestAISettingsSecretsAndIndependentCLI(t *testing.T) {
 	}
 	defer a.ServiceShutdown()
 	view, err := a.GetAISettings()
-	if err != nil || view.Enabled || !view.ConfirmExec {
+	if err != nil || view.Enabled || !view.ConfirmExec || view.RequestTimeoutMinutes != 10 {
 		t.Fatalf("默认值错误: %+v %v", view, err)
 	}
 	u := AISettingsUpdate{Protocol: "responses", Endpoint: "https://example.invalid/v1/responses", Model: "test", APIKeyAction: "replace", APIKey: "synthetic-api-key", ConfirmExec: true}
