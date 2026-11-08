@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"filippo.io/age"
 	"github.com/Sanjeever/termquay/internal/backup"
@@ -51,16 +52,35 @@ func (a *AppService) ExportBackupRecoveryKey() (BackupRecoveryKeyExport, error) 
 	if err != nil {
 		return BackupRecoveryKeyExport{}, err
 	}
-	filename, err := application.Get().Dialog.SaveFile().SetMessage("离线保存备份恢复密钥，持有此文件可解密对应备份").SetFilename("termquay-recovery.agekey").PromptForSingleSelection()
+	filename, err := application.Get().Dialog.SaveFile().SetMessage("离线保存备份恢复密钥，持有此文件可解密对应备份").SetFilename("termquay-recovery-" + time.Now().UTC().Format("20060102T150405.000000000Z") + ".agekey").PromptForSingleSelection()
 	if err != nil || filename == "" {
 		return BackupRecoveryKeyExport{}, err
 	}
 	secret := []byte(key.String() + "\n")
 	defer clear(secret)
-	if err := writeSnapshotFile(filename, secret); err != nil {
+	if err := writeRecoveryKey(filename, secret); err != nil {
 		return BackupRecoveryKeyExport{}, err
 	}
 	return BackupRecoveryKeyExport{Recipient: key.Recipient().String(), Path: filename}, nil
+}
+
+func writeRecoveryKey(filename string, secret []byte) error {
+	file, err := os.OpenFile(filename, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	if errors.Is(err, os.ErrExist) {
+		return errors.New("恢复密钥文件已存在，请另存并保留旧密钥供历史备份使用")
+	}
+	if err != nil {
+		return err
+	}
+	_, err = file.Write(secret)
+	if err == nil {
+		err = file.Sync()
+	}
+	err = errors.Join(err, file.Close())
+	if err != nil {
+		return errors.Join(err, os.Remove(filename))
+	}
+	return nil
 }
 
 func selectBackupRecoveryKey() (string, error) {

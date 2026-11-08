@@ -83,3 +83,29 @@ func TestRecoveryKeyRestoreCreatesDecryptableProtectionWithoutPassword(t *testin
 		t.Fatal("保护副本无法独立恢复", err)
 	}
 }
+
+func TestRecoveryKeyExportNeverOverwritesExistingKey(t *testing.T) {
+	filename := filepath.Join(t.TempDir(), "recovery.agekey")
+	first, err := age.GenerateX25519Identity()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writeRecoveryKey(filename, []byte(first.String())); err != nil {
+		t.Fatal(err)
+	}
+	second, err := age.GenerateX25519Identity()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writeRecoveryKey(filename, []byte(second.String())); err == nil {
+		t.Fatal("导出覆盖了历史恢复密钥")
+	}
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer clear(data)
+	if string(data) != first.String() {
+		t.Fatal("旧恢复密钥被修改")
+	}
+}
