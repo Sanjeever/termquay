@@ -11,7 +11,7 @@ import type { RDPOptions } from '../rdp/RDPView';
 
 type Attempt = { cancelled: boolean; progressEpoch: number; workspaceID?: string; operation?: { cancel(): void }; resolve?: (accept: boolean) => void };
 
-export default function useConnectionAttempt(onSSH: (id: string, connection: Connection, reuse?: string, automatic?: boolean, route?: SSHRouteHop[]) => void, beginRDP: (connection: Connection, reuse?: string, options?: RDPOptions) => string, onRDP: (id: string, grant: Grant, username: string, password: string, domain: string) => Promise<void>, failRDP: (id: string, error: string) => void, cancelRDP: (id: string) => void, remove: (id: string) => void, prepareSSH: () => Promise<unknown>) {
+export default function useConnectionAttempt(onSSH: (id: string, connection: Connection, reuse?: string, automatic?: boolean, route?: SSHRouteHop[]) => void, beginRDP: (connection: Connection, reuse?: string, options?: RDPOptions) => string, onRDP: (id: string, grant: Grant, username: string, password: string, domain: string) => Promise<void>, failRDP: (id: string, error: string) => void, cancelRDP: (id: string) => void, remove: (id: string) => void, prepareSSH: () => Promise<unknown>, prepareRDP: () => Promise<unknown>) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [target, setTarget] = useState('');
@@ -74,6 +74,7 @@ export default function useConnectionAttempt(onSSH: (id: string, connection: Con
         attempt.operation = operation;
         await operation;
       } else {
+        await prepareRDP(); check();
         rdpWorkspace = beginRDP(connection, reuse, options);
         setWorkspaceID(rdpWorkspace);
         attempt.workspaceID = rdpWorkspace;

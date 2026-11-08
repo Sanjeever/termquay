@@ -12,7 +12,7 @@ import type { ConnectionResource, Snippet, TunnelPreset, WorkspaceLayout, Worksp
 import { ListServiceEntries, ListTunnels, StartTunnel } from '../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { Connection, ConnectionPreference, Group } from '../bindings/github.com/Sanjeever/termquay/internal/store/models';
 import type { SSHWorkspaceHandle } from './features/files/SSHWorkspace';
-import RDPView, { type RDPHandle, type RDPOptions } from './features/rdp/RDPView';
+import type { RDPHandle, RDPOptions } from './features/rdp/RDPView';
 import UploadDialog from './features/files/UploadDialog';
 import useTransfers from './features/files/useTransfers';
 import { bytes } from './features/files/transferFormat';
@@ -57,6 +57,8 @@ import ApplicationLockScreen from './features/settings/ApplicationLockScreen';
 
 const loadSSHWorkspace = () => import('./features/files/SSHWorkspace');
 const loadTerminalView = () => import('./features/terminal/TerminalView');
+const loadRDPView = () => import('./features/rdp/RDPView');
+const RDPView = lazy(loadRDPView);
 const SSHWorkspace = lazy(loadSSHWorkspace);
 const TerminalView = lazy(loadTerminalView);
 const ConnectionDialog = lazy(() => import('./features/connections/ConnectionDialog'));
@@ -245,7 +247,7 @@ export default function App() {
     await view.connect(username, password, domain);
     const connectionID = latestWorkspaces.current.find(w => w.id === id)?.connectionID;
     if (connectionID) void recordSuccess(connectionID);
-  }, (id, error) => setWorkspaces(prev => prev.map(w => w.id === id ? { ...w, rdp: { ...w.rdp!, error } } : w)), id => latestWorkspaces.current.find(w => w.id === id)?.view?.current?.cancel(), remove, loadSSHWorkspace);
+  }, (id, error) => setWorkspaces(prev => prev.map(w => w.id === id ? { ...w, rdp: { ...w.rdp!, error } } : w)), id => latestWorkspaces.current.find(w => w.id === id)?.view?.current?.cancel(), remove, loadSSHWorkspace, loadRDPView);
 
   async function reload() { setCatalogLoading(true); try { const data = await GetCatalog(); try { setPreferences(await GetConnectionPreferences() || {}); setPreferenceLoadError(''); } catch (e) { setPreferenceLoadError(errorMessage(e)); } setCatalog({ ...data, groups: data.groups ?? [], connections: data.connections ?? [] }); setStorageError(''); } catch (e) { setStorageError(errorMessage(e)); } finally { setCatalogLoading(false); } }
   function showDemo(scene: DemoScene = 'connections') { if(attempt.busy||openingLocal||dialog||rdpStart||restoreDialog||snippetInsert||attempt.trust||closing||quitConfirm||restarting||document.querySelector('[role=dialog][aria-modal=true]:not(.command-palette)'))return;if(!demoScene)beginPreview();setPalette(false);selectDemoScene(scene); }

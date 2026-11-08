@@ -10,4 +10,18 @@ export default defineConfig({
     strictPort: true,
   },
   plugins: [react(), tailwindcss(), wails("./bindings")],
+  build: {
+    rolldownOptions: {
+      plugins: [{
+        name: 'rdp-wasm-asset',
+        transform(code, id) {
+          if (!id.replaceAll('\\', '/').endsWith('/@devolutions/iron-remote-desktop-rdp/iron-remote-desktop-rdp.js')) return;
+          const embedded = /"data:application\/wasm;base64,([A-Za-z0-9+/=]+)"/.exec(code);
+          if (!embedded) this.error('RDP WASM 内嵌格式已变化，请检查资源提取');
+          const reference = this.emitFile({ type: 'asset', name: 'iron-rdp.wasm', source: Buffer.from(embedded[1], 'base64') });
+          return { code: code.replace(embedded[0], `import.meta.ROLLUP_FILE_URL_${reference}`), map: null };
+        },
+      }],
+    },
+  },
 });
