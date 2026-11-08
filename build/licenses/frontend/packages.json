@@ -3637,5 +3637,23 @@
     "license": "MIT",
     "homepage": "https://github.com/solidjs/solid-transition-group#readme",
     "author": "Ryan Carniato"
+  },
+  {
+    "name": "@xterm/addon-unicode11",
+    "versions": [
+      "0.8.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/xtermjs/xterm.js/tree/master#readme",
+    "author": "The xterm.js authors"
+  },
+  {
+    "name": "@xterm/addon-webgl",
+    "versions": [
+      "0.18.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/xtermjs/xterm.js/tree/master#readme",
+    "author": "The xterm.js authors"
   }
 ]

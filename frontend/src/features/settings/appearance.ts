@@ -1,8 +1,8 @@
 export const appearanceKey = 'termquay.appearance';
 export const terminalPalettes = { theme: '跟随主题', dark: '经典深色', light: '浅色纸张', 'one-dark': 'One Dark', 'tokyo-night': 'Tokyo Night' };
 export const uiZoomLevels = [1, 1.1, 1.25, 1.5, 1.75, 2];
-export type Appearance = { theme: 'dark' | 'light' | 'system'; uiFont: 'system' | 'yahei' | 'pingfang'; uiZoom: number; monoFont: 'system' | 'cascadia' | 'consolas' | 'jetbrains'; terminalPalette: keyof typeof terminalPalettes; terminalLogHighlight: boolean };
-export const defaultAppearance: Appearance = { theme: 'system', uiFont: 'system', uiZoom: 1, monoFont: 'system', terminalPalette: 'theme', terminalLogHighlight: true };
+export type Appearance = { theme: 'dark' | 'light' | 'system'; uiFont: 'system' | 'yahei' | 'pingfang'; uiZoom: number; monoFont: 'system' | 'cascadia' | 'consolas' | 'jetbrains'; terminalPalette: keyof typeof terminalPalettes; terminalLogHighlight: boolean; terminalRenderer: 'dom'|'webgl' };
+export const defaultAppearance: Appearance = { theme: 'system', uiFont: 'system', uiZoom: 1, monoFont: 'system', terminalPalette: 'theme', terminalLogHighlight: true, terminalRenderer: 'dom' };
 export const uiFonts = {
   system: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei UI", "PingFang SC", sans-serif',
   yahei: '"Microsoft YaHei UI", "Microsoft YaHei", sans-serif',
@@ -20,7 +20,8 @@ export function parseAppearance(value: string | null): Appearance {
   const settings = JSON.parse(value);
   if (!settings || !['dark', 'light', 'system'].includes(settings.theme) || !Object.prototype.hasOwnProperty.call(uiFonts, settings.uiFont) || !Object.prototype.hasOwnProperty.call(monoFonts, settings.monoFont) || !Object.prototype.hasOwnProperty.call(terminalPalettes, settings.terminalPalette) || (settings.terminalLogHighlight !== undefined && typeof settings.terminalLogHighlight !== 'boolean')) throw new Error('外观设置无效，请复位');
   if (settings.uiZoom !== undefined && !uiZoomLevels.includes(settings.uiZoom)) throw new Error('界面缩放设置无效');
-  return { theme: settings.theme, uiFont: settings.uiFont, uiZoom: settings.uiZoom ?? defaultAppearance.uiZoom, monoFont: settings.monoFont, terminalPalette: settings.terminalPalette, terminalLogHighlight: settings.terminalLogHighlight ?? defaultAppearance.terminalLogHighlight };
+  if (settings.terminalRenderer !== undefined && !['dom','webgl'].includes(settings.terminalRenderer)) throw new Error('终端渲染设置无效');
+  return { theme: settings.theme, uiFont: settings.uiFont, uiZoom: settings.uiZoom ?? defaultAppearance.uiZoom, monoFont: settings.monoFont, terminalPalette: settings.terminalPalette, terminalLogHighlight: settings.terminalLogHighlight ?? defaultAppearance.terminalLogHighlight, terminalRenderer: settings.terminalRenderer ?? defaultAppearance.terminalRenderer };
 }
 
 export function terminalTheme(palette: Appearance['terminalPalette'], dark: boolean) {

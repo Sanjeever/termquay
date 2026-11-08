@@ -33,6 +33,12 @@ func validatePortableUI(values map[string]string) error {
 					return errors.New("日志高亮设置无效")
 				}
 			}
+			if raw, ok := settings["terminalRenderer"]; ok {
+				var renderer string
+				if err := json.Unmarshal(raw, &renderer); err != nil || !slices.Contains([]string{"dom", "webgl"}, renderer) {
+					return errors.New("终端渲染设置无效")
+				}
+			}
 			if raw, ok := settings["uiZoom"]; ok {
 				var zoom float64
 				if err := json.Unmarshal(raw, &zoom); err != nil || !slices.Contains([]float64{1, 1.1, 1.25, 1.5, 1.75, 2}, zoom) {

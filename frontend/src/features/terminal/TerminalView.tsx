@@ -8,6 +8,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { SearchAddon } from '@xterm/addon-search';
 import { WebLinksAddon } from '@xterm/addon-web-links';
+import { Unicode11Addon } from '@xterm/addon-unicode11';
 import TerminalSearch, { searchHighlightLimit } from './TerminalSearch';
 import { addLogHighlights } from './logHighlights';
 import { addShellIntegration, type CommandIndexEntry } from './shellIntegration';
@@ -191,6 +192,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
       fontSize, lineHeight: 1.3, scrollback: 5000, cursorBlink: demoOutput === undefined, disableStdin: demoOutput !== undefined,
       allowProposedApi: true, theme: colors,
     });
+    term.loadAddon(new Unicode11Addon()); term.unicode.activeVersion = '11';
     const fit = new FitAddon(); term.loadAddon(fit); term.open(container.current!);
     const finder = new SearchAddon({highlightLimit:searchHighlightLimit}); term.loadAddon(finder); search.current = finder;
     term.loadAddon(new WebLinksAddon((event, uri) => {
@@ -274,6 +276,22 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
     });
     return () => { disposed = true;bufferChange.dispose();textarea?.removeEventListener('blur',blur); integration.current?.dispose(); integration.current = undefined; observer.disconnect(); cancelAnimationFrame(fitFrame); requestFit.current = undefined; unsubscribe(); input.dispose(); resize.dispose(); stream.close(); term.dispose(); terminal.current = undefined; search.current = undefined; inputStream.current=undefined; (containerConsole ? CloseContainerTerminal(id) : local ? CloseLocalTerminal(id) : CloseTerminal(id)).catch(() => {}); };
   }, [id, demoOutput]);
+  useEffect(() => {
+    const term=terminal.current;
+    if (!term || !visible || appearance.terminalRenderer!=='webgl') return;
+    let ended=false;
+    let addon:import('@xterm/addon-webgl').WebglAddon|undefined;
+    let loss:{dispose():void}|undefined;
+    const release=()=>{loss?.dispose();loss=undefined;addon?.dispose();addon=undefined;};
+    clearError('renderer');
+    void import('@xterm/addon-webgl').then(({WebglAddon})=>{
+      if(ended)return;
+      addon=new WebglAddon();
+      loss=addon.onContextLoss(()=>{release();reportError('renderer','WebGL 上下文丢失，已恢复基础渲染');});
+      term.loadAddon(addon);
+    }).catch(error=>{release();if(!ended)reportError('renderer',`WebGL 不可用，已使用基础渲染：${errorMessage(error)}`);});
+    return()=>{ended=true;release();};
+  },[id,demoOutput,visible,appearance.terminalRenderer]);
   useEffect(() => { if (terminal.current) terminal.current.options.theme = terminalTheme(appearance.terminalPalette, dark); }, [id, dark, appearance.terminalPalette]);
   useEffect(() => { if (terminal.current && visible && appearance.terminalLogHighlight) return addLogHighlights(terminal.current, terminalTheme(appearance.terminalPalette, dark)).dispose; }, [id, visible, appearance.terminalLogHighlight, appearance.terminalPalette, dark]);
   useEffect(() => { if (terminal.current && visible && keyword) return addLogHighlights(terminal.current, terminalTheme(appearance.terminalPalette, dark), keyword).dispose; }, [id, visible, keyword, appearance.terminalPalette, dark]);
