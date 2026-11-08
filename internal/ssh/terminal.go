@@ -38,6 +38,12 @@ type Request struct {
 	ProxyAddress    string `json:"proxy_address,omitempty"`
 	challenge       gossh.KeyboardInteractiveChallenge
 	progress        func(string) func(error)
+	verifiedHostKey func(string)
+}
+
+func WithVerifiedHostKey(r Request, report func(string)) Request {
+	r.verifiedHostKey = report
+	return r
 }
 
 func WithChallenge(r Request, challenge gossh.KeyboardInteractiveChallenge) Request {
@@ -208,15 +214,22 @@ func dialClient(ctx context.Context, r Request, connect func(context.Context, st
 	}
 	var finishHandshake, finishAuth func(error)
 	var identityOnce sync.Once
+	verifiedFingerprint := ""
 	config := &gossh.ClientConfig{User: r.Username, Auth: auth,
 		HostKeyAlgorithms: trustedAlgorithms(trusted),
 		HostKeyCallback: func(_ string, _ net.Addr, key gossh.PublicKey) error {
 			fingerprint := gossh.FingerprintSHA256(key)
 			var identityError error
-			if !hostTrustMatches(trusted, key) {
+			if !hostTrustMatches(trusted, key) || (verifiedFingerprint != "" && verifiedFingerprint != fingerprint) {
 				identityError = &HostKeyError{Fingerprint: fingerprint, Host: r.Host, Port: r.Port, Via: r.JumpID}
 			}
 			identityOnce.Do(func() {
+				if identityError == nil {
+					verifiedFingerprint = fingerprint
+					if r.verifiedHostKey != nil {
+						r.verifiedHostKey(fingerprint)
+					}
+				}
 				finishHandshake(nil)
 				finishHandshake = nil
 				r.connectionStage("主机身份校验")(identityError)

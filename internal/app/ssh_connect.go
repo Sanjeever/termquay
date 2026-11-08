@@ -87,15 +87,14 @@ func (a *AppService) openTerminal(ctx context.Context, r terminal.Request, expec
 		a.mu.Unlock()
 		return OpenResult{}, errors.New("当前最多运行 16 个终端")
 	}
-	fingerprints := []string{}
+	fingerprints := make([]string, len(chain))
 	for index, request := range chain {
 		key := sshTrustKey(request.Host, request.Port, request.JumpID)
 		if stored[key] != "" {
 			a.trusted[key] = stored[key]
 		}
 		request.Fingerprint = a.trusted[key]
-		chain[index] = terminal.WithChallenge(request, challenge)
-		fingerprints = append(fingerprints, request.Fingerprint)
+		chain[index] = terminal.WithVerifiedHostKey(terminal.WithChallenge(request, challenge), func(fingerprint string) { fingerprints[index] = fingerprint })
 	}
 	r = chain[len(chain)-1]
 	a.opening++

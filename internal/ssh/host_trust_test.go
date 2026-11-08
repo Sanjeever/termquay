@@ -18,6 +18,8 @@ func TestMultipleHostTrustStillRejectsChangedKey(t *testing.T) {
 		t.Fatal(err)
 	}
 	request.Fingerprint = string(encoded)
+	verified := ""
+	request = WithVerifiedHostKey(request, func(fingerprint string) { verified = fingerprint })
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	term, err := Dial(ctx, request)
@@ -25,6 +27,9 @@ func TestMultipleHostTrustStillRejectsChangedKey(t *testing.T) {
 		t.Fatal(err)
 	}
 	term.Close()
+	if verified != original {
+		t.Fatal("会话身份没有记录实际协商并验证的密钥")
+	}
 	request.Fingerprint = `[{"algorithm":"ssh-ed25519","fingerprint":"SHA256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}]`
 	_, err = Dial(ctx, request)
 	var identity *HostKeyError
