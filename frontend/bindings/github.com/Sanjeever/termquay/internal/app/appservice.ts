@@ -56,6 +56,10 @@ export function BrowseTransferDirectory(workspace: string, directory: string): $
     return $Call.ByID(2404688278, workspace, directory);
 }
 
+export function CancelAndDiscardTransfer(id: string, workspace: string): $CancellablePromise<void> {
+    return $Call.ByID(279675370, id, workspace);
+}
+
 export function CancelCommandRun(id: string): $CancellablePromise<void> {
     return $Call.ByID(634258122, id);
 }
@@ -128,7 +132,7 @@ export function ClearRecoveryDrafts(): $CancellablePromise<void> {
     return $Call.ByID(1116008356);
 }
 
-export function ClearTransfer(id: string): $CancellablePromise<void> {
+export function ClearTransfer(id: string): $CancellablePromise<string> {
     return $Call.ByID(2575385820, id);
 }
 

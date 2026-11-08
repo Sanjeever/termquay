@@ -49,6 +49,55 @@ func TestTransferCopyPreservesBytes(t *testing.T) {
 	}
 }
 
+func TestClearTransferRequiresStoppedAndDiscarded(t *testing.T) {
+	a := NewAppService(BuildInfo{Development: true}, nil)
+	for _, state := range []string{"queued", "running", "cancelled"} {
+		task := &transferTask{view: Transfer{ID: "test", State: state}}
+		if state == "cancelled" {
+			task.resume = &transferResume{}
+		}
+		a.transfers["test"] = task
+		if _, err := a.ClearTransfer("test"); err == nil || a.transfers["test"] == nil {
+			t.Fatalf("移除了尚未处理的任务 %s", state)
+		}
+	}
+	a.transfers["test"].resume = nil
+	if id, err := a.ClearTransfer("test"); err != nil || id != "test" || len(a.ListTransfers()) != 0 {
+		t.Fatalf("移除记录失败: %s %v", id, err)
+	}
+}
+
+func TestCancelAndDiscardWaitsForWriter(t *testing.T) {
+	a := NewAppService(BuildInfo{Development: true}, nil)
+	a.transferEvent = func(Transfer) {}
+	a.workspaces["test"] = &workspaceOwner{}
+	filename := filepath.Join(t.TempDir(), ".termquay-download-test")
+	if err := os.WriteFile(filename, []byte("partial"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	started := make(chan struct{})
+	view, err := a.startTransfer("test", "file", "download", 7, func(ctx context.Context, _ func(int64, int64)) error {
+		close(started)
+		<-ctx.Done()
+		if !a.retainTransfer(ctx, &transferResume{temporary: filename, offset: 7}) {
+			return errors.New("未保留暂存")
+		}
+		return ctx.Err()
+	}, transferSpec{direction: "download"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	<-started
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if err := a.CancelAndDiscardTransfer(ctx, view.ID, ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filename); !os.IsNotExist(err) || len(a.ListTransfers()) != 0 {
+		t.Fatal("取消后临时文件或记录仍存在")
+	}
+}
+
 func TestDownloadBatchUsesBoundedQueue(t *testing.T) {
 	a := NewAppService(BuildInfo{Development: true}, nil)
 	a.transferEvent = func(Transfer) {}

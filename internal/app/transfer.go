@@ -148,12 +148,41 @@ func (a *AppService) cancelTransferLocked(task *transferTask) {
 	close(task.done)
 	a.transferEvent(task.view)
 }
-func (a *AppService) ClearTransfer(id string) {
+func (a *AppService) ClearTransfer(id string) (string, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if task := a.transfers[id]; task != nil && task.resume == nil && task.view.State != "running" && task.view.State != "queued" {
-		delete(a.transfers, id)
+	task := a.transfers[id]
+	if task == nil {
+		return id, nil
 	}
+	if task.resume != nil || task.resumeClaimed || task.view.State == "running" || task.view.State == "queued" {
+		return "", errors.New("请先取消传输并处理保留的临时文件")
+	}
+	delete(a.transfers, id)
+	return id, nil
+}
+
+func (a *AppService) CancelAndDiscardTransfer(ctx context.Context, id, workspace string) error {
+	a.mu.Lock()
+	task := a.transfers[id]
+	a.mu.Unlock()
+	if task == nil {
+		return errors.New("传输任务不存在")
+	}
+	a.CancelTransfer(id)
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-task.done:
+	}
+	a.mu.Lock()
+	retained := task.resume != nil
+	a.mu.Unlock()
+	if retained {
+		return a.DiscardTransferResume(id, workspace)
+	}
+	_, err := a.ClearTransfer(id)
+	return err
 }
 
 func (a *AppService) ClearFinishedTransfers() []string {
@@ -161,7 +190,7 @@ func (a *AppService) ClearFinishedTransfers() []string {
 	defer a.mu.Unlock()
 	removed := []string{}
 	for id, task := range a.transfers {
-		if task.resume != nil {
+		if task.resume != nil || task.resumeClaimed {
 			continue
 		}
 		switch task.view.State {
@@ -307,8 +336,10 @@ sampling:
 	a.mu.Unlock()
 	if persistErr := a.persistTransferResumes(); persistErr != nil {
 		a.mu.Lock()
-		task.view.Error = strings.TrimSpace(task.view.Error + "\n续传记录保存失败：" + persistErr.Error())
-		a.transferEvent(task.view)
+		if a.transfers[task.view.ID] == task {
+			task.view.Error = strings.TrimSpace(task.view.Error + "\n续传记录保存失败：" + persistErr.Error())
+			a.transferEvent(task.view)
+		}
 		a.mu.Unlock()
 	}
 	close(task.done)

@@ -297,6 +297,10 @@ func (a *AppService) DiscardTransferResume(id, workspace string) error {
 			a.mu.Unlock()
 			return errors.New("清理远端暂存需要同一目标的已连接工作区")
 		}
+		if owner.browseOnly {
+			a.mu.Unlock()
+			return errors.New("当前工作区处于文件浏览模式，请先允许文件写入")
+		}
 	}
 	task.resumeClaimed = true
 	a.mu.Unlock()
