@@ -31,6 +31,7 @@ type TrustReview struct {
 	New        string      `json:"new"`
 	expires    time.Time
 	generation uint64
+	oldValue   string
 }
 
 func parseTrust(key, fp string) (TrustRecord, error) {
@@ -259,7 +260,11 @@ func (a *AppService) ProbeTrustReview(ctx context.Context, key string) (TrustRev
 	if len(a.trustReviews) >= 32 {
 		return TrustReview{}, errors.New("待审核信任达到上限")
 	}
-	review := TrustReview{ID: base64.RawURLEncoding.EncodeToString(randomBytes(18)), Record: r, Old: old, New: fp, expires: time.Now().Add(time.Minute), generation: generation}
+	display, err := parseTrust(key, old)
+	if err != nil {
+		return TrustReview{}, err
+	}
+	review := TrustReview{ID: base64.RawURLEncoding.EncodeToString(randomBytes(18)), Record: r, Old: display.Fingerprint, oldValue: old, New: fp, expires: time.Now().Add(time.Minute), generation: generation}
 	a.trustReviews[review.ID] = review
 	return review, nil
 }
@@ -289,7 +294,7 @@ func (a *AppService) ConfirmTrustReview(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
-	if old != review.Old {
+	if old != review.oldValue {
 		return errors.New("原信任记录已变化")
 	}
 	if err = a.store.SetSetting(review.Record.Key, review.New); err != nil {

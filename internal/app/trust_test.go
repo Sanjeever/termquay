@@ -5,6 +5,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -18,6 +19,7 @@ import (
 	"time"
 
 	"github.com/Sanjeever/termquay/internal/rdp"
+	terminal "github.com/Sanjeever/termquay/internal/ssh"
 	"github.com/bouncyball-git/gopher-rdp/protocol/tpkt"
 	gossh "golang.org/x/crypto/ssh"
 )
@@ -116,6 +118,28 @@ func TestTrustReviewReprobesChangedIdentityAndSynchronizesCaches(t *testing.T) {
 	stored, err = a.store.Setting(record.Key)
 	if err != nil || stored != current {
 		t.Fatal("失败审核覆盖原记录")
+	}
+}
+
+func TestTrustReviewFormatsMultipleKeysAndChecksOriginalValue(t *testing.T) {
+	a := testAppStore(t)
+	record, _, _ := trustSSHServer(t)
+	encoded, err := json.Marshal([]terminal.HostTrust{{Algorithm: gossh.KeyAlgoED25519, Fingerprint: record.Fingerprint}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := a.store.SetSetting(record.Key, string(encoded)); err != nil {
+		t.Fatal(err)
+	}
+	review, err := a.ProbeTrustReview(t.Context(), record.Key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if review.Old != record.Fingerprint {
+		t.Fatal("审核显示了内部信任存储格式")
+	}
+	if err := a.ConfirmTrustReview(t.Context(), review.ID); err != nil {
+		t.Fatal("审核未核对原始多密钥记录", err)
 	}
 }
 
