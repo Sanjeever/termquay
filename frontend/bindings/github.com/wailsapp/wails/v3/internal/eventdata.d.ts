@@ -17,6 +17,7 @@ declare module "@wailsio/runtime" {
             "app:lock-changed": app$0.ApplicationLockStatus;
             "app:menu-command": string;
             "app:menu-state": { [_ in string]?: string } | null;
+            "files:delete-progress": app$0.RemoteDeleteProgress;
             "files:upload-prepared": app$0.UploadPreparation;
             "monitor:sample": app$0.MonitorEvent;
             "transfer:changed": app$0.Transfer;

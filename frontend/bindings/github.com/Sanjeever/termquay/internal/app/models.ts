@@ -543,6 +543,12 @@ export interface RecoveryDraftSummary {
     "updated_at": string;
 }
 
+export interface RemoteDeleteProgress {
+    "workspace": string;
+    "path": string;
+    "deleted": number;
+}
+
 export interface RemoteLogSlice {
     "content": string;
     "start": number;

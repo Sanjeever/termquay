@@ -72,6 +72,7 @@ export type {
     RecoveryDraft,
     RecoveryDraftInput,
     RecoveryDraftSummary,
+    RemoteDeleteProgress,
     RemoteLogSlice,
     RemotePathResult,
     RestorePathHint,

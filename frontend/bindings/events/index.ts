@@ -34,6 +34,11 @@ export const AppMenuCommand = "app:menu-command";
 export const AppMenuState = "app:menu-state";
 
 /**
+ * Name of the custom event "files:delete-progress".
+ */
+export const FilesDeleteProgress = "files:delete-progress";
+
+/**
  * Name of the custom event "files:upload-prepared".
  */
 export const FilesUploadPrepared = "files:upload-prepared";

@@ -1,4 +1,5 @@
 import { errorMessage } from "../../lib/errors";
+import { Events } from '@wailsio/runtime';
 import { Fragment, lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Button, DropdownTrigger, DropdownMenu, DropdownItem, Modal, ModalBody, ModalContent, ModalHeader, ModalFooter } from '@heroui/react';
 import { Dropdown } from '../../components/Popover';
@@ -37,6 +38,9 @@ export default function FileBrowser({ id, connectionID, visible, readOnly = fals
   const [editingPath, setEditingPath] = useState(false);
   const [action, setAction] = useState<{ kind: 'mkdir' | 'rename' | 'delete'; path: string }>();
   const [working, setWorking] = useState(false);
+  const deletion = useRef<ReturnType<typeof DeleteRemotePaths>>();
+  const [deleteProgress,setDeleteProgress]=useState('');
+  useEffect(()=>{const off=Events.On('files:delete-progress',event=>{const value=event.data as {workspace:string;path:string;deleted:number};if(value.workspace===id&&deletion.current)setDeleteProgress(`${value.path} · 已删除 ${value.deleted} 项`);});return()=>{off();deletion.current?.cancel();deletion.current=undefined;};},[id]);
   const [clipboardBusy, setClipboardBusy] = useState(false);
   const clipboardRequest = useRef<{ cancel(): unknown }>();
   useEffect(() => () => { clipboardRequest.current?.cancel(); clipboardRequest.current = undefined; }, [id]);
@@ -109,11 +113,11 @@ export default function FileBrowser({ id, connectionID, visible, readOnly = fals
     finally { if (clipboardRequest.current === request) { clipboardRequest.current = undefined; setClipboardBusy(false); } }
   }
   function batchAction(kind:'download'|'move'|'delete',entry?:Entry){if(demoDirectories)return;if(readOnly&&kind!=='download'){setError('文件浏览模式禁止远端写入');return;}const paths=entry&&!selectedEntries.some(e=>e.path===entry.path)?[entry.path]:selectedEntries.map(e=>e.path);setError('');setOverwrite(false);setBatch({kind,paths});}
-  async function performBatch(target:string){if(!batch||working||demoDirectories)return;setWorking(true);setError('');try{
+  async function performBatch(target:string){if(!batch||working||demoDirectories)return;setWorking(true);setError('');setDeleteProgress('');try{
     if(batch.kind==='download'){const result=await StartDownloads(id,batch.paths,overwrite);setResults([...(result.items||[]).map(t=>({path:t.name,target:'',state:'queued',error:''})),...(result.errors||[]).map(error=>({path:'',target:'',state:'not_run',error}))]);}
-    else{setResults(await (batch.kind==='move'?MoveRemotePaths(id,batch.paths,target):DeleteRemotePaths(id,batch.paths))||[]);await load(directory,undefined,true);}
+    else{const request=batch.kind==='move'?MoveRemotePaths(id,batch.paths,target):DeleteRemotePaths(id,batch.paths);if(batch.kind==='delete')deletion.current=request;setResults(await request||[]);await load(directory,undefined,true);}
     setBatch(undefined);
-  }catch(e){setError(errorMessage(e));}finally{setWorking(false);}}
+  }catch(e){setError(errorMessage(e));if(batch.kind==='delete')await load(directory,undefined,true).catch(refreshError=>setError(`${errorMessage(e)}；${errorMessage(refreshError)}`));}finally{deletion.current=undefined;setWorking(false);}}
   async function toggleBookmark(){if(!directory||bookmarkSaving)return;const next=bookmarks.includes(directory)?bookmarks.filter(p=>p!==directory):[...bookmarks,directory];if(next.length>32){setError('目录书签达到上限（32 个）');return;}setBookmarkSaving(true);try{if(connectionID&&!demoDirectories)await SetDirectoryBookmarks(connectionID,next);setBookmarks(next);}catch(e){setError(errorMessage(e));}finally{setBookmarkSaving(false);}}
 
   async function open(entry: Entry,view?:'text'|'image') { if (entry.directory) await load(entry.path); else { try { setError(''); await onOpen(entry,view); } catch (e) { setError(errorMessage(e)); } } }
@@ -167,7 +171,7 @@ export default function FileBrowser({ id, connectionID, visible, readOnly = fals
       {!tree.nodes[entry.path]?.loading&&!tree.nodes[entry.path]?.error&&tree.nodes[entry.path]?.entries?.length===0&&<li role="none" className="tree-message" style={{paddingInlineStart:22+(depth+1)*14}}>空目录</li>}
     </>}</Fragment>)}</ul>
     {root?.entries && !root.loading && !loading && !error && visibleEntries.length === 0 && <p className="sidebar-empty">{root.entries.length === 0 ? '空目录' : filter ? '没有匹配文件' : '没有可见文件'}</p>}
-    <Modal isOpen={!!batch} onClose={()=>{if(!working){setBatch(undefined);setError('');}}} isDismissable={!working} isKeyboardDismissDisabled={working} className="app-dialog"><ModalContent><ModalHeader>{batch?.kind==='download'?'下载':batch?.kind==='move'?'移动':'删除'} {batch?.paths.length} 项</ModalHeader><form onSubmit={e=>{e.preventDefault();void performBatch(String(new FormData(e.currentTarget).get('directory')||''));}}><ModalBody><ul className="batch-paths">{batch?.paths.map(path=><li className="file-path" key={path}>{path}</li>)}</ul>{batch?.kind==='download'&&<label className="checkbox-label"><input type="checkbox" checked={overwrite} disabled={working} onChange={e=>setOverwrite(e.target.checked)} />覆盖同名普通文件</label>}{batch?.kind==='move'&&<label className="form-field">远端目标目录<input className="native-input" name="directory" aria-label="远端目标目录" required defaultValue={directory} disabled={working} /></label>}{batch?.kind==='delete'&&<p className="muted">目录须为空，删除后无法撤销。</p>}{error&&<p role="alert" className="error">{error}</p>}</ModalBody><ModalFooter><Button variant="light" isDisabled={working} onPress={()=>{setBatch(undefined);setError('');}}>取消</Button><Button type="submit" color={batch?.kind==='delete'?'danger':'primary'} isLoading={working}>{batch?.kind==='download'?'选择下载目录':batch?.kind==='move'?'移动':'删除'}</Button></ModalFooter></form></ModalContent></Modal>
+    <Modal isOpen={!!batch} onClose={()=>{if(!working){setBatch(undefined);setError('');}}} isDismissable={!working} isKeyboardDismissDisabled={working} className="app-dialog"><ModalContent><ModalHeader>{batch?.kind==='download'?'下载':batch?.kind==='move'?'移动':'删除'} {batch?.paths.length} 项</ModalHeader><form onSubmit={e=>{e.preventDefault();void performBatch(String(new FormData(e.currentTarget).get('directory')||''));}}><ModalBody><ul className="batch-paths">{batch?.paths.map(path=><li className="file-path" key={path}>{path}</li>)}</ul>{batch?.kind==='download'&&<label className="checkbox-label"><input type="checkbox" checked={overwrite} disabled={working} onChange={e=>setOverwrite(e.target.checked)} />覆盖同名普通文件</label>}{batch?.kind==='move'&&<label className="form-field">远端目标目录<input className="native-input" name="directory" aria-label="远端目标目录" required defaultValue={directory} disabled={working} /></label>}{batch?.kind==='delete'&&<><p className="error">将删除目录及全部子项，无法撤销。符号链接删除链接本身。</p>{working&&<p role="status" className="file-path">{deleteProgress||'正在扫描删除范围…'}</p>}</>}{error&&<p role="alert" className="error">{error}</p>}</ModalBody><ModalFooter>{working&&batch?.kind==='delete'?<Button variant="light" onPress={()=>deletion.current?.cancel()}>停止删除</Button>:<Button variant="light" isDisabled={working} onPress={()=>{setBatch(undefined);setError('');}}>取消</Button>}<Button type="submit" color={batch?.kind==='delete'?'danger':'primary'} isLoading={working}>{batch?.kind==='download'?'选择下载目录':batch?.kind==='move'?'移动':'删除'}</Button></ModalFooter></form></ModalContent></Modal>
     {syncOpen&&<DirectorySyncDialog key={id} id={id} remote={directory} connectionID={connectionID} onClose={()=>setSyncOpen(false)}/>}
     {logPath&&<RemoteLogDialog key={`${id}:${logPath}`} workspace={id} path={logPath} visible={visible} onClose={()=>setLogPath('')}/>}
     {searchOpen && visible && <Suspense fallback={<p role="status" className="muted">正在载入搜索…</p>}><FileSearchDialog key={id} workspace={id} directory={directory} onClose={() => setSearchOpen(false)} onOpen={async match => { if (match.directory) await load(match.path); else await onOpenFile?.(match.path, match.line || 1); }} /></Suspense>}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path"
+	"time"
 
 	"github.com/Sanjeever/termquay/internal/files"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
@@ -154,26 +155,35 @@ func (a *AppService) DeleteRemotePath(ctx context.Context, id, remote string) er
 	if err := a.requireFileWrite(id); err != nil {
 		return err
 	}
-	if remote == "" || path.Clean(remote) == "/" || path.Clean(remote) == "." {
-		return errors.New("不能删除远端根目录或当前目录")
+	if err := validateRemotePaths([]string{remote}); err != nil {
+		return err
 	}
 	c, close, err := a.fileClient(ctx, id)
 	if err != nil {
 		return err
 	}
 	defer close()
-	return deleteRemotePath(c, remote)
+	return a.deleteRemotePath(ctx, c, id, remote)
 }
 
-func deleteRemotePath(c *sftp.Client, remote string) error {
-	info, err := c.Lstat(remote)
-	if err != nil {
-		return err
-	}
-	if info.IsDir() {
-		return c.RemoveDirectory(remote)
-	}
-	return c.Remove(remote)
+type RemoteDeleteProgress struct {
+	Workspace string `json:"workspace"`
+	Path      string `json:"path"`
+	Deleted   int    `json:"deleted"`
+}
+
+func init() {
+	application.RegisterEvent[RemoteDeleteProgress]("files:delete-progress")
+}
+
+func (a *AppService) deleteRemotePath(ctx context.Context, c *sftp.Client, id, remote string) error {
+	last := time.Time{}
+	return files.Delete(ctx, c, remote, func(deleted int) {
+		if app := application.Get(); app != nil && time.Since(last) >= 150*time.Millisecond {
+			last = time.Now()
+			app.Event.Emit("files:delete-progress", RemoteDeleteProgress{Workspace: id, Path: remote, Deleted: deleted})
+		}
+	})
 }
 
 type RemotePathResult struct {
@@ -272,7 +282,7 @@ func (a *AppService) DeleteRemotePaths(ctx context.Context, id string, paths []s
 		if ctx.Err() != nil {
 			result.State = "not_run"
 			result.Error = ctx.Err().Error()
-		} else if err := deleteRemotePath(c, remote); err != nil {
+		} else if err := a.deleteRemotePath(ctx, c, id, remote); err != nil {
 			result.State = "failed"
 			result.Error = err.Error()
 		}
