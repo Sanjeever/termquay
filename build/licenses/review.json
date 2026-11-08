@@ -1,9 +1,18 @@
 {
   "inputs": {
-    "go.mod": "57b40eb728d9e9c729c90d91c4f1ff692068b6441ef3390e258c745966daa623",
-    "go.sum": "fd1af1931846cb0a351090b7d9efa66c25dc02b91906981590a7e4e45d7dba1c",
-    "frontend/pnpm-lock.yaml": "f7070767aa79d2ca0260b9dff81dc696cfc3e421f90cced8e5252981a0d79948",
+    "go.mod": "0a951ac612ba5346da42b8a6a1aab560d9c97afdb7bf37e3cb0e5a7d78d14baf",
+    "go.sum": "cc5057fd8467af8ee42e503a11552ba4e9ddda40b7550c862cb81d0ad9878b6e",
+    "frontend/pnpm-lock.yaml": "a88d4f7e23f13d36077207988f70c60396fd085aa26cff04b1739ec134631f3e",
     "frontend/patches/@devolutions__iron-remote-desktop@0.11.0.patch": "53b4e282385f535f908c6399947350bff05c762c268b5060a9bba9d998fa0168"
+  },
+  "connection_workbench_dependencies": {
+    "reviewed_at": "2026-11-08",
+    "verification": "相对既有核对输入，新增两个 MIT xterm 插件及 Apache-2.0 INI 库；已收集固定版本许可原文，其他生产依赖版本保持不变。RDP WASM 提取为独立资源，固定 npm 包及源码来源不变。",
+    "licenses": {
+      "gopkg.in/ini.v1@v1.67.0": "f6918bd93ffe07f4b2c61b8287c32cb3122e08aed0be50f1c7d0eddc87877a8f",
+      "@xterm/addon-unicode11@0.8.0": "e256f01188af527e4d06d21d06fbf785ae9c50d4b328bf03cbe0ba7f0aa4228f",
+      "@xterm/addon-webgl@0.18.0": "21b975c39532001d431dc3b2c29fbff691d83f370833a66b54698bda290fde0e"
+    }
   },
   "go_sse": {
     "version": "v0.11.0",
