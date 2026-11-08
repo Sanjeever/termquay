@@ -1,4 +1,5 @@
 import { errorMessage } from "../../lib/errors";
+import BackupRecoverySettings from './BackupRecoverySettings';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Button, Input } from '@heroui/react';
 import { BackupNow, CheckSavedWebDAV, ExportLocalSnapshot, GetBackupCoverage, GetBackupSettings, OpenRestoreBackupDirectory, SaveBackupSettings, SavePortableUI, SetAutomaticBackupEnabled } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
@@ -133,6 +134,7 @@ export default function BackupSettings({ onRestore, onEditConnection, connection
       {(automaticBackup.error || status?.error) && <details className="error backup-failure-details"><summary>最近备份失败</summary><p>{automaticBackup.error || status?.error}</p></details>}
     </section>}
 
+    {preferences&&<BackupRecoverySettings disabled={!!busy}/>}
     {preferences?.configured && !locationEditing && <BackupHistory key={`${preferences.url}\n${preferences.username}\n${preferences.directory}`} deviceID={preferences.device_id} deviceName={preferences.device_name} recoverySaved={preferences.recovery_saved} revision={`${historyRevision}:${status?.last_success || ''}`} onRestore={path => setRestoring(path)}/>}
 
     {preferences && <details className="backup-local-files"><summary>本地加密文件</summary><form ref={localForm} onSubmit={event => { event.preventDefault(); void exportFile(); }}>

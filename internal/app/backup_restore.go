@@ -30,13 +30,14 @@ type RestorePreview struct {
 }
 
 type pendingRestore struct {
-	id             string
-	data           store.Data
-	base           store.Data
-	expires        time.Time
-	settingsBase   map[string]string
-	sourceSettings map[string]string
-	password       string
+	id                string
+	data              store.Data
+	base              store.Data
+	expires           time.Time
+	settingsBase      map[string]string
+	sourceSettings    map[string]string
+	password          string
+	recoveryRecipient string
 }
 
 func (a *AppService) PreviewRestore(ctx context.Context, options backup.WebDAVOptions, path, password string) (RestorePreview, error) {

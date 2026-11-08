@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/Sanjeever/termquay/internal/backup"
@@ -25,6 +26,9 @@ func (a *AppService) BackupWebDAVWithSelection(ctx context.Context, options back
 }
 
 func (a *AppService) createSnapshot(password string, selection BackupSelection) ([]byte, string, error) {
+	if password == "" {
+		return nil, "", errors.New("备份加密密码不能为空")
+	}
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
 	if err := a.openStorage(); err != nil {
@@ -82,7 +86,11 @@ func (a *AppService) createSnapshot(password string, selection BackupSelection) 
 	if err != nil {
 		return nil, "", err
 	}
-	encrypted, err := backup.EncryptSnapshot(backup.Snapshot{DeviceID: device, DeviceName: name, CreatedAt: time.Now().UTC(), Data: d, Settings: settings, CredentialsIncluded: &selection.Credentials}, password)
+	recipient, err := a.store.Setting("backup_recovery_recipient")
+	if err != nil {
+		return nil, "", err
+	}
+	encrypted, err := backup.EncryptSnapshotWithRecovery(backup.Snapshot{DeviceID: device, DeviceName: name, CreatedAt: time.Now().UTC(), Data: d, Settings: settings, CredentialsIncluded: &selection.Credentials}, password, recipient)
 	return encrypted, device, err
 }
 

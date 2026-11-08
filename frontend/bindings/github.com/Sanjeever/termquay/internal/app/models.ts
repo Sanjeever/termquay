@@ -148,6 +148,11 @@ export interface BackupCoverage {
     "can_save": boolean;
 }
 
+export interface BackupRecoveryKeyExport {
+    "recipient": string;
+    "path": string;
+}
+
 export interface BackupSelection {
     "connection_ids": string[] | null;
     "credentials": boolean;

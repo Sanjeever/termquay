@@ -23,7 +23,7 @@ type PruneSnapshot struct {
 	ETag      string    `json:"etag"`
 }
 
-var snapshotName = regexp.MustCompile(`^(\d{8}T\d{6}\.\d{9}Z)_[a-f0-9]{32}\.json\.age$`)
+var snapshotName = regexp.MustCompile(`^(\d{8}T\d{6}\.\d{9}Z)_[a-f0-9]{32}\.(?:json\.age|tqbackup)$`)
 var snapshotDevice = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,100}$`)
 
 func (o WebDAVOptions) Devices(ctx context.Context) ([]string, error) {

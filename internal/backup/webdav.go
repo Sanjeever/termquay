@@ -155,7 +155,7 @@ func (o WebDAVOptions) Append(ctx context.Context, deviceID string, encrypted []
 	if _, err = rand.Read(id[:]); err != nil {
 		return "", err
 	}
-	name := time.Now().UTC().Format("20060102T150405.000000000Z") + "_" + hex.EncodeToString(id[:]) + ".json.age"
+	name := time.Now().UTC().Format("20060102T150405.000000000Z") + "_" + hex.EncodeToString(id[:]) + SnapshotExtension(encrypted)
 	remote := path.Join(dir, name)
 	if err = o.uploadSnapshot(ctx, c, remote, encrypted); err != nil {
 		return "", err
@@ -229,7 +229,7 @@ func (o WebDAVOptions) List(ctx context.Context) ([]RemoteSnapshot, error) {
 			return nil, err
 		}
 		for _, entry := range entries {
-			if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".json.age") {
+			if !entry.IsDir() && (strings.HasSuffix(entry.Name(), ".json.age") || strings.HasSuffix(entry.Name(), ".tqbackup")) {
 				result = append(result, RemoteSnapshot{DeviceID: device.Name(), Path: path.Join(o.Directory, device.Name(), entry.Name()), Size: entry.Size(), Modified: entry.ModTime()})
 				if len(result) > 10000 {
 					return nil, errors.New("快照超过 10000 个")
@@ -242,7 +242,7 @@ func (o WebDAVOptions) List(ctx context.Context) ([]RemoteSnapshot, error) {
 }
 
 func (o WebDAVOptions) Read(ctx context.Context, remote string) ([]byte, error) {
-	if path.Clean(remote) != remote || !strings.HasPrefix(remote, o.Directory+"/") || !strings.HasSuffix(remote, ".json.age") {
+	if path.Clean(remote) != remote || !strings.HasPrefix(remote, o.Directory+"/") || !(strings.HasSuffix(remote, ".json.age") || strings.HasSuffix(remote, ".tqbackup")) {
 		return nil, errors.New("快照路径不在备份目录内")
 	}
 	c, err := o.client(ctx)

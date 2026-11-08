@@ -1,10 +1,11 @@
 import { errorMessage } from "../../lib/errors";
 import { useEffect, useRef, useState } from 'react';
 import { Button, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
-import { CancelRestorePreview, ConfirmRestoreWithOptions, GetPortableUI, PreviewLocalRestore, PreviewSavedRestore } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
+import { CancelRestorePreview, ConfirmRestoreWithOptions, GetPortableUI, PreviewLocalRestore, PreviewSavedRestore, PreviewLocalRestoreWithRecovery, PreviewSavedRestoreWithRecovery } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { RestorePreview } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import { applyPortableUI } from './portable';
 import { backupSettingNames, workflowBackupOptions } from './backupContent';
+import SelectControl from '../../components/SelectControl';
 
 export default function RestoreBackupDialog({ path, hasConnections, recoverySaved, onRestored, onClose, onError }: {
   path: string; hasConnections: boolean; recoverySaved: boolean; onRestored(): void; onClose(): void; onError(message: string): void;
@@ -20,13 +21,15 @@ export default function RestoreBackupDialog({ path, hasConnections, recoverySave
   const [error, setError] = useState('');
   const [completed, setCompleted] = useState(false);
   const [showPassword, setShowPassword] = useState(!recoverySaved);
+  const [unlockMode,setUnlockMode]=useState<'password'|'key'>('password');
   const mounted = useRef(true);
   const request = useRef<ReturnType<typeof PreviewSavedRestore>>();
 
-  async function unlock(password: string) {
+  async function unlock(password: string,usingKey=unlockMode==='key') {
+    if(busy)return;
     setBusy(true); setError('');
     try {
-      request.current = path ? PreviewSavedRestore(path, password) : PreviewLocalRestore(password);
+      request.current = usingKey ? (path?PreviewSavedRestoreWithRecovery(path,password):PreviewLocalRestoreWithRecovery(password)) : (path ? PreviewSavedRestore(path, password) : PreviewLocalRestore(password));
       const value = await request.current;
       if (!mounted.current) { if (value.id) await CancelRestorePreview(value.id); return; }
       if (!value.id) { onClose(); return; }
@@ -73,7 +76,7 @@ export default function RestoreBackupDialog({ path, hasConnections, recoverySave
     <ModalHeader>{completed ? '数据已恢复' : '恢复备份'}</ModalHeader>
     <ModalBody>
       {busy && !preview && <p role="status" className="muted">正在读取并解锁备份…</p>}
-      {showPassword && !preview && <form id="unlock-backup" onSubmit={event => { event.preventDefault(); const form = event.currentTarget; const password = form.elements.namedItem('password') as HTMLInputElement; const value = password.value; password.value = ''; void unlock(value); }}><Input name="password" label="这份备份的加密密码" labelPlacement="outside" type="password" autoComplete="off" size="sm" isRequired isDisabled={busy} autoFocus/></form>}
+      {showPassword && !preview && <><SelectControl aria-label="备份解锁方式" value={unlockMode} disabled={busy} onChange={event=>{setUnlockMode(event.target.value as 'password'|'key');setError('');}}><option value="password">备份密码</option><option value="key">恢复密钥</option></SelectControl><form id="unlock-backup" onSubmit={event => { event.preventDefault(); const form = event.currentTarget; const password = form.elements.namedItem('password') as HTMLInputElement; const value = password.value; password.value = ''; void unlock(value); }}><Input key={unlockMode} name="password" label={unlockMode==='key'?'恢复密钥':'这份备份的加密密码'} labelPlacement="outside" type="password" autoComplete="off" maxLength={4096} size="sm" isRequired isDisabled={busy} autoFocus/></form>{unlockMode==='key'&&<Button size="sm" variant="bordered" isDisabled={busy} onPress={()=>void unlock('',true)}>选择恢复密钥文件</Button>}</>}
       {preview && <>
         <div className="backup-restore-source"><strong>{preview.device_name || `设备 ${preview.device_id.slice(0, 8)}`}</strong><time dateTime={preview.created_at}>{new Date(preview.created_at).toLocaleString()}</time><span className="muted">{connections.length} 个连接 · {preview.credentials} 项凭据{preview.credentials_included == null ? ' · 携带范围未知' : ''}</span></div>
         <fieldset className="backup-restore-modes" disabled={busy || completed}><legend>恢复方式</legend><label><input type="radio" name="restore-mode" checked={mode === 'import'} onChange={() => chooseMode('import')}/>导入连接副本</label><label><input type="radio" name="restore-mode" checked={mode === 'replace'} onChange={() => chooseMode('replace')}/>替换本机连接</label></fieldset>

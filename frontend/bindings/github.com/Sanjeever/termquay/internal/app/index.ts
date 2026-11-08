@@ -22,6 +22,7 @@ export type {
     ApplicationLockStatus,
     AutomaticBackupStatus,
     BackupCoverage,
+    BackupRecoveryKeyExport,
     BackupSelection,
     BackupSettings,
     BuildInfo,

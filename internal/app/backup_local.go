@@ -20,7 +20,15 @@ func (a *AppService) ExportLocalSnapshot(password string, selection BackupSelect
 	if err != nil {
 		return "", err
 	}
-	filename, err := application.Get().Dialog.SaveFile().SetMessage("导出加密快照").SetFilename("termquay.json.age").PromptForSingleSelection()
+	recipient, err := a.GetBackupRecoveryRecipient()
+	if err != nil {
+		return "", err
+	}
+	defaultName := "termquay.json.age"
+	if recipient != "" {
+		defaultName = "termquay.tqbackup"
+	}
+	filename, err := application.Get().Dialog.SaveFile().SetMessage("导出加密快照").SetFilename(defaultName).PromptForSingleSelection()
 	if err != nil || filename == "" {
 		return "", err
 	}
@@ -56,7 +64,17 @@ func writeSnapshotFile(filename string, encrypted []byte) error {
 }
 
 func (a *AppService) PreviewLocalRestore(password string) (RestorePreview, error) {
-	password, err := a.localSnapshotPassword(password)
+	return a.previewLocalRestore(password, "")
+}
+
+func (a *AppService) previewLocalRestore(password, recovery string) (RestorePreview, error) {
+	var err error
+	recipient := ""
+	if recovery != "" {
+		recipient, err = backup.RecoveryRecipient(recovery)
+	} else {
+		password, err = a.localSnapshotPassword(password)
+	}
 	if err != nil {
 		return RestorePreview{}, err
 	}
@@ -86,13 +104,14 @@ func (a *AppService) PreviewLocalRestore(password string) (RestorePreview, error
 	a.backupMu.Lock()
 	defer a.backupMu.Unlock()
 	a.preview = nil
-	snapshot, err := backup.Decrypt(data, password)
+	snapshot, err := backup.DecryptWithRecovery(data, password, recovery)
 	if err != nil {
 		return RestorePreview{}, err
 	}
 	preview, err := a.prepareRestore(snapshot)
 	if err == nil {
 		a.preview.password = password
+		a.preview.recoveryRecipient = recipient
 	}
 	return preview, err
 }
@@ -127,7 +146,14 @@ func (a *AppService) protectRestore(current store.Data) error {
 			password = config.Password
 		}
 	}
-	if password == "" {
+	recipient := a.preview.recoveryRecipient
+	if recipient == "" {
+		recipient, err = a.store.Setting("backup_recovery_recipient")
+		if err != nil {
+			return err
+		}
+	}
+	if password == "" && recipient == "" {
 		return errors.New("缺少保护副本的加密密码，请重新解锁备份")
 	}
 	device, err := a.deviceID()
@@ -159,7 +185,7 @@ func (a *AppService) protectRestore(current store.Data) error {
 		settings[key] = value
 	}
 	includeCredentials := true
-	encrypted, err := backup.EncryptSnapshot(backup.Snapshot{DeviceID: device, DeviceName: name, CreatedAt: time.Now().UTC(), Data: current, Settings: settings, CredentialsIncluded: &includeCredentials}, password)
+	encrypted, err := backup.EncryptSnapshotWithRecovery(backup.Snapshot{DeviceID: device, DeviceName: name, CreatedAt: time.Now().UTC(), Data: current, Settings: settings, CredentialsIncluded: &includeCredentials}, password, recipient)
 	if err != nil {
 		return fmt.Errorf("创建恢复前保护副本失败：%w", err)
 	}
@@ -170,7 +196,7 @@ func (a *AppService) protectRestore(current store.Data) error {
 	if err := os.MkdirAll(directory, 0700); err != nil {
 		return fmt.Errorf("创建保护副本目录失败：%w", err)
 	}
-	filename := "before-restore-" + time.Now().UTC().Format("20060102T150405.000000000Z") + "_" + base64.RawURLEncoding.EncodeToString(randomBytes(8)) + ".json.age"
+	filename := "before-restore-" + time.Now().UTC().Format("20060102T150405.000000000Z") + "_" + base64.RawURLEncoding.EncodeToString(randomBytes(8)) + backup.SnapshotExtension(encrypted)
 	if err := writeSnapshotFile(filepath.Join(directory, filename), encrypted); err != nil {
 		return fmt.Errorf("保存恢复前保护副本失败，已停止替换：%w", err)
 	}

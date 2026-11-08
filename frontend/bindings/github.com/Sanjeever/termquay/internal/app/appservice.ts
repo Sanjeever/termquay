@@ -336,6 +336,10 @@ export function ExecuteDirectorySync(id: string, selected: string[] | null): $Ca
     return $Call.ByID(1166658499, id, selected);
 }
 
+export function ExportBackupRecoveryKey(): $CancellablePromise<$models.BackupRecoveryKeyExport> {
+    return $Call.ByID(1901775764);
+}
+
 export function ExportCommandResults(results: $models.CommandExportResult[] | null): $CancellablePromise<void> {
     return $Call.ByID(2404801317, results);
 }
@@ -386,6 +390,10 @@ export function GetBackupCoverage(): $CancellablePromise<$models.BackupCoverage[
 
 export function GetBackupDeviceAliases(): $CancellablePromise<{ [_ in string]?: string } | null> {
     return $Call.ByID(1583267754);
+}
+
+export function GetBackupRecoveryRecipient(): $CancellablePromise<string> {
+    return $Call.ByID(548375638);
 }
 
 export function GetBackupSettings(): $CancellablePromise<$models.BackupSettings> {
@@ -692,6 +700,10 @@ export function PreviewLocalRestore(password: string): $CancellablePromise<$mode
     return $Call.ByID(3203521205, password);
 }
 
+export function PreviewLocalRestoreWithRecovery(secret: string): $CancellablePromise<$models.RestorePreview> {
+    return $Call.ByID(3204784570, secret);
+}
+
 export function PreviewPuTTYImport(): $CancellablePromise<$models.SSHImportPreview> {
     return $Call.ByID(1003398261);
 }
@@ -710,6 +722,10 @@ export function PreviewSSHImport(text: string): $CancellablePromise<$models.SSHI
 
 export function PreviewSavedRestore(path: string, password: string): $CancellablePromise<$models.RestorePreview> {
     return $Call.ByID(827587197, path, password);
+}
+
+export function PreviewSavedRestoreWithRecovery(path: string, secret: string): $CancellablePromise<$models.RestorePreview> {
+    return $Call.ByID(4256978114, path, secret);
 }
 
 export function PreviewSnapshotPrune(device: string, keep: number): $CancellablePromise<$models.SnapshotPrunePreview> {
@@ -964,6 +980,10 @@ export function SearchRemoteFiles(workspace: string, options: files$0.SearchOpti
     return $Call.ByID(674335763, workspace, options);
 }
 
+export function SelectBackupRecoveryRecipient(): $CancellablePromise<string> {
+    return $Call.ByID(3468936226);
+}
+
 export function SelectKnownHostsImport(): $CancellablePromise<$models.KnownHostsPreview> {
     return $Call.ByID(2113888761);
 }
@@ -990,6 +1010,10 @@ export function SetAutomaticBackupEnabled(enabled: boolean): $CancellablePromise
 
 export function SetBackupDeviceAlias(deviceID: string, name: string): $CancellablePromise<void> {
     return $Call.ByID(2569537390, deviceID, name);
+}
+
+export function SetBackupRecoveryRecipient(recipient: string): $CancellablePromise<void> {
+    return $Call.ByID(4264560546, recipient);
 }
 
 export function SetConnectionPreference(id: string, favorite: boolean, environment: string): $CancellablePromise<void> {
