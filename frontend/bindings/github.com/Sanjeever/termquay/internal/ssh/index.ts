@@ -6,6 +6,7 @@ export type {
     ConnectionStep,
     ForwardInfo,
     ForwardSpec,
+    HostTrust,
     Request,
     TerminalLogStatus
 } from "./models.js";

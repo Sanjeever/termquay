@@ -176,6 +176,10 @@ export function ConfigureFileWorkflow(workspace: string, remote: string, enabled
     return $Call.ByID(687753709, workspace, remote, enabled, validate, reload, health);
 }
 
+export function ConfirmKnownHostsImport(id: string, choices: $models.SSHImportChoice[] | null): $CancellablePromise<void> {
+    return $Call.ByID(4006638545, id, choices);
+}
+
 export function ConfirmRestore(id: string): $CancellablePromise<void> {
     return $Call.ByID(2803702404, id);
 }
@@ -668,6 +672,10 @@ export function PreviewDirectorySyncFiltered(workspace: string, direction: strin
     return $Call.ByID(3597303297, workspace, direction, local, remote, exclude);
 }
 
+export function PreviewKnownHostsImport(text: string): $CancellablePromise<$models.KnownHostsPreview> {
+    return $Call.ByID(458293549, text);
+}
+
 export function PreviewLocalRestore(password: string): $CancellablePromise<$models.RestorePreview> {
     return $Call.ByID(3203521205, password);
 }
@@ -938,6 +946,10 @@ export function SaveWorkspaceSet(id: string, name: string, layout: $models.Works
 
 export function SearchRemoteFiles(workspace: string, options: files$0.SearchOptions): $CancellablePromise<files$0.SearchResult> {
     return $Call.ByID(674335763, workspace, options);
+}
+
+export function SelectKnownHostsImport(): $CancellablePromise<$models.KnownHostsPreview> {
+    return $Call.ByID(2113888761);
 }
 
 export function SelectPrivateKey(): $CancellablePromise<$models.PrivateKeySelection> {

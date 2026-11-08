@@ -43,6 +43,17 @@ func parseTrust(key, fp string) (TrustRecord, error) {
 	if r.Protocol != "ssh" && r.Protocol != "rdp" {
 		return r, errors.New("信任类型无效")
 	}
+	if r.Protocol == "ssh" && strings.HasPrefix(fp, "[") {
+		keys, err := terminal.DecodeHostTrust(fp)
+		if err != nil {
+			return r, err
+		}
+		values := []string{}
+		for _, key := range keys {
+			values = append(values, key.Fingerprint)
+		}
+		r.Fingerprint = strings.Join(values, "\n")
+	}
 	if strings.HasPrefix(value, "via:") {
 		r.Via, value, _ = strings.Cut(strings.TrimPrefix(value, "via:"), ":")
 		if r.Via == "" {

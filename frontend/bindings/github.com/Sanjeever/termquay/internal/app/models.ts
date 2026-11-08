@@ -395,6 +395,22 @@ export interface InspectionCheckResult {
     "expected"?: string;
 }
 
+export interface KnownHostsPreview {
+    "id": string;
+    "rows": KnownHostsRow[] | null;
+    "warnings": string[] | null;
+}
+
+export interface KnownHostsRow {
+    "id": string;
+    "host": string;
+    "port": number;
+    "via": string;
+    "keys": ssh$0.HostTrust[] | null;
+    "old_keys": ssh$0.HostTrust[] | null;
+    "conflict": boolean;
+}
+
 export interface LinuxPort {
     "protocol": string;
     "state": string;

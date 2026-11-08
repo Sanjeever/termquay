@@ -53,6 +53,8 @@ export type {
     ImagePreview,
     InspectionBaseline,
     InspectionCheckResult,
+    KnownHostsPreview,
+    KnownHostsRow,
     LinuxPort,
     LinuxPortList,
     LinuxProcess,

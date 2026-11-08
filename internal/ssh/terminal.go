@@ -2,7 +2,6 @@ package ssh
 
 import (
 	"context"
-	"crypto/subtle"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -203,14 +202,18 @@ func dialClient(ctx context.Context, r Request, connect func(context.Context, st
 	}
 	finishCredentials(nil)
 	credentialsReady = true
+	trusted, err := DecodeHostTrust(r.Fingerprint)
+	if err != nil {
+		return nil, err
+	}
 	var finishHandshake, finishAuth func(error)
 	var identityOnce sync.Once
 	config := &gossh.ClientConfig{User: r.Username, Auth: auth,
-		HostKeyAlgorithms: []string{gossh.KeyAlgoED25519, gossh.KeyAlgoECDSA256, gossh.KeyAlgoECDSA384, gossh.KeyAlgoECDSA521, gossh.KeyAlgoRSASHA512, gossh.KeyAlgoRSASHA256},
+		HostKeyAlgorithms: trustedAlgorithms(trusted),
 		HostKeyCallback: func(_ string, _ net.Addr, key gossh.PublicKey) error {
 			fingerprint := gossh.FingerprintSHA256(key)
 			var identityError error
-			if subtle.ConstantTimeCompare([]byte(fingerprint), []byte(r.Fingerprint)) != 1 {
+			if !hostTrustMatches(trusted, key) {
 				identityError = &HostKeyError{Fingerprint: fingerprint, Host: r.Host, Port: r.Port, Via: r.JumpID}
 			}
 			identityOnce.Do(func() {

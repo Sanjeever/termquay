@@ -38,6 +38,11 @@ export interface ForwardSpec {
     "allow_public": boolean;
 }
 
+export interface HostTrust {
+    "algorithm": string;
+    "fingerprint": string;
+}
+
 export interface Request {
     "connection_id"?: string;
     "host": string;

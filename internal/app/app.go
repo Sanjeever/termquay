@@ -73,6 +73,7 @@ type AppService struct {
 	build                  BuildInfo
 	licenseFiles           fs.ReadFileFS
 	importPreview          *SSHImportPreview
+	knownHostsPreview      *KnownHostsPreview
 	mu                     sync.Mutex
 	terminals              map[string]*pendingTerminal
 	workspaces             map[string]*workspaceOwner
