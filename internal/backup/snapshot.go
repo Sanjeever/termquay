@@ -34,11 +34,19 @@ func EncryptWithSettings(d store.Data, deviceID, password string, settings map[s
 }
 
 func EncryptSnapshot(snap Snapshot, password string) ([]byte, error) {
+	return encryptSnapshot(snap, password, "")
+}
+
+func EncryptSnapshotWithRecovery(snap Snapshot, password, recipient string) ([]byte, error) {
+	return encryptSnapshot(snap, password, recipient)
+}
+
+func encryptSnapshot(snap Snapshot, password, recovery string) ([]byte, error) {
 	d, deviceID, settings := snap.Data, snap.DeviceID, snap.Settings
 	if err := d.Validate(); err != nil {
 		return nil, err
 	}
-	if deviceID == "" || password == "" {
+	if deviceID == "" || password == "" && recovery == "" {
 		return nil, errors.New("设备标识和备份密码不能为空")
 	}
 	if err := validateMetadata(snap); err != nil {
@@ -96,6 +104,10 @@ func EncryptSnapshot(snap Snapshot, password string) ([]byte, error) {
 	if len(plain) > MaxSnapshot {
 		return nil, errors.New("快照超过 16 MiB 限制")
 	}
+	defer clear(plain)
+	if recovery != "" {
+		return encryptRecoverySnapshot(plain, password, recovery)
+	}
 	r, err := age.NewScryptRecipient(password)
 	if err != nil {
 		return nil, err
@@ -115,23 +127,33 @@ func EncryptSnapshot(snap Snapshot, password string) ([]byte, error) {
 }
 
 func Decrypt(encrypted []byte, password string) (Snapshot, error) {
+	return DecryptWithRecovery(encrypted, password, "")
+}
+
+func DecryptWithRecovery(encrypted []byte, password, recovery string) (Snapshot, error) {
 	var snap Snapshot
 	if len(encrypted) > MaxSnapshot+(1<<20) {
 		return snap, errors.New("加密快照超过限制")
 	}
-	id, err := age.NewScryptIdentity(password)
-	if err != nil {
-		return snap, err
+	var plain []byte
+	var err error
+	if IsRecoverySnapshot(encrypted) {
+		plain, err = decryptRecoverySnapshot(encrypted, password, recovery)
+	} else {
+		if recovery != "" {
+			return snap, errors.New("这份旧格式备份未配置恢复密钥，请使用原备份密码")
+		}
+		id, e := age.NewScryptIdentity(password)
+		if e != nil {
+			return snap, e
+		}
+		id.SetMaxWorkFactor(20)
+		plain, err = decryptAge(encrypted, id, MaxSnapshot)
 	}
-	id.SetMaxWorkFactor(20)
-	r, err := age.Decrypt(bytes.NewReader(encrypted), id)
 	if err != nil {
-		return snap, fmt.Errorf("快照解密失败: %w", err)
+		return snap, fmt.Errorf("快照解密或完整性校验失败：%w", err)
 	}
-	plain, err := io.ReadAll(io.LimitReader(r, MaxSnapshot+1))
-	if err != nil {
-		return snap, fmt.Errorf("快照完整性验证失败: %w", err)
-	}
+	defer clear(plain)
 	if len(plain) > MaxSnapshot {
 		return snap, errors.New("快照超过 16 MiB 限制")
 	}
