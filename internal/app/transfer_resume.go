@@ -21,6 +21,16 @@ type transferResume struct {
 	partial            *savedTransferFile
 }
 
+func (a *AppService) retainTransferCleanup(ctx context.Context, staging string) {
+	if task, ok := ctx.Value(transferContextKey{}).(*transferTask); ok {
+		a.mu.Lock()
+		task.cleanupStaging = staging
+		task.view.CleanupRequired = true
+		task.view.TemporaryPath = staging
+		a.mu.Unlock()
+	}
+}
+
 func (a *AppService) retainTransfer(ctx context.Context, state *transferResume) bool {
 	task, _ := ctx.Value(transferContextKey{}).(*transferTask)
 	if task == nil || task.spec == nil || task.spec.direction == "sync" || state.offset <= 0 {
@@ -233,6 +243,7 @@ func (a *AppService) resumeTransferOperation(ctx context.Context, workspace stri
 		}
 		a.finishTransferResume(ctx)
 		if err := files.RemoveStaging(client, state.staging); err != nil {
+			a.retainTransferCleanup(ctx, state.staging)
 			return fmt.Errorf("文件已发布，暂存目录清理失败：%w", err)
 		}
 	} else {
@@ -286,11 +297,15 @@ func (a *AppService) finishTransferResume(ctx context.Context) {
 func (a *AppService) DiscardTransferResume(id, workspace string) error {
 	a.mu.Lock()
 	task := a.transfers[id]
-	if task == nil || task.resume == nil || task.resumeClaimed || task.view.State == "running" || task.view.State == "queued" {
+	if task == nil || task.spec == nil || (task.resume == nil && task.cleanupStaging == "") || task.resumeClaimed || task.view.State == "running" || task.view.State == "queued" {
 		a.mu.Unlock()
 		return errors.New("暂存任务已失效或仍在执行")
 	}
 	state, spec := task.resume, *task.spec
+	staging := task.cleanupStaging
+	if state != nil {
+		staging = state.staging
+	}
 	if spec.direction == "upload" {
 		owner := a.workspaces[workspace]
 		if owner == nil || owner.target != task.view.Target || owner.identity != task.peerIdentity {
@@ -312,7 +327,7 @@ func (a *AppService) DiscardTransferResume(id, workspace string) error {
 		if openErr != nil {
 			err = openErr
 		} else {
-			err = files.RemoveStaging(client, state.staging)
+			err = files.RemoveStaging(client, staging)
 			release()
 		}
 	} else {

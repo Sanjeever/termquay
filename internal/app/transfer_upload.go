@@ -111,7 +111,11 @@ func (a *AppService) uploadOperation(id, local, remote string, overwrite bool, e
 		temporary := path.Join(staging, "data")
 		target, err := c.OpenFile(temporary, os.O_CREATE|os.O_EXCL|os.O_WRONLY)
 		if err != nil {
-			return errors.Join(err, remotefiles.RemoveStaging(c, staging))
+			cleanupErr := remotefiles.RemoveStaging(c, staging)
+			if cleanupErr != nil {
+				a.retainTransferCleanup(ctx, staging)
+			}
+			return errors.Join(err, cleanupErr)
 		}
 		retained := false
 		defer func() {
@@ -121,6 +125,9 @@ func (a *AppService) uploadOperation(id, local, remote string, overwrite bool, e
 			}
 			if ctx.Err() == nil {
 				cleanupErr := remotefiles.RemoveStaging(c, staging)
+				if cleanupErr != nil {
+					a.retainTransferCleanup(ctx, staging)
+				}
 				if result == nil && cleanupErr != nil {
 					result = fmt.Errorf("文件已上传，但临时目录清理失败: %w", cleanupErr)
 				} else {
@@ -132,11 +139,13 @@ func (a *AppService) uploadOperation(id, local, remote string, overwrite bool, e
 			defer cancel()
 			cleanup, err := owner.FileClient(cleanupCtx)
 			if err != nil {
+				a.retainTransferCleanup(ctx, staging)
 				result = errors.Join(result, errors.New("远端临时目录可能残留: "+staging))
 				return
 			}
 			defer cleanup.Close()
 			if err = remotefiles.RemoveStaging(cleanup, staging); err != nil {
+				a.retainTransferCleanup(ctx, staging)
 				result = errors.Join(result, err)
 			}
 		}()

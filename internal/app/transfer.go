@@ -31,6 +31,7 @@ type Transfer struct {
 	SourcePath       string `json:"source_path"`
 	DestinationPath  string `json:"destination_path"`
 	Resumable        bool   `json:"resumable"`
+	CleanupRequired  bool   `json:"cleanup_required"`
 	ResumePersisted  bool   `json:"resume_persisted"`
 	TemporaryPath    string `json:"temporary_path,omitempty"`
 	BatchID          string `json:"batch_id"`
@@ -40,15 +41,16 @@ type Transfer struct {
 	Directory        bool   `json:"directory"`
 }
 type transferTask struct {
-	view          Transfer
-	cancel        context.CancelFunc
-	done          chan struct{}
-	ctx           context.Context
-	run           func(context.Context, func(int64, int64)) error
-	spec          *transferSpec
-	resume        *transferResume
-	peerIdentity  string
-	resumeClaimed bool
+	view           Transfer
+	cancel         context.CancelFunc
+	done           chan struct{}
+	ctx            context.Context
+	run            func(context.Context, func(int64, int64)) error
+	spec           *transferSpec
+	resume         *transferResume
+	peerIdentity   string
+	resumeClaimed  bool
+	cleanupStaging string
 }
 type transferSpec struct {
 	workspace, local, remote, direction string
@@ -155,7 +157,7 @@ func (a *AppService) ClearTransfer(id string) (string, error) {
 	if task == nil {
 		return id, nil
 	}
-	if task.resume != nil || task.resumeClaimed || task.view.State == "running" || task.view.State == "queued" {
+	if task.resume != nil || task.cleanupStaging != "" || task.resumeClaimed || task.view.State == "running" || task.view.State == "queued" {
 		return "", errors.New("请先取消传输并处理保留的临时文件")
 	}
 	delete(a.transfers, id)
@@ -176,7 +178,7 @@ func (a *AppService) CancelAndDiscardTransfer(ctx context.Context, id, workspace
 	case <-task.done:
 	}
 	a.mu.Lock()
-	retained := task.resume != nil
+	retained := task.resume != nil || task.cleanupStaging != ""
 	a.mu.Unlock()
 	if retained {
 		return a.DiscardTransferResume(id, workspace)
@@ -190,7 +192,7 @@ func (a *AppService) ClearFinishedTransfers() []string {
 	defer a.mu.Unlock()
 	removed := []string{}
 	for id, task := range a.transfers {
-		if task.resume != nil || task.resumeClaimed {
+		if task.resume != nil || task.cleanupStaging != "" || task.resumeClaimed {
 			continue
 		}
 		switch task.view.State {

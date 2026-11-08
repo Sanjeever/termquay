@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Sanjeever/termquay/internal/files"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 	"io"
 	"net"
@@ -95,6 +96,37 @@ func TestCancelAndDiscardWaitsForWriter(t *testing.T) {
 	}
 	if _, err := os.Stat(filename); !os.IsNotExist(err) || len(a.ListTransfers()) != 0 {
 		t.Fatal("取消后临时文件或记录仍存在")
+	}
+}
+
+func TestZeroProgressUploadCleanupCanBeRetried(t *testing.T) {
+	a, client, remote := uploadTestClient(t)
+	staging, err := files.CreateStaging(client, remote)
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan struct{})
+	close(done)
+	task := &transferTask{view: Transfer{ID: "cleanup", State: "cancelled", Direction: "upload", Target: a.workspaces["workspace"].target}, done: done, cancel: func() {}, spec: &transferSpec{direction: "upload"}, peerIdentity: a.workspaces["workspace"].identity}
+	a.transfers["cleanup"] = task
+	a.retainTransferCleanup(context.WithValue(context.Background(), transferContextKey{}, task), staging)
+	if !task.view.CleanupRequired || task.view.Resumable || task.view.TemporaryPath != staging {
+		t.Fatal("无进度暂存被错误标为续传或丢失路径")
+	}
+	if _, err := a.ClearTransfer("cleanup"); err == nil {
+		t.Fatal("清理失败的任务被直接移除")
+	}
+	if len(a.ClearFinishedTransfers()) != 0 {
+		t.Fatal("批量清理丢失了待清理暂存")
+	}
+	if err := a.DiscardTransferResume("cleanup", "wrong"); err == nil {
+		t.Fatal("使用不同目标清理了远端暂存")
+	}
+	if err := a.DiscardTransferResume("cleanup", "workspace"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.Lstat(staging); !os.IsNotExist(err) || len(a.ListTransfers()) != 0 {
+		t.Fatal("清理后仍保留暂存或记录")
 	}
 }
 
