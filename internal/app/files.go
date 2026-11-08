@@ -10,6 +10,7 @@ import (
 	"github.com/Sanjeever/termquay/internal/files"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 	"github.com/pkg/sftp"
+	directorysftp "github.com/pkg/sftp/v2"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -158,11 +159,11 @@ func (a *AppService) DeleteRemotePath(ctx context.Context, id, remote string) er
 	if err := validateRemotePaths([]string{remote}); err != nil {
 		return err
 	}
-	c, close, err := a.fileClient(ctx, id)
+	c, release, err := a.deleteClient(ctx, id)
 	if err != nil {
 		return err
 	}
-	defer close()
+	defer release()
 	return a.deleteRemotePath(ctx, c, id, remote)
 }
 
@@ -176,7 +177,27 @@ func init() {
 	application.RegisterEvent[RemoteDeleteProgress]("files:delete-progress")
 }
 
-func (a *AppService) deleteRemotePath(ctx context.Context, c *sftp.Client, id, remote string) error {
+func (a *AppService) deleteClient(ctx context.Context, id string) (*directorysftp.Client, func(), error) {
+	select {
+	case a.fileSlots <- struct{}{}:
+	case <-ctx.Done():
+		return nil, nil, ctx.Err()
+	}
+	owner, err := a.terminal(id)
+	if err != nil {
+		<-a.fileSlots
+		return nil, nil, err
+	}
+	c, err := owner.DirectoryClient(ctx)
+	if err != nil {
+		<-a.fileSlots
+		return nil, nil, err
+	}
+	stop := context.AfterFunc(ctx, func() { c.Close() })
+	return c, func() { stop(); c.Close(); <-a.fileSlots }, nil
+}
+
+func (a *AppService) deleteRemotePath(ctx context.Context, c *directorysftp.Client, id, remote string) error {
 	last := time.Time{}
 	return files.Delete(ctx, c, remote, func(deleted int) {
 		if app := application.Get(); app != nil && time.Since(last) >= 150*time.Millisecond {
@@ -271,7 +292,7 @@ func (a *AppService) DeleteRemotePaths(ctx context.Context, id string, paths []s
 	if err := validateRemotePaths(paths); err != nil {
 		return nil, err
 	}
-	c, close, err := a.fileClient(ctx, id)
+	c, close, err := a.deleteClient(ctx, id)
 	if err != nil {
 		return nil, err
 	}

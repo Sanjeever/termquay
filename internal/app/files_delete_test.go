@@ -11,7 +11,7 @@ import (
 )
 
 func TestRecursiveDeletePreservesSymlinkTarget(t *testing.T) {
-	a, client, remote := uploadTestClient(t)
+	a, _, remote := uploadTestClient(t)
 	outside := filepath.Join(t.TempDir(), "保留.txt")
 	if err := os.WriteFile(outside, []byte("keep"), 0600); err != nil {
 		t.Fatal(err)
@@ -36,14 +36,19 @@ func TestRecursiveDeletePreservesSymlinkTarget(t *testing.T) {
 		t.Fatal("删除跟随了符号链接", err)
 	}
 	for _, invalid := range []string{"/", "/tmp/..", ".", "relative"} {
-		if err := files.Delete(context.Background(), client, invalid, nil); err == nil {
+		if err := a.DeleteRemotePath(context.Background(), "workspace", invalid); err == nil {
 			t.Fatalf("接受危险路径 %q", invalid)
 		}
 	}
 }
 
 func TestRecursiveDeleteCancellationAndChangedParent(t *testing.T) {
-	_, client, remote := uploadTestClient(t)
+	a, _, remote := uploadTestClient(t)
+	client, release, err := a.deleteClient(context.Background(), "workspace")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
 	for _, changed := range []bool{false, true} {
 		root := filepath.Join(remote, "tree")
 		if err := os.MkdirAll(filepath.Join(root, "child"), 0700); err != nil {
