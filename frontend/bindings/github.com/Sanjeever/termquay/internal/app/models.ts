@@ -613,6 +613,8 @@ export interface SSHImportRow {
     "identity_file": string;
     "jump_alias": string;
     "warnings": string[] | null;
+    "notes": string[] | null;
+    "group_path": string[] | null;
 }
 
 export interface SSHLayout {

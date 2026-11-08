@@ -26,6 +26,8 @@ type SSHImportRow struct {
 	IdentityFile string           `json:"identity_file"`
 	JumpAlias    string           `json:"jump_alias"`
 	Warnings     []string         `json:"warnings"`
+	Notes        []string         `json:"notes"`
+	GroupPath    []string         `json:"group_path"`
 }
 type SSHImportPreview struct {
 	ID       string         `json:"id"`
@@ -360,6 +362,24 @@ func (a *AppService) ConfirmSSHImport(id string, choices []SSHImportChoice) erro
 			return errors.New("所选条目有不支持字段，请修正")
 		}
 		c := row.Connection
+		parent := ""
+		for _, name := range row.GroupPath {
+			groupID := ""
+			for _, group := range current.Groups {
+				if group.ParentID == parent && group.Name == name {
+					groupID = group.ID
+					break
+				}
+			}
+			if groupID == "" {
+				groupID = base64.RawURLEncoding.EncodeToString(randomBytes(16))
+				current.Groups = append(current.Groups, store.Group{ID: groupID, ParentID: parent, Name: name})
+			}
+			parent = groupID
+		}
+		if len(row.GroupPath) > 0 {
+			c.GroupID = parent
+		}
 		c.ID = row.ID
 		if action == "replace" {
 			if row.Conflict == "" {

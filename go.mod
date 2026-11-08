@@ -25,6 +25,7 @@ require (
 	golang.org/x/net v0.60.0
 	golang.org/x/sys v0.48.0
 	golang.org/x/text v0.42.0
+	gopkg.in/ini.v1 v1.67.0
 	maze.io/x/asciicast v1.0.1
 	modernc.org/sqlite v1.44.3
 )

@@ -952,6 +952,10 @@ export function SelectSSHImport(): $CancellablePromise<$models.SSHImportPreview>
     return $Call.ByID(2190083921);
 }
 
+export function SelectSessionImport(source: string, directory: boolean): $CancellablePromise<$models.SSHImportPreview> {
+    return $Call.ByID(1700261567, source, directory);
+}
+
 export function SetAutomaticBackupEnabled(enabled: boolean): $CancellablePromise<void> {
     return $Call.ByID(1380621752, enabled);
 }
