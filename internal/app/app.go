@@ -87,6 +87,9 @@ type AppService struct {
 	sessionDir             string
 	backupMu               sync.Mutex
 	preview                *pendingRestore
+	snapshotPrune          *SnapshotPrunePreview
+	snapshotPruneCancel    context.CancelFunc
+	snapshotPruneID        string
 	fileSlots              chan struct{}
 	imageMu                sync.Mutex
 	imageSlots             chan struct{}

@@ -6,6 +6,9 @@
 import * as ai$0 from "../ai/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as backup$0 from "../backup/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as files$0 from "../files/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -674,6 +677,22 @@ export interface SnapshotDetails {
     "credentials": number;
     "credentials_included": boolean | null;
     "settings": string[] | null;
+}
+
+export interface SnapshotPrunePreview {
+    "id": string;
+    "device_id": string;
+    "retained": backup$0.PruneSnapshot[] | null;
+    "removed": backup$0.PruneSnapshot[] | null;
+    "bytes": number;
+    "remaining": number;
+    "skipped": number;
+}
+
+export interface SnapshotPruneResult {
+    "path": string;
+    "state": string;
+    "error": string;
 }
 
 export interface Snippet {

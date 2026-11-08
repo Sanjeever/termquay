@@ -6,6 +6,7 @@ import type { SnapshotDetails } from '../../../bindings/github.com/Sanjeever/ter
 import type { RemoteSnapshot } from '../../../bindings/github.com/Sanjeever/termquay/internal/backup/models';
 import SelectControl from '../../components/SelectControl';
 import ErrorNotice from '../../components/ErrorNotice';
+import SnapshotPruneDialog from './SnapshotPruneDialog';
 
 export default function BackupHistory({ deviceID, deviceName, recoverySaved, revision, onRestore }: {
   deviceID: string; deviceName: string; recoverySaved: boolean; revision: string; onRestore(path: string): void;
@@ -23,6 +24,7 @@ export default function BackupHistory({ deviceID, deviceName, recoverySaved, rev
   const [historyLimits, setHistoryLimits] = useState<Record<string, number>>({});
   const [aliasEdit, setAliasEdit] = useState<{ id: string; name: string }>();
   const [savingAlias, setSavingAlias] = useState(false);
+  const [pruning,setPruning]=useState(false);
 
   useEffect(() => {
     let disposed = false;
@@ -77,7 +79,7 @@ export default function BackupHistory({ deviceID, deviceName, recoverySaved, rev
     finally { setSavingAlias(false); }
   }
   return <section className="backup-section">
-    <div className="backup-section-heading"><h3>设备备份</h3><div className="button-row"><SelectControl aria-label="筛选备份设备" value={scope} onChange={event => setScope(event.target.value)}><option value="all">所有设备</option><option value="other">其他设备</option><option value="local">本机</option></SelectControl><Button size="sm" variant="light" isDisabled={loading} onPress={() => setRefresh(value => value + 1)}>刷新</Button></div></div>
+    <div className="backup-section-heading"><h3>设备备份</h3><div className="button-row"><SelectControl aria-label="筛选备份设备" value={scope} onChange={event => setScope(event.target.value)}><option value="all">所有设备</option><option value="other">其他设备</option><option value="local">本机</option></SelectControl><Button size="sm" variant="light" onPress={()=>setPruning(true)}>清理历史</Button><Button size="sm" variant="light" isDisabled={loading} onPress={() => setRefresh(value => value + 1)}>刷新</Button></div></div>
     <ErrorNotice message={error}><button className="session-tool" onClick={()=>setRefresh(value=>value+1)}>重新读取</button></ErrorNotice>
     {loading ? <p className="muted" role="status">正在读取备份…</p> : !error && !groups.size && <p className="muted">{scope === 'other' ? '暂无其他设备的备份' : '暂无备份'}</p>}
     {!loading && <ul className="backup-devices">{visible.map(([id, snapshots]) => {
@@ -95,5 +97,6 @@ export default function BackupHistory({ deviceID, deviceName, recoverySaved, rev
       </li>;
     })}</ul>}
     {groups.size > deviceLimit && <Button size="sm" variant="light" onPress={() => setDeviceLimit(value => value + 10)}>更多设备</Button>}
+    {pruning&&<SnapshotPruneDialog deviceID={deviceID} names={{...aliases,[deviceID]:deviceName}} onClose={()=>setPruning(false)} onChanged={()=>setRefresh(value=>value+1)}/>}
   </section>;
 }

@@ -87,6 +87,8 @@ export type {
     SSHReconnectResult,
     SSHRouteHop,
     SnapshotDetails,
+    SnapshotPrunePreview,
+    SnapshotPruneResult,
     Snippet,
     StorageStatus,
     SyncContentComparison,

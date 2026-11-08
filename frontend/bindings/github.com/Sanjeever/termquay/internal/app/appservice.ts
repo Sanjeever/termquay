@@ -72,6 +72,10 @@ export function CancelRestorePreview(id: string): $CancellablePromise<void> {
     return $Call.ByID(643796714, id);
 }
 
+export function CancelSnapshotPrune(id: string): $CancellablePromise<void> {
+    return $Call.ByID(2734693576, id);
+}
+
 export function CancelTransfer(id: string): $CancellablePromise<void> {
     return $Call.ByID(3293823215, id);
 }
@@ -194,6 +198,10 @@ export function ConfirmRestoreWithOptions(id: string, connectionIDs: string[] | 
 
 export function ConfirmSSHImport(id: string, choices: $models.SSHImportChoice[] | null): $CancellablePromise<void> {
     return $Call.ByID(2103058857, id, choices);
+}
+
+export function ConfirmSnapshotPrune(id: string): $CancellablePromise<$models.SnapshotPruneResult[] | null> {
+    return $Call.ByID(1364581190, id);
 }
 
 export function ConfirmTrustReview(id: string): $CancellablePromise<void> {
@@ -484,6 +492,10 @@ export function ListAIConversations(workspace: string, offset: number, limit: nu
     return $Call.ByID(1010652812, workspace, offset, limit);
 }
 
+export function ListBackupDevices(): $CancellablePromise<string[] | null> {
+    return $Call.ByID(734751335);
+}
+
 export function ListCommandRuns(): $CancellablePromise<$models.CommandRunSummary[] | null> {
     return $Call.ByID(1846872853);
 }
@@ -698,6 +710,10 @@ export function PreviewSSHImport(text: string): $CancellablePromise<$models.SSHI
 
 export function PreviewSavedRestore(path: string, password: string): $CancellablePromise<$models.RestorePreview> {
     return $Call.ByID(827587197, path, password);
+}
+
+export function PreviewSnapshotPrune(device: string, keep: number): $CancellablePromise<$models.SnapshotPrunePreview> {
+    return $Call.ByID(1621780434, device, keep);
 }
 
 export function PreviewTransferCopy(sourceWorkspace: string, sourcePath: string, targetWorkspace: string, targetPath: string, selected: string[] | null, exclude: string[] | null): $CancellablePromise<$models.DirectorySyncPreview> {
