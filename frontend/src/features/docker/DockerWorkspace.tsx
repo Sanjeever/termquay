@@ -1,10 +1,9 @@
-import Modal from '../../components/Modal';
 import { t as translate } from '../../i18n/index.ts';
 import { message as uiMessage } from '../../i18n/messages.ts';
 import { useMessageState } from '../../i18n/useMessageState.ts';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useRef, useState } from 'react';
-import { Button, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
+import { Button } from '@heroui/react';
 import SelectControl from '../../components/SelectControl';
 import { Events } from '@wailsio/runtime';
 import { CloseContainerTerminal, InspectContainer, ListContainers, OpenContainerTerminal, ReadContainerLogs, StartTunnel, ChangeContainerState } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
@@ -16,7 +15,7 @@ import '../../styles/docker.css';
 import ContainerResources from './ContainerResources';
 
 type Target = { id: string; name: string };
-export default function DockerDialog({ targets, initial, initialContainer, fontSize, onDirectory, onClose }: { targets: Target[]; initial?: string; initialContainer?: string; fontSize: number; onDirectory?(workspace: string, path: string): void; onClose(): void }) {
+export default function DockerWorkspace({ open, targets, initial, initialContainer, fontSize, onDirectory }: { open: boolean; targets: Target[]; initial?: string; initialContainer?: string; fontSize: number; onDirectory?(workspace: string, path: string): void }) {
   useTranslation();
   const [workspace, setWorkspace] = useState(initial || targets[0]?.id || '');
   const [socket, setSocket] = useState('/var/run/docker.sock');
@@ -40,13 +39,16 @@ export default function DockerDialog({ targets, initial, initialContainer, fontS
   const pending = useRef(new Set<{ cancel(): void }>());
   const mounted = useRef(true);
   const generation = useRef(0);
+  const active = open && visible && !minimised;
+  const consoleRef = useRef(consoleID); consoleRef.current = consoleID;
+  useEffect(() => () => { if (consoleRef.current) void CloseContainerTerminal(consoleRef.current); }, []);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; pending.current.forEach(request => request.cancel()); }; }, []);
   useEffect(() => { const update = () => setVisible(document.visibilityState === 'visible'); document.addEventListener('visibilitychange', update); return () => document.removeEventListener('visibilitychange', update); }, []);
   useEffect(() => { const off = [Events.On(Events.Types.Common.WindowMinimise, () => setMinimised(true)), Events.On(Events.Types.Common.WindowUnMinimise, () => setMinimised(false)), Events.On(Events.Types.Common.WindowRestore, () => setMinimised(false))]; return () => off.forEach(dispose => dispose()); }, []);
   useEffect(() => { generation.current++; pending.current.forEach(request => request.cancel()); setContainers([]); setSelected(undefined); setDetails(undefined); setLogs(undefined); setFollow(false); setError(''); setTunnel(''); }, [workspace, socket]);
   useEffect(() => { if (follow) logHost.current?.scrollTo({ top: logHost.current.scrollHeight }); }, [logs, follow]);
   useEffect(() => {
-    if (!follow || !visible || minimised || view !== 'logs' || !selected || !targets.some(target => target.id === workspace)) return;
+    if (!follow || !active || view !== 'logs' || !selected || !targets.some(target => target.id === workspace)) return;
     let ended = false, timer: ReturnType<typeof setTimeout>;
     let request: ReturnType<typeof ReadContainerLogs> | undefined;
     async function read() {
@@ -57,7 +59,7 @@ export default function DockerDialog({ targets, initial, initialContainer, fontS
     }
     void read();
     return () => { ended = true; clearTimeout(timer); request?.cancel(); };
-  }, [follow, visible, minimised, view, selected?.id, workspace, socket, targets.some(target => target.id === workspace)]);
+  }, [follow, active, view, selected?.id, workspace, socket, targets.some(target => target.id === workspace)]);
   useEffect(() => { if (initialContainer) void load(); }, [initialContainer, workspace, socket]);
   async function load() {
     const epoch = generation.current; setBusy(true); setError('');
@@ -111,7 +113,7 @@ export default function DockerDialog({ targets, initial, initialContainer, fontS
   const groups = new Map<string, Container[]>();
   containers.filter(item => `${item.name} ${item.image} ${item.project}`.toLowerCase().includes(filter.toLowerCase())).forEach(item => { const group = item.project || translate('docker:notInCompose'); groups.set(group, [...(groups.get(group) || []), item]); });
   const live = targets.some(target => target.id === workspace);
-  return <Modal isOpen onClose={onClose} isDismissable={!busy} size="5xl" className="app-dialog docker-dialog" scrollBehavior="inside"><ModalContent><ModalHeader>{translate('docker:dockerContainers')}</ModalHeader><ModalBody>
+  return <div className="docker-workspace docker-dialog">
     <div className="docker-connection"><label className="form-field">{translate('docker:sSHWorkspace')}<SelectControl value={workspace} disabled={busy || !!consoleID} onChange={event => setWorkspace(event.target.value)}><option value="">{translate('docker:selectWorkspace')}</option>{targets.map(target => <option key={target.id} value={target.id}>{target.name}</option>)}</SelectControl></label><label className="form-field">Docker socket<input value={socket} disabled={busy || !!consoleID} onChange={event => setSocket(event.target.value)} /></label><Button size="sm" variant="light" isDisabled={!live || busy} onPress={() => void load()}>{translate('docker:readContainers')}</Button></div>
     {error && <p className="error" role="alert">{error}</p>}
     <label className="form-field">{translate('docker:filter')}<input value={filter} onChange={event => setFilter(event.target.value)} /></label>
@@ -122,9 +124,9 @@ export default function DockerDialog({ targets, initial, initialContainer, fontS
     </>}
     {selected && view === 'details' && <section className="inspection-detail"><div className="button-row"><strong>{selected.name}</strong>{['start', 'stop', 'restart'].map(value => <Button key={value} size="sm" variant="light" isDisabled={busy || !live || !!consoleID || (value === 'start' ? selected.state === 'running' : selected.state !== 'running')} onPress={() => setAction(value)}>{{ start: translate('docker:start'), stop: translate('docker:stop'), restart: translate('docker:restart') }[value]}</Button>)}</div>
       {details && <><dl className="inspection-properties"><div><dt>{translate('docker:health')}</dt><dd>{details.health || translate('docker:noHealthCheckConfigured')}</dd></div><div><dt>{translate('docker:restartCount')}</dt><dd>{details.restart_count}</dd></div><div><dt>{translate('docker:lastExitCode')}</dt><dd>{details.exit_code}</dd></div><div><dt>{translate('docker:oOMKilled')}</dt><dd>{details.oom_killed ? translate('docker:yes') : translate('docker:no')}</dd></div>{details.finished_at && !details.finished_at.startsWith('0001-') && <div><dt>{translate('docker:lastFinishedAt')}</dt><dd>{details.finished_at}</dd></div>}</dl>{errorMessage(eventError(details)) && <p className="error" role="alert">{errorMessage(eventError(details))}</p>}{details.health_log && <details><summary>{translate('docker:recentHealthCheckOutput')}</summary><pre>{details.health_log}</pre></details>}{onDirectory && details.mounts?.filter(mount => mount.source.startsWith('/')).map((mount, index) => <Button key={index} size="sm" variant="light" isDisabled={busy || !live} onPress={() => onDirectory(workspace, mount.source)}>{translate('docker:openHostPath')}{mount.source}</Button>)}</>}
-      <ContainerResources workspace={workspace} socket={socket} id={selected.id} active={visible && !minimised && live && selected.state === 'running' && !busy} />
+      <ContainerResources workspace={workspace} socket={socket} id={selected.id} active={active && live && selected.state === 'running' && !busy} />
       {action && <section><p>{translate('docker:confirmContainerAction', { host: targets.find(target => target.id === workspace)?.name, container: selected.name, action: { start: translate('docker:start'), stop: translate('docker:stop'), restart: translate('docker:restart') }[action] })}</p><p className="file-path">{selected.id}</p><div className="button-row"><Button size="sm" variant="light" isDisabled={busy} onPress={() => setAction('')}>{translate('docker:cancel')}</Button><Button size="sm" color="danger" isLoading={busy} onPress={() => void changeState()}>{translate('docker:confirmExecution')}</Button></div></section>}
     </section>}
-    {consoleID && <div hidden={view !== 'terminal'} className="docker-terminal"><TerminalView key={consoleID} container id={consoleID} workspace={workspace} visible={view === 'terminal'} fontSize={fontSize} onSnippets={() => {}} /></div>}
-  </ModalBody><ModalFooter><Button variant="light" onPress={onClose}>{translate('docker:close')}</Button></ModalFooter></ModalContent></Modal>;
+    {consoleID && <div hidden={view !== 'terminal'} className="docker-terminal"><TerminalView key={consoleID} container id={consoleID} workspace={workspace} visible={active && view === 'terminal'} fontSize={fontSize} onSnippets={() => {}} /></div>}
+  </div>;
 }
