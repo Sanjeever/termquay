@@ -121,7 +121,7 @@ export default function LogSourcePane({ source, active, live, follow, refresh, o
   return <section className="log-source-pane" aria-label={`${source.host} · ${source.name}`}>
     {!compact && <header><div><strong>{source.name}</strong><span className="file-path">{source.host}</span></div>{onRemove && <button className="icon-button" aria-label={translate('logs:removeLogSource', { value1: source.name })} onClick={onRemove}><Icon name="close" width="14" /></button>}</header>}
     {!compact && <div className="log-source-path file-path">{source.kind === 'container' ? `${source.socket} · ${source.target}` : source.target}</div>}
-    {!live && <p className="error" role="status">{translate('logs:theOriginalSSHWorkspaceDisconnectedPreviouslyReadContent')}</p>}
+    {!live && !compact && <p className="error" role="status">{translate('logs:theOriginalSSHWorkspaceDisconnectedPreviouslyReadContent')}</p>}
     <ErrorNotice message={error} /><ErrorNotice message={filterError} />
     {warning && <p className="error" role="status">{warning}</p>}
     <div className="log-source-content remote-log-content" ref={host} tabIndex={0} role="region" aria-label={translate('logs:logsReadFrom', { value1: source.name })} aria-busy={filtering} onScroll={event => { const node = event.currentTarget; if (node.scrollHeight - node.scrollTop - node.clientHeight > 12) setAutoScroll(false); }}>{rows}</div>

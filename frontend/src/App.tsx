@@ -236,7 +236,8 @@ export default function App() {
   }
   function openLogs(source?: LogSource) { if (!logsTab) setLogsInitial(source?.workspace || (current?.ssh ? current.sessionID : undefined)); if (source) setLogsRequest({ ...source, id: crypto.randomUUID() }); setLogsTab(true); select(logsTabID); }
   function openDocker(workspace?: string, container?: string) {
-    if (!dockerTab || workspace) setDockerResource({ workspace: workspace || (current?.ssh ? current.sessionID : undefined), container });
+    const target = workspace || (current?.ssh ? current.sessionID : undefined);
+    if (!dockerTab || target) setDockerResource({ workspace: target, container });
     setDockerTab(true); select(dockerTabID);
   }
   function closeCurrentTab() { if (settings) { setSettings(false); return; } if (current?.ssh?.current?.workspaceAction('closeContent')) return; closeWorkspace(); }
