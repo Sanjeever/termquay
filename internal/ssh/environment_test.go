@@ -144,6 +144,19 @@ func TestCommandOutputEncodingPreservesBytes(t *testing.T) {
 	if text != "不是内部或外部命令" || encoded != "" || err != nil {
 		t.Fatal(text, encoded, err)
 	}
+	for _, test := range []struct {
+		data    []byte
+		want    string
+		invalid bool
+	}{
+		{[]byte{'x', 0xe4, 0xb8}, "x", false},
+		{[]byte{'x', 0xff}, "", true},
+	} {
+		text, encoded, err := decodeCommandOutput(test.data, "UTF-8", true)
+		if text != test.want || (err != nil) != test.invalid || (encoded != "") != test.invalid {
+			t.Fatal(text, encoded, err)
+		}
+	}
 }
 
 func TestPowerShell51Execution(t *testing.T) {
@@ -168,7 +181,7 @@ func TestPowerShell51Execution(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(t.Context(), 15*time.Second)
 			defer cancel()
-			args := append([]string{"/d", "/c", powershell}, strings.Fields(strings.TrimPrefix(powerShellCommand(), "powershell.exe "))...)
+			args := append([]string{"/d", "/c", powershell}, strings.Fields(strings.TrimPrefix(powerShellCommand("UTF-8"), "powershell.exe "))...)
 			command := exec.CommandContext(ctx, "cmd.exe", args...)
 			command.Stdin = strings.NewReader(test.script)
 			output, err := command.Output()
@@ -182,6 +195,28 @@ func TestPowerShell51Execution(t *testing.T) {
 			}
 			if code != test.code || strings.TrimSpace(string(output)) != test.want {
 				t.Fatalf("code=%d output=%q err=%v", code, output, err)
+			}
+		})
+	}
+}
+
+func TestPowerShell51ExplicitOutputEncoding(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("需要 Windows PowerShell 5.1")
+	}
+	for _, encoding := range []string{"GBK", "GB18030"} {
+		t.Run(encoding, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(t.Context(), 15*time.Second)
+			defer cancel()
+			process := exec.CommandContext(ctx, "cmd.exe", append([]string{"/d", "/c"}, strings.Fields(powerShellCommand(encoding))...)...)
+			process.Stdin = strings.NewReader("'中文输出'")
+			output, err := process.Output()
+			if err != nil {
+				t.Fatal(err)
+			}
+			text, raw, err := decodeCommandOutput(output, encoding, false)
+			if err != nil || raw != "" || strings.TrimSpace(text) != "中文输出" {
+				t.Fatal(text, raw, err)
 			}
 		})
 	}

@@ -53,7 +53,7 @@ func (t *Terminal) RunScript(ctx context.Context, script, shell, encoding string
 	switch shell {
 	case "sh":
 	case "powershell":
-		command = powerShellCommand()
+		command = powerShellCommand(encoding)
 	default:
 		return CommandResult{ExitCode: -1, Error: "不支持的脚本解释器"}
 	}
@@ -153,9 +153,13 @@ func decodeCommandOutput(data []byte, encoding string, truncated bool) (string, 
 		}
 		return "", base64.StdEncoding.EncodeToString(raw), errors.New("输出含无效的 " + encoding + " 字节")
 	}
-	if truncated {
-		for len(data) > 0 && !utf8.Valid(data) && len(raw)-len(data) < utf8.UTFMax-1 {
-			data = data[:len(data)-1]
+	if truncated && !utf8.Valid(data) {
+		start := len(data) - 1
+		for start >= 0 && !utf8.RuneStart(data[start]) {
+			start--
+		}
+		if start >= 0 && !utf8.FullRune(data[start:]) {
+			data = data[:start]
 		}
 	}
 	if !utf8.Valid(data) {

@@ -293,7 +293,9 @@ func boundedAIToolResult(value any, err error) (AIToolResult, string) {
 	}
 	b, marshalErr := json.Marshal(value)
 	if marshalErr != nil {
+		b = []byte("null")
 		result.Error = marshalErr.Error()
+		result.ErrorCode = "result_encoding"
 		state = "failed"
 	}
 	var flags struct {

@@ -52,7 +52,7 @@ func (a *AppService) queryWindowsAI(ctx context.Context, workspace, name string,
 		return nil, err
 	}
 	if result.Error != "" || result.ExitCode != 0 {
-		return nil, &aiToolError{Code: "query_failed", Message: "Windows 查询失败：" + result.Error + strings.TrimSpace(result.Stderr)}
+		return result, &aiToolError{Code: "query_failed", Message: "Windows 查询失败：" + result.Error + strings.TrimSpace(result.Stderr)}
 	}
 	if result.Truncated {
 		return nil, &aiToolError{Code: "result_too_large", Message: "Windows 查询超过执行输出预算，请缩小筛选范围"}

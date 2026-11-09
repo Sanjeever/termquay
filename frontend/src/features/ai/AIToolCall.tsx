@@ -5,13 +5,15 @@ const labels: Record<string, string> = { complete: '已完成', rejected: '已�
 const names: Record<string, string> = { file_list: '列出目录', file_read: '读取文件', service_list: '查询服务', service_inspect: '服务详情', service_logs: '服务日志', port_list: '监听端口', container_list: '查询容器', container_inspect: '容器详情', container_logs: '容器日志', exec: '执行 Shell' };
 
 export function ToolResult({result}:{result:AIToolResult}) {
-  let text=result.data;
-  if(result.exit_code===undefined && text){try{text=JSON.stringify(JSON.parse(text),null,2);}catch{ /* 旧记录或普通文本按原文展示。 */ }}
+  let text=result.data === 'null' ? '' : result.data;
+  let hasMore=false;
+  if(result.exit_code===undefined && text){try{const data=JSON.parse(text);hasMore=typeof data?.next_offset==='number';text=JSON.stringify(data,null,2);}catch{ /* 旧记录或普通文本按原文展示。 */ }}
+  const status=[result.exit_code!==undefined?`退出码 ${result.exit_code}`:'',result.truncated?(hasMore?'有后续结果':'输出已截断'):'',result.status_unknown?'远端状态未知':''].filter(Boolean).join(' · ');
   return <div className="ai-tool-result">
     {text && <pre>{text}</pre>}{result.stderr && <pre className="error">{result.stderr}</pre>}
-    {(result.exit_code!==undefined || result.truncated || result.status_unknown) && <p className="muted">{result.exit_code!==undefined?`退出码 ${result.exit_code}`:''}{result.truncated?' · 输出已截断':''}{result.status_unknown?' · 远端状态未知':''}</p>}
+    {status && <p className="muted">{status}</p>}
     {result.error && <p className="error">{result.error}</p>}
-    {(result.stdout_base64 || result.stderr_base64) && <details><summary>原始输出（Base64）</summary>{result.stdout_base64 && <pre>{result.stdout_base64}</pre>}{result.stderr_base64 && <pre>{result.stderr_base64}</pre>}</details>}
+    {(result.stdout_base64 || result.stderr_base64) && <details><summary>原始输出（Base64）</summary>{result.stdout_base64 && <pre aria-label="标准输出原始字节">{result.stdout_base64}</pre>}{result.stderr_base64 && <pre aria-label="错误输出原始字节">{result.stderr_base64}</pre>}</details>}
   </div>;
 }
 

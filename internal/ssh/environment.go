@@ -11,23 +11,31 @@ import (
 )
 
 type RemoteEnvironment struct {
-	OS         string `json:"os"`
-	Shell      string `json:"shell"`
-	Version    string `json:"version,omitempty"`
-	Systemd    bool   `json:"systemd"`
-	Services   bool   `json:"services"`
-	Events     bool   `json:"events"`
-	TCP        bool   `json:"tcp"`
-	UDP        bool   `json:"udp"`
-	UnixSocket bool   `json:"unix_socket"`
-	CodePage   int    `json:"code_page,omitempty"`
-	Warning    string `json:"warning,omitempty"`
+	OS          string `json:"os"`
+	Shell       string `json:"shell"`
+	Version     string `json:"version,omitempty"`
+	Systemd     bool   `json:"systemd"`
+	Services    bool   `json:"services"`
+	Events      bool   `json:"events"`
+	TCP         bool   `json:"tcp"`
+	UDP         bool   `json:"udp"`
+	UnixSocket  bool   `json:"unix_socket"`
+	OEMCodePage int    `json:"oem_code_page,omitempty"`
+	Warning     string `json:"warning,omitempty"`
 }
 
-const powerShellBootstrap = `$ErrorActionPreference='Stop';$ProgressPreference='SilentlyContinue';[Console]::InputEncoding=New-Object System.Text.UTF8Encoding;$OutputEncoding=[Console]::OutputEncoding=New-Object System.Text.UTF8Encoding;try { & ([ScriptBlock]::Create([Console]::In.ReadToEnd()+[Environment]::NewLine+'if (-not $?) {if ($LASTEXITCODE) {exit $LASTEXITCODE};exit 1};exit 0'));exit 0 } catch {[Console]::Error.WriteLine($_.Exception.Message);exit 1}`
+const powerShellBootstrap = `$ErrorActionPreference='Stop';$ProgressPreference='SilentlyContinue';[Console]::InputEncoding=New-Object System.Text.UTF8Encoding;$OutputEncoding=[Console]::OutputEncoding=TERMQUAY_OUTPUT_ENCODING;try { & ([ScriptBlock]::Create([Console]::In.ReadToEnd()+[Environment]::NewLine+'if (-not $?) {if ($LASTEXITCODE) {exit $LASTEXITCODE};exit 1};exit 0'));exit 0 } catch {[Console]::Error.WriteLine($_.Exception.Message);exit 1}`
 
-func powerShellCommand() string {
-	units := utf16.Encode([]rune(powerShellBootstrap))
+func powerShellCommand(encoding string) string {
+	outputEncoding := "New-Object System.Text.UTF8Encoding"
+	if encoding == "GBK" {
+		outputEncoding = "[Text.Encoding]::GetEncoding(936)"
+	}
+	if encoding == "GB18030" {
+		outputEncoding = "[Text.Encoding]::GetEncoding(54936)"
+	}
+	bootstrap := strings.Replace(powerShellBootstrap, "TERMQUAY_OUTPUT_ENCODING", outputEncoding, 1)
+	units := utf16.Encode([]rune(bootstrap))
 	encoded := make([]byte, len(units)*2)
 	for i, unit := range units {
 		binary.LittleEndian.PutUint16(encoded[i*2:], unit)
@@ -77,6 +85,7 @@ func (t *Terminal) detectEnvironment(ctx context.Context) RemoteEnvironment {
 		probe := t.RunCommand(ctx, `printf 'TERMQUAY_SH\n'
 command -v ss >/dev/null 2>&1 && printf 'ports\n'
 if command -v systemctl >/dev/null 2>&1 && test -d /run/systemd/system; then printf 'systemd\n'; fi
+command -v journalctl >/dev/null 2>&1 && printf 'journal\n'
 exit 0`)
 		if probe.ExitCode == 0 && probe.Error == "" && strings.HasPrefix(probe.Stdout, "TERMQUAY_SH\n") {
 			environment.Shell = "sh"
@@ -84,7 +93,7 @@ exit 0`)
 			environment.UDP = environment.TCP
 			environment.Systemd = os == "Linux" && strings.Contains(probe.Stdout, "\nsystemd\n")
 			environment.Services = environment.Systemd
-			environment.Events = environment.Systemd
+			environment.Events = environment.Systemd && strings.Contains(probe.Stdout, "\njournal\n")
 		} else {
 			environment.Warning = "远端 POSIX Shell 探测失败"
 		}
@@ -99,7 +108,7 @@ exit 0`)
 
 func (t *Terminal) detectWindows(ctx context.Context, failure RemoteEnvironment) RemoteEnvironment {
 	result := t.RunScript(ctx, `if ($env:OS -ne 'Windows_NT') {throw '目标不是 Windows'}
-@{os='windows';shell='powershell';version=$PSVersionTable.PSVersion.ToString();services=[bool](Get-Command Get-CimInstance -ErrorAction SilentlyContinue);events=[bool](Get-Command Get-WinEvent -ErrorAction SilentlyContinue);tcp=[bool](Get-Command Get-NetTCPConnection -ErrorAction SilentlyContinue);udp=[bool](Get-Command Get-NetUDPEndpoint -ErrorAction SilentlyContinue);code_page=[System.Globalization.CultureInfo]::CurrentCulture.TextInfo.OEMCodePage} | ConvertTo-Json -Compress`, "powershell", "UTF-8")
+@{os='windows';shell='powershell';version=$PSVersionTable.PSVersion.ToString();services=[bool](Get-Command Get-CimInstance -ErrorAction SilentlyContinue);events=[bool](Get-Command Get-WinEvent -ErrorAction SilentlyContinue);tcp=[bool](Get-Command Get-NetTCPConnection -ErrorAction SilentlyContinue);udp=[bool](Get-Command Get-NetUDPEndpoint -ErrorAction SilentlyContinue);oem_code_page=[System.Globalization.CultureInfo]::CurrentCulture.TextInfo.OEMCodePage} | ConvertTo-Json -Compress`, "powershell", "UTF-8")
 	var environment RemoteEnvironment
 	if result.ExitCode == 0 && result.Error == "" && !result.Truncated && json.Unmarshal([]byte(result.Stdout), &environment) == nil && environment.OS == "windows" && environment.Shell == "powershell" {
 		return environment

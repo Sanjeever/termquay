@@ -454,6 +454,14 @@ Windows 原生 Wails 窗口使用生产前端资源，经临时 Go overlay 配�
 
 未提供真实模型端点和 Key，三种协议均未做真实模型验收。`sg1` 的 MCP 只读探测在 SSH 连接/认证握手阶段超过 15 秒，应用测试环境也没有安全注入的 SSH 凭据，因此没有完成本次真实 SSH 链路验证。macOS/Linux 原生 AI 交互、系统锁屏/睡眠的原生联动、屏幕阅读器及整个桌面应用的持续负载与内存回收仍待对应环境验证；后端锁定路径测试不代替这些原生场景。测试进程已经退出，未修改真实服务器或用户模型配置。
 
+### Windows SSH AI 适配验收（2026-11-09）
+
+基础实现提交为 `7806873`、`478e2ef`、`1e4e0f5`，编码与批准补验见本记录同提交的修正。环境为 Windows / amd64、Go 1.26.10、Windows PowerShell 5.1。全仓 `go test ./...`、相关 SSH、文件、AI 和应用包的 `go vet`、前端类型检查与生产构建、Windows production 构建通过；缺少外部资源而跳过的测试不计作真实远端通过。绑定已重新生成。当前 CGO 关闭且没有 C 编译器，未运行竞态检查。
+
+[执行器测试](../internal/ssh/environment_test.go) 经本机 cmd 启动 PowerShell，覆盖中文、长脚本、语法与 cmdlet 错误、原生命令及显式退出码、GBK/GB18030 输出和无效字节保留。[Windows 查询测试](../internal/app/ai_windows_test.go) 经本地 Go SSH 服务调用本机 PowerShell，读取真实本机服务、端口及服务控制管理器事件；该服务不是 Win32-OpenSSH。[AI 回归](../internal/app/ai_environment_test.go) 覆盖工具能力边界、批准前不执行、Windows 解释器绑定、解码失败禁止同轮重放及完整 JSON。内存 SFTP 服务覆盖大目录分页、筛选、Windows 路径转换、跨字符边界续读、文件属性变化与符号链接拒绝。
+
+浏览器组件检查覆盖实际解释器展示、批准与拒绝回调、原始输出展开、续读状态及窄窗布局。未使用真实模型、真实 Windows OpenSSH 服务器或原生 WebView 验收本次适配；Linux/macOS 原生执行及 Windows 远端权限、代码页差异仍需对应环境验证。测试未修改用户远端环境或默认 Shell。
+
 ## 内置 AI 助手
 
 在“设置 → AI 助手”选择 Chat Completions、Messages 或 Responses，填写完整请求 URL、模型名称及所需 API Key，开启后保存。URL 包含实际请求路径，不自动拼接 `/v1`；示例路径显示在设置输入框。全应用使用一份配置，已有 Key 不回显，留空保留，也可替换或显式清除。保存完整配置后即可使用，测试连接分别验证普通回复及本机无副作用的工具调用与结果续接，测试不发送工作区和 SSH 资料。修改配置后，新轮次使用新配置，进行中的轮次继续使用原快照。
