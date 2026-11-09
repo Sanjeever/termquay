@@ -45,6 +45,20 @@ func TestSSHImportPrecedenceJumpAndLocalKeyPath(t *testing.T) {
 	}
 }
 
+func TestImportWarningMetadataDoesNotPermitProxyDowngrade(t *testing.T) {
+	a := testAppStore(t)
+	preview, err := a.PreviewSSHImport("Host target\n HostName example.invalid\n User tester\n ProxyCommand ignored-command\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(preview.Rows) != 1 || len(preview.Rows[0].Warnings) == 0 || len(preview.Rows[0].WarningMessages) != len(preview.Rows[0].Warnings) || preview.Rows[0].WarningMessages[0].MessageCode != "backend:proxyCommandBlocked" {
+		t.Fatalf("missing warning context: %+v", preview.Rows)
+	}
+	if err := a.ConfirmSSHImport(preview.ID, []SSHImportChoice{{ID: preview.Rows[0].ID, Action: "new"}}); err == nil {
+		t.Fatal("localized warning allowed proxy downgrade")
+	}
+}
+
 func TestSSHImportReplaceClearsCredentialsAndPreservesUnrelatedSettings(t *testing.T) {
 	a := testAppStore(t)
 	c, err := a.SaveConnection(store.Connection{Name: "existing", Protocol: "ssh", Host: "old.invalid", Port: 22, Username: "tester"}, terminal.Request{Password: "import-test-only"})

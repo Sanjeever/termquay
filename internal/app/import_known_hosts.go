@@ -39,11 +39,12 @@ type KnownHostsRow struct {
 }
 
 type KnownHostsPreview struct {
-	ID       string          `json:"id"`
-	Rows     []KnownHostsRow `json:"rows"`
-	Warnings []string        `json:"warnings"`
-	base     store.Data
-	expires  time.Time
+	ID              string                   `json:"id"`
+	Rows            []KnownHostsRow          `json:"rows"`
+	Warnings        []string                 `json:"warnings"`
+	WarningMessages []*appmessage.Descriptor `json:"warning_messages,omitempty"`
+	base            store.Data
+	expires         time.Time
 }
 
 func (a *AppService) SelectKnownHostsImport() (KnownHostsPreview, error) {
@@ -125,7 +126,7 @@ func (a *AppService) PreviewKnownHostsImport(text string) (KnownHostsPreview, er
 			}
 		}
 	}
-	warnings := []string{}
+	warnings := []error{}
 	revoked := map[string]bool{}
 	rest := []byte(text)
 	for count := 0; len(rest) > 0; count++ {
@@ -145,7 +146,7 @@ func (a *AppService) PreviewKnownHostsImport(text string) (KnownHostsPreview, er
 				revoked[gossh.FingerprintSHA256(key)] = true
 			}
 			if len(warnings) < 64 {
-				warnings = append(warnings, "跳过 @"+marker+" 记录；撤销密钥不会导入为信任")
+				warnings = append(warnings, appmessage.Errorf("backend:skipHostMarker", "跳过 @%s 记录；撤销密钥不会导入为信任", marker))
 			}
 			continue
 		}
@@ -248,8 +249,9 @@ func (a *AppService) PreviewKnownHostsImport(text string) (KnownHostsPreview, er
 	if len(rows) == 0 {
 		return KnownHostsPreview{}, appmessage.New("backend:noOrdinaryHostKeysToImportHashedOr", "没有可导入的普通主机密钥；哈希及模式主机名需先有匹配的连接配置")
 	}
-	warnings = append(warnings, "哈希及模式主机名仅匹配已保存或文件中可识别的目标，不解析 DNS；跳板路径需分别选择。")
-	p := KnownHostsPreview{ID: base64.RawURLEncoding.EncodeToString(randomBytes(18)), Rows: rows, Warnings: warnings, base: data, expires: time.Now().Add(10 * time.Minute)}
+	warnings = append(warnings, appmessage.New("backend:knownHostsScope", "哈希及模式主机名仅匹配已保存或文件中可识别的目标，不解析 DNS；跳板路径需分别选择。"))
+	p := KnownHostsPreview{ID: base64.RawURLEncoding.EncodeToString(randomBytes(18)), Rows: rows, Warnings: nil, base: data, expires: time.Now().Add(10 * time.Minute)}
+	appendImportNotices(&p.Warnings, &p.WarningMessages, warnings...)
 	a.mu.Lock()
 	a.knownHostsPreview = &p
 	a.mu.Unlock()

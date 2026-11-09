@@ -72,10 +72,11 @@ func (a *AppService) PreviewSavedRestore(ctx context.Context, path, password str
 }
 
 type BackupCoverage struct {
-	ConnectionID string `json:"connection_id"`
-	Name         string `json:"name"`
-	Reason       string `json:"reason"`
-	CanSave      bool   `json:"can_save"`
+	ConnectionID  string                 `json:"connection_id"`
+	Name          string                 `json:"name"`
+	Reason        string                 `json:"reason"`
+	ReasonMessage *appmessage.Descriptor `json:"reason_message,omitempty"`
+	CanSave       bool                   `json:"can_save"`
 }
 
 func (a *AppService) GetBackupCoverage() ([]BackupCoverage, error) {
@@ -98,14 +99,19 @@ func (a *AppService) GetBackupCoverage() ([]BackupCoverage, error) {
 		switch {
 		case connection.AuthMethod == "agent":
 			item.Reason = "恢复后需配置本机 SSH Agent"
+			item.ReasonMessage = appmessage.Describe(appmessage.New("backend:configureAgentAfterRestore", "恢复后需配置本机 SSH Agent"))
 		case connection.AuthMethod == "keyboard_interactive":
 			item.Reason = "连接时需要交互认证"
+			item.ReasonMessage = appmessage.Describe(appmessage.New("backend:interactiveAuthenticationRequired", "连接时需要交互认证"))
 		case connection.CredentialID == "" && preferences[connection.ID].PrivateKeyPath != "":
 			item.Reason, item.CanSave = "私钥仅引用本机文件，内容尚未保存", true
+			item.ReasonMessage = appmessage.Describe(appmessage.New("backend:keyFileNotIncluded", "私钥仅引用本机文件，内容尚未保存"))
 		case connection.CredentialID == "":
 			item.Reason, item.CanSave = "未保存密码或私钥", true
+			item.ReasonMessage = appmessage.Describe(appmessage.New("backend:secretNotSaved", "未保存密码或私钥"))
 		case connection.MFA:
 			item.Reason = "连接时仍需完成多因素认证"
+			item.ReasonMessage = appmessage.Describe(appmessage.New("backend:mfaStillRequired", "连接时仍需完成多因素认证"))
 		default:
 			continue
 		}

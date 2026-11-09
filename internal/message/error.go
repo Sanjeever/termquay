@@ -39,8 +39,10 @@ func Errorf(code, format string, arguments ...any) error {
 	return &Error{code: code, parameters: parameters, cause: fmt.Errorf(format, arguments...)}
 }
 
-func (e *Error) Error() string { return e.cause.Error() }
-func (e *Error) Unwrap() error { return e.cause }
+func (e *Error) Error() string                        { return e.cause.Error() }
+func (e *Error) Unwrap() error                        { return e.cause }
+func (e *Error) DiagnosticCode() string               { return e.code }
+func (e *Error) DiagnosticParameters() map[string]any { return e.parameters }
 
 func Describe(err error) *Descriptor {
 	if err == nil {
@@ -53,14 +55,13 @@ func Describe(err error) *Descriptor {
 		}
 		return result
 	}
-	var coded *Error
+	var coded interface{ DiagnosticCode() string }
 	if errors.As(err, &coded) {
-		result.MessageCode, result.Parameters = coded.code, coded.parameters
-	} else {
-		var domain interface{ DiagnosticCode() string }
-		if errors.As(err, &domain) {
-			result.MessageCode = domain.DiagnosticCode()
+		result.MessageCode = coded.DiagnosticCode()
+		if parameters, ok := coded.(interface{ DiagnosticParameters() map[string]any }); ok {
+			result.Parameters = parameters.DiagnosticParameters()
 		}
+	} else {
 		if errors.Is(err, context.Canceled) {
 			result.MessageCode = "backend:operationCanceled"
 		}

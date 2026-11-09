@@ -37,7 +37,7 @@ func (a *AppService) OpenSystemRDP(connection store.Connection, auth terminal.Re
 	}
 	return launchSystemRDP(connection, auth.Password, resolution, clipboard, func(err error) {
 		if err != nil {
-			application.Get().Event.Emit("rdp:system-error", map[string]string{"error": err.Error()})
+			application.Get().Event.Emit("rdp:system-error", map[string]any{"error": err.Error(), "error_message": appmessage.Describe(err)})
 		}
 	})
 }

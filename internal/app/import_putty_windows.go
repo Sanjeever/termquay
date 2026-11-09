@@ -12,7 +12,7 @@ import (
 	"golang.org/x/sys/windows/registry"
 )
 
-func readPuTTYSessions() ([]SSHImportRow, []string, error) {
+func readPuTTYSessions() ([]SSHImportRow, []error, error) {
 	key, err := registry.OpenKey(registry.CURRENT_USER, `Software\SimonTatham\PuTTY\Sessions`, registry.READ)
 	if err != nil {
 		return nil, nil, appmessage.Errorf("backend:couldNotReadTheCurrentUserSPuTTY", "无法读取当前用户 PuTTY 会话：%w", err)
@@ -26,7 +26,7 @@ func readPuTTYSessions() ([]SSHImportRow, []string, error) {
 		return nil, nil, appmessage.New("backend:puTTYSessionCountExceeds512", "PuTTY 会话超过 512 项")
 	}
 	rows := []SSHImportRow{}
-	warnings := []string{"导入主机、端口和用户名；凭据、PPK 私钥、启动命令及转发需要重新配置。"}
+	warnings := []error{appmessage.New("backend:puttyReconfigure", "导入主机、端口和用户名；凭据、PPK 私钥、启动命令及转发需要重新配置。")}
 	for _, encoded := range names {
 		name, err := url.PathUnescape(encoded)
 		if err != nil || !utf8.ValidString(name) {
@@ -58,7 +58,7 @@ func readPuTTYSessions() ([]SSHImportRow, []string, error) {
 			return nil, nil, err
 		}
 		if protocol != "ssh" {
-			warnings = append(warnings, name+"：非 SSH 会话未导入")
+			warnings = append(warnings, appmessage.Errorf("backend:nonSSHSessionSkipped", "%s：非 SSH 会话未导入", name))
 			session.Close()
 			continue
 		}
@@ -85,10 +85,10 @@ func readPuTTYSessions() ([]SSHImportRow, []string, error) {
 		}
 		row := puttyImportRow(name, host, username, int(port))
 		if proxy != 0 {
-			row.Warnings = append(row.Warnings, "代理配置未迁移，已阻止降级直连导入")
+			appendImportNotices(&row.Warnings, &row.WarningMessages, appmessage.New("backend:proxyNotMigrated", "代理配置未迁移，已阻止降级直连导入"))
 		}
 		if username == "" {
-			warnings = append(warnings, name+"：未保存用户名，连接前需编辑填写")
+			warnings = append(warnings, appmessage.Errorf("backend:missingSavedUsername", "%s：未保存用户名，连接前需编辑填写", name))
 		}
 		rows = append(rows, row)
 		session.Close()

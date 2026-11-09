@@ -51,7 +51,7 @@ func (a *AppService) listAIFileDirectory(ctx context.Context, run *aiRun, args a
 		return view, err
 	}
 	if args.Offset > maxAIDirectoryScan {
-		return view, &aiToolError{Code: "scan_limit", Message: "目录续读超过扫描预算，请按名称筛选"}
+		return view, &aiToolError{Code: "scan_limit", Message: "目录续读超过扫描预算，请按名称筛选", Detail: appmessage.Describe(appmessage.New("backend:toolDirectoryContinuationBudget", "目录续读超过扫描预算，请按名称筛选"))}
 	}
 	limit := args.Limit
 	if limit == 0 {
@@ -82,14 +82,14 @@ func (a *AppService) listAIFileDirectory(ctx context.Context, run *aiRun, args a
 			}
 			scanned++
 			if scanned > maxAIDirectoryScan {
-				return view, &aiToolError{Code: "scan_limit", Message: "目录超过扫描预算，请缩小目录或筛选范围"}
+				return view, &aiToolError{Code: "scan_limit", Message: "目录超过扫描预算，请缩小目录或筛选范围", Detail: appmessage.Describe(appmessage.New("backend:toolDirectoryScanBudget", "目录超过扫描预算，请缩小目录或筛选范围"))}
 			}
 			if !strings.Contains(strings.ToLower(item.Name()), search) {
 				continue
 			}
 			nameBytes += len(item.Name())
 			if nameBytes > 4<<20 {
-				return view, &aiToolError{Code: "scan_limit", Message: "目录名称超过扫描字节预算，请缩小目录或筛选范围"}
+				return view, &aiToolError{Code: "scan_limit", Message: "目录名称超过扫描字节预算，请缩小目录或筛选范围", Detail: appmessage.Describe(appmessage.New("backend:toolDirectoryNameBudget", "目录名称超过扫描字节预算，请缩小目录或筛选范围"))}
 			}
 			matched = append(matched, item)
 		}
@@ -112,7 +112,7 @@ func (a *AppService) listAIFileDirectory(ctx context.Context, run *aiRun, args a
 		if len(b) > maxAIToolResultBytes-128 {
 			view.Entries = view.Entries[:len(view.Entries)-1]
 			if len(view.Entries) == 0 {
-				return view, &aiToolError{Code: "result_too_large", Message: "单个目录条目超过 AI 输出预算"}
+				return view, &aiToolError{Code: "result_too_large", Message: "单个目录条目超过 AI 输出预算", Detail: appmessage.Describe(appmessage.New("backend:toolDirectoryEntryBudget", "单个目录条目超过 AI 输出预算"))}
 			}
 			break
 		}

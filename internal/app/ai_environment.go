@@ -6,12 +6,28 @@ import (
 	"fmt"
 
 	"github.com/Sanjeever/termquay/internal/ai"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 )
 
-type aiToolError struct{ Code, Message string }
+type aiToolError struct {
+	Code, Message string
+	Detail        *appmessage.Descriptor
+}
 
 func (e *aiToolError) Error() string { return e.Message }
+func (e *aiToolError) DiagnosticCode() string {
+	if e.Detail == nil {
+		return ""
+	}
+	return e.Detail.MessageCode
+}
+func (e *aiToolError) DiagnosticParameters() map[string]any {
+	if e.Detail == nil {
+		return nil
+	}
+	return e.Detail.Parameters
+}
 
 func aiToolUnavailable(environment terminal.RemoteEnvironment, name string) error {
 	available := false
@@ -31,12 +47,12 @@ func aiToolUnavailable(environment terminal.RemoteEnvironment, name string) erro
 		available = environment.TCP || environment.UDP
 	case "container_list", "container_inspect", "container_logs":
 		if !environment.UnixSocket {
-			return &aiToolError{Code: "unsupported_transport", Message: "当前 SSH 平台不支持既有 Docker Unix socket 查询通道；不能据此判断是否安装 Docker"}
+			return &aiToolError{Code: "unsupported_transport", Message: "当前 SSH 平台不支持既有 Docker Unix socket 查询通道；不能据此判断是否安装 Docker", Detail: appmessage.Describe(appmessage.New("backend:toolDockerTransportUnavailable", "当前 SSH 平台不支持既有 Docker Unix socket 查询通道；不能据此判断是否安装 Docker"))}
 		}
 		available = true
 	}
 	if !available {
-		return &aiToolError{Code: "capability_unavailable", Message: fmt.Sprintf("远端 %s 未确认支持工具 %s；不能将查询不可用解释为空结果", environment.OS, name)}
+		return &aiToolError{Code: "capability_unavailable", Message: fmt.Sprintf("远端 %s 未确认支持工具 %s；不能将查询不可用解释为空结果", environment.OS, name), Detail: appmessage.Describe(appmessage.Errorf("backend:toolCapabilityUnavailable", "远端 %s 未确认支持工具 %s；不能将查询不可用解释为空结果", environment.OS, name))}
 	}
 	return nil
 }

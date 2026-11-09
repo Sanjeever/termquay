@@ -255,14 +255,17 @@ func dialClient(ctx context.Context, r Request, connect func(context.Context, st
 	finishConnect(err)
 	if err != nil {
 		stage := "TCP 连接"
+		stageCode := "tcp"
 		if r.ProxyAddress != "" {
 			stage = "SOCKS5 代理连接"
+			stageCode = "proxy"
 		}
 		var dns *net.DNSError
 		if errors.As(err, &dns) {
 			stage = "DNS 解析"
+			stageCode = "dns"
 		}
-		return nil, &ConnectionError{Stage: stage, Err: err, Retryable: ctx.Err() == nil}
+		return nil, &ConnectionError{Stage: stage, StageCode: stageCode, Err: err, Retryable: ctx.Err() == nil}
 	}
 	stop := context.AfterFunc(ctx, func() { conn.Close() })
 	finishHandshake = r.connectionStage("SSH 协商")
@@ -280,7 +283,7 @@ func dialClient(ctx context.Context, r Request, connect func(context.Context, st
 		if errors.As(err, &identity) {
 			return nil, err
 		}
-		return nil, &ConnectionError{Stage: "SSH 协商与认证", Err: err}
+		return nil, &ConnectionError{Stage: "SSH 协商与认证", StageCode: "ssh_auth", Err: err}
 	}
 	client := gossh.NewClient(c, chans, reqs)
 	if !stop() && ctx.Err() != nil {

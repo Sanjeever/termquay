@@ -239,7 +239,7 @@ func (a *AppService) executeCommandRun(ctx context.Context, run *commandRun, tar
 							item.Error = err.Error()
 							item.ErrorMessage = appmessage.Describe(err)
 							if step.Check != nil {
-								item.Check = &InspectionCheckResult{State: "unknown", Message: err.Error()}
+								item.Check = &InspectionCheckResult{State: "unknown", Message: err.Error(), MessageDetail: appmessage.Describe(err)}
 							}
 						}
 						if baseline := baselines[index]; baseline != nil {

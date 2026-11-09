@@ -1,4 +1,12 @@
 {
+  "toolDockerTransportUnavailable": "This SSH platform does not support Docker Unix socket queries; Docker installation status cannot be inferred",
+  "toolDirectoryContinuationBudget": "Directory continuation exceeds the scan budget. Filter by name.",
+  "toolDirectoryScanBudget": "Directory exceeds the scan budget. Narrow the directory or filter.",
+  "toolDirectoryNameBudget": "Directory names exceed the scan byte budget. Narrow the scope.",
+  "toolDirectoryEntryBudget": "A directory entry exceeds the AI output budget",
+  "toolWindowsOutputBudget": "Windows query exceeds the execution output budget. Narrow the filter.",
+  "toolCapabilityUnavailable": "Remote {{value1}} has not confirmed support for {{value2}}; unavailable queries are not empty results",
+  "toolWindowsQueryFailed": "Windows query failed: {{value1}}{{value2}}",
   "connection_failed": "Connection failed: {{value1}}",
   "connection_tcp": "TCP connection failed: {{value1}}",
   "connection_proxy": "SOCKS5 proxy connection failed: {{value1}}",

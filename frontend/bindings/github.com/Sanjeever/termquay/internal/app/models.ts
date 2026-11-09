@@ -158,6 +158,7 @@ export interface BackupCoverage {
     "connection_id": string;
     "name": string;
     "reason": string;
+    "reason_message"?: message$0.Descriptor | null;
     "can_save": boolean;
 }
 
@@ -419,14 +420,17 @@ export interface InspectionBaseline {
 export interface InspectionCheckResult {
     "state": string;
     "message": string;
+    "message_detail"?: message$0.Descriptor | null;
     "actual"?: string;
     "expected"?: string;
+    "expected_code"?: string;
 }
 
 export interface KnownHostsPreview {
     "id": string;
     "rows": KnownHostsRow[] | null;
     "warnings": string[] | null;
+    "warning_messages"?: (message$0.Descriptor | null)[] | null;
 }
 
 export interface KnownHostsRow {
@@ -650,6 +654,7 @@ export interface SSHImportPreview {
     "id": string;
     "rows": SSHImportRow[] | null;
     "warnings": string[] | null;
+    "warning_messages"?: (message$0.Descriptor | null)[] | null;
 }
 
 export interface SSHImportRow {
@@ -659,7 +664,9 @@ export interface SSHImportRow {
     "identity_file": string;
     "jump_alias": string;
     "warnings": string[] | null;
+    "warning_messages"?: (message$0.Descriptor | null)[] | null;
     "notes": string[] | null;
+    "note_messages"?: (message$0.Descriptor | null)[] | null;
     "group_path": string[] | null;
 }
 

@@ -21,21 +21,24 @@ import (
 )
 
 type SSHImportRow struct {
-	ID           string           `json:"id"`
-	Connection   store.Connection `json:"connection"`
-	Conflict     string           `json:"conflict"`
-	IdentityFile string           `json:"identity_file"`
-	JumpAlias    string           `json:"jump_alias"`
-	Warnings     []string         `json:"warnings"`
-	Notes        []string         `json:"notes"`
-	GroupPath    []string         `json:"group_path"`
+	ID              string                   `json:"id"`
+	Connection      store.Connection         `json:"connection"`
+	Conflict        string                   `json:"conflict"`
+	IdentityFile    string                   `json:"identity_file"`
+	JumpAlias       string                   `json:"jump_alias"`
+	Warnings        []string                 `json:"warnings"`
+	WarningMessages []*appmessage.Descriptor `json:"warning_messages,omitempty"`
+	Notes           []string                 `json:"notes"`
+	NoteMessages    []*appmessage.Descriptor `json:"note_messages,omitempty"`
+	GroupPath       []string                 `json:"group_path"`
 }
 type SSHImportPreview struct {
-	ID       string         `json:"id"`
-	Rows     []SSHImportRow `json:"rows"`
-	Warnings []string       `json:"warnings"`
-	base     store.Data
-	expires  time.Time
+	ID              string                   `json:"id"`
+	Rows            []SSHImportRow           `json:"rows"`
+	Warnings        []string                 `json:"warnings"`
+	WarningMessages []*appmessage.Descriptor `json:"warning_messages,omitempty"`
+	base            store.Data
+	expires         time.Time
 }
 type SSHImportChoice struct {
 	ID     string `json:"id"`
@@ -77,7 +80,7 @@ func (a *AppService) previewSSHImportFiles(names []string) (SSHImportPreview, er
 		approved[filepath.Clean(absolute)] = string(data)
 	}
 	visited := map[string]bool{}
-	warnings := []string{}
+	warnings := []error{}
 	var expand func(string, int, map[string]bool) (string, error)
 	size := 0
 	expand = func(name string, depth int, stack map[string]bool) (string, error) {
@@ -122,7 +125,7 @@ func (a *AppService) previewSSHImportFiles(names []string) (SSHImportPreview, er
 						}
 					}
 					if !matched {
-						warnings = append(warnings, "Include 文件未明确选择，未读取")
+						warnings = append(warnings, appmessage.New("backend:includeNotSelected", "Include 文件未明确选择，未读取"))
 					}
 				}
 				continue
@@ -151,7 +154,7 @@ func (a *AppService) previewSSHImportFiles(names []string) (SSHImportPreview, er
 		}
 	}
 	p, err := a.PreviewSSHImport(text.String())
-	p.Warnings = append(p.Warnings, warnings...)
+	appendImportNotices(&p.Warnings, &p.WarningMessages, warnings...)
 	return p, err
 }
 
@@ -181,7 +184,7 @@ func (a *AppService) PreviewSSHImport(text string) (SSHImportPreview, error) {
 	if len(text) > 1<<20 {
 		return SSHImportPreview{}, appmessage.New("backend:configurationExceeds1MiB", "配置超过 1 MiB")
 	}
-	warnings := []string{}
+	warnings := []error{}
 	lines := []string{}
 	match := false
 	for _, line := range strings.Split(text, "\n") {
@@ -194,12 +197,12 @@ func (a *AppService) PreviewSSHImport(text string) (SSHImportPreview, error) {
 			continue
 		}
 		if key == "include" {
-			warnings = append(warnings, "Include 未读取，请明确选择引用文件")
+			warnings = append(warnings, appmessage.New("backend:includeSelectFiles", "Include 未读取，请明确选择引用文件"))
 			continue
 		}
 		if key == "match" {
 			match = true
-			warnings = append(warnings, "Match 块不支持，未执行")
+			warnings = append(warnings, appmessage.New("backend:matchUnsupported", "Match 块不支持，未执行"))
 			continue
 		}
 		if key == "host" {
@@ -222,14 +225,15 @@ func (a *AppService) PreviewSSHImport(text string) (SSHImportPreview, error) {
 	if err != nil {
 		return SSHImportPreview{}, err
 	}
-	p := SSHImportPreview{ID: base64.RawURLEncoding.EncodeToString(randomBytes(18)), Rows: []SSHImportRow{}, Warnings: warnings, base: data, expires: time.Now().Add(10 * time.Minute)}
+	p := SSHImportPreview{ID: base64.RawURLEncoding.EncodeToString(randomBytes(18)), Rows: []SSHImportRow{}, Warnings: nil, base: data, expires: time.Now().Add(10 * time.Minute)}
+	appendImportNotices(&p.Warnings, &p.WarningMessages, warnings...)
 	seen := map[string]bool{}
 	for _, block := range config.Hosts {
 		for _, node := range block.Nodes {
 			if kv, ok := node.(*sshconfig.KV); ok {
 				key := strings.ToLower(kv.Key)
 				if key != "hostname" && key != "user" && key != "port" && key != "identityfile" && key != "identityagent" && key != "proxyjump" {
-					p.Warnings = append(p.Warnings, "未支持指令："+kv.Key)
+					appendImportNotices(&p.Warnings, &p.WarningMessages, appmessage.Errorf("backend:unsupportedDirective", "未支持指令：%s", kv.Key))
 				}
 			}
 		}
@@ -237,7 +241,7 @@ func (a *AppService) PreviewSSHImport(text string) (SSHImportPreview, error) {
 			alias := pattern.String()
 			if strings.ContainsAny(alias, "*?!") {
 				if alias != "*" {
-					p.Warnings = append(p.Warnings, "未展开模式："+alias)
+					appendImportNotices(&p.Warnings, &p.WarningMessages, appmessage.Errorf("backend:patternNotExpanded", "未展开模式：%s", alias))
 				}
 				continue
 			}
@@ -262,12 +266,12 @@ func (a *AppService) PreviewSSHImport(text string) (SSHImportPreview, error) {
 			}
 			row := SSHImportRow{ID: base64.RawURLEncoding.EncodeToString(randomBytes(16)), Connection: store.Connection{Name: alias, Protocol: "ssh", Host: host, Port: port, Username: get("User")}, IdentityFile: get("IdentityFile"), JumpAlias: get("ProxyJump"), Warnings: []string{}}
 			if value := get("ProxyCommand"); value != "" && value != "none" {
-				row.Warnings = append(row.Warnings, "ProxyCommand 不执行，也不能降级为直连导入")
+				appendImportNotices(&row.Warnings, &row.WarningMessages, appmessage.New("backend:proxyCommandBlocked", "ProxyCommand 不执行，也不能降级为直连导入"))
 			}
 			if row.Connection.Username == "" {
 				current, e := user.Current()
 				if e != nil {
-					row.Warnings = append(row.Warnings, "无法确定默认用户名，请填写 User")
+					appendImportNotices(&row.Warnings, &row.WarningMessages, appmessage.New("backend:defaultUsernameUnknown", "无法确定默认用户名，请填写 User"))
 				} else {
 					row.Connection.Username = current.Username
 					if i := strings.LastIndex(row.Connection.Username, `\`); i >= 0 {
@@ -276,10 +280,10 @@ func (a *AppService) PreviewSSHImport(text string) (SSHImportPreview, error) {
 				}
 			}
 			if strings.ContainsAny(host, "%$") {
-				row.Warnings = append(row.Warnings, "HostName 展开不支持")
+				appendImportNotices(&row.Warnings, &row.WarningMessages, appmessage.New("backend:hostNameExpansionUnsupported", "HostName 展开不支持"))
 			}
 			if strings.ContainsAny(row.JumpAlias, ",@:") {
-				row.Warnings = append(row.Warnings, "仅映射具体 Host 的单跳 ProxyJump")
+				appendImportNotices(&row.Warnings, &row.WarningMessages, appmessage.New("backend:singleJumpOnly", "仅映射具体 Host 的单跳 ProxyJump"))
 			}
 			if row.IdentityFile != "" {
 				row.Connection.AuthMethod = "private_key"
@@ -291,7 +295,7 @@ func (a *AppService) PreviewSSHImport(text string) (SSHImportPreview, error) {
 					row.IdentityFile = filepath.Join(home, row.IdentityFile[2:])
 				}
 				if !filepath.IsAbs(row.IdentityFile) || strings.ContainsAny(row.IdentityFile, "%$") {
-					row.Warnings = append(row.Warnings, "IdentityFile 需要绝对路径")
+					appendImportNotices(&row.Warnings, &row.WarningMessages, appmessage.New("backend:identityFileAbsolute", "IdentityFile 需要绝对路径"))
 				}
 			} else if agent := get("IdentityAgent"); agent != "" && agent != "none" {
 				row.Connection.AuthMethod = "agent"

@@ -5,6 +5,7 @@ import (
 	"runtime"
 
 	"github.com/Sanjeever/termquay/internal/localapi"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 )
@@ -69,7 +70,7 @@ func Run(assets fs.FS, appIcons fs.ReadFileFS, build BuildInfo, licenses fs.Read
 		if err != nil {
 			message = err.Error()
 		}
-		app.Event.Emit("files:upload-prepared", UploadPreparation{Preview: preview, Error: message})
+		app.Event.Emit("files:upload-prepared", UploadPreparation{Preview: preview, Error: message, ErrorMessage: appmessage.Describe(err)})
 	})
 	window.RegisterHook(events.Common.WindowClosing, func(event *application.WindowEvent) {
 		if !service.canQuit() {

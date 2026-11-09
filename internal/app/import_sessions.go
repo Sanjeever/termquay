@@ -155,13 +155,13 @@ func (a *AppService) previewSessionFiles(source string, names []string, root str
 		row := &rows[i]
 		row.ID = base64.RawURLEncoding.EncodeToString(randomBytes(16))
 		if row.Connection.Host == "" || row.Connection.Port < 1 || row.Connection.Port > 65535 {
-			row.Warnings = append(row.Warnings, "主机或端口无效")
+			appendImportNotices(&row.Warnings, &row.WarningMessages, appmessage.New("backend:invalidHostPort", "主机或端口无效"))
 		}
 		if row.Connection.Username == "" {
-			row.Notes = append(row.Notes, "连接前需填写用户名")
+			appendImportNotices(&row.Notes, &row.NoteMessages, appmessage.New("backend:usernameBeforeConnecting", "连接前需填写用户名"))
 		}
 		if row.Connection.Protocol != "ssh" && row.Connection.Protocol != "rdp" {
-			row.Warnings = append(row.Warnings, "协议暂不支持")
+			appendImportNotices(&row.Warnings, &row.WarningMessages, appmessage.New("backend:protocolUnsupported", "协议暂不支持"))
 		}
 		if len(row.GroupPath) > 32 {
 			return SSHImportPreview{}, appmessage.New("backend:groupNestingExceeds32Levels", "分组超过 32 层")
@@ -178,7 +178,7 @@ func (a *AppService) previewSessionFiles(source string, names []string, root str
 			}
 		}
 	}
-	p := SSHImportPreview{ID: base64.RawURLEncoding.EncodeToString(randomBytes(18)), Rows: rows, Warnings: []string{"保存的密码、私钥内容、自动登录命令及转发未迁移，连接前需重新配置认证。"}, base: data, expires: time.Now().Add(10 * time.Minute)}
+	p := SSHImportPreview{ID: base64.RawURLEncoding.EncodeToString(randomBytes(18)), Rows: rows, Warnings: []string{"保存的密码、私钥内容、自动登录命令及转发未迁移，连接前需重新配置认证。"}, WarningMessages: []*appmessage.Descriptor{appmessage.Describe(appmessage.New("backend:authenticationNotMigrated", "保存的密码、私钥内容、自动登录命令及转发未迁移，连接前需重新配置认证。"))}, base: data, expires: time.Now().Add(10 * time.Minute)}
 	a.importPreview = &p
 	return p, nil
 }
@@ -236,7 +236,7 @@ func parseSessionFile(source, name string, data []byte) ([]SSHImportRow, error) 
 			field := strings.ToLower(key.Name())
 			value := strings.TrimSpace(key.String())
 			if (field == "proxy" || field == "proxyname" || field == "jumpservername" || field == "jumphost") && value != "" && value != "0" {
-				row.Warnings = append(row.Warnings, "代理或跳板尚未映射，已阻止直连导入")
+				appendImportNotices(&row.Warnings, &row.WarningMessages, appmessage.New("backend:proxyJumpNotMapped", "代理或跳板尚未映射，已阻止直连导入"))
 			}
 		}
 	}
@@ -283,13 +283,13 @@ func parseMobaXterm(config *ini.File) ([]SSHImportRow, error) {
 			if protocol == "ssh" {
 				row.Connection.AuthMethod = "password"
 				if len(fields) < 20 {
-					row.Warnings = append(row.Warnings, "SSH 字段版本无法识别，不能核对网络路径")
+					appendImportNotices(&row.Warnings, &row.WarningMessages, appmessage.New("backend:sshFieldVersionUnknown", "SSH 字段版本无法识别，不能核对网络路径"))
 				} else if fields[8] != "" || (fields[19] != "" && fields[19] != "0") {
-					row.Warnings = append(row.Warnings, "代理或跳板尚未映射，已阻止直连导入")
+					appendImportNotices(&row.Warnings, &row.WarningMessages, appmessage.New("backend:proxyJumpNotMapped", "代理或跳板尚未映射，已阻止直连导入"))
 				}
 			}
 			if protocol == "rdp" {
-				row.Warnings = append(row.Warnings, "RDP 网关字段尚未验证，请手工创建连接")
+				appendImportNotices(&row.Warnings, &row.WarningMessages, appmessage.New("backend:rdpGatewayUnverified", "RDP 网关字段尚未验证，请手工创建连接"))
 			}
 			rows = append(rows, row)
 		}
@@ -315,11 +315,11 @@ func parseFinalShell(data []byte) ([]SSHImportRow, error) {
 	}
 	row := SSHImportRow{Connection: store.Connection{Name: value.Name, Host: value.Host, Port: value.Port, Username: value.User, Protocol: "ssh", AuthMethod: "password"}}
 	if value.Type != 100 {
-		row.Warnings = append(row.Warnings, "FinalShell 会话类型暂不支持")
+		appendImportNotices(&row.Warnings, &row.WarningMessages, appmessage.New("backend:finalShellTypeUnsupported", "FinalShell 会话类型暂不支持"))
 	}
 	for _, raw := range []json.RawMessage{value.Proxy, value.ProxyType} {
 		if len(raw) > 0 && string(raw) != "null" && string(raw) != "0" && string(raw) != "\"\"" && string(raw) != "-1" {
-			row.Warnings = append(row.Warnings, "代理尚未映射，已阻止直连导入")
+			appendImportNotices(&row.Warnings, &row.WarningMessages, appmessage.New("backend:proxyNotMapped", "代理尚未映射，已阻止直连导入"))
 		}
 	}
 	return []SSHImportRow{row}, nil
@@ -378,7 +378,7 @@ func parseSecureCRT(data []byte) ([]SSHImportRow, error) {
 				row.Connection.AuthMethod = "password"
 			}
 			if firewall := fields["Firewall Name"]; firewall != "" && firewall != "None" {
-				row.Warnings = append(row.Warnings, "防火墙代理或跳板尚未映射，已阻止直连导入")
+				appendImportNotices(&row.Warnings, &row.WarningMessages, appmessage.New("backend:firewallRouteNotMapped", "防火墙代理或跳板尚未映射，已阻止直连导入"))
 			}
 			rows = append(rows, row)
 			return nil

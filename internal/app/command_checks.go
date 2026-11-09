@@ -26,10 +26,12 @@ type CommandCheck struct {
 }
 
 type InspectionCheckResult struct {
-	State    string `json:"state"`
-	Message  string `json:"message"`
-	Actual   string `json:"actual,omitempty"`
-	Expected string `json:"expected,omitempty"`
+	State         string                 `json:"state"`
+	Message       string                 `json:"message"`
+	MessageDetail *appmessage.Descriptor `json:"message_detail,omitempty"`
+	Actual        string                 `json:"actual,omitempty"`
+	Expected      string                 `json:"expected,omitempty"`
+	ExpectedCode  string                 `json:"expected_code,omitempty"`
 }
 
 type InspectionBaseline struct {
@@ -186,6 +188,7 @@ func evaluateCommandCheck(check CommandCheck, command terminal.CommandResult) In
 	result := InspectionCheckResult{State: "unknown", Expected: check.Expected}
 	if command.Error != "" {
 		result.Message = command.Error
+		result.MessageDetail = command.ErrorMessage
 		return result
 	}
 	passed := false
@@ -196,10 +199,12 @@ func evaluateCommandCheck(check CommandCheck, command terminal.CommandResult) In
 	} else {
 		if command.Truncated {
 			result.Message = "输出已截断，无法完整判定"
+			result.MessageDetail = appmessage.Describe(appmessage.New("backend:outputTruncatedCannotCheck", "输出已截断，无法完整判定"))
 			return result
 		}
 		if command.ExitCode != 0 {
 			result.Message = "采集命令非零退出，无法判定内容"
+			result.MessageDetail = appmessage.Describe(appmessage.New("backend:nonzeroCollectionExit", "采集命令非零退出，无法判定内容"))
 			return result
 		}
 		output := command.Stdout
@@ -213,6 +218,7 @@ func evaluateCommandCheck(check CommandCheck, command terminal.CommandResult) In
 			expression, err := regexp.Compile(check.Expected)
 			if err != nil {
 				result.Message = err.Error()
+				result.MessageDetail = appmessage.Describe(err)
 				return result
 			}
 			passed = expression.MatchString(output)
@@ -220,21 +226,25 @@ func evaluateCommandCheck(check CommandCheck, command terminal.CommandResult) In
 			root, err := decodeInspectionJSON(output)
 			if err != nil {
 				result.Message = "输出不是完整有效的 JSON"
+				result.MessageDetail = appmessage.Describe(appmessage.New("backend:invalidJSONOutput", "输出不是完整有效的 JSON"))
 				return result
 			}
 			actual, err := inspectionJSONValue(root, check.Pointer)
 			if err != nil {
 				result.Message = err.Error()
+				result.MessageDetail = appmessage.Describe(err)
 				return result
 			}
 			expected, err := decodeInspectionJSON(check.Expected)
 			if err != nil {
 				result.Message = err.Error()
+				result.MessageDetail = appmessage.Describe(err)
 				return result
 			}
 			encoded, _ := json.Marshal(actual)
 			if len(encoded) > 4096 {
 				result.Message = "JSON 字段超过展示上限"
+				result.MessageDetail = appmessage.Describe(appmessage.New("backend:jsonFieldDisplayLimit", "JSON 字段超过展示上限"))
 				return result
 			}
 			result.Actual = string(encoded)
@@ -242,12 +252,14 @@ func evaluateCommandCheck(check CommandCheck, command terminal.CommandResult) In
 				wanted, ok := expected.(json.Number)
 				if !ok {
 					result.Message = "JSON 字段与预期类型不同"
+					result.MessageDetail = appmessage.Describe(appmessage.New("backend:jsonFieldTypeMismatch", "JSON 字段与预期类型不同"))
 					return result
 				}
 				left, leftError := inspectionNumber(number)
 				right, rightError := inspectionNumber(wanted)
 				if leftError != nil || rightError != nil {
 					result.Message = "JSON 数字超出比较范围"
+					result.MessageDetail = appmessage.Describe(appmessage.New("backend:jsonNumberComparisonRange", "JSON 数字超出比较范围"))
 					return result
 				}
 				comparison := left.Cmp(right)
@@ -270,10 +282,12 @@ func evaluateCommandCheck(check CommandCheck, command terminal.CommandResult) In
 				case nil, bool, string:
 				default:
 					result.Message = "JSON 字段不是标量"
+					result.MessageDetail = appmessage.Describe(appmessage.New("backend:jsonFieldNotScalar", "JSON 字段不是标量"))
 					return result
 				}
 				if check.Operator != "" && check.Operator != "eq" && check.Operator != "ne" {
 					result.Message = "JSON 字段不是数字"
+					result.MessageDetail = appmessage.Describe(appmessage.New("backend:jsonFieldNotNumber", "JSON 字段不是数字"))
 					return result
 				}
 				passed = actual == expected
@@ -284,8 +298,10 @@ func evaluateCommandCheck(check CommandCheck, command terminal.CommandResult) In
 		}
 	}
 	result.State, result.Message = "fail", "不符合预期"
+	result.MessageDetail = appmessage.Describe(appmessage.New("backend:checkMismatch", "不符合预期"))
 	if passed {
 		result.State, result.Message = "pass", "符合预期"
+		result.MessageDetail = appmessage.Describe(appmessage.New("backend:checkMatch", "符合预期"))
 	}
 	return result
 }
@@ -342,9 +358,10 @@ func (a *AppService) RunCommandStep(ctx context.Context, workspace string, step 
 			return CommandStepResult{}, err
 		}
 	}
-	check := InspectionCheckResult{State: "fail", Message: "与基线内容不同", Expected: "与基线一致"}
+	check := InspectionCheckResult{State: "fail", Message: "与基线内容不同", MessageDetail: appmessage.Describe(appmessage.New("backend:baselineDiffers", "与基线内容不同")), Expected: "与基线一致", ExpectedCode: "backend:expectedBaselineMatch"}
 	if current.Content == reference.Content && current.BOM == reference.BOM {
 		check.State, check.Message = "pass", "与基线内容一致"
+		check.MessageDetail = appmessage.Describe(appmessage.New("backend:baselineMatches", "与基线内容一致"))
 	}
 	return CommandStepResult{Check: &check}, nil
 }

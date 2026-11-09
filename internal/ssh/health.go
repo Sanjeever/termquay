@@ -2,6 +2,7 @@ package ssh
 
 import (
 	"fmt"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"time"
 
 	gossh "golang.org/x/crypto/ssh"
@@ -9,12 +10,22 @@ import (
 
 type ConnectionError struct {
 	Stage     string
+	StageCode string
 	Err       error
 	Retryable bool
 }
 
 func (e *ConnectionError) Error() string { return fmt.Sprintf("%s失败：%v", e.Stage, e.Err) }
 func (e *ConnectionError) Unwrap() error { return e.Err }
+func (e *ConnectionError) DiagnosticCode() string {
+	if e.StageCode == "" {
+		return "backend:connection_failed"
+	}
+	return "backend:connection_" + e.StageCode
+}
+func (e *ConnectionError) DiagnosticParameters() map[string]any {
+	return map[string]any{"value1": appmessage.Describe(e.Err)}
+}
 
 func keepAlive(client *gossh.Client) {
 	done := make(chan struct{})

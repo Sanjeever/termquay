@@ -53,10 +53,14 @@ func (a *AppService) queryWindowsAI(ctx context.Context, workspace, name string,
 		return nil, err
 	}
 	if result.Error != "" || result.ExitCode != 0 {
-		return result, &aiToolError{Code: "query_failed", Message: "Windows 查询失败：" + result.Error + strings.TrimSpace(result.Stderr)}
+		detail := result.ErrorMessage
+		if detail == nil {
+			detail = &appmessage.Descriptor{Message: result.Error}
+		}
+		return result, &aiToolError{Code: "query_failed", Message: "Windows 查询失败：" + result.Error + strings.TrimSpace(result.Stderr), Detail: &appmessage.Descriptor{MessageCode: "backend:toolWindowsQueryFailed", Parameters: map[string]any{"value1": detail, "value2": strings.TrimSpace(result.Stderr)}}}
 	}
 	if result.Truncated {
-		return nil, &aiToolError{Code: "result_too_large", Message: "Windows 查询超过执行输出预算，请缩小筛选范围"}
+		return nil, &aiToolError{Code: "result_too_large", Message: "Windows 查询超过执行输出预算，请缩小筛选范围", Detail: appmessage.Describe(appmessage.New("backend:toolWindowsOutputBudget", "Windows 查询超过执行输出预算，请缩小筛选范围"))}
 	}
 	var value map[string]any
 	if err := json.Unmarshal([]byte(result.Stdout), &value); err != nil {

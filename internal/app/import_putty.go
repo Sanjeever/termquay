@@ -24,7 +24,8 @@ func (a *AppService) PreviewPuTTYImport() (SSHImportPreview, error) {
 	if err != nil {
 		return SSHImportPreview{}, err
 	}
-	preview := SSHImportPreview{ID: base64.RawURLEncoding.EncodeToString(randomBytes(18)), Rows: rows, Warnings: warnings, base: data, expires: time.Now().Add(10 * time.Minute)}
+	preview := SSHImportPreview{ID: base64.RawURLEncoding.EncodeToString(randomBytes(18)), Rows: rows, Warnings: nil, base: data, expires: time.Now().Add(10 * time.Minute)}
+	appendImportNotices(&preview.Warnings, &preview.WarningMessages, warnings...)
 	names := map[string]string{}
 	for _, connection := range data.Connections {
 		if names[connection.Name] == "" {

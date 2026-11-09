@@ -1,4 +1,12 @@
 {
+  "toolDockerTransportUnavailable": "当前 SSH 平台不支持既有 Docker Unix socket 查询通道；不能据此判断是否安装 Docker",
+  "toolDirectoryContinuationBudget": "目录续读超过扫描预算，请按名称筛选",
+  "toolDirectoryScanBudget": "目录超过扫描预算，请缩小目录或筛选范围",
+  "toolDirectoryNameBudget": "目录名称超过扫描字节预算，请缩小目录或筛选范围",
+  "toolDirectoryEntryBudget": "单个目录条目超过 AI 输出预算",
+  "toolWindowsOutputBudget": "Windows 查询超过执行输出预算，请缩小筛选范围",
+  "toolCapabilityUnavailable": "远端 {{value1}} 未确认支持工具 {{value2}}；不能将查询不可用解释为空结果",
+  "toolWindowsQueryFailed": "Windows 查询失败：{{value1}}{{value2}}",
   "connection_failed": "连接失败：{{value1}}",
   "connection_tcp": "TCP 连接失败：{{value1}}",
   "connection_proxy": "SOCKS5 代理连接失败：{{value1}}",
