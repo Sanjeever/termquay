@@ -2,8 +2,17 @@
   "inputs": {
     "go.mod": "0a951ac612ba5346da42b8a6a1aab560d9c97afdb7bf37e3cb0e5a7d78d14baf",
     "go.sum": "cc5057fd8467af8ee42e503a11552ba4e9ddda40b7550c862cb81d0ad9878b6e",
-    "frontend/pnpm-lock.yaml": "a88d4f7e23f13d36077207988f70c60396fd085aa26cff04b1739ec134631f3e",
+    "frontend/pnpm-lock.yaml": "9a20a2291dcd844e1b76c109613b2c156edbd7933a20ef4ba58494ec737128f8",
     "frontend/patches/@devolutions__iron-remote-desktop@0.11.0.patch": "53b4e282385f535f908c6399947350bff05c762c268b5060a9bba9d998fa0168"
+  },
+  "frontend_localization": {
+    "reviewed_at": "2026-11-09",
+    "verification": "Compared the lockfile against the published v1.3.5 commit 651bb3f. The only new production packages are i18next, react-i18next and html-parse-stringify, all declared MIT. Collected license copies match the installed locked packages byte for byte. Existing production package versions and the RDP patch are unchanged.",
+    "licenses": {
+      "i18next@27.0.1": "1cd0a2b02a6cc40ef8ee16310d13eeffdd7b5de4a562fd3ee7c921d8eb54f60a",
+      "react-i18next@18.0.0": "29b8ae456ef442e53a98df183ad088cf98c2ece73aa84c462330c43e665b8ab2",
+      "html-parse-stringify@4.0.1": "3eb2802a4d0ea79f80977817451b056571dccd8373c9bf4e9be4b05f86afbf90"
+    }
   },
   "connection_workbench_dependencies": {
     "reviewed_at": "2026-11-08",
