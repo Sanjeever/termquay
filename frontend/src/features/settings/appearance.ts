@@ -4,8 +4,8 @@ import type { LanguagePreference } from '../../i18n/language';
 export const appearanceKey = 'termquay.appearance';
 export const terminalPalettes = { get theme() { return translate('settings:followTheme'); }, get dark() { return translate('settings:classicDark'); }, get light() { return translate('settings:lightPaper'); }, 'one-dark': 'One Dark', 'tokyo-night': 'Tokyo Night' };
 export const uiZoomLevels = [1, 1.1, 1.25, 1.5, 1.75, 2];
-export type Appearance = { language: LanguagePreference; theme: 'dark' | 'light' | 'system'; uiFont: 'system' | 'yahei' | 'pingfang'; uiZoom: number; monoFont: 'system' | 'cascadia' | 'consolas' | 'jetbrains'; terminalPalette: keyof typeof terminalPalettes; terminalLogHighlight: boolean; terminalRenderer: 'dom'|'webgl' };
-export const defaultAppearance: Appearance = { language: 'auto', theme: 'system', uiFont: 'system', uiZoom: 1, monoFont: 'system', terminalPalette: 'theme', terminalLogHighlight: true, terminalRenderer: 'dom' };
+export type Appearance = { language: LanguagePreference; theme: 'dark' | 'light' | 'system'; uiFont: 'system' | 'yahei' | 'pingfang'; uiZoom: number; monoFont: 'system' | 'cascadia' | 'consolas' | 'jetbrains' | 'custom'; customMonoFont: string; terminalPalette: keyof typeof terminalPalettes; terminalLogHighlight: boolean; terminalRenderer: 'dom'|'webgl' };
+export const defaultAppearance: Appearance = { language: 'auto', theme: 'system', uiFont: 'system', uiZoom: 1, monoFont: 'system', customMonoFont: '', terminalPalette: 'theme', terminalLogHighlight: true, terminalRenderer: 'dom' };
 export const uiFonts = {
   system: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei UI", "PingFang SC", sans-serif',
   yahei: '"Microsoft YaHei UI", "Microsoft YaHei", sans-serif',
@@ -18,14 +18,20 @@ export const monoFonts = {
   jetbrains: '"JetBrains Mono", "SFMono-Regular", Consolas, monospace',
 };
 
+export function monospaceFont(appearance: Appearance): string {
+  if (appearance.monoFont !== 'custom') return monoFonts[appearance.monoFont];
+  const family = appearance.customMonoFont.trim();
+  return family ? `"${family.replace(/["\\]/g, '\\$&')}", ${monoFonts.system}` : monoFonts.system;
+}
+
 export function parseAppearance(value: string | null): Appearance {
   if (!value) return { ...defaultAppearance };
   const settings = JSON.parse(value);
-  if (!settings || !['dark', 'light', 'system'].includes(settings.theme) || !Object.prototype.hasOwnProperty.call(uiFonts, settings.uiFont) || !Object.prototype.hasOwnProperty.call(monoFonts, settings.monoFont) || !Object.prototype.hasOwnProperty.call(terminalPalettes, settings.terminalPalette) || (settings.terminalLogHighlight !== undefined && typeof settings.terminalLogHighlight !== 'boolean')) throw uiMessage('settings:invalidAppearanceSettingsResetThem');
+  if (!settings || !['dark', 'light', 'system'].includes(settings.theme) || !Object.prototype.hasOwnProperty.call(uiFonts, settings.uiFont) || (settings.monoFont !== 'custom' && !Object.prototype.hasOwnProperty.call(monoFonts, settings.monoFont)) || (settings.customMonoFont !== undefined && typeof settings.customMonoFont !== 'string') || !Object.prototype.hasOwnProperty.call(terminalPalettes, settings.terminalPalette) || (settings.terminalLogHighlight !== undefined && typeof settings.terminalLogHighlight !== 'boolean')) throw uiMessage('settings:invalidAppearanceSettingsResetThem');
   if (settings.uiZoom !== undefined && !uiZoomLevels.includes(settings.uiZoom)) throw uiMessage('settings:invalidInterfaceZoomSettings');
   if (settings.terminalRenderer !== undefined && !['dom','webgl'].includes(settings.terminalRenderer)) throw uiMessage('settings:invalidTerminalRendererSettings');
   if (settings.language !== undefined && !['auto', 'zh-CN', 'en'].includes(settings.language)) throw uiMessage('invalidLanguage');
-  return { language: settings.language ?? 'auto', theme: settings.theme, uiFont: settings.uiFont, uiZoom: settings.uiZoom ?? defaultAppearance.uiZoom, monoFont: settings.monoFont, terminalPalette: settings.terminalPalette, terminalLogHighlight: settings.terminalLogHighlight ?? defaultAppearance.terminalLogHighlight, terminalRenderer: settings.terminalRenderer ?? defaultAppearance.terminalRenderer };
+  return { language: settings.language ?? 'auto', theme: settings.theme, uiFont: settings.uiFont, uiZoom: settings.uiZoom ?? defaultAppearance.uiZoom, monoFont: settings.monoFont, customMonoFont: settings.customMonoFont ?? defaultAppearance.customMonoFont, terminalPalette: settings.terminalPalette, terminalLogHighlight: settings.terminalLogHighlight ?? defaultAppearance.terminalLogHighlight, terminalRenderer: settings.terminalRenderer ?? defaultAppearance.terminalRenderer };
 }
 
 export function terminalTheme(palette: Appearance['terminalPalette'], dark: boolean) {

@@ -33,7 +33,7 @@ import Icon from '../../components/Icon';
 import ErrorNotice from '../../components/ErrorNotice';
 import type { Reference } from '../../../bindings/github.com/Sanjeever/termquay/internal/ai/models';
 import { useAppearance } from '../settings/AppearanceProvider';
-import { monoFonts, terminalTheme } from '../settings/appearance';
+import { monospaceFont, terminalTheme } from '../settings/appearance';
 import { CloseTerminal, ResizeTerminal } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import { CloseLocalTerminal, ResizeLocalTerminal } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import { CloseContainerTerminal, ResizeContainerTerminal } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
@@ -200,7 +200,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
   useImperativeHandle(ref, () => ({ action, insert,ended:()=>!!inputStream.current&&inputStream.current.readyState===inputStream.current.CLOSED }));
   useEffect(() => {
     const term = new Terminal({
-      fontFamily: monoFonts[appearance.monoFont],
+      fontFamily: monospaceFont(appearance),
       fontSize, lineHeight: 1.3, scrollback: 5000, cursorBlink: demoOutput === undefined, disableStdin: demoOutput !== undefined,
       allowProposedApi: true, theme: colors,
     });
@@ -307,7 +307,7 @@ const TerminalView = forwardRef<TerminalHandle, { id: string; workspace: string;
   useEffect(() => { if (terminal.current) terminal.current.options.theme = terminalTheme(appearance.terminalPalette, dark); }, [id, dark, appearance.terminalPalette]);
   useEffect(() => { if (terminal.current && visible && appearance.terminalLogHighlight) return addLogHighlights(terminal.current, terminalTheme(appearance.terminalPalette, dark)).dispose; }, [id, visible, appearance.terminalLogHighlight, appearance.terminalPalette, dark]);
   useEffect(() => { if (terminal.current && visible && keyword) return addLogHighlights(terminal.current, terminalTheme(appearance.terminalPalette, dark), keyword).dispose; }, [id, visible, keyword, appearance.terminalPalette, dark]);
-  useEffect(() => { const term = terminal.current; if (!term) return; const family = monoFonts[appearance.monoFont]; if (term.options.fontFamily !== family) { term.options.fontFamily = family; requestFit.current?.(); } }, [id, appearance.monoFont]);
+  useEffect(() => { const term = terminal.current; if (!term) return; const family = monospaceFont(appearance); if (term.options.fontFamily !== family) { term.options.fontFamily = family; requestFit.current?.(); } }, [id, appearance.monoFont, appearance.customMonoFont]);
   useEffect(() => { const term = terminal.current; if (!term) return; const size = Math.max(9, Math.min(36, fontSize + zoom)); if (term.options.fontSize !== size) { term.options.fontSize = size; requestFit.current?.(); } }, [id, fontSize, zoom]);
   useLayoutEffect(() => { if (visible) { requestFit.current?.(); if (focusRequested.current&&!document.activeElement?.closest('[role=tablist]')) terminal.current?.focus(); } }, [id, visible]);
   function closeSearch() { setSearchOpen(false); search.current?.clearDecorations(); terminal.current?.focus(); }

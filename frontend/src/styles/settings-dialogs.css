@@ -110,6 +110,7 @@
 .terminal-preview { margin: 20px 0 16px; padding: 16px; overflow: auto; line-height: 1.6; font-family: var(--font-mono); color: var(--color-primary); border: 1px solid var(--color-border); border-radius: var(--radius-menu); }
 .settings-row select { max-width: 55%; }
 .settings-row > .select-control { width: 180px; max-width: 55%; }
+.settings-font-input { width: 280px; max-width: 55%; min-width: 0; min-height: var(--control-height); padding: 6px 8px; border: 1px solid var(--color-border-strong); border-radius: var(--radius); background: var(--color-control); color: var(--color-text); }
 .cm-search { color: var(--color-text); background: var(--color-elevated); }
 .cm-search input, .cm-search button { background: var(--color-background); color: var(--color-text); border: 1px solid var(--color-border); }
 .cm-merge-a .cm-changedLine, .cm-deletedChunk { background: color-mix(in srgb, var(--color-danger) 12%, transparent); }

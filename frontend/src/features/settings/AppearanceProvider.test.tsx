@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { EditorView } from '@codemirror/view';
 import { undoDepth } from '@codemirror/commands';
@@ -13,6 +13,7 @@ import { isDirty } from '../files/fileDrafts';
 import { documentFormat } from '../files/editorFormat';
 import CodeEditor from '../files/CodeEditor';
 import PaneTabs from '../files/PaneTabs';
+import AppearanceSettings from './AppearanceSettings';
 
 const api = vi.hoisted(() => ({ language: vi.fn(), zoom: vi.fn(), save: vi.fn() }));
 vi.mock('@wailsio/runtime', () => ({ Window: { SetZoom: api.zoom } }));
@@ -130,4 +131,32 @@ test('native language synchronization failures are localized and can be retried 
   await user.click(screen.getByRole('button', { name: 'English' }));
   await waitFor(() => expect(api.language).toHaveBeenLastCalledWith('en'));
   expect(screen.queryByRole('alert')).toBeNull();
+});
+
+test('custom font editing updates the preview and editors, persists across remounts and resets', async () => {
+  const user = userEvent.setup();
+  const fontSize = vi.fn();
+  const settings = <AppearanceProvider><AppearanceSettings section="terminal" fontSize={14} onFontSize={fontSize} /><Workbench /></AppearanceProvider>;
+  const mounted = render(settings);
+  await user.click(screen.getByRole('tab', { name: document.path }));
+  const editor = screen.getByRole('textbox', { name: `Edit ${document.path}` });
+  const view = EditorView.findFromDOM(editor)!;
+  act(() => view.dispatch({ changes: { from: 8, insert: ' changed' }, selection: { anchor: 2, head: 6 } }));
+  const history = undoDepth(view.state);
+  fireEvent.change(window.document.querySelector('select')!, { target: { value: 'custom' } });
+  await user.type(screen.getByRole('textbox', { name: 'Font family' }), 'FiraCode Nerd Font Mono');
+  expect(window.document.documentElement.style.getPropertyValue('--font-mono')).toContain('"FiraCode Nerd Font Mono"');
+  expect(screen.getByLabelText('Terminal color preview').style.fontFamily).toContain('FiraCode Nerd Font Mono');
+  expect(EditorView.findFromDOM(editor)).toBe(view);
+  expect(view.state.doc.toString()).toBe('original changed');
+  expect(view.state.selection.main).toMatchObject({ anchor: 2, head: 6 });
+  expect(undoDepth(view.state)).toBe(history);
+  expect(JSON.parse(localStorage.getItem(appearanceKey)!)).toMatchObject({ monoFont: 'custom', customMonoFont: 'FiraCode Nerd Font Mono' });
+  mounted.unmount();
+  render(settings);
+  expect(screen.getByRole<HTMLInputElement>('textbox', { name: 'Font family' }).value).toBe('FiraCode Nerd Font Mono');
+  await user.click(screen.getByRole('button', { name: 'Restore defaults' }));
+  expect(screen.queryByRole('textbox', { name: 'Font family' })).toBeNull();
+  expect(JSON.parse(localStorage.getItem(appearanceKey)!)).toMatchObject({ monoFont: 'system', customMonoFont: '' });
+  expect(fontSize).toHaveBeenCalledWith(14);
 });

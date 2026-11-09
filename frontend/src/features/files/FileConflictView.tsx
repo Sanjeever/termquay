@@ -33,7 +33,7 @@ export default function FileConflictView({ sessionID, path, content, encoding, l
     let ended=false;void editorLanguage(path,remote.content).then(extension=>{if(!ended)[view.a,view.b].forEach((editor,index)=>editor.dispatch({effects:languages.current[index].reconfigure(extension)}));}).catch(error=>{if(!ended)setError(error);});
     merge.current=view;return()=>{ended=true;view.destroy();merge.current=undefined;};
   },[remote]);
-  useEffect(() => { [merge.current?.a, merge.current?.b].forEach((view, i) => { view?.dispatch({ effects: themes.current[i].reconfigure(editorTheme(dark)) }); view?.requestMeasure(); }); }, [dark, appearance.monoFont, remote]);
+  useEffect(() => { [merge.current?.a, merge.current?.b].forEach((view, i) => { view?.dispatch({ effects: themes.current[i].reconfigure(editorTheme(dark)) }); view?.requestMeasure(); }); }, [dark, appearance.monoFont, appearance.customMonoFont, remote]);
   useEffect(() => { [merge.current?.a, merge.current?.b].forEach((view, index) => view?.dispatch({ effects: labels.current[index].reconfigure(EditorView.contentAttributes.of({ 'aria-label': index ? translate('files:latestRemoteContent') : translate('files:mergeLocalDraft') })) })); }, [currentLocale(), remote]);
   return <Modal isOpen onClose={onClose} className="app-dialog file-conflict-dialog" scrollBehavior="inside" onKeyDown={e=>{if(e.key==='Escape'&&!e.nativeEvent.isComposing){e.stopPropagation();onClose();}}}><ModalContent><ModalHeader>{translate('files:compareAndMerge')}</ModalHeader><ModalBody><p className="file-path">{path}</p>{error&&<p role="alert" className="error">{error}</p>}
     {!remote&&!error&&<p role="status">{translate('files:readingLatestRemoteContent')}</p>}

@@ -104,7 +104,7 @@ EditorView.contentAttributes.of({ 'aria-label': translate('files:edit', { value1
     return()=>{ended=true;};
   },[mode,path,reloadEpoch,languageEpoch]);
   useEffect(()=>{const editor=view.current;if(!editor)return;setDiagnosticError('');if(diagnosticCount(editor.state))editor.dispatch(setDiagnostics(editor.state,[]));editor.dispatch({effects:intelligence.current.reconfigure(editorIntelligence(mode,setDiagnosticError,visible))});},[mode,visible,path,reloadEpoch,diagnosticEpoch,locale]);
-  useEffect(() => { view.current?.dispatch({ effects: theme.current.reconfigure(editorTheme(dark)) }); view.current?.requestMeasure(); }, [dark, appearance.monoFont, path, reloadEpoch]);
+  useEffect(() => { view.current?.dispatch({ effects: theme.current.reconfigure(editorTheme(dark)) }); view.current?.requestMeasure(); }, [dark, appearance.monoFont, appearance.customMonoFont, path, reloadEpoch]);
   useEffect(() => { const observer = new ResizeObserver(([entry]) => setWide(entry.contentRect.width >= 600)); observer.observe(host.current!); return () => observer.disconnect(); }, []);
   useEffect(() => { view.current?.dispatch({ effects: map.current.reconfigure(visible && wide && minimap ? showMinimap.of({ create: () => ({ dom: document.createElement('div') }), displayText: 'blocks', showOverlay: 'always' }) : []) }); }, [visible, wide, minimap, reloadEpoch]);
   useEffect(() => { view.current?.dispatch({ effects: wrapping.current.reconfigure(wrap ? EditorView.lineWrapping : []) }); }, [wrap, reloadEpoch]);

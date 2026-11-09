@@ -3,7 +3,7 @@ import { useMessageState } from '../../i18n/useMessageState.ts';
 import { useTranslation } from 'react-i18next';
 
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { appearanceKey, defaultAppearance, monoFonts, parseAppearance, uiFonts, type Appearance } from './appearance';
+import { appearanceKey, defaultAppearance, monospaceFont, parseAppearance, uiFonts, type Appearance } from './appearance';
 import { Window } from '@wailsio/runtime';
 import i18n, { systemLanguages } from '../../i18n';
 import { resolveLanguage } from '../../i18n/language';
@@ -49,7 +49,7 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
     const root = document.documentElement;
     root.classList.toggle('dark', dark); root.classList.toggle('light', !dark);
     root.style.setProperty('--font-ui', uiFonts[current.uiFont]);
-    root.style.setProperty('--font-mono', monoFonts[current.monoFont]);
+    root.style.setProperty('--font-mono', monospaceFont(current));
   }, [current, dark]);
   function update(value: Appearance) {
     if (preview) { setPreview(value); return; }
