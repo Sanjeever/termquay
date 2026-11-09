@@ -44,6 +44,8 @@ Workspace IDs, SSH instances and PTY IDs are distinct. Reconnect replaces owners
 
 Normal exit coordinates unsaved files, local state, transfer cancellation/resume records and AI persistence before closing storage. Cancellation/timeout does not prove a remote process stopped. Resumable single-file transfers bind destination, user, actual host fingerprint and jump route; reauthenticate and verify source/destination versions plus staging length before explicit continuation. Encrypted resume records stay outside regular backups. Normal exit retains staging tied to saved records; session storage/unsaved records do not guarantee restart recovery. Remote private staging may remain and requires the same verified route for cleanup.
 
+Removing finished transfer records is a local operation. After confirmation for retained staging, it deletes the associated resume data and leaves staging files untouched. Explicit staging cleanup deletes the files before removing the record; already absent files count as cleaned up, while connection, permission and other failures preserve the record for retry. See [record removal](../internal/app/transfer.go) and [staging cleanup](../internal/app/transfer_resume.go).
+
 Latency is runtime TCP connection time along the saved proxy/jump route, including DNS, not terminal/desktop input latency. Probes do not decrypt credentials or authenticate targets. Unavailable jumps remain unknown instead of falling back to direct connections. Scheduling follows the visible filtered catalog/window and merges requests without restarting on sort. RDP graphical queues/WASM memory need their own real-load evidence; SSH backpressure tests do not establish equivalent RDP guarantees.
 
 <a id="身份凭据与本地数据"></a>

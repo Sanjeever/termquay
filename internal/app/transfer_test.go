@@ -50,19 +50,19 @@ func TestTransferCopyPreservesBytes(t *testing.T) {
 	}
 }
 
-func TestClearTransferRequiresStoppedAndDiscarded(t *testing.T) {
+func TestClearTransferRequiresStoppedAndUnclaimed(t *testing.T) {
 	a := NewAppService(BuildInfo{Development: true}, nil)
 	for _, state := range []string{"queued", "running", "cancelled"} {
 		task := &transferTask{view: Transfer{ID: "test", State: state}}
 		if state == "cancelled" {
-			task.resume = &transferResume{}
+			task.resumeClaimed = true
 		}
 		a.transfers["test"] = task
 		if _, err := a.ClearTransfer("test"); err == nil || a.transfers["test"] == nil {
 			t.Fatalf("移除了尚未处理的任务 %s", state)
 		}
 	}
-	a.transfers["test"].resume = nil
+	a.transfers["test"].resumeClaimed = false
 	if id, err := a.ClearTransfer("test"); err != nil || id != "test" || len(a.ListTransfers()) != 0 {
 		t.Fatalf("移除记录失败: %s %v", id, err)
 	}
@@ -112,12 +112,6 @@ func TestZeroProgressUploadCleanupCanBeRetried(t *testing.T) {
 	a.retainTransferCleanup(context.WithValue(context.Background(), transferContextKey{}, task), staging)
 	if !task.view.CleanupRequired || task.view.Resumable || task.view.TemporaryPath != staging {
 		t.Fatal("无进度暂存被错误标为续传或丢失路径")
-	}
-	if _, err := a.ClearTransfer("cleanup"); err == nil {
-		t.Fatal("清理失败的任务被直接移除")
-	}
-	if len(a.ClearFinishedTransfers()) != 0 {
-		t.Fatal("批量清理丢失了待清理暂存")
 	}
 	if err := a.DiscardTransferResume("cleanup", "wrong"); err == nil {
 		t.Fatal("使用不同目标清理了远端暂存")
@@ -186,8 +180,8 @@ func TestClearFinishedTransfersPreservesActiveAndTarget(t *testing.T) {
 		views = append(views, v)
 	}
 	a.transfers["finished"] = &transferTask{view: Transfer{ID: "finished", State: "done"}}
-	removed := a.ClearFinishedTransfers()
-	if len(removed) != 1 || removed[0] != "finished" || len(a.ListTransfers()) != 3 {
+	removed, err := a.ClearFinishedTransfers()
+	if err != nil || len(removed) != 1 || removed[0] != "finished" || len(a.ListTransfers()) != 3 {
 		t.Fatal("清理移除了活动任务")
 	}
 	for _, v := range views {

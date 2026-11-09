@@ -649,7 +649,7 @@
   "workspaceClosed": "Workspace closed",
   "skippedDestinationWithMatchingName": "Skipped destination with matching name",
   "sourceFileChangedAfterPreview": "Source file changed after preview",
-  "cancelTheTransferAndHandleRetainedTemporaryFiles": "Cancel the transfer and handle retained temporary files first",
+  "transferStillRunningOrBeingProcessed": "The transfer is still running or being processed",
   "transferTaskDoesNotExist": "Transfer task does not exist",
   "workspaceClosedOrTransferLimitReached2Parallel": "Workspace closed or transfer limit reached (2 parallel, 32 queued, 100 history)",
   "thisTaskCannotBeRetried": "This task cannot be retried",

@@ -41,5 +41,9 @@ func RemoveStaging(client *sftp.Client, dir string) error {
 	if errors.Is(err, os.ErrNotExist) {
 		err = nil
 	}
-	return errors.Join(err, client.RemoveDirectory(dir))
+	dirErr := client.RemoveDirectory(dir)
+	if errors.Is(dirErr, os.ErrNotExist) {
+		dirErr = nil
+	}
+	return errors.Join(err, dirErr)
 }

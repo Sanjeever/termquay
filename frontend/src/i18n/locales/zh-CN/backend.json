@@ -649,7 +649,7 @@
   "workspaceClosed": "工作区已关闭",
   "skippedDestinationWithMatchingName": "同名目标已跳过",
   "sourceFileChangedAfterPreview": "源文件自预览后已变化",
-  "cancelTheTransferAndHandleRetainedTemporaryFiles": "请先取消传输并处理保留的临时文件",
+  "transferStillRunningOrBeingProcessed": "传输仍在执行或处理中",
   "transferTaskDoesNotExist": "传输任务不存在",
   "workspaceClosedOrTransferLimitReached2Parallel": "工作区已关闭，或传输任务达到上限（并行 2 个，等待 32 个，历史 100 个）",
   "thisTaskCannotBeRetried": "此任务不能重试",

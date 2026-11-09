@@ -156,17 +156,49 @@ func (a *AppService) cancelTransferLocked(task *transferTask) {
 	a.transferEvent(task.view)
 }
 func (a *AppService) ClearTransfer(id string) (string, error) {
+	_, err := a.clearTransferRecords([]string{id})
+	if err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
+func (a *AppService) clearTransferRecords(ids []string) ([]string, error) {
+	a.mu.Lock()
+	for _, id := range ids {
+		task := a.transfers[id]
+		if task != nil && (task.resumeClaimed || task.view.State == "running" || task.view.State == "queued") {
+			a.mu.Unlock()
+			return nil, appmessage.New("backend:transferStillRunningOrBeingProcessed", "The transfer is still running or being processed")
+		}
+	}
+	removed := []string{}
+	persist := false
+	for _, id := range ids {
+		if task := a.transfers[id]; task != nil {
+			task.resumeClaimed = true
+			persist = persist || task.resume != nil
+			removed = append(removed, id)
+		}
+	}
+	a.mu.Unlock()
+	var err error
+	if persist {
+		err = a.persistTransferResumes()
+	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	task := a.transfers[id]
-	if task == nil {
-		return id, nil
+	for _, id := range removed {
+		if err == nil {
+			delete(a.transfers, id)
+		} else {
+			a.transfers[id].resumeClaimed = false
+		}
 	}
-	if task.resume != nil || task.cleanupStaging != "" || task.resumeClaimed || task.view.State == "running" || task.view.State == "queued" {
-		return "", appmessage.New("backend:cancelTheTransferAndHandleRetainedTemporaryFiles", "请先取消传输并处理保留的临时文件")
+	if err != nil {
+		return nil, err
 	}
-	delete(a.transfers, id)
-	return id, nil
+	return removed, nil
 }
 
 func (a *AppService) CancelAndDiscardTransfer(ctx context.Context, id, workspace string) error {
@@ -192,21 +224,20 @@ func (a *AppService) CancelAndDiscardTransfer(ctx context.Context, id, workspace
 	return err
 }
 
-func (a *AppService) ClearFinishedTransfers() []string {
+func (a *AppService) ClearFinishedTransfers() ([]string, error) {
 	a.mu.Lock()
-	defer a.mu.Unlock()
-	removed := []string{}
+	ids := []string{}
 	for id, task := range a.transfers {
-		if task.resume != nil || task.cleanupStaging != "" || task.resumeClaimed {
+		if task.resumeClaimed {
 			continue
 		}
 		switch task.view.State {
 		case "done", "cancelled", "failed", "skipped":
-			delete(a.transfers, id)
-			removed = append(removed, id)
+			ids = append(ids, id)
 		}
 	}
-	return removed
+	a.mu.Unlock()
+	return a.clearTransferRecords(ids)
 }
 
 func (a *AppService) startTransfer(workspace, name, direction string, total int64, run func(context.Context, func(int64, int64)) error, specification ...transferSpec) (Transfer, error) {
