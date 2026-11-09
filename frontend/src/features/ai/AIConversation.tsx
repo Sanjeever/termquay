@@ -26,7 +26,7 @@ export default function AIConversation({ messages, run, busy, onDecide, onError 
       <div className="ai-message-role">{m.role === 'user' ? '你' : '助手'}{item.state === 'interrupted' ? ' · 回复中断' : ''}</div>
       {m.role === 'user' ? <div className="ai-user-text">{m.content}</div> : <div className="ai-markdown"><AIText text={m.content} onError={onError} /></div>}
       {m.references?.map((r, index) => <details className="ai-reference" key={index}><summary>终端引用 · {r.label || r.terminal.slice(0, 8)}</summary><pre>{r.text}</pre></details>)}
-      {m.tool_calls?.map(call => <AIToolCall key={call.id} call={call} result={results.get(`${item.run_id}:${call.id}`)} pending={run?.pending?.call.id === call.id && run.id === item.run_id} active={run?.id === item.run_id && aiRunning(run)} busy={busy} onDecide={onDecide} />)}
+      {m.tool_calls?.map(call => <AIToolCall key={call.id} call={call} result={results.get(`${item.run_id}:${call.id}`)} shell={run?.pending?.call.id === call.id && run.id === item.run_id ? run.pending.shell : undefined} pending={run?.pending?.call.id === call.id && run.id === item.run_id} active={run?.id === item.run_id && aiRunning(run)} busy={busy} onDecide={onDecide} />)}
     </article>;
   })}</>;
 }

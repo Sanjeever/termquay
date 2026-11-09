@@ -51,6 +51,7 @@ export interface AIMessage {
 }
 
 export interface AIPendingApproval {
+    "shell": string;
     "token": string;
     "call": ai$0.ToolCall;
     "timeout_seconds": number;
@@ -116,6 +117,11 @@ export interface AIToolDecision {
 }
 
 export interface AIToolResult {
+    "shell"?: string;
+    "status": string;
+    "error_code"?: string;
+    "stdout_base64"?: string;
+    "stderr_base64"?: string;
     "data": string;
     "stderr"?: string;
     "error"?: string;

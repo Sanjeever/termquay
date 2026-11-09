@@ -10,6 +10,10 @@ import (
 )
 
 func (a *AppService) RunRemoteCommand(ctx context.Context, workspace, script string, timeoutSeconds int) (terminal.CommandResult, error) {
+	return a.runRemoteScript(ctx, workspace, script, timeoutSeconds, "sh", "UTF-8")
+}
+
+func (a *AppService) runRemoteScript(ctx context.Context, workspace, script string, timeoutSeconds int, shell, encoding string) (terminal.CommandResult, error) {
 	if len(script) == 0 || len(script) > 32<<10 || strings.ContainsRune(script, 0) || timeoutSeconds < 1 || timeoutSeconds > 600 {
 		return terminal.CommandResult{}, errors.New("命令须为 1 至 32768 字节，超时须为 1 至 600 秒")
 	}
@@ -34,7 +38,7 @@ func (a *AppService) RunRemoteCommand(ctx context.Context, workspace, script str
 		return terminal.CommandResult{}, ctx.Err()
 	}
 	defer func() { <-slots }()
-	return owner.terminal.RunCommand(ctx, script), nil
+	return owner.terminal.RunScript(ctx, script, shell, encoding), nil
 }
 
 type TmuxSession struct {

@@ -22,12 +22,13 @@ var aiTools = []ai.Tool{
 	{Name: "container_list", Description: "查询当前 SSH 主机 Docker 容器；socket 默认 /var/run/docker.sock", Parameters: json.RawMessage(`{"type":"object","properties":{"socket":{"type":"string"}},"additionalProperties":false}`)},
 	{Name: "container_inspect", Description: "查询当前 SSH 主机 Docker 容器详情", Parameters: json.RawMessage(`{"type":"object","properties":{"socket":{"type":"string"},"id":{"type":"string"}},"required":["id"],"additionalProperties":false}`)},
 	{Name: "container_logs", Description: "读取当前 SSH 主机 Docker 容器近期日志", Parameters: json.RawMessage(`{"type":"object","properties":{"socket":{"type":"string"},"id":{"type":"string"}},"required":["id"],"additionalProperties":false}`)},
-	{Name: "exec", Description: "通过独立无 PTY SSH session 执行 sh -s 脚本。显式 cd 设置目录；不继承终端环境，不代填 sudo 密码。命令可能需要用户批准", Parameters: json.RawMessage(`{"type":"object","properties":{"script":{"type":"string"},"timeout_seconds":{"type":"integer","minimum":1,"maximum":600}},"required":["script","timeout_seconds"],"additionalProperties":false}`)},
+	{Name: "exec", Description: "通过独立无 PTY SSH session 执行脚本，解释器由当前连接能力决定。显式设置目录；不继承终端环境，不代填密码。output_encoding 默认 UTF-8，只有已确认原生程序输出编码时才指定 GBK 或 GB18030。命令可能需要用户批准", Parameters: json.RawMessage(`{"type":"object","properties":{"script":{"type":"string"},"timeout_seconds":{"type":"integer","minimum":1,"maximum":600},"output_encoding":{"type":"string","enum":["UTF-8","GBK","GB18030"]}},"required":["script","timeout_seconds"],"additionalProperties":false}`)},
 }
 
 type aiToolArguments struct {
 	Path           string `json:"path"`
 	Encoding       string `json:"encoding"`
+	OutputEncoding string `json:"output_encoding"`
 	Search         string `json:"search"`
 	Unit           string `json:"unit"`
 	Socket         string `json:"socket"`
@@ -37,6 +38,11 @@ type aiToolArguments struct {
 }
 
 type AIToolResult struct {
+	Shell         string `json:"shell,omitempty"`
+	Status        string `json:"status"`
+	ErrorCode     string `json:"error_code,omitempty"`
+	StdoutBase64  string `json:"stdout_base64,omitempty"`
+	StderrBase64  string `json:"stderr_base64,omitempty"`
 	Data          string `json:"data"`
 	Stderr        string `json:"stderr,omitempty"`
 	Error         string `json:"error,omitempty"`
@@ -95,6 +101,12 @@ func validateAITool(call ai.ToolCall) (aiToolArguments, error) {
 	if args.Encoding == "" {
 		args.Encoding = "UTF-8"
 	}
+	if args.OutputEncoding == "" {
+		args.OutputEncoding = "UTF-8"
+	}
+	if args.OutputEncoding != "UTF-8" && args.OutputEncoding != "GBK" && args.OutputEncoding != "GB18030" {
+		return args, errors.New("命令输出编码无效")
+	}
 	if args.Socket == "" {
 		args.Socket = "/var/run/docker.sock"
 	}
@@ -103,34 +115,37 @@ func validateAITool(call ai.ToolCall) (aiToolArguments, error) {
 
 func (a *AppService) invokeAITool(ctx context.Context, run *aiRun, call ai.ToolCall, args aiToolArguments) (AIToolResult, string) {
 	if err := ctx.Err(); err != nil {
-		return AIToolResult{Error: "已取消，未执行"}, "not_executed"
+		return AIToolResult{Status: "not_executed", ErrorCode: "canceled", Error: "已取消，未执行"}, "not_executed"
 	}
 	if _, err := a.aiOwner(run.view.Workspace, run.owner); err != nil {
-		return AIToolResult{Error: err.Error()}, "not_executed"
+		return AIToolResult{Status: "not_executed", ErrorCode: "workspace_unavailable", Error: err.Error()}, "not_executed"
+	}
+	if err := aiToolUnavailable(run.environment, call.Name); err != nil {
+		return boundedAIToolResult(nil, err)
 	}
 	if call.Name == "exec" {
 		if run.unknownScripts[args.Script] {
-			return AIToolResult{Error: "此脚本上次执行状态未知，本轮禁止自动重试，请先核对远端状态"}, "not_executed"
+			return AIToolResult{Status: "not_executed", ErrorCode: "replay_blocked", Error: "此脚本上次执行状态未知或输出解码失败，本轮禁止自动重试，请先核对远端状态或已有原始输出"}, "not_executed"
 		}
 		if run.rejected[args.Script] {
-			return AIToolResult{Error: "此脚本在本轮已被用户拒绝，禁止自动重试"}, "rejected"
+			return AIToolResult{Status: "not_executed", ErrorCode: "rejected", Error: "此脚本在本轮已被用户拒绝，禁止自动重试"}, "rejected"
 		}
 		if run.config.ConfirmExec {
 			approved, err := a.awaitAIApproval(ctx, run, call, args.TimeoutSeconds)
 			if err != nil {
-				return AIToolResult{Error: err.Error()}, "not_executed"
+				return AIToolResult{Status: "not_executed", ErrorCode: "canceled", Error: err.Error()}, "not_executed"
 			}
 			if !approved {
 				run.rejected[args.Script] = true
-				return AIToolResult{Error: "用户拒绝，命令未执行"}, "rejected"
+				return AIToolResult{Status: "not_executed", ErrorCode: "rejected", Error: "用户拒绝，命令未执行"}, "rejected"
 			}
 		}
 	}
 	if err := ctx.Err(); err != nil {
-		return AIToolResult{Error: "已取消，未执行"}, "not_executed"
+		return AIToolResult{Status: "not_executed", ErrorCode: "canceled", Error: "已取消，未执行"}, "not_executed"
 	}
 	if _, err := a.aiOwner(run.view.Workspace, run.owner); err != nil {
-		return AIToolResult{Error: err.Error()}, "not_executed"
+		return AIToolResult{Status: "not_executed", ErrorCode: "workspace_unavailable", Error: err.Error()}, "not_executed"
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	if call.Name == "exec" {
@@ -147,13 +162,29 @@ func (a *AppService) invokeAITool(ctx context.Context, run *aiRun, call ai.ToolC
 	case "file_read":
 		value, err = a.ReadRemoteFileEncoded(ctx, workspace, args.Path, args.Encoding)
 	case "service_list":
-		value, err = a.ListLinuxServices(ctx, workspace, args.Search)
+		if run.environment.OS == "windows" {
+			value, err = a.queryWindowsAI(ctx, workspace, call.Name, args, run.environment)
+		} else {
+			value, err = a.ListLinuxServices(ctx, workspace, args.Search)
+		}
 	case "service_inspect":
-		value, err = a.ReadLinuxServiceDetails(ctx, workspace, args.Unit)
+		if run.environment.OS == "windows" {
+			value, err = a.queryWindowsAI(ctx, workspace, call.Name, args, run.environment)
+		} else {
+			value, err = a.ReadLinuxServiceDetails(ctx, workspace, args.Unit)
+		}
 	case "service_logs":
-		value, err = a.ReadLinuxServiceLog(ctx, workspace, args.Unit)
+		if run.environment.OS == "windows" {
+			value, err = a.queryWindowsAI(ctx, workspace, call.Name, args, run.environment)
+		} else {
+			value, err = a.ReadLinuxServiceLog(ctx, workspace, args.Unit)
+		}
 	case "port_list":
-		value, err = a.ListLinuxPorts(ctx, workspace)
+		if run.environment.OS == "windows" {
+			value, err = a.queryWindowsAI(ctx, workspace, call.Name, args, run.environment)
+		} else {
+			value, err = a.ListLinuxPorts(ctx, workspace)
+		}
 	case "container_list":
 		value, err = a.ListContainers(ctx, workspace, args.Socket)
 	case "container_inspect":
@@ -161,38 +192,66 @@ func (a *AppService) invokeAITool(ctx context.Context, run *aiRun, call ai.ToolC
 	case "container_logs":
 		value, err = a.ReadContainerLogs(ctx, workspace, args.Socket, args.ID)
 	case "exec":
-		value, err = a.RunRemoteCommand(ctx, workspace, args.Script, args.TimeoutSeconds)
+		value, err = a.runRemoteScript(ctx, workspace, args.Script, args.TimeoutSeconds, run.environment.Shell, args.OutputEncoding)
 	default:
 		err = errors.New("未知 AI 工具")
 	}
 	result, state := boundedAIToolResult(value, err)
-	if call.Name == "exec" && result.StatusUnknown {
+	if call.Name == "exec" {
+		result.Shell = run.environment.Shell
+	}
+	if call.Name == "exec" && (result.StatusUnknown || result.ErrorCode == "output_encoding") {
 		run.unknownScripts[args.Script] = true
 	}
 	return result, state
 }
 
 func boundedAIToolResult(value any, err error) (AIToolResult, string) {
-	result := AIToolResult{}
+	result := AIToolResult{Status: "ok"}
 	state := "complete"
+	deferResult := func() (AIToolResult, string) {
+		if state != "complete" {
+			result.Status = "error"
+			if result.ErrorCode == "" {
+				result.ErrorCode = "query_failed"
+			}
+		} else if result.Truncated {
+			result.Status = "partial"
+		}
+		return result, state
+	}
 	if command, ok := value.(terminal.CommandResult); ok {
 		result.ExitCode = &command.ExitCode
 		result.StatusUnknown = command.ExitCode < 0
 		result.Truncated = command.Truncated
+		result.StdoutBase64 = command.StdoutBase64
+		result.StderrBase64 = command.StderrBase64
+		if command.StdoutBase64 != "" || command.StderrBase64 != "" {
+			result.ErrorCode = "output_encoding"
+		}
 		if command.Error != "" {
 			result.Error = command.Error
 		}
 		if command.ExitCode != 0 || command.Error != "" {
 			state = "failed"
+			if result.ErrorCode == "" {
+				result.ErrorCode = "command_failed"
+			}
 		}
 		if result.StatusUnknown {
 			state = "unknown"
+			result.ErrorCode = "execution_unknown"
 		}
 		stderrBytes := min(len(command.Stderr), maxAIToolResultBytes/2)
-		stdoutBytes := min(len(command.Stdout), maxAIToolResultBytes-stderrBytes)
+		stderrRawBytes := min(len(command.StderrBase64), (maxAIToolResultBytes/2-stderrBytes)/4*4)
+		stdoutBytes := min(len(command.Stdout), maxAIToolResultBytes-stderrBytes-stderrRawBytes)
+		stdoutRawBytes := min(len(command.StdoutBase64), (maxAIToolResultBytes-stderrBytes-stderrRawBytes-stdoutBytes)/4*4)
 		result.Data = strings.ToValidUTF8(command.Stdout[:stdoutBytes], "")
 		result.Stderr = strings.ToValidUTF8(command.Stderr[:stderrBytes], "")
 		result.Truncated = result.Truncated || stdoutBytes < len(command.Stdout) || stderrBytes < len(command.Stderr)
+		result.StdoutBase64 = command.StdoutBase64[:stdoutRawBytes]
+		result.StderrBase64 = command.StderrBase64[:stderrRawBytes]
+		result.Truncated = result.Truncated || stdoutRawBytes < len(command.StdoutBase64) || stderrRawBytes < len(command.StderrBase64)
 		if err != nil {
 			result.Error = err.Error()
 			state = "failed"
@@ -204,11 +263,15 @@ func boundedAIToolResult(value any, err error) (AIToolResult, string) {
 		if result.StatusUnknown {
 			result.Error += "；远端执行状态未知，不能据此认定远端进程已退出"
 		}
-		return result, state
+		return deferResult()
 	}
 	if err != nil {
 		result.Error = err.Error()
 		state = "failed"
+		var toolErr *aiToolError
+		if errors.As(err, &toolErr) {
+			result.ErrorCode = toolErr.Code
+		}
 	}
 	b, marshalErr := json.Marshal(value)
 	if marshalErr != nil {
@@ -221,11 +284,14 @@ func boundedAIToolResult(value any, err error) (AIToolResult, string) {
 	_ = json.Unmarshal(b, &flags)
 	result.Truncated = result.Truncated || flags.Truncated
 	if len(b) > maxAIToolResultBytes {
-		b = b[:maxAIToolResultBytes]
+		b = []byte("null")
 		result.Truncated = true
+		result.Error = "结构化结果超过 AI 输出预算，请缩小查询范围"
+		result.ErrorCode = "result_too_large"
+		state = "failed"
 	}
 	result.Data = strings.ToValidUTF8(string(b), "�")
-	return result, state
+	return deferResult()
 }
 
 func (a *AppService) awaitAIApproval(ctx context.Context, run *aiRun, call ai.ToolCall, timeout int) (bool, error) {
@@ -235,7 +301,7 @@ func (a *AppService) awaitAIApproval(ctx context.Context, run *aiRun, call ai.To
 		run.mu.Unlock()
 		return false, context.Cause(ctx)
 	}
-	run.view.Pending = &AIPendingApproval{Token: aiID(), Call: call, TimeoutSeconds: timeout}
+	run.view.Pending = &AIPendingApproval{Token: aiID(), Call: call, TimeoutSeconds: timeout, Shell: run.environment.Shell}
 	run.view.State = "awaiting_approval"
 	run.view.Revision++
 	run.mu.Unlock()

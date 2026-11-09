@@ -168,7 +168,8 @@ func TestPowerShell51Execution(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(t.Context(), 15*time.Second)
 			defer cancel()
-			command := exec.CommandContext(ctx, powershell, strings.Fields(strings.TrimPrefix(powerShellCommand(), "powershell.exe "))...)
+			args := append([]string{"/d", "/c", powershell}, strings.Fields(strings.TrimPrefix(powerShellCommand(), "powershell.exe "))...)
+			command := exec.CommandContext(ctx, "cmd.exe", args...)
 			command.Stdin = strings.NewReader(test.script)
 			output, err := command.Output()
 			code := 0

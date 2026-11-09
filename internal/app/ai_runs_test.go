@@ -22,7 +22,7 @@ import (
 	gossh "golang.org/x/crypto/ssh"
 )
 
-func aiTestSSH(t *testing.T) (*AppService, <-chan string) {
+func aiTestSSH(t *testing.T, execute ...func(string, string) (string, string, uint32)) (*AppService, <-chan string) {
 	t.Helper()
 	_, key, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -69,8 +69,27 @@ func aiTestSSH(t *testing.T) (*AppService, <-chan string) {
 						request.Reply(true, nil)
 					case "exec":
 						request.Reply(true, nil)
+						var command struct{ Command string }
+						_ = gossh.Unmarshal(request.Payload, &command)
 						b, err := io.ReadAll(io.LimitReader(channel, 33<<10))
 						if err != nil {
+							return
+						}
+						if len(execute) > 0 {
+							out, stderr, code := execute[0](command.Command, string(b))
+							fmt.Fprint(channel, out)
+							fmt.Fprint(channel.Stderr(), stderr)
+							channel.SendRequest("exit-status", false, gossh.Marshal(struct{ Status uint32 }{code}))
+							return
+						}
+						if command.Command == "uname -s" {
+							fmt.Fprint(channel, "Linux\n")
+							channel.SendRequest("exit-status", false, gossh.Marshal(struct{ Status uint32 }{0}))
+							return
+						}
+						if strings.Contains(string(b), "TERMQUAY_SH") {
+							fmt.Fprint(channel, "TERMQUAY_SH\nports\nsystemd\n")
+							channel.SendRequest("exit-status", false, gossh.Marshal(struct{ Status uint32 }{0}))
 							return
 						}
 						executed <- string(b)

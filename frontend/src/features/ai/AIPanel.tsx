@@ -61,7 +61,7 @@ export default function AIPanel({ workspace, visible, configRevision, references
         <AIConversation messages={messages} run={ai.run} busy={ai.busy} onDecide={approved => void ai.decide(approved)} onError={ai.setError} />
         {!ai.browsing && ai.run?.live_text && <article className="ai-message assistant"><div className="ai-message-role">助手</div><div className="ai-stream-text">{ai.run.live_text}</div></article>}
       </div>
-      {pending && !pendingInPage && <AIToolCall call={pending.call} pending active busy={ai.busy} onDecide={approved => void ai.decide(approved)} />}
+      {pending && !pendingInPage && <AIToolCall call={pending.call} shell={pending.shell} pending active busy={ai.busy} onDecide={approved => void ai.decide(approved)} />}
       <AIRequestStatus run={ai.run} visible={visible}/>
       <form className="ai-composer" onSubmit={event => { event.preventDefault(); void send(); }}>
         {!!references.length && <div className="ai-pending-references" aria-label="待发送终端引用">{references.map((reference,index)=><div className="ai-pending-reference" key={index}><details><summary>{reference.label || `终端 ${reference.terminal.slice(0,8)}`}</summary><pre>{reference.text}</pre></details><button type="button" className="icon-button" aria-label={`移除引用 ${index+1}`} onClick={()=>onRemoveReference(index)}><Icon name="close" width="12"/></button></div>)}</div>}

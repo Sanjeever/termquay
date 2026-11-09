@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Sanjeever/termquay/internal/ai"
+	terminal "github.com/Sanjeever/termquay/internal/ssh"
 	"github.com/Sanjeever/termquay/internal/store"
 )
 
@@ -38,6 +39,7 @@ type AIConversationPage struct {
 }
 
 type AIPendingApproval struct {
+	Shell          string      `json:"shell"`
 	Token          string      `json:"token"`
 	Call           ai.ToolCall `json:"call"`
 	TimeoutSeconds int         `json:"timeout_seconds"`
@@ -81,6 +83,7 @@ type aiWorkspaceConversation struct {
 	id    string
 }
 type aiRun struct {
+	environment     terminal.RemoteEnvironment
 	mu              sync.Mutex
 	view            AIRunView
 	owner           *workspaceOwner
