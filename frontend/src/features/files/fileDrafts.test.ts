@@ -30,8 +30,6 @@ test('正文相同但格式改变或带恢复标记的草稿仍需保存', () =>
 test('file recovery actions follow the failed operation and structured remote error', () => {
   const conflict = { cause: { causes: [{ messageCode: 'backend:remoteFileChangedReadItAgainAndCompare' }, { message: 'cleanup failure' }] } };
   assert.equal(fileErrorAction({ error: conflict, errorOperation: 'save' }, true), 'compare');
-  assert.equal(fileErrorAction({ error: conflict, errorOperation: 'download' }, true), 'download');
-  assert.equal(fileErrorAction({ error: conflict, errorOperation: 'download' }, false), 'download');
   assert.equal(fileErrorAction({ error: conflict }, false), 'reconnect');
   assert.equal(fileErrorAction({ error: '', needsReview: true }, true), 'compare');
   assert.equal(fileErrorAction({ error: { cause: { messageCode: 'backend:cannotRepresentTheCurrentContentUseUTF8' } } }, true), 'encoding');

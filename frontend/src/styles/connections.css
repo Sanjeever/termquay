@@ -15,7 +15,7 @@
 .catalog-filters { display: flex; align-items: center; gap: 12px; padding: 12px 0 10px; min-height: 56px; flex-shrink: 0; }
 .catalog-filter-panel { display: flex; align-items: stretch; gap: 12px; width: min(300px, calc(100vw - 24px)); padding: 16px; background: var(--color-elevated); border: 1px solid var(--color-border-strong); border-radius: var(--radius-menu); box-shadow: var(--shadow-floating); }
 .catalog-filter-panel .select-control { width: 100%; }
-.catalog-actions { order: 1; display: flex; align-items: center; justify-content: flex-end; gap: 4px; min-height: 40px; flex-shrink: 0; border-top: 1px solid var(--color-border); overflow-x: auto; }
+.catalog-actions { display: flex; align-items: center; justify-content: flex-end; gap: 4px; min-height: 40px; flex-shrink: 0; border-top: 1px solid var(--color-border); overflow-x: auto; }
 .catalog-actions > * { flex-shrink: 0; }
 .catalog-actions button, .catalog-toolbar button { white-space: nowrap; }
 .catalog-active-filters { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding-bottom: 8px; flex-shrink: 0; }
@@ -49,6 +49,8 @@
 .latency-refreshing { animation: latency-spin 1s linear infinite; }
 @keyframes latency-spin { to { transform: rotate(360deg); } }
 .connection-list { flex: 1; min-height: 0; overflow: auto; scrollbar-gutter: stable; }
+.connection-list:not(:has(.connection-row)) { flex: 0 0 auto; }
+.connection-catalog > .sidebar-empty { flex: 1; justify-content: center; }
 .group-filter, .group-row { display: flex; align-items: center; min-height: 32px; width: 100%; text-align: left; border-radius: 6px; color: var(--color-muted); margin-bottom: 2px; }
 .group-filter { justify-content: space-between; padding: 5px 8px; }
 .group-filter:hover, .group-row:hover { background: var(--color-hover); }

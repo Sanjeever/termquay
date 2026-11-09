@@ -38,14 +38,18 @@ export function groupTransfers<T extends Pick<Transfer, 'id' | 'batch_id' | 'tar
   const groups = new Map<string, { id: string; items: T[]; directory: string }>();
   for (const item of items) {
     const id = JSON.stringify([item.batch_id || item.id, item.target, item.direction]);
-    const directory = item.directory ? item.destination_path : item.destination_path.slice(0, item.destination_path.lastIndexOf('/')) || '/';
+    const separator = item.direction === 'download' && /^(?:[a-z]:[\\/]|\\\\)/i.test(item.destination_path) ? '\\' : '/';
+    const destination = separator === '\\' ? item.destination_path.replace(/\//g, '\\') : item.destination_path;
+    const parent = destination.slice(0, destination.lastIndexOf(separator));
+    const directory = item.directory ? destination : /^[a-z]:$/i.test(parent) ? parent + separator : parent || (destination.startsWith(separator) ? separator : '');
     const group = groups.get(id);
     if (!group) { groups.set(id, { id, items: [item], directory }); continue; }
     group.items.push(item);
-    const parts = group.directory.split('/'), other = directory.split('/');
+    const parts = group.directory.split(separator), other = directory.split(separator);
     let shared = 0;
     while (shared < parts.length && shared < other.length && parts[shared] === other[shared]) shared++;
-    group.directory = parts.slice(0, shared).join('/') || '/';
+    const common = parts.slice(0, shared).join(separator);
+    group.directory = /^[a-z]:$/i.test(common) ? common + separator : common || (shared > 0 ? separator : '');
   }
   return [...groups.values()];
 }

@@ -32,3 +32,11 @@ test('transfer batches retain host and direction identity and use a path boundar
   assert.equal(groups[1].items[0].target, 'user@two:22');
   assert.equal(groups[2].items[0].direction, 'download');
 });
+
+test('download batches preserve Windows drives, UNC paths and unknown destinations', () => {
+  const task = { id: 'one', batch_id: 'batch', target: 'user@one:22', direction: 'download', destination_path: 'C:\\Users\\test\\a.conf', directory: false };
+  assert.equal(groupTransfers([task, { ...task, id: 'two', destination_path: 'C:\\Users\\other\\b.conf' }])[0].directory, 'C:\\Users');
+  assert.equal(groupTransfers([{ ...task, destination_path: 'C:\\a.conf' }])[0].directory, 'C:\\');
+  assert.equal(groupTransfers([{ ...task, destination_path: '\\\\server\\share\\a.conf' }])[0].directory, '\\\\server\\share');
+  assert.equal(groupTransfers([{ ...task, destination_path: '' }])[0].directory, '');
+});

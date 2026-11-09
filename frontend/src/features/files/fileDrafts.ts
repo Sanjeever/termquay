@@ -6,7 +6,7 @@ export type Draft = Document & {
   savedFormat?: string;
   reloadEpoch?: number;
   error: unknown;
-  errorOperation?: 'save' | 'read' | 'download';
+  errorOperation?: 'save' | 'read';
   saving: boolean;
   needsReview?: boolean;
   recovery?: boolean;
@@ -25,8 +25,7 @@ export function withSavedDocument(draft: Draft, document: Document): Draft {
   return { ...draft, saved: document.content, savedFormat: formatKey(document), revision: document.revision, saving: false, error: '', errorOperation: undefined };
 }
 
-export function fileErrorAction(draft: Pick<Draft, 'error' | 'errorOperation' | 'needsReview'>, connected: boolean): 'download' | 'reconnect' | 'compare' | 'encoding' | 'reload' | 'save' {
-  if (draft.errorOperation === 'download') return 'download';
+export function fileErrorAction(draft: Pick<Draft, 'error' | 'errorOperation' | 'needsReview'>, connected: boolean): 'reconnect' | 'compare' | 'encoding' | 'reload' | 'save' {
   if (!connected) return 'reconnect';
   const codes = new Set<string>();
   function collect(error: unknown) {

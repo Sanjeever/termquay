@@ -26,7 +26,7 @@ export default function TransferPanel({ tasks, reveal, height, onHeight, onClose
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set());
   const groups = useMemo(() => groupTransfers(tasks.items), [tasks.items]);
   const [retryBusy, setRetryBusy] = useState(false);
-  useEffect(() => { setFilter('all'); const group = groups.find(group => group.items.some(task => task.id === reveal)); if (group) setExpandedGroups(previous => new Set([...previous, group.id])); const frame = requestAnimationFrame(() => document.querySelector(`[data-transfer-id="${CSS.escape(reveal)}"]`)?.scrollIntoView({ block: 'nearest' })); return () => cancelAnimationFrame(frame); }, [reveal]);
+  useEffect(() => { setFilter('all'); const group = groups.find(group => group.items.some(task => task.id === reveal)); const task = group?.items.find(task => task.id === reveal); if (group && task && !['running','queued','failed'].includes(task.state)) setExpandedGroups(previous => new Set([...previous, group.id])); const frame = requestAnimationFrame(() => document.querySelector(`[data-transfer-id="${CSS.escape(reveal)}"]`)?.scrollIntoView({ block: 'nearest' })); return () => cancelAnimationFrame(frame); }, [reveal]);
   const [rate,setRate]=useState(0);const [rateError,setRateError]=useMessageState('');
   const [optionsOpen,setOptionsOpen]=useState(false);
   const [resume,setResume]=useState('');const [resumeWorkspace,setResumeWorkspace]=useState('');const [resumeBusy,setResumeBusy]=useState(false);
