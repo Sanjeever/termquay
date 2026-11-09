@@ -59,7 +59,9 @@ Arguments are passed through, for example `pnpm build ARCH=arm64` or `pnpm task 
 <a id="日常修改与验证"></a>
 ## Changes and checks
 
-After Go service/model/event changes, regenerate bindings and inspect the result:
+For behavior/API/error/configuration changes, follow the [documentation synchronization rules](../AGENTS.md#documentation-consistency). Check the implementation, direct callers and effective tests before updating claims; keep unresolved contract violations visible rather than documenting them as intended behavior.
+
+After changes to exposed Go services/models/events, regenerate bindings and inspect the result:
 
 ```sh
 pnpm bindings
@@ -101,11 +103,9 @@ Resources live in [frontend/src/i18n/locales](../frontend/src/i18n/locales), gro
 
 Language extends [appearance settings](../frontend/src/features/settings/appearance.ts) and the existing portable UI/backup path. Legacy missing preferences default to following the system. Supported English and Simplified Chinese preferences are matched in order; unsupported locales fall back to English without claiming Traditional Chinese support. Store `auto` itself and resolve it again on the destination device.
 
-Initialize before storage unlock. Keep HeroUI, HTML language, CodeMirror phrases, xterm accessibility labels, formatting, sorting and Go-owned native UI synchronized. The Vite locale-context alias makes HeroUI providers and overlays share one React Aria context; verify it when dependencies change.
+Keep HeroUI, HTML language, CodeMirror phrases, xterm accessibility labels, formatting, sorting and Go-owned native UI synchronized. The Vite locale-context alias makes HeroUI providers and overlays share one React Aria context; verify it when dependencies change.
 
-Translate at display boundaries. [Diagnostic metadata](../internal/message) has no language state or translation engine. Preserve original diagnostics, error chains, file recovery codes, SSH steps and machine fields. Legacy machine state values remain intact with additive display codes. Unknown diagnostics and remote output remain inspectable.
-
-Language changes must not alter workspace keys, recreate editors, reconnect sessions, cancel transfers or replay operations. Reconfigure editor phrases/presentation while retaining content, selection and undo history. Keep error objects/metadata in transient state so open notices can update. Do not translate user names, commands, paths, terminal output, remote file/log bodies, model-generated content or original licenses. Published release notes retain their original language.
+Follow the [localization contract](architecture.md#localization-and-collaboration) for initialization, translation boundaries and state preservation. Keep original error objects/metadata in transient state so open notices can update; retain unknown diagnostics and remote output. Test language changes with pending operations and actual editor selection/history, as in the [frontend tests](#frontend-tests). Preserve published release notes in their original language.
 
 <a id="使用说明"></a>
 <a id="连接与工作区"></a>
@@ -126,7 +126,7 @@ Language changes must not alter workspace keys, recreate editors, reconnect sess
 - **Identity and credentials:** verify new fingerprints/certificates against a trusted source. Changed identities block connection. Review legitimate changes in identity settings. Shared credential updates require reviewing the affected connection set.
 - **Storage and lock:** explicitly choose master password/session storage if the system keychain is unavailable. Connection metadata is not whole-database encrypted. Application lock blocks new interaction while existing sessions/tasks can continue. Forgotten passwords require an independent backup.
 - **Files:** enable file browsing mode to block new file writes in that SSH workspace. It does not restrict terminal/task commands or cancel operations already started. Upload is in the file panel's options menu; bookmarks and paste use named icon buttons. Saving checks the remote baseline and preserves drafts on conflict. The editor toolbar shows save state; encoding and line endings are in its status bar. Reload, download and manual completion are in editor options. Recovery actions follow the failed operation, and draft-download errors remain separate from remote save errors. Encoding, history recovery, sudo authorization, validation and reload are separate decisions.
-- **Transfers:** preview conflicts and selected differences. The panel groups tasks by batch, actual target and direction; finished entries can be expanded while running and failed entries stay visible. Resume and staging cleanup have separate confirmation flows. Resume explicitly after reconnecting to the same verified destination. Directory sync does not delete extra destination files. Cancellation does not prove remote termination.
+- **Transfers:** preview conflicts and selected differences. The panel groups tasks by batch, actual target and direction; finished entries can be expanded while running and failed entries stay visible. Resume and staging cleanup have separate confirmation flows. Removing a record works offline and leaves staging files; confirm the loss of resume data before removal. Explicit cleanup removes staging first and retains the record on failure. Resume explicitly after reconnecting to the same verified destination. Directory sync does not delete extra destination files. See the [transfer lifecycle contract](architecture.md#communication-backpressure-and-lifecycle).
 - **Terminal tools:** snippets await explicit insertion; completion integration is enabled per shell session. Multi-host steps use separate shells. Review the first-host confirmation before continuing. Saved run results are locally encrypted and excluded from regular backups.
 - **Monitoring/logs:** Linux collection uses existing tools and current-user permissions. Preserve unknown, stale, truncated and partial states. [Docker containers](#docker-containers) use a dedicated tool tab over an SSH-forwarded Unix socket.
 - **AI:** questions, explicitly attached references and tool-read contents go to the configured model service. Review command approvals. Stopping, locking or disconnecting invalidates pending approvals; operations already sent may still have unknown remote state.
@@ -266,11 +266,60 @@ pnpm package
 Builds go to `bin/`. Consult [platform tasks](../build): macOS packaging uses local ad-hoc signing; Windows NSIS needs `makensis`; MSIX/Linux formats need their tools. These documented workflows do not authorize publishing or signed distribution. Full tasks can run `go mod tidy` and regenerate bindings; inspect the diff and preserve build customizations. The [Chinese resource guide](development.zh-CN.md#构建与本地打包) retains detailed icon procedures.
 
 <a id="版本与发布"></a>
-<a id="应用检查与安装更新"></a>
 ## Versions and releases
 
 [frontend/package.json](../frontend/package.json) is the application version source; [scripts/version.mjs](../scripts/version.mjs) synchronizes platform resources. Database, backup and layout versions evolve independently.
 
-Before an authorized future bump, write `docs/releases/<version>.md`, English first and Chinese second in the same file, and commit it with version resources. Preserve published logs/public versions. Language/contribution work does not authorize a bump, tag, push, release or signed distribution.
+Release operations require authorization. Before a bump, write `docs/releases/<version>.md` from the changes since the previous tag, English first and Chinese second in the same file. Commit the log with the version resources and preserve published logs/public versions. Run these commands in a sh-compatible shell, substituting the intended version:
 
-Candidate artifacts/checksums and publishing are defined in [the release workflow](../.github/workflows/release.yml). Native candidate acceptance and [third-party audit gaps](../THIRD_PARTY_NOTICES.md) must be addressed before an authorized public release. Checksums prove integrity; signing/authenticity is separate.
+```sh
+next_version='<next-version>'
+pnpm --dir frontend bump "$next_version"
+node scripts/version.mjs check "v$next_version"
+node scripts/release-check.mjs
+```
+
+The version tool validates the release log and resource structures before writing files; it does not commit or tag. Its accepted version format and synchronized resource list live in [scripts/version.mjs](../scripts/version.mjs), with regression coverage in the script suite. The release audit rejects registered pending items, changed audited dependency inputs and missing/empty WASM license files. Update the collected materials and review after dependency or patch changes; do not bypass a failed audit. A change confined to development dependencies still changes the audited lockfile: compare production resolutions and patch settings against the previous reviewed version and record that evidence before refreshing the input digest.
+
+### Candidate and public release
+
+Commit the candidate on `main`, push it, and manually dispatch the release workflow at that commit's branch. Confirm the run's `headSha` matches the candidate; dispatching a branch that has moved checks another commit. The manual run creates a `release-bundle` artifact with platform archives and `SHA256SUMS`, without publishing a Release:
+
+```sh
+git push origin main
+gh workflow run release.yml --ref main
+```
+
+[CI](../.github/workflows/ci.yml) defines the check matrix. [The release workflow](../.github/workflows/release.yml) defines runners, architectures, artifact names and release flags. Candidate archives contain one top-level executable or `.app`, matching [the update provider](../internal/update/provider.go) and updater unpacking requirements. Candidates are formal builds and can check the currently public stable release. Keep [task inputs](../build/Taskfile.yml) current when adding source directories or Wails include resources so builds do not scan dependency links recursively.
+
+Check candidate startup, system integration, core connections, unsaved-file exit protection and upgrade from an older program. Cover download failure/cancellation, checksum mismatch, unwritable installation directories and replacement failure. Record the candidate commit, environment, coverage and outstanding platform/service gaps in the [verification ledger](#verification-and-known-gaps). Native builds and test doubles do not establish desktop or real-remote acceptance.
+
+After the candidate checks and audit, create an annotated tag for the same checked commit already on remote `main`, then push it:
+
+```sh
+git tag -a "v$next_version" -m "Release v$next_version"
+git push origin "v$next_version"
+```
+
+Tag runs repeat version, ancestry, tests and audit checks, build every target and assemble checksums before publishing. Release notes come directly from the version log; the update UI reuses that body. The workflow can complete an unpublished draft and rejects overwriting a public version. A green manual run proves candidate assembly; completion also requires a successful tag run and a public Release with all expected archives and checksums.
+
+### Signing and license collection
+
+Release linker flags are defined in the workflow. Ordinary local production builds retain the development marker and do not check/install updates. Windows archives currently have no Authenticode distribution signature. macOS uses ad-hoc signing unless the release signing settings are configured. For Developer ID signing, notarization and stapling, the workflow requires GitHub Secrets `MACOS_CERTIFICATE` (Base64 p12), `MACOS_CERTIFICATE_PASSWORD`, `MACOS_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_TEAM_ID` and `APPLE_APP_PASSWORD`. Keep their values outside the repository/logs. Checksums establish integrity; signing/authenticity is separate.
+
+After production frontend dependency changes, export license metadata to an OS-appropriate temporary path and collect original texts:
+
+```sh
+license_metadata='<absolute-temporary-file-path>'
+pnpm --dir frontend licenses list --prod --json > "$license_metadata"
+node scripts/licenses.mjs "$license_metadata"
+```
+
+The collector removes installation paths and reports missing materials. Collection does not complete the audit: reconcile Go modules, prebuilt JavaScript/WASM provenance, actual distributed artifacts and [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) with the [review record](../build/licenses/review.json).
+
+<a id="应用检查与安装更新"></a>
+### Application updates
+
+**Settings → About** shows the version, build commit, update state, release notes and licenses. Formal builds check after startup and periodically when automatic checking is enabled; settings stay local. A new version marks the settings entry without automatically downloading or restarting. After reviewing its notes, explicitly download and choose **Restart and update**. Cancellation of exit returns to the current application; unsaved files and persistence failures must be handled before updater handoff.
+
+The project/platform/version and SHA-256 entry must match. Installation and parent directories must be writable; use the installer or manual replacement for managed locations. Binary replacement/recovery does not roll back data migrations. Scheduling and state live in [update.go](../internal/app/update.go); invariants are in [Releases and updates](architecture.md#releases-and-updates). The [Chinese update guide](development.zh-CN.md#应用检查与安装更新) retains the historical Windows helper verification and remaining native acceptance gaps.

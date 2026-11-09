@@ -2,7 +2,7 @@
 
 [English](README.md) · [贡献指南](CONTRIBUTING.md)
 
-TermQuay 是使用 Go、Wails v3 和 React 构建的开源远程连接工作台，将 SSH、本地终端、远程文件编辑、Linux 监控和内嵌 RDP 放在统一桌面工作区，支持连接分组与加密 WebDAV 备份。连接数量不设置商业限制。
+TermQuay 是使用 Go、Wails v3 和 React 构建的开源远程连接工作台，将 SSH、本地终端、远程文件编辑、Linux 监控和内嵌 RDP 放在统一桌面工作区，支持连接分组、本地加密文件与 WebDAV 快照备份。连接数量不设置商业限制。
 
 支持 macOS、Windows 和 Linux。从 [GitHub Releases](https://github.com/Sanjeever/termquay/releases) 下载对应平台的压缩包；运行前提见 [环境说明](docs/development.zh-CN.md#环境与定义入口)，已记录的验证范围与缺口见 [验收记录](docs/development.zh-CN.md#已有验收记录与缺口)。
 
@@ -24,7 +24,7 @@ TermQuay 是使用 Go、Wails v3 和 React 构建的开源远程连接工作台�
 - [本机工作环境](docs/development.zh-CN.md#本地草稿与布局恢复)：命名工作集、布局与草稿恢复，以及[外观和快捷键](docs/development.zh-CN.md#设置与演示模式)。
 - [加密备份](docs/development.zh-CN.md#备份与恢复)：本地文件与 WebDAV 快照、预览恢复与配置迁移。
 
-操作方式与限制见 [使用说明](docs/development.zh-CN.md#使用说明)，各平台已记录的验证范围与待验事项见 [验收记录](docs/development.zh-CN.md#已有验收记录与缺口)。内嵌 RDP 的 TLS 兼容边界见 [RDP 设计说明](docs/architecture.zh-CN.md#内嵌-rdp)。
+操作方式与限制见 [使用说明](docs/development.zh-CN.md#使用说明)，内嵌 RDP 的 TLS 兼容边界见 [RDP 设计说明](docs/architecture.zh-CN.md#内嵌-rdp)。
 
 ## CLI 与 Agent Skill
 
@@ -64,7 +64,7 @@ SSH 工作区
 pnpm dev
 ```
 
-启动脚本自动管理匹配版本的项目内 Wails CLI。`pnpm build` 构建程序，`pnpm package` 生成当前平台安装包。平台前提、绑定生成、检查命令和真实服务测试配置见 [开发说明](docs/development.zh-CN.md)，打包前提见 [构建与本地打包](docs/development.zh-CN.md#构建与本地打包)。
+项目内 Wails CLI、构建、打包、绑定生成和检查入口统一见 [开发命令](docs/development.md#development-commands)，平台前提与真实服务测试配置见 [开发说明](docs/development.zh-CN.md)。
 
 ## 项目结构与文档
 

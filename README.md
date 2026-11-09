@@ -25,7 +25,7 @@ Choose **Settings → Appearance → Language** to follow the system, use Englis
 - **Local workspace** — named working sets, layout and draft recovery, appearance and keyboard shortcuts.
 - **Encrypted backups** — local files and WebDAV snapshots with previewed recovery and selective configuration migration.
 
-See [usage and boundaries](docs/development.md#using-the-workbench), including the [RDP TLS compatibility boundary](docs/architecture.md#embedded-rdp). Recorded native WebView and real remote coverage is in the [verification ledger](docs/development.md#verification-and-known-gaps).
+See [usage and boundaries](docs/development.md#using-the-workbench), including the [RDP TLS compatibility boundary](docs/architecture.md#embedded-rdp).
 
 <a id="cli-与-agent-skill"></a>
 ## CLI and Agent skill
@@ -62,7 +62,7 @@ Follow [environment and first run](docs/development.md#environment) for toolchai
 pnpm dev
 ```
 
-The launcher manages a matching project-local Wails CLI. Use `pnpm build` to build and `pnpm package` to package for the host platform. The [development guide](docs/development.md#development-commands) covers commands, platform prerequisites, generated bindings and checks. The [architecture guide](docs/architecture.md) explains security, ownership, backpressure and recovery contracts.
+The [development commands](docs/development.md#development-commands) cover the project-local Wails CLI, native builds, packaging, bindings and checks. The [architecture guide](docs/architecture.md) explains security, ownership, backpressure and recovery contracts.
 
 <a id="项目结构与文档"></a>
 ## Repository map

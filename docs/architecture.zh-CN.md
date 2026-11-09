@@ -2,7 +2,7 @@
 
 [English](architecture.md) · [开发说明](development.zh-CN.md)
 
-英文入口维护面向贡献者的关键契约，本文保留详细设计理由和代码导航。
+英文入口维护面向贡献者的关键契约与共用代码导航，本文保留详细设计理由。
 
 本文维护 TermQuay 的设计意图、长期约束和行为契约。“必须”“不得”和目标描述约束后续实现，不表示所有能力已验收。当前实现细节以代码及有效测试为准。调整既有决策时，记录原因、受影响契约与必要迁移，避免用实现现状抹掉约束。
 
@@ -218,20 +218,4 @@ WebDAV 使用追加式快照，不覆盖或自动清理历史。备份目录由�
 
 ## 按概念定位代码
 
-下表用于按任务选择上下文，不枚举方法或要求目录固定。应用层实现及对应测试位于 `internal/app`；根目录保留程序入口与资源嵌入。移动入口时维护链接即可。
-
-| 概念 | 实现入口 | 验证入口 |
-| --- | --- | --- |
-| 工作区、布局与退出 | [app.go](../internal/app/app.go)、[lifecycle.go](../internal/app/lifecycle.go)、[workspace.go](../internal/app/workspace.go)、[App.tsx](../frontend/src/App.tsx)、[前端工作区与退出协调](../frontend/src/features/workspaces)、[工作台布局](../frontend/src/components/layout) | `lifecycle_test.go`、`workspace_test.go`、`workspace_state_test.go`、前端 `workspaceLayout.test.ts`、原生关闭与重载验证 |
-| 版本发布与应用更新 | [assets.go](../assets.go)、[version.go](../internal/app/version.go)、[update.go](../internal/app/update.go)、[internal/update](../internal/update)、[发布工作流](../.github/workflows/release.yml)、[版本工具](../scripts/version.mjs) | `internal/update/provider_test.go`、`scripts/version.test.mjs`、原生替换与重启验收 |
-| SSH、PTY 与消费确认 | [internal/ssh](../internal/ssh)、[ssh_connect.go](../internal/app/ssh_connect.go)、[terminal_sessions.go](../internal/app/terminal_sessions.go)、[TerminalView](../frontend/src/features/terminal/TerminalView.tsx) | [terminal_test.go](../internal/ssh/terminal_test.go)、[重连修复与验证缺口](development.zh-CN.md#重连修复与验证缺口) |
-| 本机 CLI 与 IPC | [internal/cli](../internal/cli)、[internal/localapi](../internal/localapi)、[cli.go](../internal/app/cli.go)、[cli_queries.go](../internal/app/cli_queries.go) | `internal/cli/cli_test.go`、`internal/localapi/server_test.go`、`internal/app/cli_test.go`、[原生程序检查](../scripts/cli-smoke.mjs) |
-| 内置 AI、工具与历史 | [internal/ai](../internal/ai)、[ai.go](../internal/app/ai.go)、[工具](../internal/app/ai_tools.go)、[历史存储](../internal/store/ai.go) | `internal/ai/*_test.go`、`internal/app/ai*_test.go`、[AI 验收范围](development.zh-CN.md#内置-ai-验收2026-11-06) 与 [Windows SSH 适配验收](development.zh-CN.md#windows-ssh-ai-适配验收2026-11-09) |
-| 本地 Shell 与 PTY | [local_terminal.go](../internal/app/local_terminal.go)、[TerminalView](../frontend/src/features/terminal/TerminalView.tsx) | 各平台原生进程、输入与关闭验证 |
-| 目录延迟探测 | [latency.go](../internal/app/latency.go)、[internal/ssh/latency.go](../internal/ssh/latency.go)、[前端调度](../frontend/src/features/connections/useConnectionLatency.ts) | `latency_test.go` 验证本地 TCP、代理请求合并、取消与并发边界；真实代理、跳板路径与前端可见性调度仍需验证 |
-| 文件、草稿与传输 | [internal/files](../internal/files)、[files.go](../internal/app/files.go)、[transfer.go](../internal/app/transfer.go)、[前端文件工作区](../frontend/src/features/files) | `internal/files/service_test.go`、`transfer_test.go`、原生传输流程 |
-| Linux 监控 | [internal/monitor](../internal/monitor)、[monitor.go](../internal/app/monitor.go) | `internal/monitor/sample_test.go`、`filesystems_test.go`、前端 `history.test.ts` |
-| RDP、证书与授权 | [internal/rdp](../internal/rdp)、[rdp.go](../internal/app/rdp.go)、[RDPView](../frontend/src/features/rdp/RDPView.tsx) | `internal/rdp/bridge_test.go`、真实 RDP 与原生 WebView |
-| 存储、凭据与信任 | [internal/store](../internal/store)、[storage.go](../internal/app/storage.go)、[data.go](../internal/app/data.go)、[connection_data.go](../internal/app/connection_data.go)、[credentials.go](../internal/app/credentials.go)、[trust.go](../internal/app/trust.go)、[连接界面](../frontend/src/features/connections) | `data_test.go`、`credentials_test.go`、`trust_test.go` |
-| 配置预览导入 | [import.go](../internal/app/import.go)、[import_putty_windows.go](../internal/app/import_putty_windows.go) | `import_test.go` |
-| 快照与恢复 | [internal/backup](../internal/backup)、[backup_snapshot.go](../internal/app/backup_snapshot.go)、[backup_restore.go](../internal/app/backup_restore.go)、[backup_local.go](../internal/app/backup_local.go)、[backup_selection.go](../internal/app/backup_selection.go)、[BackupSettings](../frontend/src/features/settings/BackupSettings.tsx) | `internal/backup/*_test.go`、`data_test.go`、`backup_selection_test.go` |
+实现与验证入口统一维护在 [Code navigation](architecture.md#code-navigation)，按概念选择上下文。应用服务及对应测试位于 `internal/app`，根目录保留程序入口与资源嵌入；移动入口时维护共用表格及引用链接。验证命令与实际覆盖分别见 [日常检查](development.md#changes-and-checks) 和 [验收记录](development.zh-CN.md#已有验收记录与缺口)。

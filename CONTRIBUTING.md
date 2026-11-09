@@ -30,7 +30,7 @@ Maintain bundled English/Simplified Chinese resources, whole sentences, plurals 
 
 Do not translate user content, commands, paths, terminal/remote output, model content, original licenses or published release notes. New documentation/comments default to English; retain Chinese entry points. Focused translation contributions are welcome without maintaining every language document; identify follow-up needs.
 
-Synchronize directly affected documentation, help/examples, tests and generated interfaces after behavior/API/error/configuration changes. Check JSON nesting and moved anchors. Do not weaken identity, backpressure, cancellation or restore contracts to pass a test.
+Follow the [documentation synchronization rules](AGENTS.md#documentation-consistency) after behavior/API/error/configuration changes, including help/examples and generated interfaces. Keep shared commands and verification records at their canonical entry points. Do not weaken identity, backpressure, cancellation or restore contracts to pass a test.
 
 ## Submit a pull request
 

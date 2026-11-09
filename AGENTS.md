@@ -30,6 +30,7 @@ When code and documentation disagree, distinguish stale implementation descripti
 
 ## Documentation consistency
 
+- Before committing a behavior change, record which documentation surfaces were checked and any unresolved discrepancies.
 - For API, event, error, behavior, configuration or default changes, identify the authoritative definition and search affected concepts and old names in both README languages, docs, AGENTS.md, comments, examples, CLI help and the distributed skill. Before committing, reconcile affected instructions with the final diff, including arguments, JSON nesting and entry points; update related tests, configuration and generated bindings as needed. Local implementation changes do not automatically require documentation edits.
 - Code, schemas and effective configuration define versions, limits, defaults and fields. Link to them instead of duplicating values. Keep necessary behavior and limitations in operational instructions; avoid pinning command examples to a released application version.
 - Check links and heading anchors when moving or deleting entry points. Synchronize verification commands and security configuration when test entry points change. Preserve historical release notes and third-party license texts.

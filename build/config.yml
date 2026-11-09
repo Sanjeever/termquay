@@ -1,7 +1,7 @@
-# Wails 开发与构建资源配置，操作入口见 docs/development.md。
-# 版本通过 scripts/version.mjs 同步；修改其他 info 或 fileAssociations 后，
-# 用 wails3 task common:update:build-assets 更新资源。
-# 生成可能覆盖手工定制，执行前后检查平台资源 diff。
+# Wails development/build resources: docs/development.md#development-commands.
+# Sync versions through scripts/version.mjs. After other info/fileAssociations changes,
+# run pnpm task common:update:build-assets and inspect the generated platform diff
+# for overwritten packaging customizations.
 version: '3'
 
 info:

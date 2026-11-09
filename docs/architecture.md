@@ -2,7 +2,7 @@
 
 [简体中文](architecture.zh-CN.md) · [Development](development.md) · [Contributing](../CONTRIBUTING.md)
 
-These are design invariants, not a claim that every capability has passed acceptance. Implementation, models and effective tests define current behavior. Investigate divergence instead of silently rewriting a contract to excuse a defect. The [Chinese document](architecture.zh-CN.md) retains the longer design rationale and code-navigation table.
+These are design invariants, not a claim that every capability has passed acceptance. Implementation, models and effective tests define current behavior. Investigate divergence instead of silently rewriting a contract to excuse a defect. The [Chinese document](architecture.zh-CN.md) retains longer design rationale; the shared [code map](#code-navigation) below points to implementation and verification entry points.
 
 <a id="产品与技术边界"></a>
 ## Product and technology boundaries
@@ -152,13 +152,21 @@ Use the pinned Wails updater for download/checksum/unpack/replacement. Accept ma
 <a id="按概念定位代码"></a>
 ## Code navigation
 
+Use these entries to select task context, rather than treating file names as a fixed architecture. Detailed check commands and platform evidence belong in the [development guide](development.md#changes-and-checks).
+
 | Concept | Source | Verification |
 | --- | --- | --- |
-| Workspaces/layout/exit | [app](../internal/app), [frontend workspaces](../frontend/src/features/workspaces) | Lifecycle/layout tests and native close/restart |
-| SSH/PTY/backpressure | [SSH](../internal/ssh), [terminal view](../frontend/src/features/terminal/TerminalView.tsx) | Local protocol tests; optional real SSH |
-| Storage/trust | [store](../internal/store), [application services](../internal/app) | Vault, credential, identity and restore tests |
-| Files/transfers | [files](../internal/files), [frontend files](../frontend/src/features/files) | SFTP fixtures, conflict/cancel/resume and native dialogs |
-| Monitoring/logs | [monitor](../internal/monitor), [logs](../frontend/src/features/logs) | Parser/history tests; optional real Linux |
-| RDP | [bridge](../internal/rdp), [RDP service](../internal/app/rdp.go) | Local TLS tests; real desktop/native WebView |
-| AI/CLI | [AI](../internal/ai), [CLI](../internal/cli), [IPC](../internal/localapi) | Protocol/approval/lock/query tests; native/real services |
-| Backups | [backup](../internal/backup), [restore](../internal/app/backup_restore.go) | Corruption, validation, safety copy and transactions |
+| Workspaces/layout/exit | [lifecycle](../internal/app/lifecycle.go), [layout](../internal/app/workspace.go), [drafts](../internal/app/workspace_state.go), [frontend workspaces](../frontend/src/features/workspaces) | Lifecycle/layout/draft tests; native close/restart |
+| Releases/updates | [build identity](../assets.go), [updates](../internal/app/update.go), [provider](../internal/update), [version tool](../scripts/version.mjs) | Provider/script tests; native replacement/restart |
+| SSH/PTY/backpressure | [SSH](../internal/ssh), [connection service](../internal/app/ssh_connect.go), [terminal view](../frontend/src/features/terminal/TerminalView.tsx) | Local protocol tests; [real SSH and reconnect gaps](development.zh-CN.md#重连修复与验证缺口) |
+| Local terminals | [PTY service](../internal/app/local_terminal.go), [terminal view](../frontend/src/features/terminal/TerminalView.tsx) | Native process/input/close checks per platform |
+| Catalog latency | [scheduler](../frontend/src/features/connections/useConnectionLatency.ts), [service](../internal/app/latency.go), [probe](../internal/ssh/latency.go) | Latency tests; real proxy/jump routes and view visibility |
+| Storage/credentials/trust | [store](../internal/store), [storage](../internal/app/storage.go), [credentials](../internal/app/credentials.go), [trust](../internal/app/trust.go) | Vault, credential and identity tests |
+| Configuration import | [OpenSSH](../internal/app/import.go), [other clients](../internal/app/import_sessions.go), [PuTTY registry](../internal/app/import_putty_windows.go) | Import fixtures; real client exports/native pickers |
+| Files/transfers | [files](../internal/files), [transfer service](../internal/app/transfer.go), [frontend files](../frontend/src/features/files) | SFTP fixtures, conflict/cancel/resume/removal tests; native dialogs |
+| Monitoring/logs | [monitor](../internal/monitor), [inspection](../internal/app/linux_inspection.go), [logs](../frontend/src/features/logs) | Parser/history tests; real Linux permissions and visibility |
+| Docker | [client](../internal/docker), [service](../internal/app/docker.go), [workspace](../frontend/src/features/docker) | Frame/lifecycle/preference tests; real SSH socket/container checks |
+| RDP | [bridge](../internal/rdp), [RDP service](../internal/app/rdp.go), [system client](../internal/app/system_rdp_windows.go) | Local TLS tests; real desktop/native WebView |
+| AI | [protocols](../internal/ai), [agent](../internal/app/ai.go), [tools](../internal/app/ai_tools.go), [history](../internal/store/ai.go) | Protocol/approval/budget/history tests; [provider and platform gaps](development.md#verification-and-known-gaps) |
+| CLI/IPC | [CLI](../internal/cli), [IPC](../internal/localapi), [queries](../internal/app/cli_queries.go) | Authorization/query/cancellation tests; [native executable smoke](../scripts/cli-smoke.mjs) |
+| Backups | [backup](../internal/backup), [restore](../internal/app/backup_restore.go), [selection](../internal/app/backup_selection.go) | Corruption, validation, safety copy and transaction tests; real WebDAV/migration |
