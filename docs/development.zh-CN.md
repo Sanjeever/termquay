@@ -10,11 +10,12 @@
 
 - Go 最低版本与建议工具链由 [go.mod](../go.mod) 的 `go`、`toolchain` 声明决定。允许自动工具链下载的环境会按需选择工具链；使用更高版本时仍需验证兼容性。
 - pnpm 版本由 [frontend/package.json](../frontend/package.json) 的 `packageManager` 声明决定，Node 需满足锁定 pnpm/Vite 的要求。使用 [锁文件](../frontend/pnpm-lock.yaml) 安装，不改其他项目或全局工具配置。
-- Wails CLI 与 `go.mod` 中 Wails 模块版本保持一致。下方安装命令从模块定义读取版本，不另维护版本常量。
+- Wails CLI 与 `go.mod` 中 Wails 模块版本保持一致。根目录启动脚本读取模块版本，缺失或版本不匹配时自动安装。
 - 原生依赖随目标平台准备：macOS 使用 Command Line Tools；Windows 运行需要 WebView2；Linux 构建需要 C 编译器及 Wails 对应的 GTK/WebKit 开发库。包名随发行版和构建选项核对，不把交叉编译结果当作原生验证。
 
 | 内容 | 定义入口 |
 | --- | --- |
+| 日常开发命令与 Wails CLI 安装 | [package.json](../package.json)、[启动脚本](../scripts/wails.mjs) |
 | 前端脚本、依赖和 Node 包管理器 | [frontend/package.json](../frontend/package.json) 与锁文件 |
 | 开发服务器和端口 | [frontend/vite.config.ts](../frontend/vite.config.ts)、[Taskfile.yml](../Taskfile.yml) |
 | 热重载、产品元数据与资源生成 | [build/config.yml](../build/config.yml) |
@@ -26,9 +27,11 @@ Taskfile 保留 Wails 模板任务。出现 server、Docker 或 iOS 任务不表
 
 ## 首次运行
 
-安装依赖、构建前端及安装匹配 Wails CLI 的命令统一维护在 [First run](development.md#first-run)，包含 Windows PowerShell 与 macOS/Linux Shell 示例。先构建前端资源供根包嵌入，再将 CLI 安装到已忽略的 `.tools` 目录并加入当前终端 PATH。
+安装依赖、构建前端及启动命令统一维护在 [First run](development.md#first-run)。Windows、macOS 和 Linux 均在仓库根目录运行 `pnpm dev`。启动脚本按需将匹配版本的 Wails CLI 安装到 `.tools`，为 Wails 及其子任务设置 PATH，新终端无需额外配置。根目录无需单独安装 Node 依赖，前端依赖仍在 `frontend` 管理。
 
-开发入口通过项目任务完成绑定生成和前端构建，再启动桌面与前端开发服务器。新终端需要重新将 `.tools` 加入 PATH。浏览器单独打开 Vite 页面无法代替原生 Wails 运行时验证。
+常用命令包括 `pnpm build`、`pnpm package`、`pnpm wails:doctor`、`pnpm bindings`、`pnpm check` 和 `pnpm test`。`pnpm doctor` 是 pnpm 自身命令，因此 Wails 诊断使用 `wails:doctor`。`pnpm task <任务> [参数]` 与 `pnpm wails <命令> [参数]` 支持其他任务和 CLI 命令。完整映射见 [Development commands](development.md#development-commands)；根目录与前端的 pnpm 版本声明须保持一致。
+
+开发入口通过项目任务完成绑定生成和前端构建，再启动桌面与前端开发服务器。`pnpm dev:frontend` 可单独启动 Vite，`pnpm build:frontend` 构建前端资源。浏览器单独打开 Vite 页面无法代替原生 Wails 运行时验证。
 
 ## 日常修改与验证
 
@@ -502,15 +505,15 @@ termquay exec --workspace '<精确工作区ID>' --script-file ./inspect.sh --tim
 ## 构建与本地打包
 
 ```sh
-wails3 build
-wails3 task package
+pnpm build
+pnpm package
 ```
 
-`wails3 build` 将可执行文件写入 `bin/`，Windows 文件带 `.exe`；`wails3 task package` 再生成平台包。macOS 打包生成 `.app` 并作本机 ad-hoc 签名；Windows 默认 NSIS 打包需要 `makensis`，MSIX 使用相应 Windows 工具；Linux 包格式及工具按平台 Taskfile 选择。完整构建任务可能执行 `go mod tidy` 并更新绑定，完成后检查实际 diff。
+`pnpm build` 调用 `wails3 build`，将可执行文件写入 `bin/`，Windows 文件带 `.exe`；`pnpm package` 调用 `wails3 task package`，生成平台包。参数可直接追加，例如 `pnpm build ARCH=arm64`；其他平台任务通过 `pnpm task <任务>` 调用。macOS 打包生成 `.app` 并作本机 ad-hoc 签名；Windows 默认 NSIS 打包需要 `makensis`，MSIX 使用相应 Windows 工具；Linux 包格式及工具按平台 Taskfile 选择。完整构建任务可能执行 `go mod tidy` 并更新绑定，完成后检查实际 diff。
 
 `build/config.yml` 是产品元数据与资源生成入口，平台产物仍由 `build/` 中模板和任务决定。版本使用下方版本工具同步；修改其他 `info` 或文件关联时按配置文件说明更新资源，再检查生成 diff，避免覆盖已有打包定制。
 
-应用图标以 [build/appicon.svg](../build/appicon.svg) 为唯一矢量源稿。使用 SVG 渲染工具导出 `build/appicon.png`（1024px）、Linux 的 `build/linux/icon-128.png` 和 DMG 的 `build/darwin/dmg-file-icon.png`。macOS 单独使用 `build/darwin/appicon.png`：将通用 PNG 等比缩放至 880px，居中置于 1024px 透明画布，四边各留 72px，避免 Dock 主体比其他应用显著偏大。随后运行 `wails3 task common:generate:icons`，分别由通用和 macOS PNG 生成 ICO/ICNS；将生成的 `icons.icns` 同步到 `dmg-file-icon.icns`。运行时同样按平台选择 PNG。Windows 构建由 syso 嵌入 ICO，macOS app 包与 DMG 卷引用 ICNS，Linux 包的 hicolor 路径使用对应 128px PNG。修改资源后需重新构建并启动原生程序检查系统入口，文件生成不能替代任务栏、Dock 或启动器验收。
+应用图标以 [build/appicon.svg](../build/appicon.svg) 为唯一矢量源稿。使用 SVG 渲染工具导出 `build/appicon.png`（1024px）、Linux 的 `build/linux/icon-128.png` 和 DMG 的 `build/darwin/dmg-file-icon.png`。macOS 单独使用 `build/darwin/appicon.png`：将通用 PNG 等比缩放至 880px，居中置于 1024px 透明画布，四边各留 72px，避免 Dock 主体比其他应用显著偏大。随后运行 `pnpm task common:generate:icons`，分别由通用和 macOS PNG 生成 ICO/ICNS；将生成的 `icons.icns` 同步到 `dmg-file-icon.icns`。运行时同样按平台选择 PNG。Windows 构建由 syso 嵌入 ICO，macOS app 包与 DMG 卷引用 ICNS，Linux 包的 hicolor 路径使用对应 128px PNG。修改资源后需重新构建并启动原生程序检查系统入口，文件生成不能替代任务栏、Dock 或启动器验收。
 
 macOS 正式包和开发包通过 `CFBundleIconFile` 引用 `icons.icns`。更新 Wails 构建资源后检查并移除模板自带的 `Assets.car` 和 `CFBundleIconName`，避免系统优先显示模板图标。
 

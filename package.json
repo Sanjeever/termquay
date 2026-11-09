@@ -1,0 +1,18 @@
+{
+  "name": "termquay-workbench",
+  "private": true,
+  "packageManager": "pnpm@11.20.0",
+  "scripts": {
+    "dev": "node scripts/wails.mjs task dev",
+    "build": "node scripts/wails.mjs build",
+    "package": "node scripts/wails.mjs task package",
+    "wails:doctor": "node scripts/wails.mjs doctor",
+    "bindings": "node scripts/wails.mjs generate bindings -ts -i",
+    "task": "node scripts/wails.mjs task",
+    "wails": "node scripts/wails.mjs",
+    "dev:frontend": "pnpm --dir frontend dev",
+    "build:frontend": "pnpm --dir frontend build",
+    "check": "pnpm --dir frontend check",
+    "test": "node scripts/test.mjs"
+  }
+}

@@ -56,13 +56,13 @@ SSH 工作区
 
 准备 Go、Node 和 pnpm。工具链及依赖版本以 [go.mod](go.mod)、[frontend/package.json](frontend/package.json) 和锁文件为准，原生桌面还需要对应平台的构建工具与 WebView。
 
-首次运行按 [开发说明](docs/development.zh-CN.md#首次运行) 安装依赖及项目内 Wails CLI，然后在仓库根目录启动：
+首次运行按 [开发说明](docs/development.zh-CN.md#首次运行) 准备依赖，然后在仓库根目录启动：
 
 ```sh
-wails3 dev
+pnpm dev
 ```
 
-平台前提、绑定生成、检查命令和真实服务测试配置见 [开发说明](docs/development.zh-CN.md)，生产构建与安装包入口见 [构建与本地打包](docs/development.zh-CN.md#构建与本地打包)。
+启动脚本自动管理匹配版本的项目内 Wails CLI。`pnpm build` 构建程序，`pnpm package` 生成当前平台安装包。平台前提、绑定生成、检查命令和真实服务测试配置见 [开发说明](docs/development.zh-CN.md)，打包前提见 [构建与本地打包](docs/development.zh-CN.md#构建与本地打包)。
 
 ## 项目结构与文档
 

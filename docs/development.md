@@ -26,28 +26,35 @@ pnpm --dir frontend install --frozen-lockfile
 pnpm --dir frontend build
 ```
 
-Install the matching Wails CLI into the ignored `.tools` directory.
-
-Windows PowerShell:
-
-```powershell
-$wailsVersion = go list -m -f '{{.Version}}' github.com/wailsapp/wails/v3
-$env:GOBIN = Join-Path (Get-Location) '.tools'
-go install "github.com/wailsapp/wails/v3/cmd/wails3@$wailsVersion"
-$env:PATH = "$env:GOBIN;$env:PATH"
-wails3 dev
-```
-
-macOS / Linux, with a POSIX-compatible shell:
+Start desktop development with the same command on Windows, macOS and Linux:
 
 ```sh
-wails_version=$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v3)
-GOBIN="$PWD/.tools" go install "github.com/wailsapp/wails/v3/cmd/wails3@$wails_version"
-export PATH="$PWD/.tools:$PATH"
-wails3 dev
+pnpm dev
 ```
 
-Add `.tools` to PATH again in a new terminal. Development tasks generate bindings and start the desktop and Vite server. Browser previews do not verify the native Wails runtime.
+The [launcher](../scripts/wails.mjs) installs the CLI version selected by `go.mod` into the ignored `.tools` directory when missing or mismatched. It adds that directory to PATH for Wails and its child tasks. New terminals need no PATH setup. The root package has no dependencies and needs no separate install; frontend dependencies stay in `frontend`.
+
+Development tasks generate bindings and start the desktop and Vite server. Browser previews do not verify the native Wails runtime.
+
+### Development commands
+
+The root [package.json](../package.json) provides these entry points. Keep its pnpm declaration aligned with [frontend/package.json](../frontend/package.json).
+
+| Command | Action |
+| --- | --- |
+| `pnpm dev` | Run `wails3 task dev`, using the project's development config and port |
+| `pnpm build` | Run `wails3 build` |
+| `pnpm package` | Run `wails3 task package` for the host platform |
+| `pnpm wails:doctor` | Run `wails3 doctor` (`pnpm doctor` is pnpm's own command) |
+| `pnpm bindings` | Run `wails3 generate bindings -ts -i` |
+| `pnpm task <task> [args]` | Run a Wails task |
+| `pnpm wails <command> [args]` | Run any Wails CLI command |
+| `pnpm dev:frontend` | Start Vite without the desktop |
+| `pnpm build:frontend` | Type-check and build frontend assets |
+| `pnpm check` | Run the frontend TypeScript check |
+| `pnpm test` | Run the existing frontend and script tests |
+
+Arguments are passed through, for example `pnpm build ARCH=arm64` or `pnpm task darwin:package:universal`. Packaging prerequisites still come from the [platform tasks](../build); builds can update Go modules and generated bindings, so inspect the resulting diff. The `frontend` package's `dev` script remains the Vite entry point used by Wails.
 
 <a id="日常修改与验证"></a>
 ## Changes and checks
@@ -55,7 +62,7 @@ Add `.tools` to PATH again in a new terminal. Development tasks generate binding
 After Go service/model/event changes, regenerate bindings and inspect the result:
 
 ```sh
-wails3 generate bindings -ts -i
+pnpm bindings
 pnpm --dir frontend test
 pnpm --dir frontend check
 pnpm --dir frontend build
@@ -209,8 +216,8 @@ No real SSH, RDP, WebDAV or model-provider verification was performed for this c
 ## Build and local packaging
 
 ```sh
-wails3 build
-wails3 task package
+pnpm build
+pnpm package
 ```
 
 Builds go to `bin/`. Consult [platform tasks](../build): macOS packaging uses local ad-hoc signing; Windows NSIS needs `makensis`; MSIX/Linux formats need their tools. These documented workflows do not authorize publishing or signed distribution. Full tasks can run `go mod tidy` and regenerate bindings; inspect the diff and preserve build customizations. The [Chinese resource guide](development.zh-CN.md#构建与本地打包) retains detailed icon procedures.
