@@ -170,6 +170,19 @@ Report unit tests, local protocol integration, browser substitutes, native deskt
 
 Historical evidence and unresolved gaps remain in the [Chinese acceptance ledger](development.zh-CN.md#已有验收记录与缺口), including [AI acceptance](development.zh-CN.md#内置-ai-验收2026-11-06) and [Windows SSH AI adaptation](development.zh-CN.md#windows-ssh-ai-适配验收2026-11-09). Platform input/IME, RDP clipboard/concurrency, native menus/dialogs, real multi-hop reconnect, provider behavior and sustained application-wide resource measurements need environment-specific evidence. Do not present historical results as current checks.
 
+### Localization verification (2026-11-09)
+
+Runtime changes through `3d19d0f` were checked on Windows 11 build 26100 / amd64, Go 1.26.10, Node 22.17.0 and WebView2 157.0.4341.42. Dependency installation used the declared pnpm 11.20.0; later validation commands used the locally available pnpm 12.16.1 without changing the manifest or lockfile policy.
+
+| Layer | Actual coverage | Limits |
+| --- | --- | --- |
+| Automated | 72 frontend tests, including an English-host-language run; TypeScript check and production build; `go test ./...` with 304 test cases passing and 24 skipped; `go vet ./internal/...`; regenerated bindings unchanged on repeat | Skips include missing real-service settings and Windows/POSIX-only fixtures. `-race` could not start because CGO is disabled; no C compiler was available. |
+| Browser substitutes | English first-storage setup, password unlock failure, retained error translation, settings in both languages, component dismiss/select accessibility labels, 900×600 layout without horizontal overflow, editor DOM/content/undo continuity | Wails responses were substitutes; this does not establish remote or native integration. |
+| Windows native WebView | Production frontend with temporary Go overlays isolating app data, WebView profile and CLI pipe; real password-vault failure/success, application lock failure/success, English retained across process restart, demo editor identity/content/caret/undo and open search query retained on language change | Demo editor content is in memory. The overlay used a disposable test password and did not read saved connections or credentials. |
+| Windows native file dialog | Recording picker title was `Open terminal recording`, confirmed using Windows UI Automation, then canceled | Operating-system-owned controls use the OS language. macOS menu updates and other platform dialogs were not exercised. |
+
+No real SSH, RDP, WebDAV or model-provider verification was performed for this change. Language switching during live remote transfers/tasks, other native WebViews, IME/screen readers and sustained application-wide resource behavior remain unverified. Backend error/identity/conflict/restore/cancellation regression tests and stable owner/effect dependencies provide separate evidence; they do not replace those real scenarios. Test processes were closed and their data stayed outside the repository. The [Chinese ledger](development.zh-CN.md#中英文界面验收2026-11-09) records the same scope.
+
 <a id="构建与本地打包"></a>
 ## Build and local packaging
 
