@@ -7,7 +7,7 @@ import { useMessageState } from '../../i18n/useMessageState.ts';
 import Tooltip from '../../components/Tooltip';
 import SelectControl from '../../components/SelectControl';
 import ErrorNotice from '../../components/ErrorNotice';
-import { errorMessage } from '../../lib/errors';
+import { errorMessage, eventError } from '../../lib/errors';
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Button, DropdownTrigger, DropdownMenu, DropdownItem, PopoverTrigger, PopoverContent, Switch } from '@heroui/react';
 import { Dropdown, Popover } from '../../components/Popover';
@@ -58,32 +58,33 @@ const RDPView = forwardRef<RDPHandle, { grant?: Grant; target: string; environme
     let resolve!: (value: UserInteraction) => void;
     let reject!: (reason: unknown) => void;
     const promise = new Promise<UserInteraction>((yes, no) => { resolve = yes; reject = no; });
-    let stop!: (reason: Error) => void;
+    let stop!: (reason: unknown) => void;
     const stopped = new Promise<never>((_, no) => { stop = no; });
     void promise.catch(() => {}); void stopped.catch(() => {});
-    return { promise, resolve, reject, stopped, stop, ended: false, disposed: false, running: false, error: '' };
+    return { promise, resolve, reject, stopped, stop, ended: false, disposed: false, running: false, error: undefined as unknown };
   }, [grant?.id]);
 
   function shutdown() {
     const api = ui.current; ui.current = undefined;
     if (!ready.running) return '';
     ready.running = false;
-    try { api?.shutdown(); return ''; } catch (e) { return translate('rdp:couldNotCloseDesktop', { value1: detail(e) }); }
+    try { api?.shutdown(); return ''; } catch (e) { return uiMessage('rdp:couldNotCloseDesktop', { value1: detail(e) }); }
   }
 
-  function finish(status: string, detailMessage = '') {
+  function finish(status: string, detailMessage: unknown = '') {
     if (ready.ended || ready.disposed) return;
     ready.ended = true; ready.error = detailMessage;
-    ready.stop(new Error(detailMessage || status)); ready.reject(new Error(detailMessage || status));
+    const reason = detailMessage || new Error(connectionStateLabel(status));
+    ready.stop(reason); ready.reject(reason);
     const closingError = shutdown();
     setStatus(status); setError([detailMessage, closingError].filter(Boolean));
-    if (grant) void CloseRDP(grant.id).catch(e => { if (!ready.disposed) setError(previous => [previous, uiMessage('rdp:couldNotCloseConnection', { value1: detail(e) })].filter(Boolean).join('\n')); });
+    if (grant) void CloseRDP(grant.id).catch(e => { if (!ready.disposed) setError(previous => [previous, uiMessage('rdp:couldNotCloseConnection', { value1: detail(e) })].filter(Boolean)); });
   }
 
   useImperativeHandle(ref, () => ({
     async connect(username, password, domain) {
       if (!grant) throw uiMessage('rdp:rDPAccessNotAuthorizedYet');
-      const timer = setTimeout(() => finish('timeout', translate('rdp:timedOutWaitingForRDPAuthenticationAndDesktop')), 30000);
+      const timer = setTimeout(() => finish('timeout', uiMessage('rdp:timedOutWaitingForRDPAuthenticationAndDesktop')), 30000);
       try {
         const api = await Promise.race([ready.promise, ready.stopped]);
         const backend = await initialize();
@@ -100,7 +101,7 @@ const RDPView = forwardRef<RDPHandle, { grant?: Grant; target: string; environme
         setStatus('connected');
         ready.running = true;
         void session.run().then(() => { ready.running = false; finish('disconnected'); }, e => { ready.running = false; finish('interrupted', detail(e)); });
-      } catch (e) { const message = ready.error || detail(e); finish('failed', message); throw new Error(message); }
+      } catch (e) { const message = ready.error || detail(e); finish('failed', message); throw typeof message === 'string' ? new Error(message) : message; }
       finally { clearTimeout(timer); password = ''; }
     },
     cancel: () => finish('canceled'),
@@ -111,7 +112,7 @@ const RDPView = forwardRef<RDPHandle, { grant?: Grant; target: string; environme
   useEffect(() => {
     if (!grant) return;
     let desktop: HTMLElement | undefined;
-    const timer = setTimeout(() => finish('load-failed', translate('rdp:desktopComponentReadinessTimedOut')), 15000);
+    const timer = setTimeout(() => finish('load-failed', uiMessage('rdp:desktopComponentReadinessTimedOut')), 15000);
     setStatus('loading'); setError('');
     void (async () => {
       try {
@@ -136,7 +137,7 @@ const RDPView = forwardRef<RDPHandle, { grant?: Grant; target: string; environme
     })();
     const unsubscribe = Events.On('rdp:error', (event) => {
       const data = event.data as { id: string; error: string };
-      if (data.id === grant.id) finish('interrupted', data.error);
+      if (data.id === grant.id) finish('interrupted', eventError(data));
     });
     const unsubscribeClosed = Events.On('rdp:closed', event => { const data = event.data as { id: string }; if (data.id === grant.id) finish('disconnected'); });
     return () => { ready.disposed = true; clearTimeout(timer); unsubscribe(); unsubscribeClosed(); ready.stop(uiMessage('rdp:rDPWorkspaceClosed')); ready.reject(uiMessage('rdp:rDPWorkspaceClosed')); const closingError = shutdown(); if (closingError) console.error(closingError); desktop?.remove(); void CloseRDP(grant.id).catch(() => {}); };

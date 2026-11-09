@@ -33,6 +33,7 @@ export interface Entry {
     "link_target"?: string;
     "link_resolved"?: string;
     "link_error"?: string;
+    "link_error_message"?: message$0.Descriptor | null;
 }
 
 export interface SearchIssue {
@@ -67,6 +68,7 @@ export interface SearchResult {
     "failed": number;
     "issues": SearchIssue[] | null;
     "stop_reason": string;
+    "stop_message"?: message$0.Descriptor | null;
 }
 
 export interface SyncEntry {

@@ -1,4 +1,5 @@
 import { t as translate, currentLocale } from '../../i18n/index.ts';
+import { message as uiMessage } from '../../i18n/messages.ts';
 import { useMessageState } from '../../i18n/useMessageState.ts';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -6,7 +7,7 @@ import { ReadContainerLogs, ReadLinuxServiceLog, ReadRemoteLog } from '../../../
 import type { RemoteLogSlice } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import ErrorNotice from '../../components/ErrorNotice';
 import Icon from '../../components/Icon';
-import { errorMessage, eventError } from '../../lib/errors.ts';
+import { eventError } from '../../lib/errors.ts';
 import { retainLogTail, type LogViewOptions, type LogViewResult } from '../files/logView';
 
 export type LogSource = { id: string; workspace: string; host: string; kind: 'file' | 'service' | 'container'; target: string; name: string; socket: string };
@@ -87,7 +88,7 @@ export default function LogSourcePane({ source, active, live, follow, refresh, o
     let deadline: ReturnType<typeof setTimeout>;
     setFiltering(true); setFilterError('');
     const timer = setTimeout(() => {
-      const fail = (message: string) => {
+      const fail = (message: unknown) => {
         if (ended) return;
         processing = false; clearTimeout(deadline); worker.current?.terminate(); worker.current = undefined;
         setView(undefined); setFilterError(message); setFiltering(false);
@@ -99,11 +100,11 @@ export default function LogSourcePane({ source, active, live, follow, refresh, o
           processing = false; clearTimeout(deadline);
           setView(event.data.error ? undefined : event.data); setFilterError(eventError(event.data) || ''); setFiltering(false);
         };
-        worker.current.onerror = event => { event.preventDefault(); fail(translate('logs:couldNotProcessLogs', { value1: event.message })); };
+        worker.current.onerror = event => { event.preventDefault(); fail(uiMessage('logs:couldNotProcessLogs', { value1: event.message })); };
         processing = true;
         worker.current.postMessage({ content, options });
-        deadline = setTimeout(() => fail(translate('logs:logProcessingTimedOutSimplifyTheFilterExpression')), 1000);
-      } catch (e) { fail(errorMessage(e)); }
+        deadline = setTimeout(() => fail(uiMessage('logs:logProcessingTimedOutSimplifyTheFilterExpression')), 1000);
+      } catch (e) { fail(e); }
     }, 150);
     return () => { ended = true; clearTimeout(timer); clearTimeout(deadline); if (processing) { worker.current?.terminate(); worker.current = undefined; } };
   }, [content, options, active]);

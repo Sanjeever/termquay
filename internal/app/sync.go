@@ -57,7 +57,7 @@ func (a *AppService) PreviewDirectorySyncFiltered(ctx context.Context, workspace
 	}
 	if local == "" {
 		var err error
-		local, err = application.Get().Dialog.OpenFile().SetTitle("选择本地同步目录").CanChooseFiles(false).CanChooseDirectories(true).PromptForSingleSelection()
+		local, err = application.Get().Dialog.OpenFile().SetTitle(nativeText("Select local sync directory", "选择本地同步目录")).CanChooseFiles(false).CanChooseDirectories(true).PromptForSingleSelection()
 		if err != nil || local == "" {
 			return DirectorySyncPreview{}, err
 		}
@@ -205,7 +205,7 @@ func (a *AppService) ExecuteDirectorySync(id string, selected []string) (Transfe
 			report(completed, total)
 		}
 		return nil
-	}, transferSpec{workspace: p.workspace, direction: "sync", local: local, remote: remote, syncPlanID: id})
+	}, transferSpec{workspace: p.workspace, direction: "sync", local: local, remote: remote, syncPlanID: id, nameMessage: &appmessage.Descriptor{MessageCode: "files:directorySyncTask", Parameters: map[string]any{"count": len(entries)}}})
 	if err != nil {
 		a.mu.Lock()
 		p.executing = false

@@ -1,6 +1,6 @@
 import { t as translate } from '../../i18n/index.ts';
 import { message as uiMessage } from '../../i18n/messages.ts';
-import { errorMessage } from "../../lib/errors";
+
 import { useEffect, useRef, useState } from 'react';
 import { Events } from '@wailsio/runtime';
 import { ReadDirectory } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
@@ -73,7 +73,7 @@ export default function useFileTree(id: string, visible: boolean, demoDirectorie
       }).catch(error => {
         if (reads.current.get(operation.path) !== operation) return;
         invalidated.current.delete(operation.path);
-        update(operation.path, { ...nodeState.current[operation.path], loading: false, error: `${nodeState.current[operation.path]?.entries ? translate('files:couldNotRefreshDirectory') : ''}${errorMessage(error)}` });
+        update(operation.path, { ...nodeState.current[operation.path], loading: false, error: nodeState.current[operation.path]?.entries ? [uiMessage('files:couldNotRefreshDirectory'), error] : error });
         reads.current.delete(operation.path);
         operation.reject(error);
       }).finally(() => {

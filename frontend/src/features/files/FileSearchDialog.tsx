@@ -65,7 +65,7 @@ export default function FileSearchDialog({ workspace, directory, onOpen, onClose
       {busy && <p className="muted" role="status">{translate('files:searching')}</p>}
       {result && <>
         <div className="session-status" role="status">{matches.length} {translate('files:resultsScanned')}{result.scanned} {translate('files:items')}{result.skipped_large > 0 && translate('files:skippedLargeFiles', { value1: result.skipped_large })}{result.skipped_binary > 0 && translate('files:skippedBinaryOrNonUTF8Files', { value1: result.skipped_binary })}{result.failed > 0 && translate('files:itemsCouldNotBeSearched', { value1: result.failed })}</div>
-        {result.stop_reason && <p role="status" className="error">{result.stop_reason}</p>}
+        {result.stop_reason && <p role="status" className="error">{errorMessage(result.stop_message || result.stop_reason)}</p>}
         {!!issues.length && <details><summary>{translate('files:incompleteItems')}{result.failed > issues.length ? translate('files:firstItemsShown', { value1: issues.length }) : ''}</summary>{issues.map((issue, index) => <p key={index} className="error file-path">{issue.path} · {errorMessage(eventError(issue))}</p>)}</details>}
         <div className="file-search-results" aria-label={translate('files:remoteFileSearchResults')}>{matches.map((match, index) => <button type="button" key={`${match.path}:${match.line}:${index}`} disabled={opening} onClick={() => void open(match)}><span className="file-path">{match.path}{match.directory ? '/' : match.line ? `:${match.line}` : ''}</span>{match.text && <code>{match.text}</code>}</button>)}</div>
       </>}

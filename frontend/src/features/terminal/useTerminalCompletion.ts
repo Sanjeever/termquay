@@ -1,13 +1,13 @@
 import { message as uiMessage } from '../../i18n/messages.ts';
-import { t as translate } from '../../i18n/index.ts';
+
 import { useEffect, useRef, useState, type MutableRefObject } from 'react';
 import type { Terminal } from '@xterm/xterm';
 import { CompleteTerminalPath } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
-import { errorMessage } from '../../lib/errors';
+
 import { commandContext, pathCandidates, type CommandCandidate, type CompletionContext } from './terminalCompletion';
 import { completionEdit, completionRequest, parseCompletionMessage, type ShellSnapshot } from './shellCompletionProtocol';
 
-export type CompletionView = { snapshot: ShellSnapshot; context: CompletionContext; candidates: CommandCandidate[]; selected: number; loading: boolean; truncated: boolean; error: string };
+export type CompletionView = { snapshot: ShellSnapshot; context: CompletionContext; candidates: CommandCandidate[]; selected: number; loading: boolean; truncated: boolean; error: unknown };
 type Options = { id: string; workspace: string; visible: boolean; terminal: MutableRefObject<Terminal | undefined>; send(frame: string): boolean; fail(message: unknown): void; help(): void };
 
 export default function useTerminalCompletion(options: Options) {
@@ -64,7 +64,7 @@ export default function useTerminalCompletion(options: Options) {
     clearTimeout(timer.current); timer.current = undefined; requested.current = false;
     const snapshot = message.snapshot, context = commandContext(snapshot), current = ++version.current;
     const initial: CompletionView = { snapshot, context, candidates: context.candidates, selected: 0, loading: !!context.path && config.paths, truncated: false, error: context.unsupported || '' };
-    if (context.path && !config.paths) initial.error = translate('terminal:filesystemNotConfirmedForPathCompletionEnableIt');
+    if (context.path && !config.paths) initial.error = uiMessage('terminal:filesystemNotConfirmedForPathCompletionEnableIt');
     publish(initial);
     if (!context.path || !config.paths) return;
     const path = context.path;
@@ -82,7 +82,7 @@ export default function useTerminalCompletion(options: Options) {
       if (cache.current.size >= 8) cache.current.delete(cache.current.keys().next().value!);
       cache.current.set(key,{expires:Date.now()+3000,entries:result.entries!,truncated:result.truncated});
       update(result.entries!,result.truncated);
-    }).catch(error => { if(version.current===current)publish({...initial,loading:false,error:errorMessage(error)}); }).finally(()=>{if(read.current===pending)read.current=undefined;});
+    }).catch(error => { if(version.current===current)publish({...initial,loading:false,error}); }).finally(()=>{if(read.current===pending)read.current=undefined;});
   }
   function accept(index = popup.current?.selected || 0) {
     const current = popup.current, config = configuration.current;

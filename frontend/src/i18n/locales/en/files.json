@@ -1,4 +1,6 @@
 {
+  "directorySyncTask_one": "Directory sync ({{count}} item)",
+  "directorySyncTask_other": "Directory sync ({{count}} items)",
   "cmGoToLine": "Go to line",
   "cmGo": "go",
   "cmReplacedMatches": "replaced $ matches",

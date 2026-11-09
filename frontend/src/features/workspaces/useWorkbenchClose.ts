@@ -1,10 +1,9 @@
-import { t as translate } from '../../i18n/index.ts';
 import { message as uiMessage } from '../../i18n/messages.ts';
 import { useMessageState } from '../../i18n/useMessageState.ts';
 import { useEffect, useRef, useState } from 'react';
 import { Events } from '@wailsio/runtime';
 import { DiscardAndQuit, RestartForUpdate, SetFrontendReady } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
-import { errorMessage } from '../../lib/errors';
+
 import type { Workspace } from './workspace';
 
 export default function useWorkbenchClose(options: {
@@ -15,7 +14,7 @@ export default function useWorkbenchClose(options: {
   beforeQuit(): void;
   remove(id: string, keyboard: boolean): void;
   select(id: string): void;
-  onError(message: string): void;
+  onError(message: unknown): void;
 }) {
   const [closing, setClosing] = useState('');
   const [quitConfirm, setQuitConfirm] = useState(false);
@@ -60,7 +59,7 @@ export default function useWorkbenchClose(options: {
 
   useEffect(() => {
     const off = Events.On('app:close-requested', () => nativeClose.current());
-    SetFrontendReady().catch(error => latest.current.onError(translate('workspaces:couldNotInitializeQuitCoordination', { value1: errorMessage(error) })));
+    SetFrontendReady().catch(error => latest.current.onError(uiMessage('workspaces:couldNotInitializeQuitCoordination', { value1: error })));
     return off;
   }, []);
 

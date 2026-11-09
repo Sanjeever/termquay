@@ -1,4 +1,6 @@
 {
+  "directorySyncTask_one": "目录同步（{{count}} 项）",
+  "directorySyncTask_other": "目录同步（{{count}} 项）",
   "cmGoToLine": "跳转到行",
   "cmGo": "跳转",
   "cmReplacedMatches": "已替换 $ 处匹配",

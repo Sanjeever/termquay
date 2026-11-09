@@ -68,7 +68,7 @@ export default function ConnectionCenter({ connections, groups, preferences, ses
   const list = useRef<HTMLDivElement>(null);
   const query = useDeferredValue(search);
   const selectedTags = tag.split(',').filter(Boolean);
-  const visible = useMemo(() => catalogConnections(connections, groups, preferences, { view, group, protocol, search: query, sort, descending, environment, tags: tag.split(',').filter(Boolean) }), [connections, groups, preferences, view, group, protocol, query, sort, descending, environment, tag]);
+  const visible = useMemo(() => catalogConnections(connections, groups, preferences, { view, group, protocol, search: query, sort, descending, environment, tags: tag.split(',').filter(Boolean) }), [connections, groups, preferences, view, group, protocol, query, sort, descending, environment, tag, currentLocale()]);
   const latency = useConnectionLatency(connections, active && !demo && !loading && !loadError, demo ? [] : visible);
   const tags = [...new Set(Object.values(preferences).flatMap(value => value?.tags || []))].sort((a,b) => a.localeCompare(b, currentLocale()));
   useEffect(() => {

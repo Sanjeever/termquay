@@ -1,3 +1,5 @@
+import i18n from '../../i18n/index.ts';
+await i18n.changeLanguage('zh-CN');
 import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
 import { bytes, remaining, transferState, transferSummary } from './transferFormat.ts';

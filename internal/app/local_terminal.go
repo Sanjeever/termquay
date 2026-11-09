@@ -67,9 +67,9 @@ func localShellCommand(kind string) (string, []string, error) {
 }
 
 func (a *AppService) ListLocalShells() []LocalShell {
-	choices := []LocalShell{{ID: "shell", Name: "本地 Shell"}}
+	choices := []LocalShell{{ID: "shell", Name: "Shell"}}
 	if runtime.GOOS == "windows" {
-		choices = []LocalShell{{ID: "powershell", Name: "PowerShell"}, {ID: "cmd", Name: "命令提示符"}, {ID: "wsl", Name: "WSL"}}
+		choices = []LocalShell{{ID: "powershell", Name: "PowerShell"}, {ID: "cmd", Name: "cmd.exe"}, {ID: "wsl", Name: "WSL"}}
 	}
 	result := []LocalShell{}
 	for _, choice := range choices {

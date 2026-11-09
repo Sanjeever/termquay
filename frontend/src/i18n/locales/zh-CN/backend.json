@@ -1,4 +1,9 @@
 {
+  "searchCanceledOrTimedOut": "搜索已取消或超时",
+  "searchDirectoryLimit": "已达到目录扫描上限，请缩小搜索范围",
+  "searchReadLimit": "已达到内容读取上限，请缩小搜索范围",
+  "searchFileReadLimit": "已达到内容读取上限，当前文件未完整搜索",
+  "searchResultLimit": "已达到搜索结果上限，请缩小搜索范围",
   "toolDockerTransportUnavailable": "当前 SSH 平台不支持既有 Docker Unix socket 查询通道；不能据此判断是否安装 Docker",
   "toolDirectoryContinuationBudget": "目录续读超过扫描预算，请按名称筛选",
   "toolDirectoryScanBudget": "目录超过扫描预算，请缩小目录或筛选范围",

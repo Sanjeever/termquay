@@ -45,15 +45,16 @@ type SearchIssue struct {
 }
 
 type SearchResult struct {
-	Root          string        `json:"root"`
-	Matches       []SearchMatch `json:"matches"`
-	Scanned       int           `json:"scanned"`
-	ReadBytes     int64         `json:"read_bytes"`
-	SkippedLarge  int           `json:"skipped_large"`
-	SkippedBinary int           `json:"skipped_binary"`
-	Failed        int           `json:"failed"`
-	Issues        []SearchIssue `json:"issues"`
-	StopReason    string        `json:"stop_reason"`
+	Root          string                 `json:"root"`
+	Matches       []SearchMatch          `json:"matches"`
+	Scanned       int                    `json:"scanned"`
+	ReadBytes     int64                  `json:"read_bytes"`
+	SkippedLarge  int                    `json:"skipped_large"`
+	SkippedBinary int                    `json:"skipped_binary"`
+	Failed        int                    `json:"failed"`
+	Issues        []SearchIssue          `json:"issues"`
+	StopReason    string                 `json:"stop_reason"`
+	StopMessage   *appmessage.Descriptor `json:"stop_message,omitempty"`
 }
 
 func (options SearchOptions) Validate() error {
@@ -112,6 +113,7 @@ func Search(ctx context.Context, client *sftp.Client, options SearchOptions) (Se
 	for len(pending) > 0 {
 		if ctx.Err() != nil {
 			result.StopReason = "搜索已取消或超时"
+			result.StopMessage = appmessage.Describe(appmessage.New("backend:searchCanceledOrTimedOut", "搜索已取消或超时"))
 			break
 		}
 		relative := pending[len(pending)-1]
@@ -130,6 +132,7 @@ func Search(ctx context.Context, client *sftp.Client, options SearchOptions) (Se
 			for _, info := range entries {
 				if ctx.Err() != nil {
 					result.StopReason = "搜索已取消或超时"
+					result.StopMessage = appmessage.Describe(appmessage.New("backend:searchCanceledOrTimedOut", "搜索已取消或超时"))
 					break
 				}
 				if info.Name() == "." || info.Name() == ".." {
@@ -143,6 +146,7 @@ func Search(ctx context.Context, client *sftp.Client, options SearchOptions) (Se
 				}
 				if result.Scanned >= MaxSearchEntries || pathBytes > maxSearchPathBytes {
 					result.StopReason = "已达到目录扫描上限，请缩小搜索范围"
+					result.StopMessage = appmessage.Describe(appmessage.New("backend:searchDirectoryLimit", "已达到目录扫描上限，请缩小搜索范围"))
 					break
 				}
 				result.Scanned++
@@ -168,6 +172,7 @@ func Search(ctx context.Context, client *sftp.Client, options SearchOptions) (Se
 					}
 					if result.ReadBytes >= MaxSearchReadBytes {
 						result.StopReason = "已达到内容读取上限，请缩小搜索范围"
+						result.StopMessage = appmessage.Describe(appmessage.New("backend:searchReadLimit", "已达到内容读取上限，请缩小搜索范围"))
 						break
 					}
 					file, err := client.Open(entryPath)
@@ -189,6 +194,7 @@ func Search(ctx context.Context, client *sftp.Client, options SearchOptions) (Se
 					}
 					if int64(len(data)) == limit && limit <= MaxSearchFileBytes {
 						result.StopReason = "已达到内容读取上限，当前文件未完整搜索"
+						result.StopMessage = appmessage.Describe(appmessage.New("backend:searchFileReadLimit", "已达到内容读取上限，当前文件未完整搜索"))
 						break
 					}
 					if !utf8.Valid(data) || bytes.IndexByte(data, 0) >= 0 {
@@ -216,6 +222,7 @@ func Search(ctx context.Context, client *sftp.Client, options SearchOptions) (Se
 				}
 				if len(result.Matches) >= MaxSearchMatches {
 					result.StopReason = "已达到搜索结果上限，请缩小搜索范围"
+					result.StopMessage = appmessage.Describe(appmessage.New("backend:searchResultLimit", "已达到搜索结果上限，请缩小搜索范围"))
 					break
 				}
 			}
@@ -236,6 +243,7 @@ func Search(ctx context.Context, client *sftp.Client, options SearchOptions) (Se
 	}
 	if ctx.Err() != nil && result.StopReason == "" {
 		result.StopReason = "搜索已取消或超时"
+		result.StopMessage = appmessage.Describe(appmessage.New("backend:searchCanceledOrTimedOut", "搜索已取消或超时"))
 	}
 	return result, nil
 }

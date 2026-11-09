@@ -774,6 +774,7 @@ export interface Transfer {
     "id": string;
     "workspace": string;
     "name": string;
+    "name_message"?: message$0.Descriptor | null;
     "direction": string;
     "state": string;
     "total": number;

@@ -19,18 +19,19 @@ import (
 const MaxEditSize = 2 << 20
 
 type Entry struct {
-	Name         string  `json:"name"`
-	Path         string  `json:"path"`
-	Size         int64   `json:"size"`
-	Directory    bool    `json:"directory"`
-	Symlink      bool    `json:"symlink"`
-	Mode         string  `json:"mode"`
-	Modified     int64   `json:"modified"`
-	UID          *uint32 `json:"uid,omitempty"`
-	GID          *uint32 `json:"gid,omitempty"`
-	LinkTarget   string  `json:"link_target,omitempty"`
-	LinkResolved string  `json:"link_resolved,omitempty"`
-	LinkError    string  `json:"link_error,omitempty"`
+	Name             string                 `json:"name"`
+	Path             string                 `json:"path"`
+	Size             int64                  `json:"size"`
+	Directory        bool                   `json:"directory"`
+	Symlink          bool                   `json:"symlink"`
+	Mode             string                 `json:"mode"`
+	Modified         int64                  `json:"modified"`
+	UID              *uint32                `json:"uid,omitempty"`
+	GID              *uint32                `json:"gid,omitempty"`
+	LinkTarget       string                 `json:"link_target,omitempty"`
+	LinkResolved     string                 `json:"link_resolved,omitempty"`
+	LinkError        string                 `json:"link_error,omitempty"`
+	LinkErrorMessage *appmessage.Descriptor `json:"link_error_message,omitempty"`
 }
 type Document struct {
 	Path             string `json:"path"`
@@ -112,6 +113,7 @@ func List(ctx context.Context, client *sftp.Client, remote string) (Directory, e
 				}
 				if err != nil {
 					entry.LinkError = err.Error()
+					entry.LinkErrorMessage = appmessage.Describe(err)
 				}
 			}
 		})

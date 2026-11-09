@@ -1,6 +1,6 @@
 import Modal from '../../components/Modal';
 import { eventError, errorMessage } from '../../lib/errors.ts';
-import { t as translate } from '../../i18n/index.ts';
+import { t as translate, currentLocale } from '../../i18n/index.ts';
 import { useMessageState } from '../../i18n/useMessageState.ts';
 import { useTranslation } from 'react-i18next';
 
@@ -95,7 +95,7 @@ export default function UploadDialog({ workspaces, onSubmitted }: { workspaces: 
         <label className="form-field">{translate('files:destinationDirectory')}<div className="upload-directory"><input aria-label={translate('files:uploadDestinationDirectory')} required pattern="/.*" value={directory} disabled={busy} onChange={event => { pending.current?.cancel(); pending.current = undefined; setBrowsing(false); setDirectory(event.target.value); setListing(undefined); }} /><Button size="sm" variant="bordered" isDisabled={busy || !connected} isLoading={browsing} onPress={() => void browse(directory)}>{translate('files:browse')}</Button></div></label>
         {listing && <div className="upload-directories" aria-label={translate('files:selectRemoteUploadDirectory')} aria-busy={browsing}>
           {listing.path !== '/' && <button type="button" disabled={busy || browsing} onClick={() => void browse(listing.path.slice(0, listing.path.lastIndexOf('/')) || '/')}><Icon name="up" width="14" />{translate('files:parentDirectory')}</button>}
-          {(listing.entries || []).filter(entry => entry.directory).sort((a, b) => a.name.localeCompare(b.name)).map(entry => <button type="button" key={entry.path} disabled={busy || browsing} onClick={() => void browse(entry.path)}><Icon name="files" width="14" />{entry.name}</button>)}
+          {(listing.entries || []).filter(entry => entry.directory).sort((a, b) => a.name.localeCompare(b.name, currentLocale())).map(entry => <button type="button" key={entry.path} disabled={busy || browsing} onClick={() => void browse(entry.path)}><Icon name="files" width="14" />{entry.name}</button>)}
           {!listing.entries?.some(entry => entry.directory) && <p className="muted">{translate('files:noSubdirectories')}</p>}
         </div>}
         <ul className="upload-files" aria-label={translate('files:filesToTransfer')}>{files.map((file, index) => <li key={index}><div><span title={file.path || file.name}>{file.path || file.name}</span><span className="muted">{file.supported ? bytes(file.size) : translate('files:unsupported')}</span></div>{errorMessage(eventError(file)) && <p className="error">{errorMessage(eventError(file))}</p>}</li>)}</ul>

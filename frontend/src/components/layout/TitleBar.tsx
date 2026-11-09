@@ -1,14 +1,14 @@
 import { t as translate } from '../../i18n/index.ts';
 import { useTranslation } from 'react-i18next';
 import Tooltip from '../Tooltip';
-import { errorMessage } from "../../lib/errors";
+
 import { useEffect, useRef, useState, type ReactNode, type MouseEvent } from 'react';
 import { Events, System, Window } from '@wailsio/runtime';
 import { TitlebarDoubleClick } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import appIcon from '../../../../build/appicon.svg';
 
 export default function TitleBar({ tabs, tools, onError }: {
-  tabs: ReactNode; tools: ReactNode; onError(message: string): void;
+  tabs: ReactNode; tools: ReactNode; onError(message: unknown): void;
 }) {
   useTranslation();
   const mac = System.IsMac();
@@ -34,7 +34,7 @@ export default function TitleBar({ tabs, tools, onError }: {
     const update = () => {
       Promise.all([Window.IsMaximised(), Window.IsFullscreen()]).then(([maximised, fullscreen]) => {
         if (!disposed) { setMaximised(maximised); setFullscreen(fullscreen); }
-      }).catch(error => { if (!disposed) onError(errorMessage(error)); });
+      }).catch(error => { if (!disposed) onError(error); });
     };
     const off = [
       Events.On(Events.Types.Common.WindowMaximise, update),
@@ -50,7 +50,7 @@ export default function TitleBar({ tabs, tools, onError }: {
   }, [onError]);
   function run(action: () => Promise<void>) {
     onError('');
-    action().catch(error => onError(errorMessage(error)));
+    action().catch(error => onError(error));
   }
   function draggable(event: MouseEvent) { return getComputedStyle(event.target as Element).getPropertyValue('--termquay-window-drag').trim() === 'drag'; }
   function doubleClick(event: MouseEvent) {

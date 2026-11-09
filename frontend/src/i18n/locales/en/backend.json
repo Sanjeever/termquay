@@ -1,4 +1,9 @@
 {
+  "searchCanceledOrTimedOut": "Search canceled or timed out",
+  "searchDirectoryLimit": "Directory scan limit reached. Narrow the search scope.",
+  "searchReadLimit": "Content read limit reached. Narrow the search scope.",
+  "searchFileReadLimit": "Content read limit reached; the current file was not searched completely",
+  "searchResultLimit": "Search result limit reached. Narrow the search scope.",
   "toolDockerTransportUnavailable": "This SSH platform does not support Docker Unix socket queries; Docker installation status cannot be inferred",
   "toolDirectoryContinuationBudget": "Directory continuation exceeds the scan budget. Filter by name.",
   "toolDirectoryScanBudget": "Directory exceeds the scan budget. Narrow the directory or filter.",

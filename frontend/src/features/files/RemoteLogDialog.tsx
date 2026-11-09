@@ -3,7 +3,7 @@ import { t as translate } from '../../i18n/index.ts';
 import { message as uiMessage } from '../../i18n/messages.ts';
 import { useMessageState } from '../../i18n/useMessageState.ts';
 import { useTranslation } from 'react-i18next';
-import { errorMessage, eventError } from '../../lib/errors.ts';
+import { eventError } from '../../lib/errors.ts';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Button, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
 import { ReadRemoteLog, ListLogViewPresets, SaveLogViewPreset, DeleteLogViewPreset } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
@@ -75,15 +75,15 @@ export default function RemoteLogDialog({ workspace, path, visible, onClose }: {
     let deadline: ReturnType<typeof setTimeout> | undefined;
     setFiltering(true); setFilterError('');
     const delay = setTimeout(() => {
-      const fail = (message: string) => { if (disposed) return; inFlight = false; clearTimeout(deadline); worker.current?.terminate(); worker.current = undefined; setView(undefined); setFilterError(message); setFiltering(false); };
+      const fail = (message: unknown) => { if (disposed) return; inFlight = false; clearTimeout(deadline); worker.current?.terminate(); worker.current = undefined; setView(undefined); setFilterError(message); setFiltering(false); };
       try {
         if (!worker.current) worker.current = new Worker(new URL('./logView.worker.ts', import.meta.url), { type: 'module' });
         worker.current.onmessage = (event: MessageEvent<LogViewResult>) => { if (disposed) return; inFlight = false; clearTimeout(deadline); setView(event.data.error ? undefined : event.data); setFilterError(eventError(event.data) ? uiMessage('files:invalidFilterExpression', { value1: eventError(event.data) }) : ''); setFiltering(false); };
-        worker.current.onerror = event => { event.preventDefault(); fail(translate('files:couldNotProcessLogs', { value1: event.message })); };
+        worker.current.onerror = event => { event.preventDefault(); fail(uiMessage('files:couldNotProcessLogs', { value1: event.message })); };
         inFlight = true;
         worker.current.postMessage({ content: slice?.content || '', options });
-        deadline = setTimeout(() => fail(translate('files:logProcessingTimedOutSimplifyTheExpressionOr')), 1000);
-      } catch (e) { fail(errorMessage(e)); }
+        deadline = setTimeout(() => fail(uiMessage('files:logProcessingTimedOutSimplifyTheExpressionOr')), 1000);
+      } catch (e) { fail(e); }
     }, 150);
     return () => { disposed = true; clearTimeout(delay); clearTimeout(deadline); if (inFlight) { worker.current?.terminate(); worker.current = undefined; } };
   }, [slice?.content, options, visible]);

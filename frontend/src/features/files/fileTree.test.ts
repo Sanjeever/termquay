@@ -1,3 +1,5 @@
+import i18n from '../../i18n/index.ts';
+await i18n.changeLanguage('zh-CN');
 import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
 import type { Entry } from '../../../bindings/github.com/Sanjeever/termquay/internal/files/models';
@@ -38,7 +40,7 @@ test('元数据保留零 UID、毫秒时间与准确字节数', () => {
   const data = Object.fromEntries(entryMetadata(entry('/root/config.json', false, 2048)));
   assert.equal(data['UID / GID'], '0 / 1000');
   assert.match(data['大小'], /2.0 KiB/);
-  assert.equal(data['修改时间'], new Date(1700000000000).toLocaleString());
+  assert.equal(data['修改时间'], new Date(1700000000000).toLocaleString('zh-CN'));
 });
 
 test('目录链接按目录展开，元数据显示原始目标和真实路径', () => {

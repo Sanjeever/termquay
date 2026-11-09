@@ -21,6 +21,7 @@ type Transfer struct {
 	ID               string                 `json:"id"`
 	Workspace        string                 `json:"workspace"`
 	Name             string                 `json:"name"`
+	NameMessage      *appmessage.Descriptor `json:"name_message,omitempty"`
 	Direction        string                 `json:"direction"`
 	State            string                 `json:"state"`
 	Total            int64                  `json:"total"`
@@ -58,6 +59,7 @@ type transferSpec struct {
 	workspace, local, remote, direction string
 	overwrite                           bool
 	syncPlanID                          string
+	nameMessage                         *appmessage.Descriptor
 	batchID                             string
 	resume                              *transferResume
 }
@@ -217,6 +219,9 @@ func (a *AppService) startTransfer(workspace, name, direction string, total int6
 	id := base64.RawURLEncoding.EncodeToString(randomBytes(16))
 	a.transferSequence++
 	view := Transfer{ID: id, Workspace: workspace, Name: name, Direction: direction, State: "queued", Total: total, Sequence: a.transferSequence, Target: a.workspaces[workspace].target, RemainingSeconds: -1}
+	if len(specification) > 0 {
+		view.NameMessage = specification[0].nameMessage
+	}
 	task := &transferTask{view: view, cancel: cancel, done: make(chan struct{}), ctx: ctx, run: run, peerIdentity: a.workspaces[workspace].identity}
 	if len(specification) > 0 {
 		spec := specification[0]

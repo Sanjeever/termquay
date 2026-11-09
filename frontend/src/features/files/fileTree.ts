@@ -1,8 +1,9 @@
+import { errorMessage } from '../../lib/errors.ts';
 import { t as translate, currentLocale } from '../../i18n/index.ts';
 import type { Entry } from '../../../bindings/github.com/Sanjeever/termquay/internal/files/models';
 import type { Transfer } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 
-export type TreeDirectory = { entries?: Entry[]; loading: boolean; error: string };
+export type TreeDirectory = { entries?: Entry[]; loading: boolean; error: unknown };
 export type FileTreeRow = { entry: Entry; depth: number; parent: string; position: number; siblings: number };
 export const maxExpandedDirectories = 64;
 
@@ -24,7 +25,7 @@ export function fileTreeRows(nodes: Record<string, TreeDirectory>, expanded: Rea
   const query = options.filter.trim().toLowerCase();
   function children(parent: string, depth: number): FileTreeRow[] {
     const entries = (nodes[parent]?.entries || []).filter(entry => options.showHidden || !entry.name.startsWith('.')).slice().sort((a, b) => Number(b.directory) - Number(a.directory)
-      || (options.sort === 'size' ? a.size - b.size : options.sort === 'modified' ? a.modified - b.modified : a.name.localeCompare(b.name, undefined, { numeric: true })) * (options.descending ? -1 : 1) || a.name.localeCompare(b.name));
+      || (options.sort === 'size' ? a.size - b.size : options.sort === 'modified' ? a.modified - b.modified : a.name.localeCompare(b.name, currentLocale(), { numeric: true })) * (options.descending ? -1 : 1) || a.name.localeCompare(b.name, currentLocale()));
     const branches = entries.flatMap(entry => {
       const nested = entry.directory && expanded.has(entry.path) ? children(entry.path, depth + 1) : [];
       return !query || entry.name.toLowerCase().includes(query) || nested.length ? [[{ entry, depth, parent, position: 0, siblings: 0 }, ...nested]] : [];
@@ -39,7 +40,7 @@ export function entryMetadata(entry: Entry) {
   return [
     [translate('files:path'), entry.path],
     [translate('files:type'), entry.symlink ? translate('files:symbolicLink') : entry.directory ? translate('files:directory2') : entry.mode.startsWith('-') ? translate('files:regularFile') : translate('files:specialFile')],
-    ...(entry.symlink ? [[translate('files:linkTarget'), entry.link_target || '—'], [translate('files:resolvedPath'), entry.link_resolved || '—'], [translate('files:targetType'), entry.link_error ? entry.link_error : entry.directory ? translate('files:directory2') : translate('files:files')]] : []),
+    ...(entry.symlink ? [[translate('files:linkTarget'), entry.link_target || '—'], [translate('files:resolvedPath'), entry.link_resolved || '—'], [translate('files:targetType'), entry.link_error ? errorMessage(entry.link_error_message || entry.link_error) : entry.directory ? translate('files:directory2') : translate('files:files')]] : []),
     [translate('files:size'), size],
     [translate('files:modifiedAt'), new Date(entry.modified).toLocaleString(currentLocale())],
     [translate('files:permissions'), entry.mode],
