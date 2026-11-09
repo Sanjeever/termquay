@@ -52,7 +52,7 @@ const RDPView = forwardRef<RDPHandle, { grant?: Grant; target: string; environme
   useEffect(() => { setClipboard(options.clipboard); setResolution(options.resolution); }, [options]);
   useEffect(() => { const changed = () => { const full = document.fullscreenElement === view.current; setFullscreen(full); setToolbarCollapsed(full); focusDesktop(); }; document.addEventListener('fullscreenchange', changed); return () => document.removeEventListener('fullscreenchange', changed); }, []);
   const stateCallback = useRef(onState); stateCallback.current = onState;
-  useEffect(() => { stateCallback.current(!grant?(pending?translate('rdp:connecting'):failure?'disconnected':'not-connected'):status === 'connected'&&ready.running ? 'connected' : ready.ended || failure ? 'disconnected' : 'connecting'); }, [status, failure,pending,grant?.id]);
+  useEffect(() => { stateCallback.current(!grant?(pending?'connecting':failure?'disconnected':'not-connected'):status === 'connected'&&ready.running ? 'connected' : ready.ended || failure ? 'disconnected' : 'connecting'); }, [status, failure,pending,grant?.id]);
   function focusDesktop() { container.current?.querySelector('iron-remote-desktop')?.shadowRoot?.querySelector<HTMLCanvasElement>('canvas')?.focus(); }
   const ready = useMemo(() => {
     let resolve!: (value: UserInteraction) => void;

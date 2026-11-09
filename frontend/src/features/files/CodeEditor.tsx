@@ -9,7 +9,7 @@ import Tooltip from '../../components/Tooltip';
 import { Compartment, EditorState, StateEffect, StateField, Transaction } from '@codemirror/state';
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, indentWithTab, undo, redo, undoDepth, redoDepth, invertedEffects } from '@codemirror/commands';
-import { searchKeymap, highlightSelectionMatches, openSearchPanel, closeSearchPanel, searchPanelOpen } from '@codemirror/search';
+import { searchKeymap, highlightSelectionMatches, openSearchPanel, closeSearchPanel, searchPanelOpen, getSearchQuery, setSearchQuery } from '@codemirror/search';
 import { bracketMatching, foldGutter, indentOnInput } from '@codemirror/language';
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 import { diagnosticCount, openLintPanel, setDiagnostics } from '@codemirror/lint';
@@ -72,11 +72,12 @@ EditorView.contentAttributes.of({ 'aria-label': translate('files:edit', { value1
     const editor = view.current;
     if (!editor) return;
     const searchOpen = searchPanelOpen(editor.state);
+    const query = searchOpen ? getSearchQuery(editor.state) : undefined;
     const focused = document.activeElement as HTMLElement | null;
     const restoreFocus = focused && !editor.dom.contains(focused);
     if (searchOpen) closeSearchPanel(editor);
     editor.dispatch({ effects: localization.current.reconfigure(localizedEditor()) });
-    if (searchOpen) { openSearchPanel(editor); if (restoreFocus) focused.focus({ preventScroll: true }); }
+    if (searchOpen) { openSearchPanel(editor); if (query) editor.dispatch({ effects: setSearchQuery.of(query) }); if (restoreFocus) focused.focus({ preventScroll: true }); }
   }, [locale, path, reloadEpoch]);
   useEffect(() => {
     const editor = new EditorView({ parent: host.current!, state: EditorState.create({ doc: content, extensions: [
