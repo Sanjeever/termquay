@@ -1,12 +1,19 @@
+import Modal from '../../components/Modal';
+import { eventError, errorMessage } from '../../lib/errors.ts';
+import { t as translate } from '../../i18n/index.ts';
+import { message as uiMessage } from '../../i18n/messages.ts';
+import { useMessageState } from '../../i18n/useMessageState.ts';
+import { useTranslation } from 'react-i18next';
 import { useEffect, useRef, useState } from 'react';
-import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
+import { Button, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
 import { SearchRemoteFiles } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { SearchMatch, SearchResult } from '../../../bindings/github.com/Sanjeever/termquay/internal/files/models';
 import SelectControl from '../../components/SelectControl';
 import ErrorNotice from '../../components/ErrorNotice';
-import { errorMessage } from '../../lib/errors';
+
 
 export default function FileSearchDialog({ workspace, directory, onOpen, onClose }: { workspace: string; directory: string; onOpen(match: SearchMatch): Promise<void>; onClose(): void }) {
+  useTranslation();
   const [root, setRoot] = useState(directory);
   const [query, setQuery] = useState('');
   const [content, setContent] = useState(false);
@@ -14,7 +21,7 @@ export default function FileSearchDialog({ workspace, directory, onOpen, onClose
   const [regex, setRegex] = useState(false);
   const [exclude, setExclude] = useState('');
   const [result, setResult] = useState<SearchResult>();
-  const [error, setError] = useState('');
+  const [error, setError] = useMessageState('');
   const [busy, setBusy] = useState(false);
   const [opening, setOpening] = useState(false);
   const pending = useRef<ReturnType<typeof SearchRemoteFiles>>();
@@ -26,7 +33,7 @@ export default function FileSearchDialog({ workspace, directory, onOpen, onClose
     pending.current = undefined;
     request?.cancel();
     setBusy(false);
-    if (request) setError('搜索已取消');
+    if (request) setError(uiMessage('files:searchCanceled'));
   }
   async function search() {
     if (pending.current) return;
@@ -36,32 +43,32 @@ export default function FileSearchDialog({ workspace, directory, onOpen, onClose
     try {
       const value = await request;
       if (mounted.current && pending.current === request) setResult(value);
-    } catch (e) { if (mounted.current && pending.current === request) setError(errorMessage(e)); }
+    } catch (e) { if (mounted.current && pending.current === request) setError(e); }
     finally { if (pending.current === request) { pending.current = undefined; if (mounted.current) setBusy(false); } }
   }
   async function open(match: SearchMatch) {
     if (opening) return;
     setOpening(true); setError('');
     try { await onOpen(match); if (mounted.current) onClose(); }
-    catch (e) { if (mounted.current) setError(errorMessage(e)); }
+    catch (e) { if (mounted.current) setError(e); }
     finally { if (mounted.current) setOpening(false); }
   }
   const matches = result?.matches || [];
   const issues = result?.issues || [];
-  return <Modal isOpen onClose={onClose} size="4xl" className="app-dialog file-search-dialog" scrollBehavior="inside"><ModalContent><ModalHeader>搜索远端文件</ModalHeader>
+  return <Modal isOpen onClose={onClose} size="4xl" className="app-dialog file-search-dialog" scrollBehavior="inside"><ModalContent><ModalHeader>{translate('files:searchRemoteFiles')}</ModalHeader>
     <form onSubmit={event => { event.preventDefault(); void search(); }}><ModalBody>
-      <label className="form-field">目录<input value={root} disabled={busy} maxLength={4096} onChange={event => setRoot(event.target.value)} required /></label>
-      <div className="file-search-query"><SelectControl aria-label="搜索方式" value={content ? 'content' : 'name'} disabled={busy} onChange={event => setContent(event.target.value === 'content')}><option value="name">文件名</option><option value="content">文件内容</option></SelectControl><input aria-label="搜索内容" autoFocus value={query} disabled={busy} maxLength={512} onChange={event => setQuery(event.target.value)} required /><Button type="submit" color="primary" isDisabled={busy || !query || !root || opening}>搜索</Button>{busy && <Button variant="light" onPress={cancel}>取消</Button>}</div>
-      <div className="button-row"><label className="checkbox-label"><input type="checkbox" checked={caseSensitive} disabled={busy} onChange={event => setCaseSensitive(event.target.checked)} />区分大小写</label><label className="checkbox-label"><input type="checkbox" checked={regex} disabled={busy} onChange={event => setRegex(event.target.checked)} />正则表达式</label></div>
-      <details><summary>排除规则</summary><textarea aria-label="排除规则，每行一条相对路径或文件名通配符" value={exclude} disabled={busy} rows={3} onChange={event => setExclude(event.target.value)} maxLength={8192} /></details>
+      <label className="form-field">{translate('files:directory2')}<input value={root} disabled={busy} maxLength={4096} onChange={event => setRoot(event.target.value)} required /></label>
+      <div className="file-search-query"><SelectControl aria-label={translate('files:searchMethod')} value={content ? 'content' : 'name'} disabled={busy} onChange={event => setContent(event.target.value === 'content')}><option value="name">{translate('files:fileName')}</option><option value="content">{translate('files:fileContents')}</option></SelectControl><input aria-label={translate('files:searchText')} autoFocus value={query} disabled={busy} maxLength={512} onChange={event => setQuery(event.target.value)} required /><Button type="submit" color="primary" isDisabled={busy || !query || !root || opening}>{translate('files:search')}</Button>{busy && <Button variant="light" onPress={cancel}>{translate('files:cancel')}</Button>}</div>
+      <div className="button-row"><label className="checkbox-label"><input type="checkbox" checked={caseSensitive} disabled={busy} onChange={event => setCaseSensitive(event.target.checked)} />{translate('files:matchCase')}</label><label className="checkbox-label"><input type="checkbox" checked={regex} disabled={busy} onChange={event => setRegex(event.target.checked)} />{translate('files:regularExpression')}</label></div>
+      <details><summary>{translate('files:exclusionRules')}</summary><textarea aria-label={translate('files:exclusionRulesOneRelativePathOrFilenameWildcard')} value={exclude} disabled={busy} rows={3} onChange={event => setExclude(event.target.value)} maxLength={8192} /></details>
       <ErrorNotice message={error} onDismiss={() => setError('')} />
-      {busy && <p className="muted" role="status">正在搜索…</p>}
+      {busy && <p className="muted" role="status">{translate('files:searching')}</p>}
       {result && <>
-        <div className="session-status" role="status">{matches.length} 项结果 · 已扫描 {result.scanned} 项{result.skipped_large > 0 && ` · 跳过大文件 ${result.skipped_large} 个`}{result.skipped_binary > 0 && ` · 跳过二进制或非 UTF-8 文件 ${result.skipped_binary} 个`}{result.failed > 0 && ` · ${result.failed} 项未能搜索`}</div>
+        <div className="session-status" role="status">{matches.length} {translate('files:resultsScanned')}{result.scanned} {translate('files:items')}{result.skipped_large > 0 && translate('files:skippedLargeFiles', { value1: result.skipped_large })}{result.skipped_binary > 0 && translate('files:skippedBinaryOrNonUTF8Files', { value1: result.skipped_binary })}{result.failed > 0 && translate('files:itemsCouldNotBeSearched', { value1: result.failed })}</div>
         {result.stop_reason && <p role="status" className="error">{result.stop_reason}</p>}
-        {!!issues.length && <details><summary>未完成项{result.failed > issues.length ? `（展示前 ${issues.length} 项）` : ''}</summary>{issues.map((issue, index) => <p key={index} className="error file-path">{issue.path} · {issue.error}</p>)}</details>}
-        <div className="file-search-results" aria-label="远端文件搜索结果">{matches.map((match, index) => <button type="button" key={`${match.path}:${match.line}:${index}`} disabled={opening} onClick={() => void open(match)}><span className="file-path">{match.path}{match.directory ? '/' : match.line ? `:${match.line}` : ''}</span>{match.text && <code>{match.text}</code>}</button>)}</div>
+        {!!issues.length && <details><summary>{translate('files:incompleteItems')}{result.failed > issues.length ? translate('files:firstItemsShown', { value1: issues.length }) : ''}</summary>{issues.map((issue, index) => <p key={index} className="error file-path">{issue.path} · {errorMessage(eventError(issue))}</p>)}</details>}
+        <div className="file-search-results" aria-label={translate('files:remoteFileSearchResults')}>{matches.map((match, index) => <button type="button" key={`${match.path}:${match.line}:${index}`} disabled={opening} onClick={() => void open(match)}><span className="file-path">{match.path}{match.directory ? '/' : match.line ? `:${match.line}` : ''}</span>{match.text && <code>{match.text}</code>}</button>)}</div>
       </>}
-    </ModalBody><ModalFooter><Button variant="light" onPress={onClose}>关闭</Button></ModalFooter></form>
+    </ModalBody><ModalFooter><Button variant="light" onPress={onClose}>{translate('files:close')}</Button></ModalFooter></form>
   </ModalContent></Modal>;
 }

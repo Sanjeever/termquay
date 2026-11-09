@@ -1,4 +1,7 @@
-import { errorMessage } from "../../lib/errors";
+import { t as translate, currentLocale } from '../../i18n/index.ts';
+import { useMessageState } from '../../i18n/useMessageState.ts';
+import { useTranslation } from 'react-i18next';
+
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { DropdownTrigger, DropdownMenu, DropdownSection, DropdownItem } from '@heroui/react';
 import { Dropdown } from '../../components/Popover';
@@ -6,7 +9,7 @@ import Tooltip from '../../components/Tooltip';
 import { Compartment, EditorState, StateEffect, StateField, Transaction } from '@codemirror/state';
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, indentWithTab, undo, redo, undoDepth, redoDepth, invertedEffects } from '@codemirror/commands';
-import { searchKeymap, highlightSelectionMatches, openSearchPanel } from '@codemirror/search';
+import { searchKeymap, highlightSelectionMatches, openSearchPanel, closeSearchPanel, searchPanelOpen } from '@codemirror/search';
 import { bracketMatching, foldGutter, indentOnInput } from '@codemirror/language';
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 import { diagnosticCount, openLintPanel, setDiagnostics } from '@codemirror/lint';
@@ -32,9 +35,12 @@ export default function CodeEditor({ path, content, format, visible, saving, dir
   completionShortcut?: string;
   onHistory?(): void;
 }) {
+  useTranslation();
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView>();
   const { appearance, dark } = useAppearance();
+  const locale = currentLocale();
+  const localization = useRef(new Compartment());
   const theme = useRef(new Compartment());
   const map = useRef(new Compartment());
   const wrapping = useRef(new Compartment());
@@ -49,23 +55,37 @@ export default function CodeEditor({ path, content, format, visible, saving, dir
   const [minimap, setMinimap] = useState(() => localStorage.getItem('termquay.editor.minimap') !== 'false');
   const [wrap, setWrap] = useState(false);
   const [wide, setWide] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useMessageState('');
   const [languageOverride, setLanguageOverride] = useState<EditorLanguageID|'auto'>('auto');
-  const [languageError, setLanguageError] = useState('');
-  const [diagnosticError, setDiagnosticError] = useState('');
+  const [languageError, setLanguageError] = useMessageState('');
+  const [diagnosticError, setDiagnosticError] = useMessageState('');
   const [problems, setProblems] = useState(0);
   const [languageEpoch, setLanguageEpoch] = useState(0);
   const [diagnosticEpoch, setDiagnosticEpoch] = useState(0);
   const mode = languageOverride==='auto'?detectEditorLanguage(path,content):languageOverride;
   const callbacks = useRef({ onChange, onSave, completionShortcut }); callbacks.current = { onChange, onSave, completionShortcut };
+  function localizedEditor() { return [
+EditorState.phrases.of({ 'Find': translate('files:find'), 'Replace': translate('files:replace'), 'next': translate('files:next'), 'previous': translate('files:previous'), 'all': translate('files:all'), 'match case': translate('files:matchCase'), 'regexp': translate('files:regexp'), 'by word': translate('files:byWord'), 'replace': translate('files:replace'), 'replace all': translate('files:replaceAll'), 'close': translate('files:close'), 'current match': translate('files:currentMatch'), 'on line': translate('files:onLine'), "Go to line": translate('files:cmGoToLine'), "go": translate('files:cmGo'), "replaced $ matches": translate('files:cmReplacedMatches'), "replaced match on line $": translate('files:cmReplacedMatchLine'), "Completions": translate('files:cmCompletions'), "folded code": translate('files:cmFoldedCode'), "to": translate('files:cmTo'), "unfold": translate('files:cmUnfold'), "Folded lines": translate('files:cmFoldedLines'), "Unfolded lines": translate('files:cmUnfoldedLines'), "Fold line": translate('files:cmFoldLine'), "Unfold line": translate('files:cmUnfoldLine'), "Diagnostics": translate('files:cmDiagnostics'), "No diagnostics": translate('files:cmNoDiagnostics'), "Control character": translate('files:cmControlCharacter') }),
+EditorView.contentAttributes.of({ 'aria-label': translate('files:edit', { value1: path }), spellcheck: 'false' }),
+  ]; }
+  useEffect(() => {
+    const editor = view.current;
+    if (!editor) return;
+    const searchOpen = searchPanelOpen(editor.state);
+    const focused = document.activeElement as HTMLElement | null;
+    const restoreFocus = focused && !editor.dom.contains(focused);
+    if (searchOpen) closeSearchPanel(editor);
+    editor.dispatch({ effects: localization.current.reconfigure(localizedEditor()) });
+    if (searchOpen) { openSearchPanel(editor); if (restoreFocus) focused.focus({ preventScroll: true }); }
+  }, [locale, path, reloadEpoch]);
   useEffect(() => {
     const editor = new EditorView({ parent: host.current!, state: EditorState.create({ doc: content, extensions: [
       formatState.init(() => format), lineNumbers(), history(), drawSelection(), highlightActiveLine(), highlightActiveLineGutter(), bracketMatching(), closeBrackets(), foldGutter(), indentOnInput(), highlightSelectionMatches(), language.current.of([]), intelligence.current.of([]),
       EditorView.domEventHandlers({keydown(event,editor){if(!editor.composing&&!event.isComposing&&callbacks.current.completionShortcut&&eventShortcut(event)===callbacks.current.completionShortcut&&!editor.state.facet(EditorState.readOnly)){event.preventDefault();startCompletion(editor);return true;}return false;}}),
       invertedEffects.of(transaction => transaction.effects.some(effect => effect.is(changeFormat)) ? [changeFormat.of(transaction.startState.field(formatState))] : []),
       keymap.of([{ key: 'Mod-s', run: () => { callbacks.current.onSave(); return true; } }, ...closeBracketsKeymap, ...defaultKeymap, ...historyKeymap, ...searchKeymap, indentWithTab]),
-      EditorState.phrases.of({ 'Find': '查找', 'Replace': '替换', 'next': '下一个', 'previous': '上一个', 'all': '全部', 'match case': '区分大小写', 'regexp': '正则', 'by word': '全词', 'replace': '替换', 'replace all': '全部替换', 'close': '关闭', 'current match': '当前匹配', 'on line': '所在行' }),
-      EditorView.contentAttributes.of({ 'aria-label': `编辑 ${path}`, spellcheck: 'false' }),
+      localization.current.of(localizedEditor()),
+
       EditorView.updateListener.of(update => {
         const changedFormat = update.transactions.some(transaction => transaction.effects.some(effect => effect.is(changeFormat)));
         if ((update.docChanged || changedFormat) && !syncing.current) callbacks.current.onChange(editorContent(update.state), update.state.field(formatState));
@@ -79,10 +99,10 @@ export default function CodeEditor({ path, content, format, visible, saving, dir
   }, [path, reloadEpoch]);
   useEffect(()=>{
     const editor=view.current;if(!editor)return;let ended=false;setLanguageError('');
-    void loadEditorLanguage(mode).then(extension=>{if(!ended&&view.current===editor)editor.dispatch({effects:language.current.reconfigure(extension)});}).catch(error=>{if(!ended)setLanguageError(errorMessage(error));});
+    void loadEditorLanguage(mode).then(extension=>{if(!ended&&view.current===editor)editor.dispatch({effects:language.current.reconfigure(extension)});}).catch(error=>{if(!ended)setLanguageError(error);});
     return()=>{ended=true;};
   },[mode,path,reloadEpoch,languageEpoch]);
-  useEffect(()=>{const editor=view.current;if(!editor)return;setDiagnosticError('');if(diagnosticCount(editor.state))editor.dispatch(setDiagnostics(editor.state,[]));editor.dispatch({effects:intelligence.current.reconfigure(editorIntelligence(mode,setDiagnosticError,visible))});},[mode,visible,path,reloadEpoch,diagnosticEpoch]);
+  useEffect(()=>{const editor=view.current;if(!editor)return;setDiagnosticError('');if(diagnosticCount(editor.state))editor.dispatch(setDiagnostics(editor.state,[]));editor.dispatch({effects:intelligence.current.reconfigure(editorIntelligence(mode,setDiagnosticError,visible))});},[mode,visible,path,reloadEpoch,diagnosticEpoch,locale]);
   useEffect(() => { view.current?.dispatch({ effects: theme.current.reconfigure(editorTheme(dark)) }); view.current?.requestMeasure(); }, [dark, appearance.monoFont, path, reloadEpoch]);
   useEffect(() => { const observer = new ResizeObserver(([entry]) => setWide(entry.contentRect.width >= 600)); observer.observe(host.current!); return () => observer.disconnect(); }, []);
   useEffect(() => { view.current?.dispatch({ effects: map.current.reconfigure(visible && wide && minimap ? showMinimap.of({ create: () => ({ dom: document.createElement('div') }), displayText: 'blocks', showOverlay: 'always' }) : []) }); }, [visible, wide, minimap, reloadEpoch]);
@@ -98,30 +118,30 @@ export default function CodeEditor({ path, content, format, visible, saving, dir
   useEffect(() => { if (visible) { view.current?.requestMeasure(); if (focusOnShow && !document.activeElement?.closest('[role=tablist]')) view.current?.focus(); } }, [visible]);
   useEffect(() => { const editor = view.current; if (!editor || !visible || !jumpTo) return; const line = editor.state.doc.line(Math.max(1, Math.min(editor.state.doc.lines, jumpTo.line))); editor.dispatch({ selection: { anchor: line.from }, effects: EditorView.scrollIntoView(line.from, { y: 'center' }) }); editor.focus(); }, [jumpTo?.sequence, visible, reloadEpoch]);
   function updateFormat(value: Partial<EditorFormat>) { const editor = view.current; if (editor) { const next = { ...editor.state.field(formatState), ...value }; if (JSON.stringify(next) === JSON.stringify(editor.state.field(formatState))) return; editor.dispatch({ effects: changeFormat.of(next), annotations: Transaction.userEvent.of('input.format') }); editor.focus(); } }
-  function preference(key: string, value: string, apply: () => void) { try { if(!demo)localStorage.setItem(key, value); apply(); setError(''); } catch (e) { setError(errorMessage(e)); } }
+  function preference(key: string, value: string, apply: () => void) { try { if(!demo)localStorage.setItem(key, value); apply(); setError(''); } catch (e) { setError(e); } }
   function action(label: string, name: Parameters<typeof Icon>[0]['name'], run: () => void, disabled = false) { return <Tooltip content={label}><button type="button" className="icon-button" aria-label={label} disabled={disabled} onClick={run}><Icon name={name} width="16" /></button></Tooltip>; }
   const mod = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl+';
   return <>
-    <div className="editor-toolbar" aria-label="文件编辑工具栏">
-      {action(`撤销 · ${mod}Z`, 'undo', () => { if (view.current) undo(view.current); }, !historyState.undo)}
-      {action(`重做 · ${mod}Shift+Z`, 'redo', () => { if (view.current) redo(view.current); }, !historyState.redo)}
+    <div className="editor-toolbar" aria-label={translate('files:fileEditorToolbar')}>
+      {action(translate('files:undoZ', { value1: mod }), 'undo', () => { if (view.current) undo(view.current); }, !historyState.undo)}
+      {action(translate('files:redoShiftZ', { value1: mod }), 'redo', () => { if (view.current) redo(view.current); }, !historyState.redo)}
       <span className="editor-toolbar-divider" />
-      {action('重新加载', 'refresh', () => onReload(format.encoding), saving)}
-      {action(saving ? '正在保存' : `保存 · ${mod}S`, 'save', onSave, saving || !dirty)}
-      {action('下载当前内容', 'download', onDownload, demo)}
-      {onHistory && <button className="session-tool" disabled={saving || demo} onClick={onHistory}>历史与验证</button>}
-      {action(`搜索 · ${mod}F`, 'search', () => { if (view.current) openSearchPanel(view.current); })}
-      {action(`触发代码补全 · ${shortcutLabel(completionShortcut)}`, 'terminal', () => {if(view.current){view.current.focus();startCompletion(view.current);}}, format.line_ending==='mixed')}
+      {action(translate('files:reload'), 'refresh', () => onReload(format.encoding), saving)}
+      {action(saving ? translate('files:saving') : translate('files:saveS', { value1: mod }), 'save', onSave, saving || !dirty)}
+      {action(translate('files:downloadCurrentContent'), 'download', onDownload, demo)}
+      {onHistory && <button className="session-tool" disabled={saving || demo} onClick={onHistory}>{translate('files:historyAndValidation')}</button>}
+      {action(translate('files:searchF', { value1: mod }), 'search', () => { if (view.current) openSearchPanel(view.current); })}
+      {action(translate('files:triggerCodeCompletion', { value1: shortcutLabel(completionShortcut) }), 'terminal', () => {if(view.current){view.current.focus();startCompletion(view.current);}}, format.line_ending==='mixed')}
       <span className="editor-toolbar-divider" />
-      {['LF', 'CRLF'].map(value => <button key={value} className="editor-format-button" aria-label={`使用 ${value} 换行符`} aria-pressed={format.line_ending === value} disabled={saving} onClick={() => updateFormat({ line_ending: value })}>{value}</button>)}
-      <Dropdown><DropdownTrigger><button className="editor-encoding" aria-label="文件编码" disabled={saving}>{format.encoding}{format.bom && format.encoding === 'UTF-8' ? ' BOM' : ''}<Icon name="chevron" width="11" style={{ transform: 'rotate(90deg)' }} /></button></DropdownTrigger><DropdownMenu aria-label="文件编码操作" onAction={key => { const [mode, encoding] = String(key).split(':'); if (mode === 'open') onReload(encoding); else updateFormat({ encoding, bom: encoding === 'UTF-8' && format.bom }); }}><DropdownSection title="以编码重新打开" showDivider>{editorEncodings.map(([value, label]) => <DropdownItem key={`open:${value}`}>{label}</DropdownItem>)}</DropdownSection><DropdownSection title="以编码保存">{editorEncodings.map(([value, label]) => <DropdownItem key={`save:${value}`}>{label}</DropdownItem>)}</DropdownSection></DropdownMenu></Dropdown>
-      <Dropdown><DropdownTrigger><Tooltip content="编辑器视图选项"><button className="icon-button" aria-label="编辑器视图选项"><Icon name="more" width="16" /></button></Tooltip></DropdownTrigger><DropdownMenu aria-label="编辑器视图选项" closeOnSelect={false} disabledKeys={[...(fontSize>=24?['zoomIn']:[]),...(fontSize<=10?['zoomOut']:[])]} onAction={key => { if (key === 'minimap') preference('termquay.editor.minimap', String(!minimap), () => setMinimap(!minimap));else if(key==='wrap')setWrap(!wrap);else{const size=key==='zoomIn'?fontSize+1:fontSize-1;preference('termquay.editor.font-size',String(size),()=>setFontSize(size));} }}><DropdownItem key="minimap" endContent={minimap ? '✓' : null}>代码缩略图</DropdownItem><DropdownItem key="wrap" endContent={wrap ? '✓' : null} showDivider>自动换行</DropdownItem><DropdownItem key="zoomIn">放大字体</DropdownItem><DropdownItem key="zoomOut">缩小字体</DropdownItem></DropdownMenu></Dropdown>
+      {['LF', 'CRLF'].map(value => <button key={value} className="editor-format-button" aria-label={translate('files:useLineEndings', { value1: value })} aria-pressed={format.line_ending === value} disabled={saving} onClick={() => updateFormat({ line_ending: value })}>{value}</button>)}
+      <Dropdown><DropdownTrigger><button className="editor-encoding" aria-label={translate('files:fileEncoding')} disabled={saving}>{format.encoding}{format.bom && format.encoding === 'UTF-8' ? ' BOM' : ''}<Icon name="chevron" width="11" style={{ transform: 'rotate(90deg)' }} /></button></DropdownTrigger><DropdownMenu aria-label={translate('files:fileEncodingActions')} onAction={key => { const [mode, encoding] = String(key).split(':'); if (mode === 'open') onReload(encoding); else updateFormat({ encoding, bom: encoding === 'UTF-8' && format.bom }); }}><DropdownSection title={translate('files:reopenWithEncoding')} showDivider>{editorEncodings.map(([value, label]) => <DropdownItem key={`open:${value}`}>{label}</DropdownItem>)}</DropdownSection><DropdownSection title={translate('files:saveWithEncoding')}>{editorEncodings.map(([value, label]) => <DropdownItem key={`save:${value}`}>{label}</DropdownItem>)}</DropdownSection></DropdownMenu></Dropdown>
+      <Dropdown><DropdownTrigger><Tooltip content={translate('files:editorViewOptions')}><button className="icon-button" aria-label={translate('files:editorViewOptions')}><Icon name="more" width="16" /></button></Tooltip></DropdownTrigger><DropdownMenu aria-label={translate('files:editorViewOptions')} closeOnSelect={false} disabledKeys={[...(fontSize>=24?['zoomIn']:[]),...(fontSize<=10?['zoomOut']:[])]} onAction={key => { if (key === 'minimap') preference('termquay.editor.minimap', String(!minimap), () => setMinimap(!minimap));else if(key==='wrap')setWrap(!wrap);else{const size=key==='zoomIn'?fontSize+1:fontSize-1;preference('termquay.editor.font-size',String(size),()=>setFontSize(size));} }}><DropdownItem key="minimap" endContent={minimap ? '✓' : null}>{translate('files:minimap')}</DropdownItem><DropdownItem key="wrap" endContent={wrap ? '✓' : null} showDivider>{translate('files:wordWrap')}</DropdownItem><DropdownItem key="zoomIn">{translate('files:increaseFontSize')}</DropdownItem><DropdownItem key="zoomOut">{translate('files:decreaseFontSize')}</DropdownItem></DropdownMenu></Dropdown>
     </div>
-    {format.line_ending === 'mixed' && <p className="editor-format-warning">混合换行符，请选择 LF 或 CRLF 后编辑</p>}
+    {format.line_ending === 'mixed' && <p className="editor-format-warning">{translate('files:mixedLineEndingsSelectLFOrCRLFBefore')}</p>}
     <ErrorNotice message={error} onDismiss={()=>setError('')}/>
-    <ErrorNotice message={languageError}><button className="session-tool" onClick={()=>setLanguageEpoch(value=>value+1)}>重新加载语言</button></ErrorNotice>
-    <ErrorNotice message={diagnosticError}><button className="session-tool" onClick={()=>setDiagnosticEpoch(value=>value+1)}>重试语法检查</button></ErrorNotice>
+    <ErrorNotice message={languageError}><button className="session-tool" onClick={()=>setLanguageEpoch(value=>value+1)}>{translate('files:reloadLanguage')}</button></ErrorNotice>
+    <ErrorNotice message={diagnosticError}><button className="session-tool" onClick={()=>setDiagnosticEpoch(value=>value+1)}>{translate('files:retrySyntaxCheck')}</button></ErrorNotice>
     <div className="code-editor" ref={host} style={{ '--editor-font-size': `${fontSize}px` } as CSSProperties} />
-    <div className="editor-status"><Tooltip content={path}><span className="editor-path">{path}</span></Tooltip><SelectControl aria-label="编辑语言" value={languageOverride} onChange={event=>setLanguageOverride(event.target.value as EditorLanguageID|'auto')}><option value="auto">{`自动 · ${editorLanguages.find(([id])=>id===mode)?.[1]}`}</option>{editorLanguages.map(([id,name])=><option key={id} value={id}>{name}</option>)}</SelectControl>{problems>0&&<button className="error" onClick={()=>{if(view.current)openLintPanel(view.current);}}>{problems} 个问题</button>}<output aria-label="光标位置">行 {position.line}，列 {position.column}</output><span>{fontSize}px</span></div>
+    <div className="editor-status"><Tooltip content={path}><span className="editor-path">{path}</span></Tooltip><SelectControl aria-label={translate('files:editingLanguage')} value={languageOverride} onChange={event=>setLanguageOverride(event.target.value as EditorLanguageID|'auto')}><option value="auto">{translate('files:auto', { value1: editorLanguages().find(([id])=>id===mode)?.[1] })}</option>{editorLanguages().map(([id,name])=><option key={id} value={id}>{name}</option>)}</SelectControl>{problems>0&&<button className="error" onClick={()=>{if(view.current)openLintPanel(view.current);}}>{translate('files:problemCount', { count: problems })}</button>}<output aria-label={translate('files:cursorPosition')}>{translate('files:cursorCoordinates', { line: position.line, column: position.column })}</output><span>{fontSize}px</span></div>
   </>;
 }

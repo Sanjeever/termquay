@@ -1,3 +1,5 @@
+import { message as uiMessage } from '../../i18n/messages.ts';
+import { useMessageState } from '../../i18n/useMessageState.ts';
 import { errorMessage } from "../../lib/errors";
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Events, Window } from '@wailsio/runtime';
@@ -11,7 +13,7 @@ type Probe = { operation: ReturnType<typeof MeasureConnectionLatency>; cancelled
 export default function useConnectionLatency(connections: Connection[], active: boolean, visible: Connection[]) {
   const [measurements, setMeasurements] = useState<Record<string, Measurement | undefined>>({});
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useMessageState('');
   const targets = useMemo(() => {
     const byID = new Map(connections.map(connection => [connection.id, connection]));
     return new Map(visible.map(connection => {
@@ -100,7 +102,7 @@ export default function useConnectionLatency(connections: Connection[], active: 
     document.addEventListener('visibilitychange', sync);
     Window.IsMinimised().then(value => {
       if (!disposed) { if (!ready) minimised = value; ready = true; setError(''); sync(); }
-    }).catch(error => { if (!disposed) setError(`读取窗口状态失败：${errorMessage(error)}`); });
+    }).catch(error => { if (!disposed) setError(uiMessage('connections:couldNotReadWindowState', { value1: error })); });
     return () => {
       disposed = true;
       pause();

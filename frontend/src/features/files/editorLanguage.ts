@@ -1,21 +1,22 @@
+import { t as translate } from '../../i18n/index.ts';
 import { LanguageDescription, LanguageSupport, StreamLanguage, type Language } from '@codemirror/language';
 import type { Extension } from '@codemirror/state';
 
-export const editorLanguages = [
-  ['text','纯文本'], ['json','JSON'], ['json5','JSON5 / JSONC'], ['yaml','YAML'],
+export const editorLanguages = () => [
+  ['text',translate('files:plainText')], ['json','JSON'], ['json5','JSON5 / JSONC'], ['yaml','YAML'],
   ['javascript','JavaScript'], ['typescript','TypeScript'], ['jsx','JSX'], ['tsx','TSX'],
   ['python','Python'], ['go','Go'], ['rust','Rust'], ['c','C'], ['cpp','C++'], ['java','Java'], ['csharp','C#'],
   ['php','PHP'], ['ruby','Ruby'], ['lua','Lua'], ['perl','Perl'], ['kotlin','Kotlin'], ['scala','Scala'], ['swift','Swift'], ['r','R'],
-  ['html','HTML'], ['xml','XML / SVG 源码'], ['css','CSS'], ['scss','SCSS'], ['less','LESS'], ['sass','Sass'],
+  ['html','HTML'], ['xml',translate('files:xMLSVGSource')], ['css','CSS'], ['scss','SCSS'], ['less','LESS'], ['sass','Sass'],
   ['sql','SQL'], ['markdown','Markdown'], ['shell','Shell'], ['powershell','PowerShell'], ['batch','Windows Batch'],
   ['dockerfile','Dockerfile'], ['makefile','Makefile'], ['cmake','CMake'], ['toml','TOML'], ['ini','INI / Properties'],
-  ['nginx','nginx'], ['systemd','systemd'], ['ssh','SSH 配置'], ['env','.env'], ['gitignore','Git 忽略规则'], ['diff','Diff / Patch'], ['protobuf','Protocol Buffers'],
+  ['nginx','nginx'], ['systemd','systemd'], ['ssh',translate('files:sSHConfiguration')], ['env','.env'], ['gitignore',translate('files:gitIgnoreRules')], ['diff','Diff / Patch'], ['protobuf','Protocol Buffers'],
 ] as const;
-export type EditorLanguageID = typeof editorLanguages[number][0];
+export type EditorLanguageID = ReturnType<typeof editorLanguages>[number][0];
 const aliases: Record<string,EditorLanguageID> = {js:'javascript',ts:'typescript',py:'python',rb:'ruby',sh:'shell',bash:'shell',zsh:'shell',yml:'yaml','c++':'cpp',cxx:'cpp',cs:'csharp','c#':'csharp',ps1:'powershell',ps:'powershell',md:'markdown',proto:'protobuf'};
 export function languageFromTag(tag: string): EditorLanguageID | undefined {
   const value = tag.trim().split(/\s/,1)[0].toLowerCase();
-  return aliases[value] || editorLanguages.find(([id])=>id===value)?.[0];
+  return aliases[value] || editorLanguages().find(([id])=>id===value)?.[0];
 }
 
 export function detectEditorLanguage(path: string, content = ''): EditorLanguageID {
@@ -80,7 +81,7 @@ const loaders: Record<EditorLanguageID,()=>Promise<Extension>> = {
   less:()=>import('@codemirror/legacy-modes/mode/css').then(module=>StreamLanguage.define(module.less)),
   sass:()=>import('@codemirror/legacy-modes/mode/sass').then(module=>StreamLanguage.define(module.sass)),
   sql:()=>import('@codemirror/lang-sql').then(module=>module.sql()),
-  markdown:()=>import('@codemirror/lang-markdown').then(module=>module.markdown({codeLanguages:editorLanguages.filter(([id])=>id!=='text'&&id!=='markdown').map(([id,name])=>LanguageDescription.of({name,alias:[id,...Object.keys(aliases).filter(alias=>aliases[alias]===id)],load:async()=>{const support=await loadEditorLanguage(id);return support instanceof LanguageSupport?support:new LanguageSupport(support as Language);}}))})),
+  markdown:()=>import('@codemirror/lang-markdown').then(module=>module.markdown({codeLanguages:editorLanguages().filter(([id])=>id!=='text'&&id!=='markdown').map(([id,name])=>LanguageDescription.of({name,alias:[id,...Object.keys(aliases).filter(alias=>aliases[alias]===id)],load:async()=>{const support=await loadEditorLanguage(id);return support instanceof LanguageSupport?support:new LanguageSupport(support as Language);}}))})),
   shell:()=>import('@codemirror/legacy-modes/mode/shell').then(module=>StreamLanguage.define(module.shell)),
   powershell:()=>import('@codemirror/legacy-modes/mode/powershell').then(module=>StreamLanguage.define(module.powerShell)),
   dockerfile:()=>import('@codemirror/legacy-modes/mode/dockerfile').then(module=>StreamLanguage.define(module.dockerFile)),

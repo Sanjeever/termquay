@@ -5,7 +5,7 @@ export type Draft = Document & {
   saved: string;
   savedFormat?: string;
   reloadEpoch?: number;
-  error: string;
+  error: unknown;
   saving: boolean;
   needsReview?: boolean;
   recovery?: boolean;

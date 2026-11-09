@@ -1,3 +1,7 @@
+import { statusLabel } from '../../i18n/status';
+import { t as translate } from '../../i18n/index.ts';
+import { useMessageState } from '../../i18n/useMessageState.ts';
+import { useTranslation } from 'react-i18next';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@heroui/react';
 import { CheckSSHFileAccess } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
@@ -5,11 +9,12 @@ import type { ConnectionStep } from '../../../bindings/github.com/Sanjeever/term
 import { errorMessage } from '../../lib/errors';
 import ErrorNotice from '../../components/ErrorNotice';
 
-const states: Record<string, string> = { running: '进行中', completed: '完成', failed: '失败', cancelled: '已结束' };
-const codes: Record<string, string> = { dns: '域名解析失败', refused: '端口拒绝连接', timeout: '超时', cancelled: '已取消', identity: '身份需确认或已变化', authentication: '认证未完成' };
+const states: Record<string, string> = { get running() { return translate('connections:inProgress'); }, get completed() { return translate('connections:completed'); }, get failed() { return translate('connections:failed'); }, get cancelled() { return translate('connections:finished'); } };
+const codes: Record<string, string> = { get dns() { return translate('connections:dNSResolutionFailed'); }, get refused() { return translate('connections:connectionRefused'); }, get timeout() { return translate('connections:timedOut'); }, get cancelled() { return translate('connections:canceled'); }, get identity() { return translate('connections:identityRequiresVerificationOrHasChanged'); }, get authentication() { return translate('connections:authenticationIncomplete'); } };
 
 export default function ConnectionDiagnostics({ steps, workspace = '', busy = false }: { steps: ConnectionStep[]; workspace?: string; busy?: boolean }) {
-  const [error, setError] = useState('');
+  useTranslation();
+  const [error, setError] = useMessageState('');
   const [fileCheck, setFileCheck] = useState<{ state: string; duration: number; detail: string }>();
   const pending = useRef<ReturnType<typeof CheckSSHFileAccess>>();
   const generation = useRef(0);
@@ -24,15 +29,15 @@ export default function ConnectionDiagnostics({ steps, workspace = '', busy = fa
     finally { if (pending.current === operation) pending.current = undefined; }
   }
   async function copy() {
-    const lines = steps.map(step => `${step.role} ${step.hop} · ${step.host}:${step.port} · ${step.stage} · ${states[step.state] || step.state} · ${step.duration_ms} ms${step.detail ? `\n${step.detail}` : ''}`);
-    if (fileCheck) lines.push(`SFTP 文件通道 · ${states[fileCheck.state]} · ${fileCheck.duration} ms${fileCheck.detail ? `\n${fileCheck.detail}` : ''}`);
-    try { await navigator.clipboard.writeText(lines.join('\n')); setError(''); } catch (e) { setError(errorMessage(e)); }
+    const lines = steps.map(step => `${statusLabel(step.role_code, step.role)} ${step.hop} · ${step.host}:${step.port} · ${statusLabel(step.stage_code, step.stage)} · ${states[step.state] || step.state} · ${step.duration_ms} ms${step.detail ? `\n${step.detail}` : ''}`);
+    if (fileCheck) lines.push(translate('connections:sFTPFileChannelMs', { value1: states[fileCheck.state], value2: fileCheck.duration, value3: fileCheck.detail ? `\n${fileCheck.detail}` : '' }));
+    try { await navigator.clipboard.writeText(lines.join('\n')); setError(''); } catch (e) { setError(e); }
   }
   if (!steps.length) return null;
   return <div className="connection-diagnostics">
-    <ol>{steps.map((step, index) => <li key={index} className={step.state === 'failed' ? 'error' : ''}><span>{step.role} {step.hop} · {step.host}:{step.port}</span><strong>{step.stage}</strong><span>{states[step.state] || step.state}{step.state !== 'running' && ` · ${step.duration_ms} ms`}</span>{step.detail && <details><summary>{codes[step.code || ''] || '技术详情'}</summary><pre>{step.detail}</pre></details>}</li>)}</ol>
-    {fileCheck && <p className={fileCheck.state === 'failed' ? 'error' : ''}>SFTP 文件通道 · {states[fileCheck.state]}{fileCheck.state !== 'running' && ` · ${fileCheck.duration} ms`}{fileCheck.detail && <span className="file-path">{fileCheck.detail}</span>}</p>}
-    <div className="button-row"><Button type="button" size="sm" variant="light" onPress={() => void copy()}>复制诊断摘要</Button>{workspace && <Button type="button" size="sm" variant="light" isDisabled={busy} isLoading={fileCheck?.state === 'running'} onPress={() => void checkFiles()}>检查文件通道</Button>}</div>
+    <ol>{steps.map((step, index) => <li key={index} className={step.state === 'failed' ? 'error' : ''}><span>{statusLabel(step.role_code, step.role)} {step.hop} · {step.host}:{step.port}</span><strong>{statusLabel(step.stage_code, step.stage)}</strong><span>{states[step.state] || step.state}{step.state !== 'running' && ` · ${step.duration_ms} ms`}</span>{step.detail && <details><summary>{codes[step.code || ''] || translate('connections:technicalDetails')}</summary><pre>{step.detail}</pre></details>}</li>)}</ol>
+    {fileCheck && <p className={fileCheck.state === 'failed' ? 'error' : ''}>{translate('connections:sFTPFileChannel')}{states[fileCheck.state]}{fileCheck.state !== 'running' && ` · ${fileCheck.duration} ms`}{fileCheck.detail && <span className="file-path">{fileCheck.detail}</span>}</p>}
+    <div className="button-row"><Button type="button" size="sm" variant="light" onPress={() => void copy()}>{translate('connections:copyDiagnosticSummary')}</Button>{workspace && <Button type="button" size="sm" variant="light" isDisabled={busy} isLoading={fileCheck?.state === 'running'} onPress={() => void checkFiles()}>{translate('connections:checkFileChannel')}</Button>}</div>
     <ErrorNotice message={error} onDismiss={() => setError('')} />
   </div>;
 }

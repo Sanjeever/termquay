@@ -1,3 +1,4 @@
+import { t as translate, currentLocale } from '../../i18n/index.ts';
 import type { Entry } from '../../../bindings/github.com/Sanjeever/termquay/internal/files/models';
 import type { Transfer } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 
@@ -34,14 +35,14 @@ export function fileTreeRows(nodes: Record<string, TreeDirectory>, expanded: Rea
 }
 
 export function entryMetadata(entry: Entry) {
-  const size = entry.size < 1024 ? `${entry.size} 字节` : `${(entry.size / (entry.size < 1024 ** 2 ? 1024 : 1024 ** 2)).toFixed(1)} ${entry.size < 1024 ** 2 ? 'KiB' : 'MiB'}（${entry.size.toLocaleString()} 字节）`;
+  const size = entry.size < 1024 ? translate('files:bytes4', { value1: entry.size }) : translate('files:bytes5', { value1: (entry.size / (entry.size < 1024 ** 2 ? 1024 : 1024 ** 2)).toFixed(1), value2: entry.size < 1024 ** 2 ? 'KiB' : 'MiB', value3: entry.size.toLocaleString(currentLocale()) });
   return [
-    ['路径', entry.path],
-    ['类型', entry.symlink ? '符号链接' : entry.directory ? '目录' : entry.mode.startsWith('-') ? '普通文件' : '特殊文件'],
-    ...(entry.symlink ? [['链接指向', entry.link_target || '—'], ['实际路径', entry.link_resolved || '—'], ['目标类型', entry.link_error ? entry.link_error : entry.directory ? '目录' : '文件']] : []),
-    ['大小', size],
-    ['修改时间', new Date(entry.modified).toLocaleString()],
-    ['权限', entry.mode],
+    [translate('files:path'), entry.path],
+    [translate('files:type'), entry.symlink ? translate('files:symbolicLink') : entry.directory ? translate('files:directory2') : entry.mode.startsWith('-') ? translate('files:regularFile') : translate('files:specialFile')],
+    ...(entry.symlink ? [[translate('files:linkTarget'), entry.link_target || '—'], [translate('files:resolvedPath'), entry.link_resolved || '—'], [translate('files:targetType'), entry.link_error ? entry.link_error : entry.directory ? translate('files:directory2') : translate('files:files')]] : []),
+    [translate('files:size'), size],
+    [translate('files:modifiedAt'), new Date(entry.modified).toLocaleString(currentLocale())],
+    [translate('files:permissions'), entry.mode],
     ['UID / GID', `${entry.uid ?? '—'} / ${entry.gid ?? '—'}`],
   ];
 }

@@ -1,3 +1,4 @@
+import { useMessageState } from '../../i18n/useMessageState.ts';
 import { errorMessage } from "../../lib/errors";
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Events } from '@wailsio/runtime';
@@ -7,8 +8,8 @@ import { transferSummary } from './transferFormat';
 
 export default function useTransfers(ready: boolean) {
   const [transfers, setTransfers] = useState<Record<string, Transfer>>({});
-  const [actionError, setActionError] = useState<{ task: string; message: string }>();
-  const [loadError, setLoadError] = useState('');
+  const [actionError, setActionError] = useState<{ task: string; message: unknown }>();
+  const [loadError, setLoadError] = useMessageState('');
   const live = useRef(false);
   const loadVersion = useRef(0);
   const operationVersion = useRef(0);
@@ -33,7 +34,7 @@ export default function useTransfers(ready: boolean) {
       if (!live.current || loadVersion.current !== version) return;
       for (const task of list || []) known.current.set(task.id, task);
       setTransfers(previous=>({...Object.fromEntries((list || []).map(task=>[task.id,task])),...previous})); setLoadError('');
-    } catch (error) { if (live.current && loadVersion.current === version) setLoadError(errorMessage(error)); }
+    } catch (error) { if (live.current && loadVersion.current === version) setLoadError(error); }
   }
   useEffect(() => {
     live.current = true;
@@ -48,7 +49,7 @@ export default function useTransfers(ready: boolean) {
   async function run(id: string, action: () => Promise<unknown>) {
     const version = ++operationVersion.current; operations.current.set(id,version); clearError(id);
     try { await action(); return true; }
-    catch (error) { if (live.current && operations.current.get(id)===version) setActionError({task:id,message:errorMessage(error)}); return false; }
+    catch (error) { if (live.current && operations.current.get(id)===version) setActionError({task:id,message:error}); return false; }
     finally { if (operations.current.get(id)===version) operations.current.delete(id); }
   }
   const cancel = (id: string) => run(id,()=>CancelTransfer(id));
@@ -59,5 +60,5 @@ export default function useTransfers(ready: boolean) {
   const discard = (id: string,workspace: string) => run(id,async()=>{await DiscardTransferResume(id,workspace);remove([id]);});
   const clearFinished = () => run('',async()=>{remove(await ClearFinishedTransfers()||[]);});
   const speed = items.reduce((sum, task) => sum + (task.state === 'running' ? task.speed : 0), 0);
-  return { items, error:actionError?.message || loadError, errorTask:actionError?.task || '', errorKind:actionError?'action':'load', clearError, refresh, accept, cancel, cancelAndDiscard, clear, clearFinished, retry, resume, discard, speed, summary: transferSummary(items), running: items.filter(t => t.state === 'running').length, waiting:items.filter(t=>t.state==='queued').length, failed: items.filter(t => t.state === 'failed').length };
+  return { items, error:errorMessage(actionError?.message || loadError), errorTask:actionError?.task || '', errorKind:actionError?'action':'load', clearError, refresh, accept, cancel, cancelAndDiscard, clear, clearFinished, retry, resume, discard, speed, summary: transferSummary(items), running: items.filter(t => t.state === 'running').length, waiting:items.filter(t=>t.state==='queued').length, failed: items.filter(t => t.state === 'failed').length };
 }

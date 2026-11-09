@@ -1,3 +1,6 @@
+import { t as translate } from '../../i18n/index.ts';
+import { message as uiMessage } from '../../i18n/messages.ts';
+import { useMessageState } from '../../i18n/useMessageState.ts';
 import { useEffect, useRef, useState } from 'react';
 import { Events } from '@wailsio/runtime';
 import { DiscardAndQuit, RestartForUpdate, SetFrontendReady } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
@@ -17,7 +20,7 @@ export default function useWorkbenchClose(options: {
   const [closing, setClosing] = useState('');
   const [quitConfirm, setQuitConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useMessageState('');
   const [persistenceError, setPersistenceError] = useState(false);
   const [restarting, setRestarting] = useState(false);
   const keyboard = useRef(false);
@@ -50,14 +53,14 @@ export default function useWorkbenchClose(options: {
     autoQuitting.current = true;
     void (async () => {
       try { await persist(); await finishExit(); }
-      catch (error) { setError(errorMessage(error)); setQuitConfirm(true); }
+      catch (error) { setError(error); setQuitConfirm(true); }
       finally { autoQuitting.current = false; }
     })();
   };
 
   useEffect(() => {
     const off = Events.On('app:close-requested', () => nativeClose.current());
-    SetFrontendReady().catch(error => latest.current.onError(`退出协调初始化失败：${errorMessage(error)}`));
+    SetFrontendReady().catch(error => latest.current.onError(translate('workspaces:couldNotInitializeQuitCoordination', { value1: errorMessage(error) })));
     return off;
   }, []);
 
@@ -82,7 +85,7 @@ export default function useWorkbenchClose(options: {
     try {
       if (!persistenceError) await persist();
       await finishExit();
-    } catch (error) { setError(errorMessage(error)); }
+    } catch (error) { setError(error); }
     finally { setSaving(false); }
   }
 
@@ -94,13 +97,13 @@ export default function useWorkbenchClose(options: {
       for (const workspace of targets) {
         if (!await workspace.ssh?.current?.saveAll()) {
           latest.current.select(workspace.id);
-          setError('保存未完成，请返回编辑处理文件错误。');
+          setError(uiMessage('workspaces:savingIsIncompleteReturnToEditingAndResolve'));
           return;
         }
       }
       if (quitConfirm) { await persist(); await finishExit(); }
       else { latest.current.remove(closing, keyboard.current); setClosing(''); }
-    } catch (error) { setError(errorMessage(error)); }
+    } catch (error) { setError(error); }
     finally { setSaving(false); }
   }
 
