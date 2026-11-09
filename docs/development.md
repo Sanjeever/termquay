@@ -77,7 +77,23 @@ go test ./...
 
 The second command includes the root entry point and needs built frontend assets. On a supported platform with CGO and a C compiler, run the relevant race checks, for example `go test -race ./internal/...`. Ordinary tests do not substitute for race detection. Documentation-only changes need content/link/diff checks, not builds.
 
-Frontend tests use [Vitest](../frontend/vitest.config.ts). Pure logic runs in Node; React component tests run in jsdom with React Testing Library and user-event. [Script tests](../scripts/test.mjs) retain Node's built-in `node:test`. Both `pnpm test` and `pnpm --dir frontend test` run the script and frontend suites and fail if either fails. CI uses the same entry point, also builds on three platforms, checks binding consistency and runs the [CLI smoke check](../scripts/cli-smoke.mjs). A workflow definition is not evidence that a check ran for your change.
+CI runs the frontend/script suites, builds on three platforms, checks binding consistency and runs the [CLI smoke check](../scripts/cli-smoke.mjs). A workflow definition is not evidence that a check ran for your change.
+
+### Frontend tests
+
+Frontend tests use [Vitest](../frontend/vitest.config.ts), inheriting the application's Vite configuration, React transform and locale-context alias. Colocate pure logic tests as `*.test.ts` in the `unit` project (Node). Name component and Hook tests `*.test.tsx` in the `components` project (jsdom), using React Testing Library and user-event. Existing Node assertions remain valid. [Script tests](../scripts/test.mjs) retain Node's built-in `node:test`.
+
+| Command | Scope |
+| --- | --- |
+| `pnpm test` or `pnpm --dir frontend test` | Run script and frontend tests once; stop with a nonzero exit code if either suite fails |
+| `pnpm --dir frontend test:unit` | Run frontend pure logic tests |
+| `pnpm --dir frontend test:components` | Run component and Hook tests |
+| `pnpm --dir frontend test:components useFileDrafts` | Filter component tests by file name |
+| `pnpm --dir frontend test:watch` | Watch frontend tests; optionally add `--project unit` or `--project components` |
+
+The [DOM setup](../frontend/src/test/setup.ts) unmounts components, clears local storage and restores English after each test. Use accessible roles/names and user interactions to assert visible behavior. Keep deferred operations under test control, reset mocks between cases and restore any test-specific browser API substitutes. Mock generated Wails service calls and native events at their boundary; keep the component, Hook and state logic real. See [file drafts](../frontend/src/features/files/useFileDrafts.test.tsx), [close protection](../frontend/src/features/workspaces/WorkbenchCloseDialog.test.tsx), [connection forms](../frontend/src/features/connections/ConnectionDialog.test.tsx) and [language/editor state](../frontend/src/features/settings/AppearanceProvider.test.tsx) for examples.
+
+jsdom tests do not verify browser layout, native WebView input, terminal/RDP rendering or real remote operations. The editor tests use actual CodeMirror state and history with substituted layout APIs; retain browser, native desktop and real-service checks for their respective behavior. Go tests remain separate from `pnpm test`.
 
 ## Interface localization
 
@@ -199,6 +215,14 @@ The workflow-only command is an alternative to the full SSH selection. Use `-rac
 Report unit tests, local protocol integration, browser substitutes, native desktop, real SSH, real RDP and real WebDAV separately. A browser substitute, local SSH fixture or cross-build cannot establish native/real-remote acceptance.
 
 Historical evidence and unresolved gaps remain in the [Chinese acceptance ledger](development.zh-CN.md#已有验收记录与缺口), including [AI acceptance](development.zh-CN.md#内置-ai-验收2026-11-06) and [Windows SSH AI adaptation](development.zh-CN.md#windows-ssh-ai-适配验收2026-11-09). Platform input/IME, RDP clipboard/concurrency, native menus/dialogs, real multi-hop reconnect, provider behavior and sustained application-wide resource measurements need environment-specific evidence. Do not present historical results as current checks.
+
+### Frontend test migration verification (2026-11-09)
+
+Changes through `e136b91` were checked on macOS / arm64 with Node 26.11.0, pnpm 11.20.0 and Vitest 5.1.0. `pnpm test` passed 5 Node script tests and 95 frontend tests across 27 files, including 23 new component/Hook cases. TypeScript checking, the production frontend build and offline frozen-lockfile installation passed. A filtered watch run entered its waiting state and exited cleanly; an invalid project filter returned a nonzero exit code through the root test command.
+
+Coverage includes pending saves, later edits and format changes, repeated submission, error/retry behavior, stale session responses, reload confirmation, cancelled sudo authorization, unsaved-workspace close protection, native close-event coordination, local persistence failure, connection form validation/partial failure and quick-connect parsing. Language tests retain the actual CodeMirror instance, document, selection and undo/redo history, selected tab and pending save. The stale-save rejection regression failed before the session guard in `889ffb6` and passed after the fix.
+
+Wails service/native-event calls use test doubles. jsdom supplies no real layout; these checks do not establish native WebView, real SSH/RDP/WebDAV, Windows/Linux behavior or sustained resource performance. No remote operations or native desktop acceptance checks were performed for this migration.
 
 ### Workbench UI verification (2026-11-09)
 

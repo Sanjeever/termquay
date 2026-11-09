@@ -37,9 +37,9 @@ Taskfile 保留 Wails 模板任务。出现 server、Docker 或 iOS 任务不表
 
 绑定生成、前端逻辑测试、类型检查、构建及 Go 检查命令统一见 [Changes and checks](development.md#changes-and-checks)。Go 服务签名、模型或事件改变后重新生成 [frontend/bindings](../frontend/bindings)，不要手工修补生成文件。
 
-根包通过 [assets.go](../assets.go) 嵌入资源，测试根包前须构建前端。按影响范围选择内部包或全仓测试；竞态检查需要支持的工具链与 C 编译器，普通测试不能替代它。前端逻辑与版本工具回归由 [node:test 入口](../scripts/test.mjs) 收集，Node 环境参照 [CI](../.github/workflows/ci.yml)。纯文档修改检查内容、链接和 diff。
+根包通过 [assets.go](../assets.go) 嵌入资源，测试根包前须构建前端。按影响范围选择内部包或全仓测试；竞态检查需要支持的工具链与 C 编译器，普通测试不能替代它。前端采用 Vitest，纯逻辑测试在 Node 中运行，组件与 Hook 测试使用 jsdom、React Testing Library 和 user-event；脚本测试继续使用 `node:test`。`pnpm test` 和 `pnpm --dir frontend test` 均执行脚本与前端测试。分组、筛选、watch 命令及编写约定统一见 [Frontend tests](development.md#frontend-tests)，本次环境与覆盖见 [迁移验证记录](development.md#frontend-test-migration-verification-2026-11-09)。Node 环境参照 [CI](../.github/workflows/ci.yml)。纯文档修改检查内容、链接和 diff。
 
-这些自动检查不包含原生 WebView 或组件交互验收。测试名称及实际覆盖以仓库测试为准。带凭据的真实服务测试可能在普通 Go 测试命令中执行；缺少配置时会跳过，必须区分通过与跳过。
+组件自动测试覆盖 DOM 交互与状态变化；原生 WebView、浏览器布局及真实远端仍需对应环境验收。测试名称及实际覆盖以仓库测试为准。带凭据的真实服务测试可能在普通 Go 测试命令中执行；缺少配置时会跳过，必须区分通过与跳过。
 
 冷启动与延迟装载相关修改须使用发行构建，在各平台原生环境分别记录窗口出现、首屏绘制与可操作时间，区分完全退出后启动、系统首次启动与常驻唤起；统计应覆盖应用和 WebView 相关进程。类型检查与单元测试不能证明冷启动耗时或首次打开工作区体验通过。当前装载与初始化顺序见 [App.tsx](../frontend/src/App.tsx)，取消、失败及会话交接仍须满足 [生命周期契约](architecture.zh-CN.md#通信背压与生命周期)。
 
