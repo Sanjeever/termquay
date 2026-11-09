@@ -1,0 +1,20 @@
+name: Feature request
+description: Describe a use case or improvement. English or Chinese is welcome.
+body:
+  - type: markdown
+    attributes:
+      value: English and Chinese are welcome; imperfect English is fine. Discuss substantial changes before implementation.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What task is difficult today?
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired behavior
+      description: Include relevant constraints or an example.
+    validations:
+      required: true

@@ -1,221 +1,158 @@
-# 架构约束与设计理由
+# Architecture and behavioral contracts
 
-本文维护 TermQuay 的设计意图、长期约束和行为契约。“必须”“不得”和目标描述约束后续实现，不表示所有能力已验收。当前实现细节以代码及有效测试为准。调整既有决策时，记录原因、受影响契约与必要迁移，避免用实现现状抹掉约束。
+[简体中文](architecture.zh-CN.md) · [Development](development.md) · [Contributing](../CONTRIBUTING.md)
 
-## 内置 AI 助手
+These are design invariants, not a claim that every capability has passed acceptance. Implementation, models and effective tests define current behavior. Investigate divergence instead of silently rewriting a contract to excuse a defect. The [Chinese document](architecture.zh-CN.md) retains the longer design rationale and code-navigation table.
 
-AI 使用一份本机加密模型配置，与外部 CLI 授权独立。配置接口不回显已有 API Key，更新明确区分保留、替换和清除。请求 URL 由用户完整指定，协议不自动切换。实现入口为 [AI 设置](../internal/app/ai_settings.go)。
+<a id="产品与技术边界"></a>
+## Product and technology boundaries
 
-模型 HTTP 请求不自动重试或跟随重定向，取消沿请求上下文传递。SSE 复用成熟解析库，网络读取、事件、正文与工具参数有界；工具参数必须收齐并校验，流提前结束、输出截断及协议错误阻止执行。Chat Completions 保留工具 ID 与结果关联，适配入口与预算见 [模型客户端](../internal/ai/client.go)。
+Keep a single-machine Go/Wails desktop application. React owns views, interactions and drafts; Go owns networking, authentication, sessions, transfers, collection, storage and backups. Do not introduce accounts, a cloud control plane, distributed services, a general plugin framework or team synchronization without an established need and authorization.
 
-网络建立与等待响应头分别设限，模型思考与流式输出由单次请求上下文的可配置总时限约束，不以没有正文判定失败。聊天、摘要压缩及连接测试沿用同一配置，旧配置未设置等待时间时采用 [默认模型配置](../internal/ai/config.go)。连接失败、等待超时、断流与调用者取消分别报告，超时不自动重试。
+Saved connections have no commercial count limit. Runtime sessions, tasks, frames, buffers and queues still require bounds. The ordinary SSH directory tree is an explicit exception below, not an exemption for scans or queues. Dependencies and compatible combinations come from [go.mod](../go.mod), [frontend/package.json](../frontend/package.json) and lockfiles. Reuse mature protocols, cryptography, SQLite and file-format implementations; CodeMirror is a configuration editor, not an IDE service.
 
-模型客户端拥有独立且有界的 HTTP 连接池，轮次或连接测试结束时释放空闲连接，不保留常驻模型连接，也不关闭其他应用功能的共享连接池。
+The fixed connection center manages groups and connection operations. Outer tabs contain connection workspaces or independent multi-host/log tools. Tools own no network sessions and do not enter connection layouts/working sets. SSH inner tabs represent independent terminals or files. Persistent configuration, live owners and local layout are distinct: restoring layout does not restore a remote shell or replay input.
 
-协议续接必须保留工具调用与结果关联，以及协议要求的原始内容、thinking 签名和加密 reasoning，避免丢失模型续接所需状态。Responses 使用无状态请求；服务商内置远端工具不进入应用工具集，完整完成状态之前不得执行工具。具体适配见 [模型客户端](../internal/ai/client.go) 及同包协议文件，本机协议测试不代表真实模型接入验收。
+Local terminals use Go-owned PTYs/processes and terminal consumption acknowledgements. Layout restoration must not automatically start them. Docker uses its HTTP API through a verified SSH-forwarded Unix socket without Docker CLI subprocesses or installed agents. Bound API responses, frames, entries, concurrency and timeouts. Container terminals do not use host filesystem completion. Confirm actual host/container identities before state changes, without automatic retry/elevation.
 
-AI 历史采用独立会话与分条消息表，数据库事务迁移保留既有目录与凭据。标题、目标快照、摘要和消息正文复用本机 AEAD，AAD 绑定会话及消息序号；分页读取、增量追加，删除后更新或追加不能重建会话。历史与配置排除常规备份，会话存储沿用临时数据库生命周期。边界与存储入口见 [AI 存储](../internal/store/ai.go)。
+Image preview is validated in Go with bounded bytes, pixels, tasks and resources. Short-lived credentials bind resources to the SSH owner and travel in headers, not URLs. Hidden/closed views release resources; owner closure cancels reads. External images require explicit loading, receive no SSH credentials and do not become executable HTML. Preview content is excluded from text drafts/backups.
 
-临时连接的归档身份各自独立；重新打开同一用户名、地址和端口时可分页查阅此前临时归档，不将所有空保存连接 ID 混为一个连接。已保存连接按保存 ID 归档；目标变化后界面须核对，模型上下文也明确区分原目标与当前目标。存储失败保留错误，退出结果报告未完整保存的历史。
+Demo mode uses isolated frontend memory and does not create real connections, PTYs, collection subscriptions or configuration/file/backup writes. Real workspaces remain mounted and hidden. Demo appearance is temporary; demo results do not prove remote integration.
 
-Agent 由 Go 持有，固定绑定真实 SSH owner，工具参数不能选择工作区或回落本机。工具复用文件、服务、端口、容器查询及独立 SSH 命令，按当前连接探测能力提供，后端再次拒绝不支持的调用。`exec` 默认逐次等待后端批准，界面展示实际解释器；批准令牌绑定完整参数、超时、轮次与会话且一次消费。同轮拒绝过的脚本不能自动重试，输出中的指令不能变更后端权限。AI 关闭不改变外部 CLI 授权，开启也不借用该授权。
+## Localization and collaboration
 
-SSH 脚本执行器提供 POSIX sh 与 Windows PowerShell 通道，均使用独立无 PTY session。PowerShell 用固定短引导命令从标准输入读取 UTF-8 脚本，避免默认 cmd 的命令行长度限制；不修改远端默认 Shell、不安装工具。连接级环境探测有界并随 SSH 实例缓存，未知环境不能推定为 Linux。命令输出按明确编码解码，解码失败返回错误及有界原始字节的 Base64，不能先以替换字符丢弃字节。既有 CLI 与多主机任务保持 `sh -s` 语义。实现见 [执行器](../internal/ssh/command.go) 和 [环境探测](../internal/ssh/environment.go)。
+English is the public collaboration default; Chinese contributions are welcome. Bundle English and Simplified Chinese resources offline and initialize before business storage unlock. Preserve the actual `auto` preference for migration.
 
-查询结果必须保留权限、扫描范围和工具能力限制，区分成功、部分结果、失败及未执行；缺少查询通道不能推断目标未安装相应软件。结构化正文超过预算时明确失败，禁止切断 JSON 后冒充有效结果。平台操作与限制见 [AI 使用说明](development.md#内置-ai-助手)，实现见 [工具能力](../internal/app/ai_environment.go)、[Windows 查询](../internal/app/ai_windows_queries.go) 和 [工具结果](../internal/app/ai_tools.go)。
+Translate app-generated labels/messages at display boundaries using stable keys/codes and parameters. Preserve original diagnostics, error chains, file recovery codes, SSH steps and legacy machine fields. [Diagnostic metadata](../internal/message/error.go) has no language state or translation dependencies. Native menu/dialog labels belong in the application layer.
 
-AI 文件查询经 SFTP 独立读取，不回落本机。目录按有界扫描结果排序后分页，每页为实时读取，不能拼成原子快照；文件按字节范围读取并保留完整字符，按属性修订检查续读，仍受普通文件、编码和文件大小约束。响应预算在条目或字符边界生效，保留有效 JSON 与续读位置，不通过丢弃结果尾部掩盖未返回数据。实现见 [文件工具](../internal/app/ai_files.go) 与 [文本范围](../internal/files/range.go)。
+Do not translate user names, commands, paths, terminal output, remote file/log bodies, model-generated content or original licenses. Language switching must retain workspace/connection identity, PTYs, RDP, transfers, runs, drafts and editor content/selection/history. Update providers, formatting, sorting and component dictionaries; reconfigure editors rather than remounting/reloading the workbench.
 
-命令输出分别保留 stdout、stderr、退出码、截断及未知状态，不能因 stdout 超限丢失全部错误输出。同轮执行状态未知的脚本阻止自动重放；恢复历史和摘要都不能代替重新核对远端状态。
+<a id="通信背压与生命周期"></a>
+## Communication, backpressure and lifecycle
 
-每个工作区一个运行轮次，全局并发与单轮调用次数有界。隐藏或收起面板保留运行；停止、关闭 AI、owner 取消或替换、所有应用锁定路径及退出使待批准项失效，后续模型与工具停止。取消不证明远端进程已退出。退出在关闭数据库前等待 AI 保存；新对话与删除先取消并等待旧轮次，删除后后台不能重建历史。恢复历史补记中断工具的未知状态，不自动执行或继承批准。
+- Wails bindings handle controls, events carry low-frequency state and ordered bounded Streams carry terminal bytes. Generate interfaces from Go rather than maintaining duplicate definitions.
+- Bounded queues alone are insufficient. Acknowledge consumed bytes from xterm's parsing completion callback; upstream continues against acknowledgements. Output pressure must not block independent input or silently discard unparsed bytes.
+- A workspace may share an SSH connection, but each terminal owns its PTY. SFTP, monitoring and background commands use independent channels. Closing one terminal must not close its workspace connection.
+- Every owner has a close path. Cancellation, disconnect, workspace closure, frontend destruction and exit release associated channels, goroutines, subscriptions and instances. Switching tabs/settings preserves owners; hiding transfers does not cancel them.
+- Multi-host runs belong to Go after the initiating request completes. Hiding the view does not cancel a run or approve its first-host gate. Events/snapshots use revisions; explicitly saved results are encrypted locally and excluded from normal backups. Restoring history never resumes/replays execution.
+- Explicitly enabled shell hooks verify a random session ID, buffer snapshot and cursor before completion edits. Frames are bounded and removed from recording. Completion never executes/replays commands, and path access needs confirmed filesystem correspondence rather than reusing host paths inside containers/nested SSH.
+- Session command history stores bounded metadata/live markers, not output archives. Unknown command text or exit status remains unknown. Closing a terminal clears it; snippet saving is separate and explicit.
+- Recording is explicit local output archival with byte/event limits. Failure stops archival visibly while interactive output continues. Playback is isolated from network execution; validate format/events/dimensions and release resources on close.
+- Pending channel-open requests retain their slots until the underlying operation ends, even after local cancellation. Do not close a shared connection to cancel one independent command.
 
-整轮运行预算覆盖模型请求、上下文压缩和工具执行；后端等待命令批准时暂停预算，收到批准或拒绝后按剩余预算继续，不能重置为完整时限。预算用尽与用户停止分别报告；批准等待仍服从用户停止、锁定、断线和退出取消。运行预算以 [Agent 常量](../internal/app/ai.go) 为准。
+Workspace IDs, SSH instances and PTY IDs are distinct. Reconnect replaces owners explicitly without reusing old Streams/PTys/input. Keep bounded old buffers and recheck draft baselines before saving. Dirty protection belongs to the registered UI workspace even while disconnected; late callbacks cannot resurrect a closed workspace. Pane moves/merge/maximize must retain editor/terminal instances.
 
-本机完整记录与模型上下文分开。超出预算时按完整工具往返边界压缩较早记录，摘要加密保存，压缩失败直接报错；近期工具结果仍按原记录续接，摘要不能作为批准或连接依据。模型流合并成有界快照，Stream 以轮次与修订接续，慢视图超时关闭后可重读快照，不积压 token 队列。配置变更后在途轮次继续使用原配置快照，后续轮次使用新配置。实现与限额见 [Agent](../internal/app/ai.go)、[循环及 Stream](../internal/app/ai_runs.go) 和 [工具](../internal/app/ai_tools.go)。
+Normal exit coordinates unsaved files, local state, transfer cancellation/resume records and AI persistence before closing storage. Cancellation/timeout does not prove a remote process stopped. Resumable single-file transfers bind destination, user, actual host fingerprint and jump route; reauthenticate and verify source/destination versions plus staging length before explicit continuation. Encrypted resume records stay outside regular backups. Normal exit retains staging tied to saved records; session storage/unsaved records do not guarantee restart recovery. Remote private staging may remain and requires the same verified route for cleanup.
 
-## 本机 CLI 访问
+Latency is runtime TCP connection time along the saved proxy/jump route, including DNS, not terminal/desktop input latency. Probes do not decrypt credentials or authenticate targets. Unavailable jumps remain unknown instead of falling back to direct connections. Scheduling follows the visible filtered catalog/window and merges requests without restarting on sort. RDP graphical queues/WASM memory need their own real-load evidence; SSH backpressure tests do not establish equivalent RDP guarantees.
 
-CLI 是短生命周期客户端，桌面继续拥有连接、凭据、存储与工作区状态。[CLI](../internal/cli/cli.go) 在 GUI 初始化前处理帮助和版本，通过 [localapi](../internal/localapi/protocol.go) 显式允许的状态、连接、工作区、文件、服务、端口、容器、任务、执行记录查询及 exec 请求调用桌面，不反射暴露 Wails 方法，不监听网络端口。协议兼容版本独立于应用版本。
+<a id="身份凭据与本地数据"></a>
+## Identity, credentials and local data
 
-Windows 命名管道按当前用户 SID 设置 ACL，底层拒绝远端客户端；Unix socket 的父目录校验当前 UID 和 0700 权限，节点为 0600。Unix 使用独占文件锁判定端点占用，持锁后才清理上次崩溃遗留 socket；活跃端点冲突拒绝启动另一实例。Windows 由首实例管道占用提供冲突检测。此边界不能区分同用户下不同进程，也不抵御当前用户已被控制的场景。
+SQLite stores business data. Credential fields use AEAD with a random master key protected by the system vault; connection names/addresses remain unencrypted metadata. Keep the key outside the database and reject unknown future database versions rather than replacing them with an empty database.
 
-[服务适配](../internal/app/cli.go) 检查本机授权和应用锁，默认关闭，连接列表显式投影安全元数据。访问设置不进入备份白名单；未初始化存储时要求在桌面处理，CLI 不触发解锁或凭据输入。最小 status 可在禁用或锁定时读取；锁定不披露授权值。工作区 ID 指向真实 SSH 所有者，并快照保存连接 ID 和实际目标，不把前端标签当作后端会话。
+Vault failure requires an explicit choice, never plaintext persistence. Session storage uses a temporary database and in-process random key, cleans on normal exit and does not guarantee restart recovery. Master password storage wraps the same key using age scrypt, with bounded key file/body/KDF work. An existing password file requires unlock and cannot fall back to the vault. Creating storage must not overwrite existing data. Protection switches verify the same key, stage/sync/replace privately and remove the old vault copy after success.
 
-单个连接只处理一个有界 JSON 请求；客户端并发有界，超额立即断开。字节预算、并发及读写时限见 [协议](../internal/localapi/protocol.go) 和 [服务](../internal/localapi/server.go)。执行复用现有全局命令槽和工作区生命周期，额外限制每条 SSH 连接未完成的底层命令请求。取消本地等待不提前释放底层槽位；底层实际结束才释放，避免通道打开阻塞导致无界 goroutine。不通过关闭共享 SSH 连接取消单个命令。
+Application lock blocks new interaction and terminal input while existing sessions, transfers, runs and tunnels can continue. It does not clear the in-process key. Forgotten passwords/corrupt key files require an independent encrypted backup.
 
-关闭开关或锁定应用阻止新操作，已获准操作继续受原超时、断开、工作区关闭和退出约束。远端退出未知、截断及结构化错误分别表达；取消不证明远端进程退出，客户端禁止自动重放未知状态的命令。
+Catalog/reference APIs expose safe metadata without decrypting secrets. A dedicated password form can retrieve a saved password for refill/explicit reveal; private keys are not returned to React. RDP WASM receives necessary authentication material during creation, outside global React state, logs and persistence. Releasing references does not guarantee immediate erasure of every Go/JS/WASM plaintext copy.
 
-结构化查询复用既有服务的扫描、编辑和输出边界；远端查询必须绑定精确且仍有效的 SSH 实例，不允许以空工作区回落到本机文件系统。任务列表投影摘要，明确读取定义或执行记录时才返回命令与输出。执行记录分页保留来源、退出状态及截断信息，按 IPC 字节预算提前结束本页，不能静默截断单项；后续页须支持修订核对，避免拼接不同时刻的结果。查询不扩大为上传、远端状态变更或任务启动入口，既有 exec 权限继续有效，不构成读取专用授权模式。参数及分页用法见 [本机 CLI](development.md#本机-cli)。
+Shared credential updates review/recheck the full reference set in one transaction. Editing a single connection's secret separates its credential; copying a connection creates independent encrypted credentials. Connection identity is a stable ID, not just an address.
 
-## 产品与技术边界
+First SSH identity requires explicit fingerprint verification; known changes block connection. RDP can pass system CA/hostname validation, otherwise require fingerprint confirmation. Expired/not-yet-valid certificates cannot be manually accepted. Pin both trust paths and block later changes. Legitimate trust updates reprobe and check original record, generation and expiry before committing.
 
-TermQuay 面向个人桌面的 SSH/RDP 连接管理。外层标签保留固定连接中心入口与连接工作区，SSH 内层标签表示独立终端或文件。多主机操作和多来源日志使用独立工具标签，覆盖多个连接，避免将编辑、执行与结果查看挤入模态窗口；工具标签不持有网络会话，不占连接工作区数量，不进入连接布局与命名工作集。连接中心集中管理分组、搜索、筛选和连接操作，远端文件与监控属于连接工作区。两者分开，避免连接目录与文件浏览互相替换，使连接切换和服务器内操作各有稳定入口。切换面板、标签和设置保留会话所有者；监控订阅跟随当前工作区实际可见性。持久配置、运行时会话和本机布局分别管理；恢复布局不等于恢复远端 Shell，不自动重放输入或命令。
+Trust is isolated by destination, port and jump route. Explicit `known_hosts` imports use bounded candidates/preview without DNS inference; revoked keys are not trusted and CA entries are not ordinary host fingerprints. Preserve negotiated identity for sessions/resume records. Revocation invalidates stale requests/unused RDP grants while established sessions can continue. Trust stays on the destination device and is excluded from normal backups.
 
-采用单机 Go/Wails 应用，React 管理视图与编辑草稿，Go 管理连接、认证、传输、采集、存储和备份。不引入账号服务、云端控制面、分布式服务、通用插件框架或团队同步系统。连接配置数量无商业限制；网络会话、任务、缓冲和排队须有界，普通远端目录列表是下文明确的例外，见 [远端文件与监控](#远端文件与监控)。不能把产品不限量解释为运行资源无限。
+<a id="远端文件与监控"></a>
+## Remote files and monitoring
 
-SSH、SFTP、终端模拟、编辑器和 RDP 分别复用成熟协议库及组件。具体依赖与兼容组合由 [go.mod](../go.mod)、[前端清单](../frontend/package.json) 和锁文件固定。CodeMirror 面向配置文件编辑，不扩展为 IDE 服务。协议、ASN.1、SQLite、加密和快照封装不另造解析器或密码算法。
+Saving ordinary/sudo files rechecks original remote bytes/attributes. With history enabled, an encrypted version/index commits locally before remote writing; history failure blocks the write. Scope/bound history by actual destination, user, route identity and path, outside normal backups. Loading history changes a draft, not the live file. Validation/reload/health checks are explicit, with reload separately confirmed.
 
-图片预览由 Go 验证格式和尺寸，资源使用短期随机凭据并绑定 SSH 工作区，读取、排队、字节与像素总量均有界，具体边界见 [图片预览](../internal/app/image_preview.go)。资源凭据放在请求头中，避免进入 URL 与访问日志，不暴露任意路径读取接口。隐藏和关闭视图释放资源，关闭工作区取消读取并清理对应图片；预览不进入文本草稿或备份。外部图片由用户显式加载，HTTP 请求不携带 SSH 凭据，图片不以内联 HTML 或可执行文档呈现。支持格式与操作见 [文件预览](development.md#文件预览)。
+Write through a private staging directory on the same filesystem, preserve reported POSIX mode/UID/GID and publish using server POSIX rename. Reject special permission bits/unsafe writable parents. SFTP checks and rename are not atomic compare-and-swap against external writers. ACLs/xattrs are not preserved and failures may leave staging. Do not describe saving as lossless or conflict-free.
 
-本地终端由 Go 持有原生 PTY 与进程，复用终端视图和消费确认，不经过 SSH。进程生命周期属于工作区，布局恢复不自动启动本地进程。
+Bound raw bytes, decoded text and encoded output. Use encoding libraries and preserve BOM/line endings as draft format; reject invalid bytes/unrepresentable characters instead of replacement. Normalize mixed line endings explicitly. SFTP uses POSIX paths; identified Windows AI file queries convert drive-letter absolute paths at their boundary. Never concatenate filenames into shell commands. Refresh/errors must not overwrite drafts.
 
-Docker 工作区由 Go 经已验证 SSH 连接转发远端 Unix socket，使用 Docker HTTP API，不调用本地或远端 Docker CLI，也不安装 agent。列表、详情和日志须限制请求并发、响应字节、条目与超时；日志在解复用前校验帧大小，防止远端帧声明引入无界分配。容器终端复用终端解析消费确认，按工作区管理限额与超时；关闭窗口或工作区释放本机资源，不承诺终止远端进程。容器与宿主机文件系统分开，容器终端禁止宿主机路径补全。socket 转发的未完成 SSH 打开请求持续占用限额，取消不视作底层请求已完成。实现与边界见 [Docker 客户端](../internal/docker/client.go) 和 [工作区服务](../internal/app/docker.go)。
+sudo uses separately authorized bounded exec channels, never the interactive terminal/elevated SFTP. Passwordless sudo sends no password. Escape paths/version arguments, support ordinary Linux files with existing sudo/coreutils and do not change remote policy or persist sudo passwords.
 
-Docker 单容器启停和重启由用户核对目标与容器身份后确认，不自动提权或重试。资源采样按详情实际可见性串行发起，缺失或失败指标不能冒充零或实时数据；网络与磁盘计数明确表示累计量。
+Sync/cross-workspace directory copy previews bounded differences and explicitly executes selected entries. It does not remove extra destination files or recurse through symlinks. Bind both owners, reject overlapping same-target roots, stream through the local machine and recheck versions before publication. Failure reports partial completion and requires a new preview; no cross-host transaction or directory resume is promised.
 
-演示模式使用独立的前端内存工作台，不创建网络连接、PTY 或采集订阅，不调用真实配置、文件、传输和备份写入。真实工作区保留原实例并转入隐藏状态，采集与探测遵循原有可见性规则。演示状态及其外观预览不持久化，退出恢复原工作区与外观。界面保留演示标记，避免示例状态与真实会话混淆；示例不能作为远端集成验证证据。入口与可用操作见 [演示说明](development.md#设置与演示模式)。
+The ordinary SSH directory tree deliberately has no hard per-directory entry/byte cap and can accumulate a full directory with SFTP v1. Memory grows with names/entries; read concurrency/expanded directory count remain bounded. This exception does not extend to paired browsers, recursive search, sync, transfers or queues. Bounded scans use upstream SFTP v2 paging, currently a prerelease, with packet/in-flight limits. Preserve cancellation/close/real-server regressions and reevaluate when upstream changes.
 
-## 通信、背压与生命周期
+Symlink directory browsing retains logical node identity and displays raw/resolved targets with ancestor-cycle blocking. Rename/delete acts on the link itself. Recursive deletion scans bounded scope, rechecks directory chains/types and reports partial deletion; it is not an atomic transaction against concurrent changes.
 
-多主机任务由 Go 持有执行与取消路径，启动后脱离单次绑定请求，关闭或隐藏任务视图不取消执行；程序退出取消全部任务，关闭工作区中断该目标通道。并发、运行数、记录数及输出预算有界，首台批准属于明确状态，不能因视图隐藏自动放行。进度事件携带摘要及单步骤增量，视图重开读取快照并按修订序号接续。执行结果默认留在本次运行，用户显式保存后复用本机主密钥加密；历史与索引同一事务提交，不进入常规备份，不恢复运行中的任务或重放命令。实现见 [后台执行](../internal/app/command_runs.go) 与 [记录存储](../internal/app/command_run_history.go)。
+Linux monitoring uses independent bounded exec channels, sending scripts over stdin without installing agents/scripts. Compute rates from counter/time differences. First samples, resets, missing/failing/stale metrics remain unknown/errors rather than zero/realtime values. Filesystem capacity uses existing util-linux `findmnt` JSON and fails separately without automatic installation/text-parser fallback.
 
-终端录制是用户主动开启的本机输出存档，流式写入并限制大小与事件数，Shell 集成通信须过滤。录制失败可见并停止存档，交互终端继续运行。离线回放与终端输入、网络执行路径隔离，导入先校验文件、事件与尺寸边界，隐藏或最小化暂停，关闭释放资源。正文不进入布局、草稿或常规备份。格式与操作见 [终端工具](development.md#终端工具与命令片段)。
+Process/systemd/port/Docker queries use current-user capabilities and bounded outputs/deadlines. Confirm host/unit/container before state changes. Cancellation does not undo those changes; verify state before retrying. Diagnostic snapshots are explicit partial/time-stamped collections, optionally encrypted locally or selectively exported after review, not atomic system snapshots or normal backups.
 
-- 控制操作使用 Wails 服务绑定，低频状态使用事件，终端字节使用有序、有界的 Streams。接口与类型从 Go 生成绑定，不能手工维护两套跨语言定义。
-- Streams 队列有界不足以保证端到端背压。xterm.js 的写入会排队，必须在解析完成回调中确认已消费字节，上游收到确认后再继续。输出积压不能阻塞独立的输入接收路径，不能静默丢弃未解析输出。
-- 一个 SSH 工作区可以复用底层连接，每个终端必须拥有独立 PTY；SFTP 和监控使用独立通道，不向交互终端插入后台命令。关闭单个终端不能顺带关闭整个工作区连接。
-- 终端增强补全由用户主动启用当前会话的 Shell 钩子，只在已确认的命令编辑阶段请求真实缓冲区；修改经当前会话标识、快照与光标校验，不执行命令或回放历史。通信帧有界并从录制日志中过滤，输入状态不持久化。动态路径读取需确认工作区文件系统，复用独立 SFTP 通道或本机目录接口，不把外层路径用于容器或嵌套 SSH。实现入口为 [Shell 协议](../frontend/src/features/terminal/shellCompletionProtocol.ts)、[会话控制](../frontend/src/features/terminal/useTerminalCompletion.ts) 和 [路径接口](../internal/app/terminal_completion.go)。
-- “本次会话命令”按终端保留有界元数据，不复制整份输出。命令文本需用户主动启用 Shell 集成，通过会话随机标识验证并限制长度；不可可靠获取时保留未知状态，不从按键或画面推断。记录不持久化，保存为片段属于独立显式操作；关闭终端释放记录，输出定位依赖仍有效的 xterm 标记。
-- 会话必须有明确所有者和关闭路径。取消、断线、关闭工作区、前端销毁及程序退出均需释放相关连接、通道、goroutine、订阅和前端实例。切换标签保留会话，收起传输面板不取消任务；关闭所属工作区取消传输。单文件复制中断可保留有进度的暂存供显式续传，其他路径尝试清理暂存；续传绑定原目标、用户、主机指纹与跳板，复核源/目标版本和暂存长度后继续。持久存储加密保存已中断任务的续传记录，正常退出保留已保存记录对应的本地下载暂存；恢复时核对本地文件身份及版本，重新认证后由用户显式继续，不自动重放任务。记录不进入常规备份，会话存储与未保存记录不保证跨重启恢复。退出先等待任务取消及记录保存，再关闭存储；远端私有暂存可能残留，清理仍需同一路径的已验证连接。
-- 服务端通道上限和本机资源都有限。并发、帧大小与超时由代码约束，不在文档维护第二套数值；改变这些参数时仍须满足交互响应与资源回收契约。
+Multi-source logs bind actual SSH instances, own no connections and do not automatically rebind after disconnect. Keep bounded caches, one request per source, and stop failed polling until explicit refresh. Filtering/JSON formatting runs in deadline-limited Workers. Hidden/minimized/locked views stop reading/processing; close releases caches. Preserve sources/times, truncation and partial results without promising complete archives or synchronized clocks.
 
-RDP 图形队列与 WASM 内存也属于资源边界，其上界需要持续真实图形负载验证，不能从 SSH 的背压测试推断相同保证。
+<a id="内嵌-rdp"></a>
+## Embedded RDP
 
-连接目录的延迟是按保存路径测量的服务端口 TCP 建连耗时，属于运行时样本，不写入配置或备份。探测不解密凭据、不认证目标；代理遵循保存配置，跳板复用已验证的同路径会话，不可用时显示未知，不能绕过跳板直连。调度限当前筛选列表并跟随连接中心与窗口可见性，完整目录仍用于解析跳板路径；自动与手动请求合并，排序不重启调度。网络并发及尚未完成的 SSH 通道打开请求分别有界；取消后未完成的请求仍占用限额，避免取消被误当作资源已释放。路径匹配与释放条件见 [探测服务](../internal/app/latency.go) 和 [SSH 探测](../internal/ssh/latency.go)。
+IronRDP WASM handles protocol/rendering; Go supplies an RDCleanPath bridge because WebViews cannot make raw TCP/TLS connections. A generic WebSocket/TCP proxy is insufficient. Listen on loopback, validate exact origins and short-lived one-use grants bound to backend-selected destinations. Do not expose an arbitrary target proxy or downgrade TLS/NLA.
 
-界面工作区 ID 与 SSH 连接实例、PTY ID 分开。原地重连先释放旧网络资源，再显式建立新实例，不复用旧 Stream、PTY 或输入；旧终端保留有界本地缓冲供查看。目录与草稿属于稳定界面，重连后逐文件重新核对远端基线；基线变化时阻止直接保存。草稿退出保护属于已注册的界面工作区，网络断开不能解除保护；关闭界面后拒绝旧异步更新恢复该保护。
+SSH gateways bind a concrete owner, preserve the original RDP destination/TLS hostname and isolate trust by route identity. Closing/reconnecting the owner disconnects the desktop, without direct fallback. Development origins must match the actual loopback frontend port; redact session path tokens from technical details.
 
-终端标签达到上限时要求用户先关闭结束标签，再重连，避免隐式丢弃用于排查的旧输出。窗格移动、合并与最大化保持终端和编辑器实例及其内容连续，不能因改变 React 父级或 key 而卸载重建。
+The bridge currently pins TLS 1.2. A tested Windows 11 target returned `internal_error` after Go TLS 1.3 handshake and before authentication data; TLS 1.2 worked with the same certificate/account/components. This interoperability boundary is not evidence of a wrong password. TLS 1.3-only targets are unsupported. Changing it requires real handshake/NLA/display/input evidence while retaining certificate validity and identity-change rejection.
 
-前端就绪后的正常退出先交回界面协调，处理远端草稿并等待本地持久写入，再允许原生关闭。本地草稿正文使用现有 AEAD 设置加密，按工作区合并、串行写入并限制大小、文档数和保留期。保存失败必须可见，不能把本机恢复副本当作远端保存成功；退出时忽略本地写入错误需要显式选择。默认启用规则与操作见 [草稿恢复](development.md#本地草稿与布局恢复)，会话存储不保证跨重启恢复。
+Ship the verified JS/component/WASM combination. WASM initialization, local TLS bridging and real desktops are different verification layers. Clipboard defaults off per session. Native focus/IME/clipboard/sizing/concurrency require platform evidence. Respect the patched clipboard-ready signal rather than a fixed delay.
 
-命名工作集复用布局模型，只保存 SSH/RDP 入口，不包含秘密、授权、PTY、终端输出或文件正文；数量、布局大小与总存储有界，未知版本或无效数据必须报错。打开时分配新的界面 ID 并追加断开工作区，保留既有会话与草稿，避免复用旧会话或误关联草稿；手动连接后才建立网络与读取文件，不能恢复旧 PTY、回放命令或绕过保存配置目标变化的核对。操作见 [布局与工作集](development.md#本地草稿与布局恢复)，迁移范围见 [备份与恢复](development.md#备份与恢复)。
+Windows mstsc owns authentication, identity/resource confirmation and remote lifecycle; process launch is not remote connection success. Credentials travel in a current-user DPAPI-encrypted temporary configuration restricted to that user and SYSTEM, not command arguments or Credential Manager. Early/abnormal app exit may leave a configuration decryptable by that user. Preserve Windows confirmations and do not claim the app observes mstsc remote success.
 
-命名服务入口复用隧道预设，绑定保存的 SSH 连接，显式打开时沿既有认证与身份确认建立工作区，再开启回环本地转发。HTTP/HTTPS 路径不得改变本地访问来源，其他类型只复制地址；隧道仍属于工作区，服务定义随隧道预设迁移。
+<a id="加密备份与恢复"></a>
+## Encrypted backup and recovery
 
-tmux 绑定保存会话名称，布局及工作集恢复后保持待附着。用户点击续接时重新查询当前远端会话，并通过独立 PTY 执行固定附着命令，不向未知 Shell 重放输入；会话缺失必须报错。名称不承诺远端重启后的任务身份，绑定不扩大认证或信任范围。布局版本及字段以 [工作布局模型](../internal/app/workspace.go) 为准。
+Export a consistent versioned snapshot encrypted by age; plaintext must not reach temporary files. Include only selected credentials/settings. Device name/inclusion flags are encrypted; legacy missing flags remain unknown. Unlock material is independent of the source vault so another device can decrypt.
 
-多主机巡检扩展既有加密任务步骤，Go 校验条件并判定命令结果。JSON 字段、正则及数字比较有界；内容判定遇到截断、读取或解析失败不得呈现为通过，退出码判定独立于输出截断，执行错误仍为无法判定。条件失败沿用任务停止策略，语义见 [判定回归](../internal/app/command_checks_test.go)。文件基线复用独立 SFTP 读取，在本次运行固定版本并逐目标核对，不承诺跨主机快照。定义可随任务迁移；判定结果与基线来源、版本可随执行记录显式加密保存，不进入常规备份，也不恢复基线授权或运行状态。保存与导出均不夹带基线文件正文。实现见 [巡检判定](../internal/app/command_checks.go) 与 [记录存储](../internal/app/command_run_history.go)。
+Password-only backups retain `.json.age`. Recovery-key backups use bounded ZIP Store `.tqbackup` containers with a per-backup age X25519 identity separately wrapped by password scrypt and recovery public key. Do not mix unsupported recipient modes. Reject unknown/duplicate/compressed/oversized entries and versions; verify ciphertext integrity. Keep private recovery keys offline and only their public keys locally. Changed keys/passwords affect new backups; old backups require original unlock material.
 
-## 身份、凭据与本地数据
+WebDAV snapshots are append-only. Upload temporary ciphertext, then publish with a single `MOVE` using `Overwrite: F`; headers alone do not prove provider collision rejection. Do not overwrite/retry recursively. Explicit pruning previews a fixed set, retains at least one snapshot, excludes unknown files/staging and rechecks location/retention/version. Strong ETags support conditional deletion; otherwise a check/delete race remains. Report partial/unknown outcomes without automatic retry.
 
-版本发布、应用更新和本地数据格式相互独立。应用更新保留既定产品标识、系统密钥库标识和数据目录，不重置配置，也不承诺活动会话跨重启恢复。
+Restore decrypts, validates versions/references, previews and commits the same data. Reject stale previews/changed local settings. Full replacement first saves an encrypted persistent safety copy in `restore-backups`; failure blocks replacement, including session mode. Reencrypt credentials/settings using the destination key in one transaction, without partial overwrite.
 
-本地业务数据使用 SQLite，凭据字段采用 AEAD 加密，随机主密钥由系统密钥库保护。连接名称、地址等元数据不是整库加密。主密钥不写入数据库，数据库版本独立于应用版本；未知未来版本必须报错，不能作为空库覆盖。
+Full replacement replaces credentials even if the snapshot contains none. Selective import allocates new IDs for selected connections, required jumps/groups/credentials and maps preset/working-set references without altering existing identities. Follow the explicit [selection model](../internal/app/backup_selection.go)/whitelist. Keep local trust, WebDAV credentials and drafts. Recent connections do not migrate. Imported private-key paths stay disabled until reselected; verify sync paths and pause restored tunnel auto-start.
 
-系统密钥库不可用时必须明确处理，不能退回明文持久化。会话存储的数据库位于临时目录，凭据仍加密，随机密钥留在进程内，正常退出清理，不提供重启恢复保证。用户也可选择主密码存储，复用 age 的 scrypt 收件人封装随机主密钥，密钥文件与数据库同目录，文件大小、解密正文与 KDF 工作因子均有界。存在主密码文件时必须先解锁，不回退密钥库；新建路径拒绝覆盖已有数据库。已解锁持久存储切换保护方式须沿用并核对同一主密钥，密钥文件经私有暂存写入、同步后替换，成功切换主密码后移除旧密钥库副本。主密码存储支持运行期界面锁，锁定后阻止界面操作和终端输入，既有会话、传输、任务与隧道继续，不清除进程密钥；密钥文件损坏或密码遗失需依靠独立加密备份恢复。实现入口为 [主密码存储](../internal/store/password_vault.go)。
+Automatic backup serializes/coalesces bounded pending work. Monitoring/progress/recent timestamps must not cause backup loops. Fail visibly without unbounded retry. Application, database, container, snapshot and layout versions are independent. Old formats stay readable under their contracts; unknown future versions are rejected.
 
-连接目录接口不读取或解密凭据，也不返回秘密；连接偏好按连接 ID 清理失效引用，服务入口读取连接元数据。凭据损坏由实际读取凭据的操作报告，不阻止目录展示。已保存 SSH 凭据的解密与认证留在 Go；编辑连接时允许专用接口按连接 ID 读取密码，限当前表单回填与显式查看，私钥不返回前端。密码未修改时保存配置沿用原凭据。RDP WASM 必需的认证材料限于创建流程，表单与 RDP 密码不进入 React 全局状态、日志或持久化。关闭时释放引用，但不承诺进程、JavaScript 或 WASM 内存中绝无明文或能立即可靠擦除。
+<a id="内置-ai-助手"></a>
+## AI ownership and approvals
 
-多个连接可显式引用同一凭据。单连接表单写入新秘密时为该连接拆分凭据；统一更新必须展示并核对完整引用集合后在一次事务写入。凭据引用列表只返回类型与连接元数据，不能返回秘密。复制连接继续创建独立凭据，避免隐式引入共享关系。
+Encrypted model configuration is independent of CLI authorization. Do not echo saved API keys; distinguish keep/replace/clear. Users provide complete URL/protocol. Do not retry/follow redirects automatically. Bound connection/header waits, total request time, SSE bytes/events, text, arguments, history and concurrent runs.
 
-SSH 首次连接由用户核对并确认主机指纹，已知密钥变化必须阻止连接。RDP 首次证书可由系统 CA 与主机名验证；无法通过该验证的证书需用户核对指纹，已过期或尚未生效的证书不能通过手动信任绕过。两类 RDP 信任路径均固定证书指纹，后续变化阻止连接。合法身份更换通过设置中的信任管理重新探测，展示旧/新指纹并显式审核；确认时再次探测，核对原记录、代次和有效期，不能自动接受新身份。
+Preserve protocol continuation, tool/result associations, thinking signatures and encrypted reasoning. Responses requests are stateless. Provider tools do not become app tools; execute only after complete valid protocol state. Invalid/truncated arguments block execution.
 
-SSH 允许用户预览并确认导入 OpenSSH `known_hosts`。信任仍按目标、端口和跳板路径隔离，支持算法与指纹组成的多个明确密钥，旧单指纹记录保持可读；协商优先选择已信任算法，未匹配的身份继续阻断。会话与续传身份记录实际协商并通过校验的指纹，避免信任集合的存储格式改变导致身份误判；同一连接后续协商保持首次验证的密钥。哈希与模式匹配复用 Go SSH 库，限明确候选目标，不进行 DNS 推断；被撤销的密钥不能导入为信任，CA 记录不转成普通主机指纹。确认核对预览对应的目录、原信任和代次，在事务中写入所选信任并使旧待确认身份失效。应用信任不进入常规备份。
+The Go agent binds to a real SSH owner; tool arguments cannot select another workspace or fall back locally. Probe capabilities rather than assuming Linux. AI supports independent POSIX sh/Windows PowerShell; CLI/multi-host retain `sh -s`. Preserve stdout/stderr, exit status, truncation and bounded raw bytes on decoding failure. Unknown execution blocks replay.
 
-撤销和审核同步持久记录、信任缓存与待确认请求，新探测或撤销使旧结果失效。RDP 同时撤销目标未使用的授权，已建立会话继续；不能用过期审核或缓存重新放行。信任键限既定命名空间，SSH 跳板后的目标按跳板 ID 隔离。
+Backend approvals are one-use and bound to full arguments, timeout, turn and session; show the actual interpreter. Rejection, stopping, disabling AI, locking, owner replacement/disconnect and exit invalidate pending approval. Output instructions, history or summaries cannot grant permission. In-flight turns retain their configuration snapshot.
 
-信任记录属于本机设置，快照恢复保留本机信任，不迁移来源设备的信任。连接稳定 ID 与目标地址职责不同，不以主机地址作为连接配置的唯一身份。
+Turn budgets cover model/compaction/tools and pause only during explicit approval waiting, then resume their remaining allowance. Hiding preserves a running turn. Exit waits for encrypted persistence; deleting/new conversation cancels and waits so background work cannot recreate history. Encrypt history/target snapshots/summaries with session/message-bound AAD. Separate complete local records from model context and compact only whole tool-round-trip boundaries. Configuration/history stay outside regular backups.
 
-## 远端文件与监控
+<a id="本机-cli-访问"></a>
+## Local CLI boundary
 
-多来源日志工具标签复用文件、journal 与 Docker 的只读接口，不持有网络连接，也不进入连接布局或工作集。来源绑定实际 SSH 实例和目标，断线后保留有界本地内容，禁止自动重绑新实例。各来源一次一个请求，沿用既有通道限额和读取边界；失败停止该来源轮询，显式刷新才重试。日志筛选在有时限的 Worker 中执行，工具隐藏、窗口最小化或应用锁定时停止读取和处理，关闭释放缓存。并排保留原始来源与时间，不承诺跨主机时钟一致、连续采集或完整日志归档。
+The CLI is a short-lived same-user client; the desktop owns credentials, sessions and storage. Use explicit IPC allowlists rather than reflecting Wails methods; do not open network ports. Windows pipes restrict the current SID/reject remote clients; Unix validates owner/permissions and exclusive endpoint locking before stale cleanup. This boundary does not defend an already-compromised OS user.
 
-普通及 sudo 文件保存前读取并核对远端原版本；启用历史时，版本与索引在一次本地事务写入，失败阻止远端写入。历史按实际目标、用户、链上身份与路径隔离，使用本机密钥加密，正文记录有全局、文件数和每文件边界。超限淘汰最旧版本，保留显式关闭与验证/reload 设置；自定义设置单独限额，避免自动历史占满后阻止新增文件保存。历史不进入快照，回退先载入草稿，后续保存沿用远端版本核对和提权授权。保存与验证可由用户显式启动同一流程，reload 展示命令并单独确认，完成后可接续已配置的健康检查；不因编辑或恢复历史自动执行远端命令。默认启用规则与操作见 [文件编辑](development.md#文件编辑)，边界见 [历史服务](../internal/app/file_history.go)。
+Access defaults off. Require desktop unlock/configuration rather than IPC credential prompts or direct database/vault access. Minimal disabled/locked status does not disclose locked authorization. Saved connections are safe metadata; execution uses exact live SSH owner IDs.
 
-手动目录同步先扫描与预览，再显式执行选中差异。比较相对路径、大小和秒级修改时间，不删除目标多余文件，不跟随符号链接；执行前及发布前复核源/目标，普通 SFTP 检查与重命名之间仍无原子 CAS 保证。扫描与计划有条数、层数、路径字节、时长和并行计划限额；目录作为一项队列任务逐文件流式执行，失败报告已完成数量并要求重新预览剩余差异，不自动重放旧计划。
+Bound bytes/concurrency/deadlines/pending opens. Queries reuse read contracts without becoming uploads, state changes or task starts. Preserve errors, versions, pagination revisions and truncation without invalid JSON. Disabling/locking blocks new operations; admitted ones retain cancellation/deadline/owner constraints. Cancellation never authorizes replay of unknown-state commands.
 
-跨 SSH 目录复制复用分页扫描、差异预览和传输队列，绑定两侧连接实例，逐文件经本机流式中转并复核预览版本。关闭任一连接使后续读取或复制失败，同一实际目标下重叠目录拒绝执行。复制保留普通文件修改时间，沿用目标属性与私有暂存发布；不提供跨主机事务或目录续传。
+<a id="发布与应用更新"></a>
+## Releases and updates
 
-现用 `github.com/pkg/sftp` v1 模块的 ReadDir 会累积完整目录，不能靠读取后的条数检查限制这部分内存。同步与递归搜索采用同一上游 v2 模块的分页 API，并限制包和在途请求；现有文件传输保留 v1 模块。v2 当前为预发布版本，该选择限于分页扫描需求，需保留分页、取消、关闭与真实服务端回归；上游 v1 提供可限量读取或 v2 稳定后重新评估，不能静默取消扫描边界。
+The [release guide](development.md#versions-and-releases) defines application versions and future bilingual logs. Authorized public tags point to checked commits already in `main`; publish after all target artifacts are ready and never overwrite public releases.
 
-递归搜索由 Go 通过独立 SFTP 通道执行，不向交互终端插入命令。搜索范围、排除规则、目录扫描、路径总量、深度、单文件读取、总读取量、结果数与请求时间均受限制；目录中的符号链接不参与递归。内容搜索限 UTF-8 普通文本，跳过与错误必须展示，达到限额保留已有结果并说明未完成，不能把部分扫描呈现为完整搜索。关闭视图或工作区取消请求，搜索结果及读取正文不持久化。
+Use the pinned Wails updater for download/checksum/unpack/replacement. Accept matching project stable-platform artifacts, require checksums and block invalid downloads. Integrity checksums are distinct from signing/authenticity. Serialize checks/downloads, cancel/wait on close, and do not auto-install in development. User confirmation, unsaved files and local persistence precede restart/helper handoff. The framework owns handed-off staging; parent exit must not delete it. Preserve app identity/data paths. Binary recovery is not data migration rollback.
 
-SSH 工作区的普通目录树保留完整目录展示与排序，允许单目录条目数和总字节数不设硬上限，作为资源有界要求的显式例外；读取并发与展开目录数量仍有界。代价是目录元数据内存随条目数量和名称长度增长，不承诺大目录的固定内存上界。此例外不扩展到成对文件浏览、同步扫描、传输或任务排队；大目录出现明显内存或交互延迟问题时，按实际负载测量并重新评估分页或限额。实现见 [目录读取](../internal/files/service.go)、[目录树](../frontend/src/features/files/useFileTree.ts) 与 [成对浏览](../internal/app/transfer_browser.go)。
+<a id="按概念定位代码"></a>
+## Code navigation
 
-SFTP 路径使用 POSIX 语义；AI 文件入口接受已识别 Windows 主机的盘符绝对路径，并在 [路径转换](../internal/app/ai_files.go) 后交给 SFTP。文件名不得直接拼接进 Shell 命令。文件草稿由前端持有，后台刷新、状态事件和保存失败不能覆盖草稿；关闭文件、工作区或应用前明确处理未保存内容。
-
-sudo 文件编辑使用独立、有限时与输出边界的 SSH exec 通道，逐次显式授权 root 读取或保存，不借用交互终端，也不持久化 sudo 密码。认证提示与写入就绪分开处理，免密 sudo 不发送密码。路径和预期版本均按单个 Shell 参数转义；保存沿用版本复核、私有暂存与同目录替换，不承诺与外部写入者原子 CAS。目标限 Linux 普通文件，拒绝经过符号链接的路径、特殊权限位和其他用户可写的父目录。远端需已有 sudo 和 GNU coreutils，不以提升整个 SFTP 会话权限实现，不自动修改 sudo 策略。代码入口为 [sudo 文件服务](../internal/app/sudo_files.go) 和 [授权通道](../internal/ssh/sudo.go)。
-
-目录树支持显式浏览符号链接目录，保留链接所在的逻辑路径作为树节点身份，展示原始指向与解析路径，阻止目标回到祖先目录的循环展开。链接元数据查询并发有界，断链或权限错误按条目展示。浏览跟随链接不改变同步规则，删除与重命名仍操作链接本身。递归删除先扫描有限深度与条目范围，再自底向上执行，遇到链接不递归，执行前复核目录链及路径类型。取消停止后续操作，失败返回局部删除情况；SFTP 路径复核不构成原子事务，也不能完全隔离外部同时改写。
-
-在线编辑面向受大小限制的普通文本文件，符号链接需显式使用实际目标路径。Go 处理 UTF-8、GBK、GB2312 标签与 GB18030 转换；ANSI 明确指 GBK，GB2312 标签沿用编码库的 GBK 兼容映射，不是 HZ-GB2312。默认按 UTF-8 打开，无法解码时由用户选择，拒绝无效字节与不可表示字符的静默替换。UTF-8 BOM、换行符和编码属于草稿格式；重新解码与转换保存编码分开，混合换行符先显式统一再编辑。原始字节、解码文本和编码结果均受大小限制，定义见 [远端文件服务](../internal/files/service.go)。保存按原始字节及属性版本核对冲突，转换编码不能改用解码文本比较；在同文件系统写入私有暂存目录后用服务端 POSIX rename 替换，保留服务端报告的 POSIX 权限、UID/GID，拒绝保存含特殊权限位的文件。
-
-私有暂存目录用于防止内容在最终权限设置前暴露。当前 SFTP 创建接口不能在创建文件时指定权限，因此先限制目录访问，再写入内容；允许其他用户改写且没有 sticky bit 的目标目录会被拒绝。网络中断可能遗留私有暂存目录。普通 SFTP 无法保证与外部写入者原子地执行“版本未变才替换”，检查与替换间仍有竞争窗口；当前也不保留 ACL 和扩展属性。这些限制不能被描述成完全无损或绝无冲突的保存。
-
-监控面向 Linux，通过独立 exec 通道将内置脚本经 stdin 发送，不安装远端常驻组件或落地脚本。采集随面板订阅启停，速率由计数差和时间差得到。首次采样、计数重置或采集失败必须显示未知或错误，不能把缺失数据当作零，或把旧样本冒充实时数据。采集应按数据更新频率调度，并合并同目标订阅以避免重复工作。
-
-文件系统容量通过远端已有 util-linux `findmnt` 的 JSON 输出读取，保留挂载点原始路径及文件系统保留空间，不自行推算可用量。容量低频采集并限制执行时间、输出与条目数；容量采集失败单独显示错误，其他指标继续采集，不自动安装工具或改用文本解析。
-
-趋势在视图保留固定容量环形历史，记录 CPU、内存与网络/磁盘设备速率合计，不保留原始输出或文件系统列表副本。图形按真实时间定位；未知值、错误、计数重置和隐藏后的时间缺口断线显示，历史不能补成零。关闭工作区释放历史，隐藏面板停止采集。
-
-进程与 systemd 诊断按用户操作查询，复用有界独立命令通道，进程目录等详情经 SFTP 读取。服务列表解析 systemctl JSON，单元详情读取其机器可读属性，日志按当前账户的 journal 权限展示；不自动提权或安装工具，缺失工具、权限不足和输出超限必须可见。服务状态变更限定明确列举的 systemctl 操作，用户核对实际目标与单元后执行，禁止交互询问密码，不自动重试；取消或超时不保证远端操作撤销，后续重新查询状态。查询绑定视图与工作区生命周期，不后台持续刷新，常规查询不持久化进程命令行或日志。用户可另行主动采集排障快照，逐项记录时间、错误和局部状态，显式加密保存或预览后分项导出；快照有并发、采集时限、正文和历史数量边界，不构成原子系统快照，也不进入常规备份。
-
-日志筛选与 JSON 格式化在独立 Worker 中处理当前已读缓存，缓存、显示行数、字符和高亮数量有界；表达式超时终止 Worker 并显示错误，隐藏视图停止处理。保存的日志规则不含日志正文或路径，使用本机 AEAD 设置加密，可由用户显式加入快照；恢复时重新加密并与其他配置原子提交。
-
-## 内嵌 RDP
-
-IronRDP WASM 承担桌面协议与渲染，Go 提供 RDCleanPath 桥接。WebView 不能直接建立原始 TCP/TLS 连接，因此使用本地回环 WebSocket 承接浏览器传输，由 Go 完成目标协商与 TLS，再连接 WASM 所需的数据链路；普通 WebSocket/TCP 转发不能替代 RDCleanPath。
-
-桥接必须限制为回环监听，校验来源及会话授权。短期一次性授权绑定后端确定的具体目标，未通过授权不能连接目标，不开放任意目标代理。TLS/NLA 必须保留，不能为打通目标降级。
-
-内网 RDP 可显式复用已连接 SSH 工作区的 TCP 通道。路由在后端绑定具体工作区，原目标地址继续作为 RDCleanPath 目的地与 TLS 主机名；证书信任按 SSH 目标、连接链身份及 RDP 地址隔离，不能沿用另一条内网路径的信任。SSH 工作区拥有通道生命周期，关闭或重连会使桌面断开，不自动切换为直连。
-
-开发模式的 WebView 来源包含前端服务器端口，桥接须按实际回环开发服务器生成精确白名单，避免把生产来源规则误用于开发或放开任意来源。来源拒绝和 WebSocket 升级失败需反馈具体阶段，技术详情隐藏会话路径令牌。端口配置入口见 [开发环境说明](development.md#环境与定义入口)。
-
-当前桥接显式使用 TLS 1.2，不自动重试其他协议。Windows 11 目标在 Go TLS 1.3 握手完成后、首个认证数据发送前返回 `internal_error`，相同证书、账户和组件在 TLS 1.2 下建立桌面；这是互操作限制，不能归因于密码错误。TLS 1.3-only 目标当前无法连接。调整版本边界须重新验证真实目标的握手、NLA、画面和输入，继续保留证书指纹、有效期和身份变化阻断。
-
-JS、桌面组件与 WASM 必须使用已核对的兼容组合，资源随应用分发。WASM 装载、本地 TLS 桥接和真实 RDP 桌面是不同验收层次；剪贴板默认关闭，用户按会话开启文本剪贴板。各平台仍需验证焦点、中文输入、剪贴板权限、尺寸与多会话行为。若该方案实测无法满足目标，先整理具体证据与契约影响再调整架构。
-
-Windows 系统客户端路径将认证、身份确认与远端生命周期交给 mstsc，进程启动不计作远端连接成功。密码通过当前用户 DPAPI 加密的临时配置交接，访问限当前用户与 SYSTEM，不进入命令行或系统凭据管理器。采用普通模式，避免 `/public` 阻止使用配置凭据；Windows 的身份与资源重定向确认仍保留。应用仍运行时负责在 mstsc 退出后清理，提前退出或异常终止可能遗留当前用户可解密的配置。连接方式属于连接偏好，可显式加入快照，目标设备仍须支持相应客户端。操作与多屏边界见 [连接说明](development.md#连接与工作区)，实现见 [系统客户端](../internal/app/system_rdp_windows.go)。
-
-桌面组件的 `ready` 先于异步剪贴板初始化。当前通过 [固定版本补丁](../frontend/patches/@devolutions__iron-remote-desktop@0.11.0.patch) 提供独立就绪信号，避免认证启动时遗漏剪贴板回调。补丁由 pnpm 锁定与应用；更换兼容组合前须核对上游就绪契约并验证手动剪贴板，不能用固定延时替代就绪信号。
-
-## 加密备份与恢复
-
-快照是带版本的 JSON 经 `age` 加密，包含来源设备、创建时间、分组、连接及用户选择携带的凭据。设备名称和凭据携带标记位于密文内；旧快照缺少标记时保留未知状态，不能由凭据数量推断用户是否选择携带。导出需获得一致性视图，明文不落临时文件。恢复秘密独立于本机系统密钥库，确保另一设备能够解密；支持独立备份密码及用户离线保管的恢复密钥。仅备份原设备加密后的凭据字段无法满足跨设备恢复。
-
-未启用恢复密钥时保留原 `.json.age` 密码格式。启用后使用 `.tqbackup` ZIP Store 容器，每份生成一次性 age X25519 身份加密快照，将该身份分别以备份密码的 scrypt 接收者及恢复公钥加密，任何一种方式都可解锁同一份正文；age 不支持直接混用 scrypt 与其他接收者。清单版本独立于快照 JSON 版本，只包含容器版本、恢复公钥和密码封装标记。读取限制总大小、条目数量、名称和解压大小，拒绝重复、未知、压缩及未知版本条目；正文及密钥封装通过 age 完整性校验。恢复私钥只由用户显式导出并离线保管，本机保存公钥；预览保留恢复公钥，不持久保存私钥。更换密钥或密码影响新备份，旧备份仍使用原解锁信息。
-
-WebDAV 使用追加式快照，不覆盖或自动清理历史。备份目录由用户指定，相对 WebDAV 基址解析。曾验证的服务商忽略 PUT 创建条件，所以当前先上传临时密文，再用 `MOVE` 且 `Overwrite: F` 发布。此步骤直接发出单次请求，避免依赖库递归重试同名冲突。更换实现时仍须证明同名拒绝、原快照不变和失败可清理，不能把请求头存在当作服务商遵守契约的证据。
-
-历史清理由用户单独触发，按设备保留最近份数，预览并明确确认固定删除集合；至少保留一份，未知文件与上传暂存排除。确认核对备份位置、保留范围及候选版本，其他设备新增快照不扩大删除集合。强 ETag 作为条件删除；缺少强 ETag 时只提供删除前元数据复核，不承诺原子条件保护。执行有批次边界，失败与取消报告局部结果，不自动重试或继续删除。
-
-恢复顺序是解密、验证版本与引用、展示差异、用户确认、事务替换分组、连接和凭据。提交必须对应预览的同一份已解密数据，预览失效或本地配置已变化时拒绝提交。全量替换前在应用数据目录的 `restore-backups` 保存包含已保存凭据、片段和可迁移设置的加密保护副本，失败阻止替换；密码优先使用本机已保存备份密码，否则使用本次解锁密码。密钥恢复时携带本次恢复公钥，缺少密码仍可生成恢复密钥保护副本；普通备份创建仍要求备份密码。保护副本不自动清理。会话存储也将保护副本写入持久应用目录，避免随临时数据库删除。凭据使用目标设备主密钥重新加密，失败不能部分覆盖现有数据。
-
-完整恢复替换连接与凭据集合，即便快照未携带凭据；选择性导入将所选连接及依赖的跳板、分组与凭据重新分配 ID 后作为独立副本追加，避免改写已有连接的引用。预览展示项目数量和需要重新核对的本地路径。可选字段以 [备份选择模型](../internal/app/backup_selection.go) 为准，初始值以 [备份设置](../internal/app/backup_settings.go) 为准；操作、默认选择及已有配置保留规则见 [备份与恢复](development.md#备份与恢复)。
-
-导入副本须同步映射预设、偏好及工作集的连接引用，为任务、工作集与日志规则分配新 ID，并处理工作集与日志规则同名；全量替换模式按所选类别替换本机配置。秘密设置使用目标设备主密钥重新加密，与连接在同一事务提交；预览后相关设置改变时拒绝提交。恢复的隧道暂停自动启动；私钥文件路径供预览，恢复时清除，需目标设备重新选择；最近连接记录不迁移。WebDAV 登录配置、草稿、主机与证书信任保留。私钥内容是否携带由用户选择，引用本机路径不代表内容已备份。
-
-上传失败不撤销本地修改；自动备份须串行、合并等待任务，不能由监控、最近连接时间或进度更新触发循环，不做无界重试。
-
-快照根据所含能力选择格式版本，旧格式继续按其字段契约验证，未知版本拒绝。版本选择与读取约束以 [快照模型和校验](../internal/backup/snapshot.go) 为准；本机布局与加密草稿分别由 [workspace.go](../internal/app/workspace.go) 和 [workspace_state.go](../internal/app/workspace_state.go) 定义。修改这些定义须考虑现有数据库、快照和已生成接口的兼容性，不能把独立格式的版本号混为一套。
-
-## 发布与应用更新
-
-版本定义、日志与操作入口统一见 [版本与发布](development.md#版本与发布)。应用版本与数据库、备份、布局格式分别演进。正式标签须指向已进入 `main` 且完成检查的提交，全部目标附件齐备后才公开 Release；公开版本不覆盖。
-
-更新下载、校验、解包与程序替换复用锁定版本的 Wails updater，TermQuay 负责正式渠道、确定性附件选择、强制摘要校验、用户确认与退出协调。只接受本项目匹配当前平台的正式版本；缺少摘要或校验失败必须阻止安装。摘要保障制品完整性，签名认证单独判断，不能把二者混同。
-
-检查和下载串行，后台调度与手动操作共享单任务状态，关闭取消任务并等待退出。开发构建不自动检查或安装；正式构建仅在用户确认后下载和重启。重启之前处理未保存文件及本地状态，不提前交接替换辅助进程。普通退出清理本次下载暂存，已交接辅助进程的暂存由框架管理，不能在父进程关闭时删除。更新保留应用身份与本地数据路径；程序替换恢复不等于数据迁移回滚。
-
-## 按概念定位代码
-
-下表用于按任务选择上下文，不枚举方法或要求目录固定。应用层实现及对应测试位于 `internal/app`；根目录保留程序入口与资源嵌入。移动入口时维护链接即可。
-
-| 概念 | 实现入口 | 验证入口 |
+| Concept | Source | Verification |
 | --- | --- | --- |
-| 工作区、布局与退出 | [app.go](../internal/app/app.go)、[lifecycle.go](../internal/app/lifecycle.go)、[workspace.go](../internal/app/workspace.go)、[App.tsx](../frontend/src/App.tsx)、[前端工作区与退出协调](../frontend/src/features/workspaces)、[工作台布局](../frontend/src/components/layout) | `lifecycle_test.go`、`workspace_test.go`、`workspace_state_test.go`、前端 `workspaceLayout.test.ts`、原生关闭与重载验证 |
-| 版本发布与应用更新 | [assets.go](../assets.go)、[version.go](../internal/app/version.go)、[update.go](../internal/app/update.go)、[internal/update](../internal/update)、[发布工作流](../.github/workflows/release.yml)、[版本工具](../scripts/version.mjs) | `internal/update/provider_test.go`、`scripts/version.test.mjs`、原生替换与重启验收 |
-| SSH、PTY 与消费确认 | [internal/ssh](../internal/ssh)、[ssh_connect.go](../internal/app/ssh_connect.go)、[terminal_sessions.go](../internal/app/terminal_sessions.go)、[TerminalView](../frontend/src/features/terminal/TerminalView.tsx) | [terminal_test.go](../internal/ssh/terminal_test.go)、[重连修复与验证缺口](development.md#重连修复与验证缺口) |
-| 本机 CLI 与 IPC | [internal/cli](../internal/cli)、[internal/localapi](../internal/localapi)、[cli.go](../internal/app/cli.go)、[cli_queries.go](../internal/app/cli_queries.go) | `internal/cli/cli_test.go`、`internal/localapi/server_test.go`、`internal/app/cli_test.go`、[原生程序检查](../scripts/cli-smoke.mjs) |
-| 内置 AI、工具与历史 | [internal/ai](../internal/ai)、[ai.go](../internal/app/ai.go)、[工具](../internal/app/ai_tools.go)、[历史存储](../internal/store/ai.go) | `internal/ai/*_test.go`、`internal/app/ai*_test.go`、[AI 验收范围](development.md#内置-ai-验收2026-11-06) 与 [Windows SSH 适配验收](development.md#windows-ssh-ai-适配验收2026-11-09) |
-| 本地 Shell 与 PTY | [local_terminal.go](../internal/app/local_terminal.go)、[TerminalView](../frontend/src/features/terminal/TerminalView.tsx) | 各平台原生进程、输入与关闭验证 |
-| 目录延迟探测 | [latency.go](../internal/app/latency.go)、[internal/ssh/latency.go](../internal/ssh/latency.go)、[前端调度](../frontend/src/features/connections/useConnectionLatency.ts) | `latency_test.go` 验证本地 TCP、代理请求合并、取消与并发边界；真实代理、跳板路径与前端可见性调度仍需验证 |
-| 文件、草稿与传输 | [internal/files](../internal/files)、[files.go](../internal/app/files.go)、[transfer.go](../internal/app/transfer.go)、[前端文件工作区](../frontend/src/features/files) | `internal/files/service_test.go`、`transfer_test.go`、原生传输流程 |
-| Linux 监控 | [internal/monitor](../internal/monitor)、[monitor.go](../internal/app/monitor.go) | `internal/monitor/sample_test.go`、`filesystems_test.go`、前端 `history.test.ts` |
-| RDP、证书与授权 | [internal/rdp](../internal/rdp)、[rdp.go](../internal/app/rdp.go)、[RDPView](../frontend/src/features/rdp/RDPView.tsx) | `internal/rdp/bridge_test.go`、真实 RDP 与原生 WebView |
-| 存储、凭据与信任 | [internal/store](../internal/store)、[storage.go](../internal/app/storage.go)、[data.go](../internal/app/data.go)、[connection_data.go](../internal/app/connection_data.go)、[credentials.go](../internal/app/credentials.go)、[trust.go](../internal/app/trust.go)、[连接界面](../frontend/src/features/connections) | `data_test.go`、`credentials_test.go`、`trust_test.go` |
-| 配置预览导入 | [import.go](../internal/app/import.go)、[import_putty_windows.go](../internal/app/import_putty_windows.go) | `import_test.go` |
-| 快照与恢复 | [internal/backup](../internal/backup)、[backup_snapshot.go](../internal/app/backup_snapshot.go)、[backup_restore.go](../internal/app/backup_restore.go)、[backup_local.go](../internal/app/backup_local.go)、[backup_selection.go](../internal/app/backup_selection.go)、[BackupSettings](../frontend/src/features/settings/BackupSettings.tsx) | `internal/backup/*_test.go`、`data_test.go`、`backup_selection_test.go` |
+| Workspaces/layout/exit | [app](../internal/app), [frontend workspaces](../frontend/src/features/workspaces) | Lifecycle/layout tests and native close/restart |
+| SSH/PTY/backpressure | [SSH](../internal/ssh), [terminal view](../frontend/src/features/terminal/TerminalView.tsx) | Local protocol tests; optional real SSH |
+| Storage/trust | [store](../internal/store), [application services](../internal/app) | Vault, credential, identity and restore tests |
+| Files/transfers | [files](../internal/files), [frontend files](../frontend/src/features/files) | SFTP fixtures, conflict/cancel/resume and native dialogs |
+| Monitoring/logs | [monitor](../internal/monitor), [logs](../frontend/src/features/logs) | Parser/history tests; optional real Linux |
+| RDP | [bridge](../internal/rdp), [RDP service](../internal/app/rdp.go) | Local TLS tests; real desktop/native WebView |
+| AI/CLI | [AI](../internal/ai), [CLI](../internal/cli), [IPC](../internal/localapi) | Protocol/approval/lock/query tests; native/real services |
+| Backups | [backup](../internal/backup), [restore](../internal/app/backup_restore.go) | Corruption, validation, safety copy and transactions |

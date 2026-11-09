@@ -8,88 +8,88 @@ import (
 
 func help(path []string, out io.Writer) int {
 	topic := strings.Join(path, ".")
-	fmt.Fprintln(out, `TermQuay 本机 CLI
-用法：termquay <命令> [选项]
-无参数启动桌面。--version 输出本机版本。help 或各级 --help 查看帮助。
-业务命令需要同一操作系统用户运行桌面，在设置 → 本机 CLI 启用访问并解锁。
-不弹窗、不询问凭据或信任。--no-input 显式声明非交互；不会改变权限。
-所有业务命令支持 --json。stdout 输出结果，诊断写入 stderr。
-JSON：{protocol:1,data?:...,error?:{code,message,remote_state_unknown}}。
-退出码：0 成功，1 业务/传输/远端失败，2 参数错误。远端退出码见 exec 结果。
-协议版本独立于产品版本；协议不兼容请使用同一发行包。`)
+	fmt.Fprintln(out, `TermQuay local CLI
+Usage: termquay <command> [options]
+No arguments opens the desktop. --version prints the local version. Use help or --help at any level.
+Business commands require the desktop running as the same OS user, with Settings > Local CLI enabled and the app unlocked.
+No dialogs, credential prompts or trust confirmation. --no-input explicitly declares noninteractive use without changing permissions.
+All business commands support --json. Results go to stdout; diagnostics go to stderr.
+JSON: {protocol:1,data?:...,error?:{code,message,remote_state_unknown}}.
+Exit codes: 0 success, 1 business/transport/remote failure, 2 invalid arguments. Remote exit status is in the exec result.
+Protocol and application versions are independent; use the same distribution if they are incompatible.`)
 	switch topic {
 	case "":
-		fmt.Fprintln(out, `命令：
-  status [--json]                         实例、授权、锁与兼容状态
+		fmt.Fprintln(out, `Commands:
+  status [--json]                         Instance, authorization, lock and compatibility
   connection list [--protocol ssh] [--group <id>] [--search <text>] [--json]
-  workspace list [--json]                 后端可观测的 SSH 工作区
-  file list|read --workspace <id> --path <绝对路径> [--json]
-  service list|inspect|logs --workspace <id> [--unit <完整单元名>] [--json]
+  workspace list [--json]                 Backend-observable SSH workspaces
+  file list|read --workspace <id> --path <absolute-path> [--json]
+  service list|inspect|logs --workspace <id> [--unit <full-unit-name>] [--json]
   port list --workspace <id> [--json]
-  container list|inspect|logs --workspace <id> [--id <完整容器ID>] [--json]
-  task list|show [--id <任务ID>] [--json]
-  run list|show [--id <执行记录ID>] [--json]
+  container list|inspect|logs --workspace <id> [--id <full-container-id>] [--json]
+  task list|show [--id <task-id>] [--json]
+  run list|show [--id <run-id>] [--json]
   exec --workspace <id> --command <script> [--timeout 30s] [--json] [--no-input]
-示例：termquay workspace list --json --no-input
-      termquay exec --workspace <精确ID> --command 'uname -a' --json --no-input`)
+Examples: termquay workspace list --json --no-input
+          termquay exec --workspace <exact-id> --command 'uname -a' --json --no-input`)
 	case "status":
-		fmt.Fprintln(out, "用法：termquay status [--json] [--no-input]\n桌面未运行时返回 running=false 和 unavailable，退出码 1。禁用或锁定仍可读取最小状态。锁定时 enabled 不披露，返回 false。")
+		fmt.Fprintln(out, "Usage: termquay status [--json] [--no-input]\nWithout a desktop, returns running=false and unavailable with exit code 1. Minimal status is readable when disabled/locked. Locked status does not disclose enabled authorization and returns false.")
 	case "connection", "connection.list":
-		fmt.Fprintln(out, "用法：termquay connection list [--protocol ssh] [--group <精确ID>] [--search <关键词>] [--json] [--no-input]\n列出保存连接元数据，不探测网络，不返回凭据。分组筛选精确匹配，不递归。")
+		fmt.Fprintln(out, "Usage: termquay connection list [--protocol ssh] [--group <exact-id>] [--search <text>] [--json] [--no-input]\nLists saved connection metadata without network probes or credentials. Group matching is exact, without recursion.")
 	case "workspace", "workspace.list":
-		fmt.Fprintln(out, "用法：termquay workspace list [--json] [--no-input]\n列出后端持有的 SSH 工作区，含实际目标和状态；不代表全部前端标签。临时连接的 connection_id 为空。使用工作区精确 ID 执行，禁止模糊选择。")
+		fmt.Fprintln(out, "Usage: termquay workspace list [--json] [--no-input]\nLists Go-owned SSH workspaces with actual targets/state, not every frontend tab. Temporary connections have an empty connection_id. Execute using an exact workspace ID, never a fuzzy name.")
 	case "file", "file.list", "file.read":
-		fmt.Fprintln(out, `用法：termquay file list --workspace <精确ID> --path <远端绝对路径> [--json] [--no-input]
-      termquay file read --workspace <精确ID> --path <远端绝对路径> [--encoding UTF-8] [--json] [--no-input]
-目录复用成对浏览的分页扫描，最多返回 512 项；检查 truncated，不表示完整目录。
-文本复用在线编辑读取，限 2 MiB 普通文件，符号链接须使用实际目标路径。
-支持 UTF-8、GBK/ANSI、GB2312 与 GB18030；返回正文、版本、编码、BOM 和换行格式。
-读取不保存草稿或历史，不上传文件。JSON 编码后的响应超过 4 MiB 时返回 response_too_large。`)
+		fmt.Fprintln(out, `Usage: termquay file list --workspace <exact-id> --path <absolute-remote-path> [--json] [--no-input]
+       termquay file read --workspace <exact-id> --path <absolute-remote-path> [--encoding UTF-8] [--json] [--no-input]
+Directory queries reuse the bounded paired-browser scan and return up to 512 entries. Check truncated; this may be an incomplete directory.
+Text reads reuse the online editor boundary: regular files within 2 MiB; use resolved target paths for symbolic links.
+Supports UTF-8, GBK/ANSI, GB2312 and GB18030; returns body, version, encoding, BOM and line endings.
+Reads do not save drafts/history or upload files. Encoded JSON responses over 4 MiB fail with response_too_large.`)
 	case "service", "service.list", "service.inspect", "service.logs":
-		fmt.Fprintln(out, `用法：termquay service list --workspace <精确ID> [--search <服务名或通配符>] [--json] [--no-input]
-      termquay service inspect --workspace <精确ID> --unit <完整名称.service> [--json] [--no-input]
-      termquay service logs --workspace <精确ID> --unit <完整名称.service> [--json] [--no-input]
-使用远端当前用户权限查询 systemd，不启停服务、不提权。工具缺失或无权访问时返回真实错误。
-list 返回已加载服务、读取时间与截断标记，inspect 返回实际目标和服务属性。
-logs 返回近期日志与输出截断标记；journal 权限不足时不能视作完整系统日志。`)
+		fmt.Fprintln(out, `Usage: termquay service list --workspace <exact-id> [--search <service-or-wildcard>] [--json] [--no-input]
+       termquay service inspect --workspace <exact-id> --unit <full-name.service> [--json] [--no-input]
+       termquay service logs --workspace <exact-id> --unit <full-name.service> [--json] [--no-input]
+Queries systemd with the current remote user's permissions, without service changes or elevation. Missing tools/permissions return real errors.
+list returns loaded services, read time and truncation; inspect returns the actual target and properties.
+logs returns recent output and truncation. Restricted journal access is not a complete system log.`)
 	case "port", "port.list":
-		fmt.Fprintln(out, `用法：termquay port list --workspace <精确ID> [--json] [--no-input]
-查询 TCP/UDP 监听端口及当前用户可见的进程归属，需要远端已有 iproute2 ss。
-不建立隧道、不发起端口探测。检查结果中的读取时间、warning 与截断标记。`)
+		fmt.Fprintln(out, `Usage: termquay port list --workspace <exact-id> [--json] [--no-input]
+Queries TCP/UDP listeners and process ownership visible to the current user; requires existing remote iproute2 ss.
+Does not create tunnels or probe ports. Check read time, warning and truncation.`)
 	case "container", "container.list", "container.inspect", "container.logs":
-		fmt.Fprintln(out, `用法：termquay container list --workspace <精确ID> [--socket <Unix路径>] [--json] [--no-input]
-      termquay container inspect --workspace <精确ID> --id <完整容器ID> [--socket <Unix路径>] [--json] [--no-input]
-      termquay container logs --workspace <精确ID> --id <完整容器ID> [--socket <Unix路径>] [--json] [--no-input]
-默认 socket 为 /var/run/docker.sock，可明确指定 rootless 路径；经 SSH 访问 Docker HTTP API。
-需要已有 socket 权限，不调用 Docker CLI、不提权、不启停容器。id 使用 list 返回的完整值。
-列表包含容器状态、Compose 分组和端口，详情包含挂载、健康与退出信息；日志返回近期窗口及 truncated。`)
+		fmt.Fprintln(out, `Usage: termquay container list --workspace <exact-id> [--socket <unix-path>] [--json] [--no-input]
+       termquay container inspect --workspace <exact-id> --id <full-container-id> [--socket <unix-path>] [--json] [--no-input]
+       termquay container logs --workspace <exact-id> --id <full-container-id> [--socket <unix-path>] [--json] [--no-input]
+Default socket: /var/run/docker.sock; explicitly choose a rootless path when needed. Uses Docker HTTP API over SSH.
+Requires existing socket permissions; no Docker CLI, elevation or container state changes. Use full IDs returned by list.
+Lists states, Compose groups and ports; details include mounts, health and exits; logs return a recent window and truncated.`)
 	case "task", "task.list", "task.show":
-		fmt.Fprintln(out, `用法：termquay task list [--search <名称>] [--json] [--no-input]
-      termquay task show --id <精确任务ID> [--json] [--no-input]
-list 返回已保存任务的 id、name 与 step_count；show 返回完整定义，包括命令及判定条件。
-读取本机任务不要求打开 SSH 工作区，不启动、修改或删除任务；定义可能包含敏感文本。`)
+		fmt.Fprintln(out, `Usage: termquay task list [--search <name>] [--json] [--no-input]
+       termquay task show --id <exact-task-id> [--json] [--no-input]
+list returns saved task id, name and step_count; show returns full definitions including commands/checks.
+Reading local tasks requires no SSH workspace and does not start, modify or delete tasks. Definitions may contain sensitive text.`)
 	case "run", "run.list", "run.show":
-		fmt.Fprintln(out, `用法：termquay run list [--search <名称>] [--json] [--no-input]
-      termquay run show --id <精确执行记录ID> [--offset 0] [--limit 8] [--revision <修订号>] [--json] [--no-input]
-list 合并本次运行和显式保存的执行记录；show 返回 summary、首分页的 task 与 results 分页。
-offset 为 0 至 1024，limit 为 1 至 64，默认 8；响应预算可能使实际返回数少于 limit。
-使用 next_offset 读取后续页，has_more=false 表示结束。保留每项远端退出码、判定与输出截断标记。
-运行中记录会变化；后续页带首分页 summary.revision，变化时返回 record_changed，需从第一页重读。
-读取不启动、取消、继续或重放任务，也不将未保存结果持久化。`)
+		fmt.Fprintln(out, `Usage: termquay run list [--search <name>] [--json] [--no-input]
+       termquay run show --id <exact-run-id> [--offset 0] [--limit 8] [--revision <revision>] [--json] [--no-input]
+list combines current and explicitly saved runs; show returns summary, task on page one, and paged results.
+offset: 0 to 1024; limit: 1 to 64, default 8. Response byte limits may return fewer results.
+Follow next_offset; has_more=false ends pagination. Retain exit codes, verdicts and output truncation.
+Live records change. Pass the first page's summary.revision on later pages; record_changed requires restarting at page one.
+Reads do not start, cancel, continue, replay or persist previously unsaved tasks/results.`)
 	case "exec":
-		fmt.Fprintln(out, `用法：termquay exec --workspace <精确ID> <脚本来源> [--timeout 30s] [--json] [--no-input]
-脚本来源三选一：--command <script> | --script-file <path> | --script-file -（stdin）
-脚本 1–32768 字节，无 NUL；超时为 1s–600s 整秒，默认 30s。
-示例：termquay exec --workspace <精确ID> --script-file ./inspect.sh --timeout 60s --json --no-input
-复用已连接 SSH，通过独立 session 执行 sh -s，无 PTY，不继承交互 Shell 目录与环境。
-命令可能修改远端。结果 data={workspace,result:{stdout,stderr,exit_code,duration_ms,truncated,error}}。
-输出按 UTF-8 解码；解码失败时 result.error 报错，stdout_base64/stderr_base64 保留对应原始字节。
-响应级错误位于 error，检查 error.remote_state_unknown；结果级错误位于 data.result.error。
-stdout 上限 64 KiB，stderr 16 KiB；exit_code=-1 表示未知，非零退出以 remote_exit 区分。
-Ctrl-C、客户端断开、工作区关闭和桌面退出取消请求。取消或超时不证明远端进程退出。
-关闭授权或应用锁定阻止新请求，已获准请求继续受原超时约束。状态未知时不自动重试。`)
+		fmt.Fprintln(out, `Usage: termquay exec --workspace <exact-id> <script-source> [--timeout 30s] [--json] [--no-input]
+Choose one source: --command <script> | --script-file <path> | --script-file - (stdin)
+Script: 1 to 32768 bytes without NUL. Timeout: whole seconds from 1s to 600s, default 30s.
+Example: termquay exec --workspace <exact-id> --script-file ./inspect.sh --timeout 60s --json --no-input
+Reuses connected SSH through a separate sh -s session without PTY or the interactive shell's directory/environment.
+Commands may modify remote systems. Result data={workspace,result:{stdout,stderr,exit_code,duration_ms,truncated,error}}.
+Output is UTF-8. On decoding failure result.error reports it; stdout_base64/stderr_base64 retain corresponding raw bytes.
+Response errors are in error; check error.remote_state_unknown. Result errors are in data.result.error.
+stdout limit: 64 KiB; stderr: 16 KiB. exit_code=-1 means unknown; nonzero exits use remote_exit.
+Ctrl-C, client disconnect, workspace close and desktop exit cancel requests. Cancellation/timeout does not prove remote termination.
+Disabling access or locking blocks new requests; admitted requests retain their deadlines. Never automatically retry unknown-state commands.`)
 	default:
-		fmt.Fprintln(out, "未知帮助主题")
+		fmt.Fprintln(out, "Unknown help topic")
 		return 2
 	}
 	return 0

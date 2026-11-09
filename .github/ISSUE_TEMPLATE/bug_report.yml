@@ -1,0 +1,31 @@
+name: Bug report
+description: Report a reproducible problem. English or Chinese is welcome.
+body:
+  - type: markdown
+    attributes:
+      value: English and Chinese are welcome; imperfect English is fine. Remove passwords, keys, tokens and sensitive output.
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Include the connection type and relevant actions.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: TermQuay version/build, OS, architecture, and WebView version if known.
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Redacted diagnostics or screenshots
+      description: Optional. Remove secrets and sensitive host/file/output details before sharing.

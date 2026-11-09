@@ -2,7 +2,7 @@
 
 ## Goals and sources of truth
 
-TermQuay is an open source, cross-platform remote connection workbench. Keep its single-machine application architecture and unlimited connection catalog. Follow the [architecture constraints](docs/architecture.md#产品与技术边界) for runtime resource limits.
+TermQuay is an open source, cross-platform remote connection workbench. Keep its single-machine application architecture and unlimited connection catalog. Follow the [architecture constraints](docs/architecture.md#product-and-technology-boundaries) for runtime resource limits.
 
 English is the primary language for public collaboration. New documentation, code comments, commit descriptions and PR titles should use English. Chinese feedback and contributions are welcome; maintainers can help with English wording and summarize Chinese discussions in English. Keep English and Simplified Chinese user interfaces and documentation entry points. Do not rewrite historical commits, release notes or unrelated comments to change their language.
 

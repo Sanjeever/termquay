@@ -1,37 +1,34 @@
-# 开发与使用说明
+# Development and usage
 
-本文提供从源码运行、日常使用、验证和本地打包入口。设计理由与行为契约见 [架构文档](architecture.md)。以下命令从仓库根目录执行。
+[简体中文](development.zh-CN.md) · [Contributing](../CONTRIBUTING.md) · [Architecture](architecture.md)
 
-## 环境与定义入口
+This guide covers an independent contribution from checkout to verification. The [Chinese guide](development.zh-CN.md) retains the longer operational manual and historical acceptance records. Those records have not been rerun merely by translating this entry point. Commands below run from the repository root.
 
-- Go 最低版本与建议工具链由 [go.mod](../go.mod) 的 `go`、`toolchain` 声明决定。允许自动工具链下载的环境会按需选择工具链；使用更高版本时仍需验证兼容性。
-- pnpm 版本由 [frontend/package.json](../frontend/package.json) 的 `packageManager` 声明决定，Node 需满足锁定 pnpm/Vite 的要求。使用 [锁文件](../frontend/pnpm-lock.yaml) 安装，不改其他项目或全局工具配置。
-- Wails CLI 与 `go.mod` 中 Wails 模块版本保持一致。下方安装命令从模块定义读取版本，不另维护版本常量。
-- 原生依赖随目标平台准备：macOS 使用 Command Line Tools；Windows 运行需要 WebView2；Linux 构建需要 C 编译器及 Wails 对应的 GTK/WebKit 开发库。包名随发行版和构建选项核对，不把交叉编译结果当作原生验证。
+<a id="环境与定义入口"></a>
+## Environment
 
-| 内容 | 定义入口 |
-| --- | --- |
-| 前端脚本、依赖和 Node 包管理器 | [frontend/package.json](../frontend/package.json) 与锁文件 |
-| 开发服务器和端口 | [frontend/vite.config.ts](../frontend/vite.config.ts)、[Taskfile.yml](../Taskfile.yml) |
-| 热重载、产品元数据与资源生成 | [build/config.yml](../build/config.yml) |
-| 通用绑定与前端构建 | [build/Taskfile.yml](../build/Taskfile.yml) |
-| 平台构建、包格式和签名参数 | [macOS](../build/darwin/Taskfile.yml)、[Windows](../build/windows/Taskfile.yml)、[Linux](../build/linux/Taskfile.yml) 的任务定义 |
-| 版本校验、日常检查与标签发布 | [版本工具](../scripts/version.mjs)、[CI](../.github/workflows/ci.yml)、[发布工作流](../.github/workflows/release.yml) |
+- Use the Go language/toolchain in [go.mod](../go.mod). Keep the Wails CLI aligned with its module version.
+- Use the pnpm version in [frontend/package.json](../frontend/package.json), the checked-in [lockfile](../frontend/pnpm-lock.yaml), and a Node version compatible with pnpm/Vite. [CI](../.github/workflows/ci.yml) is the tested toolchain reference.
+- Native prerequisites differ by platform: macOS Command Line Tools, Windows WebView2, and a C compiler plus the appropriate GTK/WebKit development libraries on Linux. CI lists Ubuntu packages. Cross-compilation does not verify a native WebView.
+- Keep toolchain changes project-local. Do not change global package manager configuration, dependency mirrors or another project's tools.
 
-Taskfile 保留 Wails 模板任务。出现 server、Docker 或 iOS 任务不表示产品支持相应部署形态；当前交付范围是桌面应用。自定义开发端口使用 `WAILS_VITE_PORT`；[RDP 服务](../internal/app/rdp.go) 根据 Wails 注入的 `FRONTEND_DEVSERVER_URL` 生成精确回环来源白名单，回归见 [rdp_test.go](../internal/app/rdp_test.go)。自定义启动方式也须保持该地址与实际开发服务器一致，不得放开为任意来源。
+[Taskfile.yml](../Taskfile.yml), [build/config.yml](../build/config.yml) and [platform tasks](../build) define ports, resources and build flags. Template server/Docker/iOS tasks do not imply supported product deployment modes: this is a desktop application.
 
-## 首次运行
+Use `WAILS_VITE_PORT` for a custom development port. The RDP bridge derives its exact loopback origin allowlist from Wails' `FRONTEND_DEVSERVER_URL`; custom launchers must keep it consistent with the real frontend server. Do not permit arbitrary origins to bypass a setup error.
 
-仓库已包含生成绑定，先安装依赖并构建前端资源，供桌面根包嵌入：
+<a id="首次运行"></a>
+## First run
+
+Build frontend assets before compiling or testing the root Go package:
 
 ```sh
 pnpm --dir frontend install --frozen-lockfile
 pnpm --dir frontend build
 ```
 
-将匹配的 Wails CLI 安装到已忽略的 `.tools` 目录，并在当前终端加入 PATH。
+Install the matching Wails CLI into the ignored `.tools` directory.
 
-Windows PowerShell：
+Windows PowerShell:
 
 ```powershell
 $wailsVersion = go list -m -f '{{.Version}}' github.com/wailsapp/wails/v3
@@ -41,7 +38,7 @@ $env:PATH = "$env:GOBIN;$env:PATH"
 wails3 dev
 ```
 
-macOS / Linux 的 sh 兼容 Shell：
+macOS / Linux, with a POSIX-compatible shell:
 
 ```sh
 wails_version=$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v3)
@@ -50,552 +47,145 @@ export PATH="$PWD/.tools:$PATH"
 wails3 dev
 ```
 
-开发入口通过项目任务完成绑定生成和前端构建，再启动桌面与前端开发服务器。新终端需要重新将 `.tools` 加入 PATH。浏览器单独打开 Vite 页面无法代替原生 Wails 运行时验证。
+Add `.tools` to PATH again in a new terminal. Development tasks generate bindings and start the desktop and Vite server. Browser previews do not verify the native Wails runtime.
 
-## 日常修改与验证
+<a id="日常修改与验证"></a>
+## Changes and checks
 
-Go 服务签名、模型或事件改变后重新生成绑定，生成目录为 [frontend/bindings](../frontend/bindings)。完整 Wails 构建也会执行该步骤；不要手工修补生成文件来掩盖后端定义问题。
+After Go service/model/event changes, regenerate bindings and inspect the result:
 
 ```sh
 wails3 generate bindings -ts -i
+pnpm --dir frontend test
 pnpm --dir frontend check
 pnpm --dir frontend build
 ```
 
-根包通过 [assets.go](../assets.go) 嵌入资源，全新检出时先构建前端再编译或测试根包；应用层测试随源码位于 `internal/app`。后端检查可按影响范围选择：
+Do not edit [generated bindings](../frontend/bindings) manually. Choose backend checks proportional to the change:
 
 ```sh
-go test -race ./internal/...
-go test -race ./...
+go test ./internal/...
+go test ./...
 ```
 
-两条命令分别覆盖含桌面服务的内部包和包含根目录入口的全部包，无需每次都运行。`-race` 需要当前平台支持的 race 工具链与 C 编译器；缺失时明确记录未完成竞态检查，普通测试通过不能替代它。纯文档修改检查内容、链接和 diff。
+The second command includes the root entry point and needs built frontend assets. On a supported platform with CGO and a C compiler, run the relevant race checks, for example `go test -race ./internal/...`. Ordinary tests do not substitute for race detection. Documentation-only changes need content/link/diff checks, not builds.
 
-前端 `check` 和 `build` 分别提供类型检查与构建验证；逻辑与版本工具回归使用 `node:test`，由 [测试入口](../scripts/test.mjs) 收集测试文件，Node 版本参照 [CI 配置](../.github/workflows/ci.yml)：
+Frontend tests use [node:test](../scripts/test.mjs). CI also builds on three platforms, checks binding consistency and runs the [CLI smoke check](../scripts/cli-smoke.mjs). A workflow definition is not evidence that a check ran for your change.
+
+## Interface localization
+
+Resources live in [frontend/src/i18n/locales](../frontend/src/i18n/locales), grouped by feature, and ship offline with the application. English is the fallback. Maintain both languages, semantic keys, whole sentences, interpolation parameters and appropriate plurals. `pnpm --dir frontend test` checks resource consistency.
+
+Language extends [appearance settings](../frontend/src/features/settings/appearance.ts) and the existing portable UI/backup path. Legacy missing preferences default to following the system. Supported English and Simplified Chinese preferences are matched in order; unsupported locales fall back to English without claiming Traditional Chinese support. Store `auto` itself and resolve it again on the destination device.
+
+Initialize before storage unlock. Keep HeroUI, HTML language, CodeMirror phrases, xterm accessibility labels, formatting, sorting and Go-owned native UI synchronized. The Vite locale-context alias makes HeroUI providers and overlays share one React Aria context; verify it when dependencies change.
+
+Translate at display boundaries. [Diagnostic metadata](../internal/message) has no language state or translation engine. Preserve original diagnostics, error chains, file recovery codes, SSH steps and machine fields. Legacy machine state values remain intact with additive display codes. Unknown diagnostics and remote output remain inspectable.
+
+Language changes must not alter workspace keys, recreate editors, reconnect sessions, cancel transfers or replay operations. Reconfigure editor phrases/presentation while retaining content, selection and undo history. Keep error objects/metadata in transient state so open notices can update. Do not translate user names, commands, paths, terminal output, remote file/log bodies, model-generated content or original licenses. Published release notes retain their original language.
+
+<a id="使用说明"></a>
+<a id="连接与工作区"></a>
+<a id="ssh-工作区与本地终端"></a>
+<a id="远端文件与传输"></a>
+<a id="文件编辑"></a>
+<a id="远程桌面"></a>
+<a id="linux-监控与日志查看"></a>
+<a id="文件预览"></a>
+<a id="设置与演示模式"></a>
+<a id="终端工具与命令片段"></a>
+<a id="本地草稿与布局恢复"></a>
+<a id="备份与恢复"></a>
+<a id="内置-ai-助手"></a>
+## Using the workbench
+
+- **Connections:** the fixed connection center manages groups, filters and saved metadata. Outer tabs hold connection workspaces or independent multi-host/log tools; SSH inner tabs hold terminals/files. Quick connect parses supported addresses/options for review and does not execute the entered text.
+- **Identity and credentials:** verify new fingerprints/certificates against a trusted source. Changed identities block connection. Review legitimate changes in identity settings. Shared credential updates require reviewing the affected connection set.
+- **Storage and lock:** explicitly choose master password/session storage if the system keychain is unavailable. Connection metadata is not whole-database encrypted. Application lock blocks new interaction while existing sessions/tasks can continue. Forgotten passwords require an independent backup.
+- **Files:** browsing mode blocks remote writes until explicitly allowed. Saving checks the remote baseline and preserves drafts on conflict. Compare/merge or reload explicitly. Encoding, history recovery, sudo authorization, validation and reload are separate decisions.
+- **Transfers:** preview conflicts and selected differences. Resume explicitly after reconnecting to the same verified destination. Directory sync does not delete extra destination files. Cancellation does not prove remote termination.
+- **Terminal tools:** snippets await explicit insertion; completion integration is enabled per shell session. Multi-host steps use separate shells. Review the first-host confirmation before continuing. Saved run results are locally encrypted and excluded from regular backups.
+- **Monitoring/logs:** Linux collection uses existing tools and current-user permissions. Preserve unknown, stale, truncated and partial states. Docker uses its HTTP API over an SSH-forwarded Unix socket.
+- **AI:** questions, explicitly attached references and tool-read contents go to the configured model service. Review command approvals. Stopping, locking or disconnecting invalidates pending approvals; operations already sent may still have unknown remote state.
+- **RDP:** embedded RDP currently uses TLS 1.2; TLS 1.3-only targets are unsupported. Clipboard is opt-in per session. The Windows system client owns its authentication/identity UI and does not report remote connection success to the app.
+- **Language/demo:** choose **Settings → Appearance → Language**. Demo mode uses isolated in-memory data while real workspaces remain mounted. Demo results do not prove remote behavior.
+- **Backups:** encryption passwords are separate from WebDAV login passwords. Explicitly include credentials when needed. Full replacement removes the local credential set even when the snapshot has none. Restored tunnel auto-start is paused; reselect local private key files and verify sync paths.
+
+The English guide covers core usage and contribution paths. The long-form [Chinese operational manual](development.zh-CN.md#使用说明) has not yet been fully translated.
+
+<a id="本机-cli"></a>
+## Local CLI
+
+Enable **Settings → Local CLI**, unlock the desktop, then discover exact live SSH workspaces:
 
 ```sh
-pnpm --dir frontend test
-```
-
-这些自动检查不包含原生 WebView 或组件交互验收。测试名称及实际覆盖以仓库测试为准。带凭据的真实服务测试可能在普通 Go 测试命令中执行；缺少配置时会跳过，必须区分通过与跳过。
-
-冷启动与延迟装载相关修改须使用发行构建，在各平台原生环境分别记录窗口出现、首屏绘制与可操作时间，区分完全退出后启动、系统首次启动与常驻唤起；统计应覆盖应用和 WebView 相关进程。类型检查与单元测试不能证明冷启动耗时或首次打开工作区体验通过。当前装载与初始化顺序见 [App.tsx](../frontend/src/App.tsx)，取消、失败及会话交接仍须满足 [生命周期契约](architecture.md#通信背压与生命周期)。
-
-编辑器、Markdown 预览、AI 面板和 RDP 视图按入口加载，语言支持按实际语言加载；Markdown 预览不预先创建源码编辑器。生产构建将固定版本 RDP 包内嵌的 WASM 提取为独立资源，进入 RDP 后才初始化，提取规则见 [Vite 配置](../frontend/vite.config.ts)。依赖升级导致内嵌格式变化时构建失败，须核对资源提取和分发许可。历史构建与浏览器检查见 [验收记录](#已有验收记录与缺口)。
-
-### 真实 SSH 与 WebDAV
-
-测试配置通过当前进程环境安全注入，不写入仓库或提交真实样例。以下是变量名，不是应用运行所必需的生产配置：
-
-| 测试 | 必要变量 | 范围 |
-| --- | --- | --- |
-| 既有 `TestSG1*` 密码入口 | `SSH_MCP_SERVER_SG1_HOST`、`SSH_MCP_SERVER_SG1_PORT`、`SSH_MCP_SERVER_SG1_USERNAME`、`SSH_MCP_SERVER_SG1_PASSWORD`、`TERMQUAY_TEST_HOST_FINGERPRINT` | PTY、SFTP 文件操作、Linux 采集、批量传输、移动与非递归删除、端口转发，以及 [跳板](../internal/app/jump_test.go) 和 [目录同步](../internal/app/sync_test.go) |
-| `TestSG1Workflow*` | 上述主机、端口、用户名、指纹，以及 `TERMQUAY_TEST_PRIVATE_KEY_PATH`；无需密码变量 | 私钥与加密私钥、独立 Agent、命令边界、文件历史、搜索、sudo、续传记录恢复、远端复制、录制、tmux、任务首台确认、断线重连、SOCKS5 和工作区资源释放 |
-| `TestRealWebDAV` | `TERMQUAY_WEBDAV_URL`、`TERMQUAY_WEBDAV_USERNAME`、`TERMQUAY_WEBDAV_PASSWORD`、`TERMQUAY_WEBDAV_DIRECTORY` | 真实服务的密文往返、列表、解密和同名拒绝 |
-
-SSH 指纹须来自已核对的测试目标，不能为跑通测试关闭身份校验。文件和同步测试创建并清理本次 `/tmp/termquay-*` 目录；监控运行只读 Linux 采集。跳板测试要求目标允许 TCP 转发，并能经自身回环地址访问配置的 SSH 端口。WebDAV 目录指定已有可写测试集合，测试在其中创建唯一子目录并清理。遵守 [远端操作边界](../AGENTS.md#凭据与远端操作)，MCP 连通不能替代应用自身链路验证。
-
-```sh
-go test -race -count=1 -v ./internal/app ./internal/ssh ./internal/files ./internal/monitor -run '^TestSG1'
-go test -race -v ./internal/backup -run '^TestRealWebDAV$'
-```
-
-私钥工作流测试使用临时数据库和本次远端测试目录，不读取本机已保存连接；仅按显式提供的路径读取私钥，不输出内容。测试私钥须为未加密私钥；加密私钥与错误口令场景由 [测试](../internal/app/ssh_terminal_integration_test.go) 临时生成。测试目标须已有 sudo、tmux、Docker Unix socket 与相应权限，独立 Agent 场景使用本机 Unix socket；root 账户下 sudo 验证限免密路径。续传测试从相同加密存储创建新的服务实例，不等于原生进程退出再启动。单独运行：
-
-```sh
-go test -race -count=1 -v -timeout=10m ./internal/app -run '^TestSG1Workflow'
-```
-
-RDP 自动化使用隔离 TLS 目标验证桥接、TLS 1.2 与身份策略，没有真实 Windows 桌面自动测试入口。真实画面、输入、剪贴板、多会话和各原生 WebView 必须另外验收。当前 TLS 版本边界及原因见 [内嵌 RDP](architecture.md#内嵌-rdp)。
-
-[保存连接文件测试](../internal/app/files_integration_test.go) 通过 `TERMQUAY_TEST_SAVED_CONNECTION` 选择本机已保存的 SSH 连接，必须通过 `TERMQUAY_TEST_HOST_FINGERPRINT` 提供已核对指纹。该入口经 [OpenVault](../internal/store/vault.go) 使用系统密钥库打开本机存储，未接入主密码解锁流程；密码无需放入命令行。测试在独立 `/tmp/termquay-editor-*` 目录验证多编码、CRLF、BOM、保存冲突与目录链接，并清理目录：
-
-```sh
-go test -race -v ./internal/app -run '^TestSavedConnectionFileEditing$'
-```
-
-## 使用说明
-
-### 连接与工作区
-
-连接菜单、已打开连接的标题栏及命令搜索提供“操作手册”。每个保存连接可填写加密备注，SSH 连接可关联配置文件、目录、日志、systemd 服务、Docker 容器、命令片段、多主机任务和命名远端服务。文件与服务资源沿现有认证、主机身份确认与工作区生命周期打开；片段等待用户插入，任务等待重新选择目标和执行，不自动运行命令。引用被删除后须重新选择。操作手册保存在本机加密设置，当前不进入常规备份；资源数量和正文上限见 [操作手册实现](../internal/app/connection_playbooks.go)。
-
-顶部标题栏包含固定“连接中心”、连接工作区与独立工具标签，跟随应用主题。连接中心管理分组与连接，多主机操作和多来源日志从“工具”打开；SSH 内层标签表示独立终端或文件。全局命令搜索和设置保持固定入口。
-
-标题栏背景、标签间及标签旁留白可拖动窗口，标签溢出时保留拖动区域；Windows、Linux 提供窗口按钮，双击留白最大化或还原。macOS 保留原生窗口按钮，双击留白遵循系统设置。Windows 当前未接入最大化按钮的原生悬停分屏菜单。关闭窗口经过本地状态写入与未保存文件处理；窗口边缘缩放及系统菜单仍需按平台验收。
-
-外层工作区可拖动排序，或聚焦标签后按 Alt+Shift+左右方向键移动；F2、双击或标签菜单可临时重命名，不修改保存配置。标签菜单提供左右移动；工作区较多时显示“已打开工作区”入口，进入全局搜索的工作区范围。搜索按工作区、命令、连接分组，支持用户名、主机、端口与分组检索；各类结果单独设限。关闭活动工作区后选择最近使用的有效工作区，没有历史时选择相邻项；关闭后台工作区保持当前选择。连接中心固定在首位，不能移动或关闭；排序与改名保留现有会话实例。
-
-连接列表的“TCP 延迟”显示目标服务端口的 TCP 建连耗时，单位 ms，包含 DNS 解析及所配置代理、跳板路径的通信耗时，不代表终端输入或桌面画面延迟。连接中心可见时定期调度当前筛选列表中的连接，间隔不可配置；切到工作区、设置、隐藏或最小化后暂停，返回时立即刷新。筛选范围变化后立即测量新列表，排序不重新发起整批探测。点击 TCP 延迟列标题刷新当前列表，点击单个数值优先刷新该连接，不改变行选择。刷新保留上次结果；悬停可查看测量时间、错误及测量含义，未测量显示未知，探测失败或超时不显示为零。周期、颜色阈值、并发与超时见 [延迟显示](../frontend/src/features/connections/ConnectionLatency.tsx)、[调度](../frontend/src/features/connections/useConnectionLatency.ts) 和 [探测服务](../internal/app/latency.go)。连接较多时按有界并发依次测量，调度周期不保证列表中全部连接同时完成。
-
-延迟探测遵循保存配置的 SOCKS5 与 SSH 跳板路径，不执行目标认证。跳板探测复用已验证的现有 SSH 工作区通道，也可复用目标工作区已建立的同一路径跳板；没有匹配通道时显示“需连接跳板”，不会自动登录或改成直连。列表延迟针对保存配置；连接 RDP 时临时选择的 SSH 内网网关不写入该配置，也不改变列表探测路径。
-
-连接菜单的“复制配置”创建独立连接，可选择携带已保存凭据，默认不携带。凭据在后端复制并独立加密，修改或删除原连接不会连带改变副本凭据。
-
-连接表单可复用已有凭据，连接中心多选后也可批量关联同一凭据。设置“凭据”列出关联连接，可在预览影响范围后统一更新密码或私钥；引用列表发生变化时拒绝提交。连接表单更改共享密码或私钥会为当前连接另存独立凭据，统一更新须从凭据设置发起。凭据列表不返回秘密，更新不会改变已建立会话。
-
-连接列表支持 Ctrl/⌘ 多选、Shift 连选、空格切换与 Ctrl/⌘+A 全选可见项。通过“移动分组”或拖入分组批量移动，批量上限见 [目录操作](../internal/app/data.go)；全部目标校验后在一次本地事务中修改分组引用，保留连接身份与凭据。分组拖到另一分组可更改父级，按住 Shift 拖到同级项可排在它之前；拖到导航空白区域可移到顶层或取消连接分组。分组菜单提供编辑父分组、移到顶层、上移与下移，循环与失效目标会报错，失败不部分提交。
-
-左侧导航提供全部、收藏、最近连接和分组。搜索、协议、环境、多标签与列排序可组合，多个标签要求同时满足；可保存、覆盖或删除命名筛选。点击名称、地址、用户名或协议列标题切换升降序，列表选项可按最近连接排序。搜索包含用户名、端口与分组名称。新建连接直接打开表单，旁边菜单提供本地终端和配置导入，快速连接保持独立入口。窄列表将名称与用户地址分两行展示，协议和独立用户名列收起，完整信息保留在悬浮说明中。收藏可在选中连接后切换，环境与标签在连接表单设置。
-
-最近记录在 SSH 认证或 RDP 桌面实际建立后写入，按 [偏好实现](../internal/app/preferences.go) 保留有限记录，可单独清除。宽列表协议列显示本应用工作区状态与数量。连接偏好可显式加入加密快照，最近连接记录和命名筛选留在本机；迁移范围见 [备份与恢复](#备份与恢复)。
-
-快速连接默认聚焦地址输入，可先解析 `user@host`、`user@host:port`、`user@[IPv6]:port`、裸 IPv6，以及 `ssh -p <端口> -l <用户名> <主机>`。解析后展开目标与认证供核对，点击连接才发起请求；也可选择手动填写 SSH / RDP。不支持的选项、远端命令、重定向及命令展开会报错，不执行输入文本。普通连接表单直接呈现协议、名称、分组、目标与认证；环境、跳板、代理和远程桌面选项按需展开，已有非直连路径默认展开供核对。私钥文件与粘贴内容按所选来源呈现。
-
-连接中心单击选择时列表行高保持不变，选择操作提供连接、编辑和收藏，删除位于连接菜单；双击或 Enter 优先定位同配置 ID 的已有工作区，右键或菜单按钮可新建另一工作区。方向键移动，F2 编辑，Delete 进入删除确认，Shift+F10 打开菜单。新建、编辑使用独立弹窗。“保存”保存配置与加密凭据；“保存并连接”先保存，连接失败仍保留该配置。配置已保存但偏好写入失败会单独报告。“快速连接”使用临时配置，不自动保存。编辑密码连接时回填已保存密码，默认遮罩，可点击眼睛查看；密码未修改时沿用原凭据。私钥不回显，可选择更换，秘密留空仍保留后端旧值。
-
-RDP 使用用户名、密码及可选域，SSH 认证方式见下文。首次 SSH 主机或未通过系统 CA 验证的 RDP 证书在独立身份弹窗核对指纹，已知身份变化阻止连接。连接过程可取消。详细策略见 [身份与本地数据](architecture.md#身份凭据与本地数据)。
-
-Windows 的 RDP 编辑与连接窗口可选择“内置客户端”或“系统客户端（mstsc）”，连接菜单也提供系统客户端入口。系统方式复用填写或保存的密码，身份与资源重定向确认、认证失败及强制询问密码由 Windows 策略处理。此方式不向应用报告远端连接状态，也不更新成功连接历史。密码交接、临时配置清理及遗留风险见 [系统客户端契约](architecture.md#内嵌-rdp)。
-
-系统客户端的远端分辨率可选择“全部显示器”，通过 mstsc 的多显示器模式全屏连接；切回内置客户端会改为适应窗口。内置桌面当前仍使用单个画布，多显示器能力不等于内置桌面已支持多屏。
-
-SSH 支持密码、私钥及可选口令，也可选择 Agent。Unix 默认使用 SSH_AUTH_SOCK，Windows 默认使用 OpenSSH Agent 命名管道，也可填写明确地址；Agent 不可用或没有密钥会报错，不回退密码。私钥可粘贴或通过原生文件选择，选择文件后由 Go 读取，前端接收短期令牌；保存凭据时按既有规则加密。
-
-SSH 连接过程可展开“连接诊断”，查看各级跳板与目标的认证材料、端口建连、SSH 协商、主机身份、用户认证和终端通道阶段及完成耗时。本机 DNS 包含在直连 TCP 阶段，代理与跳板后的解析由相应路径处理，不单独估算 DNS 耗时。命令搜索“查看上次 SSH 连接诊断”可在本次窗口中查看最近一次结果；成功连接后可显式检查 SFTP 文件通道，检查使用独立通道并立即关闭，不读取文件。复制摘要包含主机地址和错误详情，复制前可查看内容；诊断不持久化，不包含认证输入。
-
-认证方式“交互认证 / 验证码”按服务器提示逐轮输入；其他认证方式可勾选“继续交互认证（MFA）”。验证码不持久化，取消连接会结束等待，等待与轮数受 [认证服务](../internal/app/ssh_auth.go) 限制。
-
-私钥认证可在“SSH 用户证书”粘贴匹配的 OpenSSH 用户证书，连接前检查类型、有效期和私钥匹配，授权仍由服务器决定。内网连接可配置不带认证的 SOCKS5 代理地址，主机名由代理解析；目标不能同时配置代理与跳板，需在首个跳板设置代理。身份审核沿同一代理探测，保存配置存在多个代理路径时要求先明确路径。
-
-SSH 表单“内网连接”可选择已保存 SSH 配置作为下一跳，沿其引用组成有界跳板链，限额见 [数据校验](../internal/store/store.go)。拒绝自引用、循环和 RDP 跳板，被引用配置不能删除。链上逐站核对身份，信任按各站直接跳板 ID 隔离。取消、失败和关闭释放整条链，不在跳板启动 Shell，也不开启 Agent 转发。快照与布局的版本兼容规则见 [格式契约](architecture.md#加密备份与恢复)。
-
-连接中心可粘贴或选择 OpenSSH 配置并预览导入，支持具体 Host、通配默认值、HostName、User、Port、IdentityFile、IdentityAgent 和单跳 ProxyJump。Include 限明确选择的文件，含等号与引号路径可展开；未选择项报告后跳过，循环、超限和无效语法拒绝。Match/ProxyCommand 不执行，带 ProxyCommand 的连接不能降级直连导入。冲突可跳过、新增或替换，替换保留配置 ID 并清除旧凭据；配置与本机私钥路径偏好同一事务写入。确认只接受当前预览中的唯一条目，目录变化或预览过期需重新预览。
-
-Windows 的导入窗口可显式读取当前用户 PuTTY 注册表会话，预览主机、端口和用户名后导入；不修改 PuTTY 数据，不读取或迁移密码、PPK 内容及启动命令。非 SSH 会话跳过，配置代理的条目阻止直连导入；缺少用户名会在预览说明中列出，连接前须编辑。预览与 OpenSSH 共用冲突选择和事务提交。
-
-导入来源还包括 Xshell `.xsh`、MobaXterm `.ini`/`.mxtsessions`/`.moba`、FinalShell 连接 JSON 和 SecureCRT 导出 XML。可选择多个文件或明确授权的配置目录；目录不跟随符号链接，文件、会话与总字节限制见 [导入服务](../internal/app/import_sessions.go)。支持 UTF-8 与带 BOM 的 UTF-16，MobaXterm 非 UTF-8 文件按其 Windows-1252 格式解码。导入基本目标与用户名、MobaXterm/SecureCRT 分组及所选目录层级；密码、私钥内容、启动命令、转发和客户端专有设置须重新配置。FinalShell 当前识别 type=100 的 SSH 连接，文件夹元数据与其他版本类型尚未验证。MobaXterm RDP 网关字段尚未验证，相关会话暂不能提交；无法映射的代理或跳板阻止直连导入。Xshell 打包导出文件不支持，请选择原始会话文件。现有测试覆盖构造的脱敏格式样例，四种客户端的真实导出与跨版本验收仍待完成。
-
-导入窗口与“设置 → 身份信任”可选择 `known_hosts`，预览目标、算法和 SHA256 指纹后确认。同一目标支持多种主机密钥，兼容既有单指纹记录，并优先协商已信任的受支持算法。普通主机名、IP 和非默认端口可独立导入；哈希及模式主机名与已保存或文件中明确识别的目标匹配，不查询 DNS，也不反推未知哈希主机名。跳板路径分别确认，冲突默认跳过，替换会覆盖该目标全部指纹。`@revoked` 密钥禁止导入为信任，CA 记录暂不导入；导入文件中的撤销标记不会自动撤销已有应用信任，需在信任设置核对处理。预览期间目录或信任变化会拒绝提交，后续身份变化仍阻止连接。输入与匹配边界见 [known_hosts 导入](../internal/app/import_known_hosts.go)。
-
-设置“身份信任”可分页查看 SSH/RDP 记录、撤销或重新探测。合法身份变化需核对旧/新指纹并确认；提交时再次探测，过期或已变化的审核会被拒绝。撤销后现有会话继续，下次连接重新核对身份。缓存、待确认请求与证书有效期约束见 [身份契约](architecture.md#身份凭据与本地数据)。
-
-本机数据目录由 [存储入口](../internal/app/storage.go) 确定，数据库文件名及路径与密钥库关联规则见 [密钥库实现](../internal/store/vault.go)。复制数据库不能替代跨设备备份恢复。密钥库不可用时，界面允许明确选择会话存储；其生命周期与安全边界见 [本地数据契约](architecture.md#身份凭据与本地数据)。
-
-设置“凭据 → 存储保护”可将已打开的持久存储切换为主密码保护、修改主密码或切回系统密钥库。主密码校验规则见 [存储实现](../internal/store/password_vault.go)，下次启动先解锁，再加载连接、布局与草稿；密码不保存。系统密钥库不可用且尚无本机数据库时，可直接创建主密码存储；已有数据库缺少原密钥时须通过原密钥库或独立备份恢复，不能为旧数据分配新密钥。主密码保护文件属于本机存储，不进入 WebDAV 备份；备份密码独立。主密码遗忘或密钥文件损坏后无法从密码本身恢复数据。会话存储不能就地切换持久化，运行期应用锁及使用范围见设置说明。
-
-### SSH 工作区与本地终端
-
-外层工作区标签和连接工具栏持续显示环境。终端工具栏可手动锁定输入，锁定后保留输出、查找和复制，阻止键盘输入、粘贴、片段插入与补全回写；锁定属于当前终端，不是服务器权限控制。文件面板可切换“文件浏览模式”，后端阻止该工作区新发起的保存、上传、移动、删除、远端复制目标写入与 reload；下载和读取继续，已开始的操作不自动取消，终端及任务中的命令仍按远端权限执行。模式属于本次工作区，原地重连后继续应用，恢复布局的新工作区默认允许操作。
-
-切换连接中心、外层标签、面板和设置保留会话，关闭工作区释放资源。SSH 工作区左侧为远端文件，中央为终端/文件标签，右侧为监控；文件与监控开关位于当前 SSH 工具栏。各工作区分别保留目录、滚动、草稿、面板宽度和展开状态，布局偏好作为新工作区默认值。SSH 内层标签切换独立终端与文件；文件列表单击选择、双击或 Enter 打开，方向键移动，F2 重命名，Delete 进入删除确认。路径面包屑可跳转，“编辑目录路径”支持输入完整路径。
-
-SSH 工具栏“重新连接”保留原工作区、旧输出、目录和打开文件，建立新的 SSH 实例与终端，不重放命令。保存配置由后端重新读取凭据，临时连接重新填写认证。旧终端断开后可查找/复制，不能继续输入；可关闭结束标签。重连会核对打开文件的远端版本，变化时保留草稿并阻止直接保存。断线草稿仍受应用退出确认保护。
-
-达到终端标签上限时，先手动关闭结束标签再重连，旧输出不会因重连自动丢弃。标签限额与重连入口见 [SSHWorkspace](../frontend/src/features/files/SSHWorkspace.tsx)。
-
-SSH 连接定期发送应用层保活，超时释放失联连接。已保存且目标和跳板均无需交互认证的连接默认启用本次工作区的自动重连，可在会话菜单关闭，手动选择在该工作区重连后保留。临时连接及交互认证连接保持手动处理。断线后按有界间隔尝试，次数与间隔见 [重连调度](../frontend/src/features/connections/useSSHReconnect.ts)，可随时停止。仅 TCP/DNS 连接阶段错误继续重试，身份、协商或认证错误转为手动处理；交互认证、目标或跳板改变时停止。自动重连新建 Shell，旧实例的终端标签显示“已断开”，不切换当前工作区、不重放输入，也不恢复远端进程；退出单个 Shell 不触发工作区重连，关闭工作区停止调度。
-
-自动重连使用首次连接实际解析的非秘密路径快照，逐站核对目标、端口、用户、跳板引用、代理、认证方式、Agent、MFA 与用户证书。后端在拨号前再次核对本次实际解析路径；同 ID 跳板配置改变也会停止自动重连。凭据秘密更新不属于路径快照。
-
-会话栏显示当前实例的用户名、主机、端口及本机环境标记，异常或连接中状态就地显示。编辑保存配置不会改变既有实例的目标显示。SSH 的文件、监控与窗格布局保留工具栏入口；端口转发与自动重连收在会话菜单，断开后就地提供重新连接。正常终端不重复显示连接状态，本地终端直接呈现内容。
-
-端口转发可按已保存连接管理命名预设，明确勾选“连接后启动”的预设会在建立或重连该工作区后启动；端口冲突就地显示错误，不更换端口重试。隧道属于工作区，关闭单个终端标签仍可继续，关闭工作区结束。运行项提供复制监听地址，本地转发可通过 HTTP/HTTPS 打开浏览器；预设限额见 [隧道预设](../internal/app/tunnel_presets.go)，可显式加入加密快照，恢复后暂停自动启动。
-
-SSH 工具栏“窗格”可新建右侧终端、移动当前标签、最大化/恢复和合并窗格，最多两个。每个窗格各有标签栏与新建终端入口，分别显示自己的终端和文件；点击或聚焦内容切换当前窗格，动作作用于当前标签。分隔线支持拖动和左右方向键调整比例，调整布局保留实例、输出、撤销记录及草稿。
-
-命令搜索“管理远端服务”可为已保存 SSH 主机配置命名入口、目标地址和端口、本地端口及 HTTP/HTTPS 路径；其他服务选择复制隧道地址。服务也可按名称从命令搜索直接打开，未连接时先沿原认证与身份确认流程建立工作区，再启动回环本地隧道；HTTP/HTTPS 打开浏览器，其他类型复制地址。相同配置的运行隧道复用，固定端口冲突报错。服务在显式打开时启动，关闭工作区结束隧道；可在端口转发面板关闭运行项。服务定义随“隧道预设”加入加密备份，恢复后仍需显式打开。
-
-连接中心“新建”及命令搜索可打开本地终端。Windows 使用已安装的 PowerShell、命令提示符或 WSL；Unix 使用用户 Shell。进程在用户主目录运行，复用终端查找、粘贴预览、片段、配色与有界消费确认。每个本地终端独立持有 PTY，关闭工作区结束对应进程，退出应用释放全部本地终端；不自动恢复本地进程。本地终端不显示远端文件、监控、SSH tmux 管理或 SSH 会话日志入口。
-
-### 远端文件与传输
-
-远端文件树选中普通文件后可点击“复制”或按 Ctrl/⌘+C，在同一或另一 SSH 工作区的当前目录点击“粘贴文件”或按 Ctrl/⌘+V。也可在系统文件管理器复制本地文件后粘贴上传。确认窗口列出来源、目标、完整文件路径与大小，同名默认跳过，覆盖同名普通文件须显式选择；确认前不传输。批量限额见 [远端路径校验](../internal/app/files.go) 与 [本地上传预览](../internal/app/upload.go)，目录继续使用成对浏览的目录复制，符号链接和特殊文件不支持。剪贴板保存本次运行中的远端文件引用，系统剪贴板被替换或来源工作区关闭后需重新复制，不进入备份。远端复制在预览时读取源版本，执行及发布前继续核对；流量经本机中转，复用有界传输队列和取消路径。macOS、Windows、Linux 分别读取系统原生文件剪贴板，跨平台粘贴交互仍待原生验收。
-
-命令搜索“文件管理、对比与跨工作区复制”默认打开成对文件浏览，可分别选择本地或已连接 SSH 工作区、输入目录、进入子目录并勾选多个项目。列表超出展示上限会明确提示，浏览与选择限额见 [成对浏览服务](../internal/app/transfer_browser.go)；不选择项目表示扫描整个来源目录。选择左→右或右→左后先生成差异预览，逐项勾选新增、覆盖更新或目录，再执行。支持本地与远端之间、两个 SSH 工作区之间的目录内容复制，至少一侧为 SSH；目标目录需已存在，父目录按需创建，排除规则沿用目录同步。符号链接与特殊文件不复制，同一远端的目录不能重叠，目标多余文件保留。目录复制作为一项传输逐文件流式执行，失败展示已完成数量，重新预览剩余差异；跨主机流量经本机中转，文件不写本地中间副本。
-
-同一窗口的“文本文件对比”可选择本地或已连接 SSH 工作区中的两个文本文件，分别指定编码后读取并只读对比。两侧均为 SSH 时可复制单个普通文件，输入完整目标文件路径并显式选择是否覆盖；任务复用传输队列和本机流式中转。复制前及发布前核对文件版本，关闭连接或取消任务会中断传输；不提供续传，网络中断可能残留远端私有暂存目录。对比使用文件编辑大小限制，复制不受此大小限制。
-
-SSH 工作区的文件树完整读取单个目录，与成对浏览的截断列表不同；大目录会增加内存占用，资源取舍及重新评估条件见 [目录浏览约束](architecture.md#远端文件与监控)。
-
-文件区搜索按钮展开过滤框，其中“递归搜索”可在指定目录按文件名或文件内容搜索，支持区分大小写、正则表达式和每行一条排除规则；规则语义与目录同步一致。点击文件结果打开编辑器并定位行，点击目录结果定位文件树。搜索使用分页 SFTP，不依赖远端额外命令；内容按文件逐个读取到本机，适用于限定目录中的配置与文本查找。内容搜索限 UTF-8 普通文本，跳过大文件、二进制和其他编码；跳过数量、权限错误、超时与截断均会展示，结果不代表远端内容快照。搜索不递归跟随符号链接，关闭搜索、隐藏文件面板或关闭工作区取消请求。扫描、读取与结果限额见 [搜索实现](../internal/files/search.go)，请求时限见 [搜索服务](../internal/app/file_search.go)。
-
-远端文件区以 SFTP 根目录 `/` 的全部一级项目组织目录树，初次展开当前目录的祖先路径。顶部操作与路径栏固定，目录树独立滚动。单击目录名或箭头展开、收起目录，Ctrl/⌘ 和 Shift 单击用于多选；文件单击选择、双击打开。Enter 或菜单“打开”将目录设为路径栏中的当前目录。左右方向键展开、收起或进入父子节点，上下方向键在可见节点间移动。展开按需读取，收起释放子树，隐藏文件面板会取消未完成请求；并发读取和展开目录数量由 [目录树实现](../frontend/src/features/files/useFileTree.ts) 限制。切换工作区保留树状态，恢复应用布局时按已保存目录重新展开，不持久保存远端目录缓存。
-
-路径面包屑、直接输入、前进/后退与书签继续可用。过滤通过标题栏搜索按钮展开，范围为已展开目录，保留匹配项的祖先；不为过滤扫描未展开目录。Escape 清除并收起过滤。排序、显示隐藏文件、复制目录路径与目录同步位于“文件视图选项”，排序在每个目录内进行，目录优先。空目录、无匹配、分支加载和读取失败分别反馈。悬停或键盘聚焦节点时展示已有文件元数据，窄面板优先展示名称，加宽后显示元数据列。书签限额见 [目录偏好](../internal/app/preferences.go)，临时连接书签留在本次工作区。拖入文件时以命中的目录节点或文件所属目录为上传位置；工具栏上传、新建与目录同步使用路径栏的当前目录。窄窗口打开文件后收起临时文件面板，保留树、过滤与书签状态。
-
-目录和文件使用本地 SVG 图标，按文件名、扩展名和目录用途识别源码、配置、容器、包清单、文档、媒体、压缩包、数据库与可执行文件；未知类型使用通用文件图标。目录区分展开状态，`.ssh`、`.config`、`.git`、`.docker`、源码与依赖目录带有对应标记。符号链接显示指向路径，tooltip 补充实际路径、目标类型或读取错误；目录链接可以展开，指向祖先目录的循环会被阻止。文件链接仍须显式使用实际目标路径编辑，删除或重命名操作链接本身。
-
-传输按有界并发执行，其余按 FIFO 等待；并发、等待与历史记录上限见 [传输队列](../internal/app/transfer.go)。等待可取消，不能直接移除；关闭所属 SSH 实例取消运行及等待。达到限额会报错，需要取消或移除已结束记录后再次操作。
-
-任务显示已传输/总大小、百分比、实时速度和预计剩余时间。Go 按实际字节增量定期采样并使用短窗口平滑，续传起点不计入速度，停滞后速度回落到零；样本不足或无法估计时剩余时间显示未知。复制结束后显示“正在完成”，核验及发布成功后才显示“已完成”；取消请求等待后端结束后显示“已取消”。本次上传分别统计完成、跳过、失败与取消，底部摘要显示运行任务合计速度。
-
-上传成功后合并刷新实际目标目录，目录同步刷新目标下已缓存分支；刷新保留当前目录、展开、滚动、多选与编辑草稿。隐藏文件面板保留缓存失效标记，重新显示时读取；未缓存目录在展开时读取。新增或更新文件短暂高亮。刷新失败在目录分支显示，传输任务保留真实上传结果，可手动重试刷新。任务提供“定位目录”，切到所属工作区并打开目标；显式定位会清除文件过滤并显示隐藏文件，后台刷新保留过滤条件。
-
-传输面板存在任务时提供状态筛选、进行中与等待数量及清理操作；空任务面板保持紧凑，底部摘要包含排队计数。确认上传并成功入队后自动展开详情，显示本次任务；下载可点击摘要查看。手动收起后，后续进度更新保持收起。可拖动上边界调整详情高度。无活动任务时提供“清空列表”，有活动任务时提供“清理已结束”；存在续传暂存时，可保留这些任务并清理其他记录，或删除暂存后移除记录。活动任务先取消，取消时可选择保留暂存或等待传输停止后清理。已结束且没有暂存的任务可单独“移除记录”，不会删除已发布文件。清理失败保留任务和错误。每项保留创建任务时的实际连接目标及源、目标路径，工作区关闭后仍可辨识。
-
-文件列表支持 Ctrl/⌘ 多选、Shift 连选、空格切换、Ctrl/⌘+A 全选可见项和 Shift+F10 菜单。选中操作提供批量下载、移动和删除，数量限制见 [文件操作](../internal/app/files.go) 与 [下载服务](../internal/app/transfer_download.go)。批量下载一次选择本机目录，复用同一传输队列，超限项明确报告未入队；普通文件可下载，目录继续使用目录同步。默认跳过同名本地文件，覆盖须显式勾选。批量移动要求明确的远端目录，同名目标不自动覆盖；批量删除汇总确认，包含目录的全部子项，符号链接删除链接本身。删除先分页扫描范围，再自底向上执行；深度、条目与路径总量边界见 [递归删除](../internal/files/delete.go)，超过边界需分批处理。界面显示进度，可停止后续删除；错误保留已删除数量和失败路径。远端操作不具备事务性，停止不能恢复已删除内容，路径复核与删除之间仍有 SFTP 竞争窗口。结果逐项区分完成、失败、跳过和未执行；特殊文件不能下载或移动。
-
-上传支持原生多文件选择和拖入文件面板，批量限制见 [上传确认](../internal/app/upload.go)，逐文件返回结果。拖入时高亮目标并显示完整目录，松手后核对连接、目录、文件及大小；工具栏先选择文件，再进入相同确认流程。确认前不创建任务，连接与本地文件清单固定在本次预览中；目标目录可输入或浏览修改。默认跳过同名目标，覆盖同名普通文件须显式选择。目录、符号链接与特殊文件逐项标明原因；文件夹使用目录同步。全局保留一份待确认清单，取消或关闭所属工作区后释放。部分入队时，保留未入队文件及原因，可重试剩余文件。失败、取消或跳过可从任务详情重新传输，填写新文件名另存为，或明确选择覆盖。重试创建新任务，重新打开源和客户端；原 SSH 实例关闭后需从新工作区重新发起。上传/下载在暂存中完成，发布前核对源和目标状态，检测到变化会报错；普通 SFTP 的检查与发布不构成原子比较替换。无续传进度或文件已发布后的上传暂存清理失败，也保留清理入口，完成清理前不能移除记录；这类清理记录限本次运行，跨重启保留仅适用于已保存的续传记录。
-
-单文件传输在复制阶段中断且已有进度时保留暂存，任务提供“续传 / 清理暂存”。可选择地址、用户、主机指纹和跳板一致的新工作区，从已确认长度继续；重新核对源文件大小、时间、类型与本地文件身份、原目标版本及暂存长度，变化时拒绝续传。版本核对不保证识别保留同样元数据的外部改写。持久存储将已中断任务的续传记录加密保存，重启后重新连接并显式继续；下载还核对本地暂存文件身份，正常退出保留已保存记录对应的下载暂存。传输面板汇总暂存字节和可跨重启恢复项，保存失败显示在任务中；会话存储限本次运行。记录不进入常规备份，不保证传输中突发崩溃时尚未保存的记录能恢复。目录同步继续采用重新预览，不自动恢复任务。可显式丢弃暂存，远端上传暂存的清理需连接同一目标并允许文件写入。
-
-文件面板“目录同步”支持本地→远端或远端→本地的手动单向同步。本地目录可输入绝对路径，留空时使用原生目录选择；扫描后显示新增、更新、相同和冲突，选择目录会包含递归项，确认后执行。目标多余文件保留，符号链接与特殊文件冲突需处理后重新预览。扫描可取消，关闭工作区会取消任务；同步失败保留已完成结果，重新预览剩余差异。传输保留普通文件修改时间以便再次比较，不承诺完整元数据保留。
-
-同步选项支持每行一条排除规则，采用相对 POSIX 路径与文件名通配符；不含 `/` 的规则匹配任意层级名称，匹配目录会跳过整棵子树。规则在扫描时生效，不读取被排除目录。已保存 SSH 连接可将本地/远端目录、方向和排除规则存为本机预设。传输面板的“传输选项”设置统一的每任务限速，0 表示不限速，每个任务各自按该速率限制；点击“应用”后影响本次运行中的上传、下载与目录同步，等待限速时仍可取消。
-
-同步预览中的普通文件可按需比较原始内容，流式读取并在比较前后核对预览版本；单文件限额见 [内容比较](../internal/app/sync_compare.go)。元数据相同而内容不同的条目会转为可同步的“更新”，仍需显式选择执行；不对整棵目录自动计算摘要。
-
-### 文件编辑
-
-普通及 sudo 文件默认保存修改前历史，已有按文件设置保持原样，可在编辑器“历史与验证”关闭。历史版本可与当前草稿比较，再显式载入草稿，覆盖未保存草稿需确认；随后保存仍核对远端版本，sudo 文件重新授权。关闭历史开关保留已有版本，“清除历史与设置”删除本文件本机记录并恢复默认开启历史。历史写入失败阻止本次保存；历史和操作设置不进入常规备份。加密、身份隔离及自动淘汰规则见 [文件历史契约](architecture.md#远端文件与监控)，数量与大小边界见 [历史服务](../internal/app/file_history.go)。
-
-验证与 reload 命令按文件显式配置，均通过独立 SSH 命令通道运行，`TERMQUAY_FILE` 环境变量提供文件实际路径。先保存文件，再手动验证；reload 单独确认并展示命令，不自动提权，需交互密码的命令应在终端执行。结果显示退出码、标准输出、错误及截断状态，关闭窗口取消本地请求，不保证远端派生进程终止。
-
-“配置历史与验证”入口提供配置变更流程，可保存草稿并验证，验证通过后单独确认 reload，成功后执行可选健康检查。验证失败时线上文件已保存，界面保留错误和恢复入口；历史版本先载入草稿，再显式保存、验证与 reload。命令错误、非零退出或输出截断均不能显示通过；修改草稿、重新读取或更改命令后须重新验证。流程状态属于当前窗口，不自动回滚，也不保证排除其他程序并发修改文件。
-
-SSH 工作区的命令搜索提供“以 sudo 编辑文件”；普通读取失败时也可从文件页进入。每次读取、重新读取、冲突对比或保存都显式授权，sudo 密码不保存。当前限 Linux 实际路径下、不超过编辑大小限制的普通文本文件，需要远端已有 sudo 与 GNU coreutils；不安装工具，不修改 sudo 策略，不支持 requiretty。保存与路径限制见 [sudo 文件契约](architecture.md#远端文件与监控)，取消或网络中断可能留下私有暂存目录。草稿沿用未保存保护与可选加密恢复，重连或重启后需重新授权读取、对比，再保存；不自动恢复提权授权。
-
-文件、工作区和应用关闭前处理全部草稿，可保存并关闭、放弃或取消；正文、编码或换行符变更都视为未保存。编辑器默认横向滚动，可在视图选项开启自动换行；折行不改变文件内容。保存期间继续编辑会保留新增修改，关闭需再次处理。重新加载或以编码重新打开遇到草稿时须确认，读取失败保留草稿。
-
-编辑器顶部提供撤销、重做、重新加载、保存、下载当前草稿、搜索、LF/CRLF 和编码操作；字号调整位于视图选项，底部显示路径、行列与字号。编码菜单区分“以编码重新打开”和“以编码保存”；支持编码及兼容映射见 [文件编码契约](architecture.md#远端文件与监控)。默认按 UTF-8 读取，打开失败由文件标签展示原因和恢复操作，不在文件面板重复提示；窄窗口收起文件面板以显示失败标签。编码不匹配时可选择编码，二进制内容或超过编辑限制时提供下载入口，转换失败不替换字符。重试成功或关闭文件清除对应提示，关闭后取消的读取不能重新打开标签。保留 UTF-8 BOM；混合换行符需先选择 LF 或 CRLF 再编辑，格式切换支持撤销。加密草稿恢复保留编码、BOM 与换行符，新格式仍可读取旧草稿。
-
-右侧代码缩略图默认显示，窄编辑区自动收起；在视图选项关闭或开启后记住本机偏好，隐藏标签停用缩略图绘制。明暗主题分别配置语法颜色。语言按文件名、扩展名与 shebang 识别，可在状态栏手动切换，具体语言见 [语言表](../frontend/src/features/files/editorLanguage.ts)。解析器按需加载，切换语言保留正文、光标与撤销历史，比较视图复用识别规则。补全包含语言包能力、当前文档词汇及常用运维配置项和片段；工具栏可手动触发，组合键可在快捷键设置修改，输入法组词期间不触发。JSON/YAML 语法诊断在后台线程执行，在行内和问题面板展示，隐藏标签停止诊断；不提供跨文件类型推断或远端语言服务。搜索复用 CodeMirror 查找、替换面板和快捷键。
-
-保存冲突可打开“对比与合并”，左侧编辑本地草稿，右侧查看最新远端只读内容。采用合并草稿与远端基线后，回到编辑器显式保存；对比期间远端再次变化仍会阻止覆盖。取消对比不改动原草稿，也不会上传内容。
-
-### 远程桌面
-
-RDP 失败或断开后保留工作区，提供“重试”“编辑连接”和可展开技术详情。保存连接重试时重新取得后端凭据与一次性授权；临时连接重新填写密码，不为重试缓存秘密。桌面组件初始化失败后，下次显式连接会重新初始化。
-
-连接前可选择文本剪贴板和远端分辨率；文本剪贴板默认关闭，按工作区选择，开启后通过工具栏手动复制或粘贴，不自动同步。已连接时修改剪贴板保持当前会话，点击“应用并重新连接”取得新授权后生效。远端分辨率按保存连接留在本机偏好，本地缩放独立选择适合窗口或实际像素。全屏默认收起工具栏，通过顶部“显示工具栏”恢复，也可用键盘聚焦后打开并退出全屏。
-
-内置 RDP 的连接路径可选择已连接 SSH 工作区，通过其独立 TCP 通道访问内网桌面，DNS 由 SSH 目标解析。TLS 主机名仍使用原 RDP 主机，证书指纹按 SSH 地址、链上身份与 RDP 目标隔离；首次、变更和有效期检查继续生效。关闭或重连对应 SSH 工作区会中断桌面，重试前须选择新的可用路径。路径属于本次连接，不写入快照，系统 mstsc 不支持此应用内路径。
-
-RDP 工具栏保留组合键、本地缩放、全屏与断开入口；远端分辨率、文本剪贴板与应用快捷键归属收在“桌面选项”。应用快捷键默认本机优先，应用已分配快捷键优先触发命令搜索或设置；选择发送远端后，桌面聚焦时将这些按键交给 RDP 组件。工具栏和其他输入区仍可使用本机入口，选择在当前工作区重连后保留。操作系统截获的按键仍受系统限制，组合键菜单通过桌面组件接口发送。
-
-### Linux 监控与日志查看
-
-“工具 → 多来源日志”或命令搜索“多来源日志”打开独立工具标签。从已连接 SSH 工作区添加普通日志文件、完整 systemd 服务单元或 Docker 容器，多个主机的来源并排显示，共用筛选、排除、高亮、正则、大小写、上下文与 JSON 格式化，也可载入已有日志规则。来源保留实际 SSH 地址、文件路径或容器 ID，显示原始日志时间，不合并时间线。来源数由 [日志工作区](../frontend/src/features/logs/LogWorkspace.tsx) 限定，窄窗口可水平滚动；正文沿用 [日志缓存与显示边界](../frontend/src/features/files/logView.ts)。
-
-添加后读取一次，勾选“跟随”后各来源串行轮询自身请求；文件读取追加片段，systemd 和 Docker 重新读取近期窗口，不保证保留两次读取间的全部日志。筛选范围为已读缓存；文件缩短时从头读取，同路径替换且大小未缩短时仍需手动“重新读取”。任一来源失败后停止该来源轮询，点击“重新读取”显式重试全部来源。切换标签、设置、演示、应用锁、隐藏或最小化窗口时取消读取并停止 Worker，返回后按跟随设置继续。断线保留已读内容，重新连接须移除原来源并重新添加；不自动绑定新的 SSH 实例。关闭工具标签释放来源、正文和 Worker，来源与正文不持久化，不进入布局、工作集或备份；该工具标签不持有 SSH 连接。
-
-命令搜索“采集与比较排障快照”按需采集已连接 Linux 主机，可选择系统与资源、文件系统、进程参数、监听端口、Docker 容器、指定 systemd 服务及近期日志。采集串行、有总时限，关闭窗口取消；每项记录采集时间、错误与局部/截断状态，不构成同一时刻的系统快照。再次采集时保留前一份供比较，也可选择本机保存的快照，按项目查看内容差异。快照须显式加密保存，数量与正文边界见 [快照实现](../internal/app/diagnostic_snapshots.go)，不进入常规备份。导出前可逐项预览和排除内容，JSON 导出为明文，进程参数与日志可能包含秘密；不会自动脱敏或上传。
-
-“进程与服务”诊断中的“端口”按需查询 TCP/UDP 监听地址和可见 PID，需要远端已有 iproute2 `ss`；进程归属受当前用户权限限制。可继续查看进程目录与所属服务，并为 TCP 端口建立回环本地转发、复制地址或打开 HTTP/HTTPS。TCP 探测明确选择本机直连或从当前 SSH 目标发起，后者复用已验证连接的 TCP 通道；结果表示 TCP 建连，不代表应用健康。请求有界、可取消，关闭诊断终止请求。
-
-命令搜索“Docker 容器工作区”通过当前 SSH 连接访问远端 Docker Unix socket，需 SSH 服务器允许 socket 转发，当前登录用户需已有 socket 权限；不开放 Docker TCP 端口、不自动提权。可指定 rootless socket 路径，读取容器与 Compose 项目分组、状态、挂载和端口。日志读取近期条目并限制总字节，“跟随”按间隔重新读取近期窗口，隐藏页面或切换日志页停止请求，截断明确显示。独立容器终端支持 `/bin/sh` 与 `/bin/bash`，复用终端消费确认；关闭窗口、终端或 SSH 工作区释放通道，不保证容器内进程终止。容器终端不使用宿主机文件路径补全，不提供宿主机 tmux、会话录制和片段入口。TCP 映射端口可建立工作区所属的回环本地隧道，关闭 Docker 窗口后仍可在 SSH 端口转发面板管理，关闭 SSH 工作区结束。详情可查看健康检查、最近输出、退出状态、OOM 与重启次数；可见的运行中容器按需采样 CPU、含缓存内存、累计网络与磁盘 I/O，缺失指标显示未知，隐藏或最小化停止采样。单容器启动、停止、重启需核对 SSH 目标、容器名和完整 ID 后确认，通过 Docker HTTP API 执行；关闭请求不保证远端操作撤销。挂载项可跳到宿主机路径。不提供镜像管理或 Kubernetes。API、列表、日志与终端边界见 [Docker 客户端](../internal/docker/client.go) 和 [工作区服务](../internal/app/docker.go)。
-
-监控随当前工作区可见性启停，进入设置、切换连接或收起面板会取消采集。首次增量指标显示未知，失败可重试并展开技术详情；过期样本不显示为实时指标。窄窗口将监控放入临时侧面板。
-
-监控的“文件系统”显示挂载点、已用/总量与可用空间，容量独立低频刷新。目标需已有支持 JSON 输出的 util-linux `findmnt`；工具缺失、输出无效或超限会显示容量错误，其他采集继续。容量过期显示未知，可用量保留文件系统保留空间语义。
-
-CPU、内存及网络/磁盘设备速率合计提供近期趋势，历史窗口、容量与断线间隔由 [历史模型](../frontend/src/features/monitor/history.ts) 定义。未知、失败与过长采样间隔断线；切回面板时保留窗口内历史，缺口不补点。网络发送和磁盘写入使用虚线，单设备当前速率保留在详情中。
-
-监控标题栏“进程与服务”打开诊断；点击 CPU 或内存名称可直接按对应指标查看进程。进程列表由远端 procps `ps` 查询，CPU 表示进程存活期间的平均使用率，与监控采样区间不同；列表可按 PID、用户或命令过滤，手动刷新。进程详情通过 SFTP 读取 `/proc` 中的工作目录、可执行文件和 cgroup，按权限展示错误；可打开工作目录，并从系统服务 cgroup 进入服务详情。进程可能在列表和详情读取之间退出，列表不代表持续跟踪。服务状态操作需另行确认，见下文。
-
-服务列表读取 `systemctl list-units` 的 JSON 输出，显示已加载的 service 单元，支持按服务名或通配符重新查询。列表展示服务名、活动状态与描述，选择服务可查看完整描述、加载与运行状态、主进程、退出状态、启动时间、开机启动状态和单元文件入口。详情提供启动、停止、重启、重新加载及启用/禁用开机启动，执行前核对实际 SSH 目标、服务名与操作；开机启动设置不同时启停服务。操作使用当前远端用户权限与非交互 systemctl，无权操作时显示真实错误，不自动提权或重试。完成或失败后重新读取列表、详情和近期日志；超时或取消不能证明远端操作撤销，须核对状态。目标需已有支持该输出的 systemctl；旧版本、非 systemd 环境与无权访问均显示错误，不改用人类可读表格解析。近期日志由 journalctl 按当前用户权限读取；没有系统日志权限时不能视作完整系统日志。查询按需执行，关闭诊断、隐藏监控或关闭工作区取消请求，不提供停止进程操作。条数、输出与时限见 [诊断服务](../internal/app/linux_inspection.go) 和 [命令通道](../internal/ssh/command.go)，截断会明确展示；列表超过输出限制时需按服务名缩小范围。命令行与日志可能包含秘密，诊断内容不持久化。
-
-文件菜单“查看日志 / 大文件”分片读取 UTF-8 普通文件，支持读取更早内容和跟随追加。筛选、排除、高亮可使用普通文本或正则，支持区分大小写与匹配上下文；筛选范围为当前已读缓存。JSON 格式化按完整日志行处理，无法解析或超过格式化大小限制时保留原文并计数。滚动离开底部或点击“暂停滚动”后继续有界接收，显示新增行数与未读字节，点击后回到最新；缓存淘汰较早内容时明确标记。筛选与格式化在 Worker 中执行，隐藏时终止处理，超时显示错误，不阻塞终端输入。读取、缓存、显示与高亮上限见 [读取服务](../internal/app/remote_log.go)、[日志模型](../frontend/src/features/files/logView.ts) 和 [日志视图](../frontend/src/features/files/RemoteLogDialog.tsx)。文件缩短时从头读取；同路径替换且大小未缩短时无法可靠识别轮转，需手动读取末尾。查看不加载整个文件、不启用编辑或写入。
-
-“保存与复用规则”可将筛选、排除、高亮、正则选项、上下文和 JSON 格式化保存为本机加密规则，供不同日志复用；不保存日志正文或路径。规则按需载入，可更新或确认删除，数量与大小限制见 [日志规则服务](../internal/app/log_view_presets.go)。迁移选择与导入、替换规则见 [备份与恢复](#备份与恢复)。
-
-### 文件预览
-
-PNG、JPEG、GIF 与 WebP 在文件标签中只读预览，支持适应窗口、原始尺寸、缩放、重新读取及下载原图。GIF 显示首帧，SVG 使用 XML 源码编辑；菜单可显式选择图片或文本方式打开。图片读取、尺寸、像素与缓存限额以 [预览实现](../internal/app/image_preview.go) 为准；隐藏或关闭预览释放图片资源，图片字节不进入草稿、布局与备份。
-
-Markdown 默认预览，可切换源码或分栏；首次进入源码才创建编辑器，之后切换视图保留正文、光标及撤销历史。预览使用当前草稿，支持 GFM 表格、任务列表、代码块高亮和文档锚点；相对链接与图片通过当前 SSH 工作区打开。外部图片需要点击后加载，原始 HTML 不执行；MDX、Mermaid、数学公式及 SVG 图形预览尚未接入。预览有文档长度与结构限额，超限保留源码入口；隐藏预览停止渲染并释放配图，外部图片授权保留到文件关闭。
-
-### 设置与演示模式
-
-主密码存储解锁后，标题栏与命令搜索提供“锁定应用”；在“凭据 → 存储保护”设置空闲锁定和系统锁屏/睡眠联动。锁定时遮住工作台及弹层，阻止界面操作和 SSH、本地、容器终端输入；原有会话、传输、后台任务和隧道继续，解锁校验当前主密码。锁定不清除进程密钥，也不替代操作系统锁屏。系统密钥库存储需先切换为主密码保护，才能使用应用锁。联动依赖 Wails 各平台系统事件，未收到事件的平台仍可手动和按空闲时间锁定；真实系统事件、RDP 焦点与各原生 WebView 仍待验证。应用锁设置保留在本机，不进入工作环境备份。
-
-设置分类以 [设置侧栏](../frontend/src/features/settings/SettingsView.tsx) 为准，侧栏可用方向键切换，返回按钮回到原工作区；“恢复默认”作用于当前外观或终端分类。顶部命令搜索支持查找连接、进入连接中心、切换工作区和操作当前 SSH 面板及终端，方向键选择、Enter 执行、Escape 关闭；打开键位可在快捷键设置查看和修改。SSH 专注模式收起左右辅助面板，退出后恢复原状态；窄窗口默认收起辅助面板，文件和监控可分别打开为临时面板。
-
-一次性操作失败在操作附近显示，可手动关闭，不设置自动消失倒计时；同一操作重试成功或结束后清除，保存失败、文件冲突和身份变化保留处理入口。后台备份等故障可收起横幅，实际故障状态及详情入口仍保留；同一次故障不因轮询重复提醒，恢复后再次失败、新备份尝试失败或重启应用后可以重新提醒。界面设置未保存时在状态栏保留入口，重试成功清除；退出仍经过本地状态保存检查。
-
-快捷键设置显示当前键位，支持录入、冲突提示、清除和复位；平台默认组合及保留按键见 [shortcuts.ts](../frontend/src/lib/shortcuts.ts)。新建终端动作在 SSH 工作区新建内层终端，其他界面新建本地终端；关闭当前标签动作先关闭终端或文件，内层为空时关闭工作区，在设置中返回工作区。文件关闭仍需处理未保存修改，新建遵守终端限额。旧配置保留已有键位，新动作避让已使用组合；菜单、命令搜索和标签按钮显示当前键位。本机优先时已分配组合不会同时传给远端；未分配按键交给输入组件，IME 组合输入与 AltGr 不触发应用动作，系统截获的按键仍受操作系统限制。
-
-macOS 菜单栏提供连接、终端、标签关闭、显示、界面缩放和工作区切换入口，操作复用前端命令及草稿确认流程。应用命令的按键统一由 WebView 按焦点与归属分发，原生菜单显示当前键位，避免原生快捷键抢走 RDP 输入。原生导航和标题栏采用系统材质，终端、编辑器与桌面内容保持不透明。
-
-外观设置支持深色、浅色、跟随系统，首次使用跟随系统，已有主题偏好保留。界面缩放同时调整字号与操作区域，可选倍率由 [外观设置](../frontend/src/features/settings/AppearanceSettings.tsx) 定义；主题、字体和缩放偏好可随界面设置备份。支持界面字体、终端与编辑器等宽字体，以及跟随主题、独立深浅、One Dark 和 Tokyo Night 终端配色。本机未安装所选字体时使用后备字体，不下载远程字体。设置保存在本机，可复位；主题与字体切换保留会话、文档和撤销记录。动效跟随系统“减少动态效果”，界面适配增加对比度与减少透明度偏好；原生系统设置向各平台 WebView 的映射仍需按平台验收。
-
-日志级别高亮默认开启，可在“终端与编辑器”设置关闭；识别 ERROR/FATAL、WARN/WARNING、INFO、DEBUG/TRACE，保留远端程序已有颜色及选区显示。高亮仅处理普通终端缓冲区的可见区域，并限制扫描范围和装饰数量，隐藏终端及全屏程序的备用缓冲区停止处理。高亮不改写远端输出或 Shell 配置；提示符及输入语法颜色仍由远端 Shell 提供。
-
-“设置 → 外观 → 演示模式”进入独立示例工作台，命令搜索也提供“演示：连接中心”“演示：SSH 工作区”“演示：文件编辑”，可搜索“演示”或 `demo`。三个入口准备固定数据和布局，适合 README 截图；底部“演示模式 → 退出”或演示设置中的开关返回原工作台。选择场景会重置演示草稿和布局，重复选择同一场景也可恢复预设；主题与缩放预览在本次演示内保留，退出恢复原偏好。演示开关重启后关闭，不进入备份，不触发自动备份。
-
-演示支持搜索、分组、排序、工作区与内容标签、分栏、终端查找和内存文件编辑。连接示例 SSH 项进入预置工作区，RDP 仅展示配置条目；创建连接、凭据管理、终端输入、真实文件操作和传输禁用。监控与延迟是固定示例，终端内容是预设输出。已有真实会话继续由原工作台管理，退出程序仍处理真实未保存草稿。示例数据入口为 [demo](../frontend/src/features/demo)，不代表网络或协议验收。
-
-### 终端工具与命令片段
-
-终端在接收输出前启用 Unicode 11 宽度规则，适用于 SSH、本地及容器终端；复杂 emoji 字素簇仍受 xterm、远端宽度规则和字体影响。“设置 → 终端与编辑器 → 终端渲染”可选 WebGL 试验模式，默认基础渲染。WebGL 插件按需加载，可见终端创建渲染器，隐藏时释放；初始化失败或上下文丢失时显示错误并恢复基础渲染。2026-11-08 Chromium 浏览器检查中，“中文🙂A”占七列，WebGL 可初始化与释放；各平台原生 WebView、Vim/tmux、复杂 emoji 和 GPU 资源回收仍需验收，尚无支持默认开启的原生性能基准。
-
-多主机任务可直接选择保存的 SSH 连接，并从“连接所选未连接主机”沿原认证流程串行连接。连接失败逐项保留，取消后停止连接剩余目标；连接成功后仍需显式执行任务。所选目标汇总生产、预发布、开发和未设置环境数量。已结束记录可“准备失败主机重跑”，载入展开后的全部步骤并重新核对目标，不自动重试；原目标已删除、地址改变或无法唯一匹配时阻止准备。跨次对比按实际地址、主机与跳板身份及步骤序号关联，展示状态、判定值和输出变化；定义改变和身份改变需单独核对，旧记录缺少身份时不能自动与新记录匹配。
-
-多主机命令和任务可按环境、多标签、搜索及已保存连接筛选选择已连接目标；筛选隐藏的已选项仍显示，执行以明确勾选集合为准。
-
-终端菜单可开启临时关键词高亮，通过“导出当前终端内容”保存仍在缓冲区的文本。SSH 终端的“开始录制”记录后续输出与尺寸变化，用户选择本机保存位置后写入独立目录下的 `session.cast`；“保存输出日志”另行保存原始 ANSI 日志，不能按时间回放。两者均默认关闭，支持暂停、继续及明确结束；结束后再次开始创建独立目录，关闭终端也会结束记录，文件留在本机。原始日志有界循环轮转，时间轴录制达到大小或事件上限会停止并保留已写入部分；边界见 [录制实现](../internal/ssh/log.go)。终端底部持续显示记录状态，提供暂停、继续、结束及“在文件夹中显示”；可回放录制在暂停或结束后提供直接回放入口。磁盘错误会停止记录并显示错误，终端继续运行。输出可能包含秘密，不承诺自动脱敏；Shell 集成通信从记录中过滤，不额外采集按键，程序回显仍属于输出。
-
-时间轴录制可交给兼容 asciicast v2 的工具。终端菜单或命令搜索“打开终端录制”直接选择本机 `.cast`，取消选择返回原界面，不需要连接主机。终端仍连接时，暂停或结束录制后的“回放”直接读取本次文件，无需再次寻找；终端断开后，状态栏提供“复制保存位置”和“打开录制”，通过本机文件选择器打开已有文件。播放器支持离线暂停、定位、倍速及跳过空闲；导入的大小、事件与尺寸边界见 [回放校验](../internal/app/terminal_recording.go)。回放不会连接或执行远端命令，录制正文不进入常规备份。
-
-命令搜索可导出诊断 JSON，其字段由 [诊断实现](../internal/app/diagnostics.go) 定义，不包含连接身份、路径、命令、输出或凭据；后端内存不代表整个桌面应用的内存。
-
-终端右上角提供查找、命令片段和操作菜单。查找支持 Enter/Shift+Enter 切换匹配、区分大小写、正则和 Escape 返回终端；显示当前匹配/总数、无匹配与无效正则反馈，达到高亮上限时总数显示为下界。查找、复制和粘贴使用快捷键设置中的当前键位。清空显示不发送远端命令，字号可局部调整与复位。Ctrl/⌘+单击打开 HTTP(S) 链接。含换行（包括末尾换行）的粘贴先预览确认，普通单行直接插入，保留终端 bracketed paste。
-
-终端识别 OSC 7 目录与 OSC 133 命令边界；操作菜单可预览并插入当前 Bash 4.4+ 或 Zsh 的会话集成命令，退出 Shell 后失效，不改写远端配置文件。集成增加补全请求和回写的私有键位，由 Shell 提供真实编辑缓冲区和光标；启用后在命令提示符通过可配置快捷键手动补全，默认键位见 [快捷键定义](../frontend/src/lib/shortcuts.ts)。普通 Tab 交给 Shell；候选列表打开时方向键选择，Enter 只接受候选，Escape 关闭。回写核对快照，修改缓冲区后等待用户执行，不发送回车。输入变化、执行命令、切换缓冲区或隐藏终端时取消候选和路径请求；不根据终端画面或累计按键推算命令。未启用时可独立从终端菜单或命令搜索打开“POSIX 命令参考”，也可在设置中分配快捷键。
-
-命令目录与用途见 [POSIX 目录](../frontend/src/features/terminal/posixCatalog.ts)，标准选项、参数类型和示例见 [补全模型](../frontend/src/features/terminal/posixCommands.ts)。这些内容表示标准参考，不保证目标已安装命令，不合并 GNU/BSD/BusyBox 专有参数。命令替换等复杂表达式交给 Shell 原生补全。路径补全需在集成对话框确认当前 Shell 与工作区使用同一文件系统；SSH 通过独立、有界的 SFTP 目录读取，本地 Unix 通过本机目录读取，扫描和返回上限见 [目录接口](../internal/app/terminal_completion.go)。目录候选短期缓存，不读取文件内容；超限和读取失败明确反馈。Windows 本地终端、容器、嵌套 SSH 和未确认文件系统的动态补全暂不支持。当前输入只在主动补全时临时传递，不持久化；补全通信帧从终端录制日志中过滤。
-
-文件视图选项可开启“跟随终端目录”，仅接受当前连接主机或空主机的目录报告，嵌套主机报告不用于自动定位。文件菜单“在终端定位此目录”插入经过 Shell 转义的 `cd`，等待用户执行。Ctrl/⌘+单击输出中的绝对路径及行号可打开文件并定位；命令菜单可跳转上一处命令标记、选择上次命令输出，失败命令的退出码显示在终端状态栏。
-
-终端菜单“本次会话命令”保留本次终端的有界命令记录，未启用时可从窗口内进入“启用命令记录”，预览并确认当前 Shell 集成命令；收到有效集成信号后开始记录后续命令，不能补回启用前的历史。可按命令、目录和退出码筛选，查看时间与耗时、点击命令定位输出、复制命令或有界输出，并显式保存为加密片段。通信帧从会话录制中过滤，记录随终端关闭清除，不跨重启保存。Zsh 使用 preexec 命令；Bash 只接受历史编号向前推进后的当前条目，历史关闭、过滤、忽略重复或超过采集限额时可能没有命令文本，此时仍保留边界与退出状态，不从终端画面或按键推测命令。输出来自已有终端缓冲区，标记失效后显示“输出已清除”并禁用定位或复制，不保留额外输出副本。
-
-命令边界可用时，终端及外层工作区标签显示运行中和后台完成、失败状态，返回对应终端后清除完成状态。命令运行期间可在终端菜单主动勾选“完成时提醒”，对当前命令生效一次；首次使用申请系统通知权限，拒绝或发送失败就地显示错误。完成时工作台不在前台才发送系统通知，正文不包含主机、命令或输出，点击返回原终端。断线取消待提醒，不根据输出静默或按键猜测完成。原生通知依赖系统通知服务；macOS 需要有效应用 bundle 标识与签名，开发模式和各平台通知投递、点击返回仍待原生验收。
-
-设置的“命令片段”支持本机增删改、分组与搜索，正文通过本机主密钥加密。`{{name}}` 表示简单具名文本参数；从命令搜索选中片段后填写并预览，插入选中终端，不额外追加回车。替换不改变 Shell 文本语义，含换行仍需终端粘贴确认；终端或工作区已变化时拒绝插入。片段不会采集输入历史，可按需加入加密快照。
-
-标题栏“工具 → 多主机操作”或命令搜索“多主机操作”打开独立工具标签，包含“执行命令”“巡检”和“执行记录”。连接中心选中 SSH 连接后可带入目标；从 SSH 工作区打开时默认选择当前主机。左侧选择主机，右侧填写命令，可使用参数化片段；临时执行不要求填写任务名称，需要复用时选择“保存为任务”。并发、分批、首台确认与失败策略放在“执行设置”，每步超时单独设置。命令通过独立通道的 `sh -s` 执行，不占用交互 PTY；边界见 [后台调度](../internal/app/command_runs.go) 和 [命令服务](../internal/app/commands.go)。结果显示退出码、耗时、标准输出与错误输出，输出有界并明确标识截断；单目标失败不重试。取消关闭本地 exec 通道，不能保证远端派生进程已终止。
-
-“执行命令”和“巡检”可载入、编辑和删除本机加密任务。任务包含顺序步骤、`{{name}}` 参数、每步超时及失败后停止该主机后续步骤选项；各主机独立顺序执行，每步使用独立 Shell，不继承前一步的目录或变量。启动后切换至执行结果，普通命令按主机查看，点击结果显示对应输出；可切换退出码或相同输出分组，按需比较两项结果的标准输出或错误输出。普通命令与保存任务统一由 Go 持有，切换或关闭工具标签继续执行，当前草稿保留在本次应用运行中；切换任务定义前须处理未保存修改。底部“任务记录”优先打开等待确认或正在运行的任务，首台确认可在后台等待，须由用户显式继续。工具标签不占用连接工作区数量，不进入布局恢复或命名工作集。
-
-任务还可保存并发、每批数量、首台完成后人工确认及任一失败停止后续主机与批次策略；已经运行的其他主机按自身步骤策略完成当前任务，不自动回滚或重试。结果默认留在本次应用运行的有界记录中，切换或关闭工具标签不丢弃；“执行记录”可切换已有结果，完成后可显式加密保存、移除，或点击“再次执行”载入定义，再重新选择目标并显式执行。保存任务定义与保存执行记录是独立操作，后者包含展开后的命令、目标地址和输出，不进入常规备份。也可勾选部分结果导出 JSON。记录、并发和输出预算见 [后台执行服务](../internal/app/command_runs.go)，存储限制见 [加密执行记录](../internal/app/command_run_history.go)；达到输出预算后停止启动后续步骤，已启动请求仍按原限额完成。离开执行记录视图停止详情订阅并释放输出，重新打开时读取快照并接收增量结果。
-
-关闭目标工作区会中断其命令通道，其他目标遵循任务失败策略。退出或更新重启时若有任务运行，须确认取消；退出取消本机请求并释放工作区，不保证远端派生进程结束，未加密保存的结果会丢弃。任务不能跨应用重启续跑，不自动回放命令。原生后台执行、首台确认与退出交互仍待桌面验收。
-
-“工具 → 多主机巡检”或命令搜索“多主机巡检”进入巡检编辑视图，按检查项填写采集命令与通过条件。提供采集主机运行时间、根分区使用率与 systemd 服务状态等 Linux 只读示例；选择后可修改命令和条件，不自动连接或执行，目标仍需具备对应命令。步骤可按指定退出码、输出包含文本、Go 正则或 JSON 字段判定。JSON 字段路径采用 JSON Pointer，支持对象字段与数组索引，空路径表示整个 JSON 值；预期值支持字符串、数字、布尔值和 null，数字可作大小比较。读取通道选择标准输出或错误输出。运行前由后端校验全部步骤；内容判定要求采集命令正常退出且输出完整，字段缺失、解析失败、截断和网络错误显示“无法判定”。指定退出码的判定独立于输出截断。自定义命令仍按填写内容执行，巡检入口不保证命令只读。
-
-“文件与基线一致”步骤填写各主机上的同一绝对路径，并在本次运行选择已连接的基线主机。基线在执行前取得版本，各目标比较时重新核对；基线改变后该项显示无法判定，需要重新运行。读取复用 SFTP 文本边界，支持 UTF-8 普通文件，包含 BOM 与换行差异；符号链接需使用实际目标路径。逐文件核对不构成多主机原子快照，任务也可能在前序步骤修改文件。文件路径支持任务参数，判定条件按填写值使用。
-
-巡检结果默认显示主机×步骤总览，可切换按主机查看判定原因、实际值、预期值和原始命令输出。判定失败或无法判定均遵循原任务的失败停止策略；定义随任务加密保存和备份，基线主机、版本与结果随本次执行记录保留，可显式加密保存。JSON 导出附带判定和基线来源，文件正文不进入报告。解析、数字与字段展示边界见 [巡检实现](../internal/app/command_checks.go)。
-
-终端操作菜单“tmux 会话”可读取远端已有会话，插入附着、新建或分离命令，等待用户回车执行。需要远端已有 tmux，不自动安装。附着由 tmux 保存的远端任务，不等于恢复 TermQuay 旧 PTY 或重放命令。
-
-会话列表的“新标签绑定并附着”核对当前会话名称后，使用独立 PTY 执行固定的 tmux 附着命令；原终端保留。绑定标签显示会话名称，断线后可在重新认证的工作区点击“继续附着”。布局和命名工作集保存会话名称，恢复时显示待附着入口，用户点击后才查询并附着；会话不存在时报告错误，由用户选择其他会话或在普通终端新建。名称绑定不保证跨远端重启仍是同一任务。解除绑定不分离当前会话，关闭终端由 tmux 决定远端进程生命周期。
-
-### 本地草稿与布局恢复
-
-持久存储中尚未设置的“本地草稿恢复”默认开启，保留已保存的关闭选择；会话存储默认关闭，手动开启后仍不保证重启恢复。启用后，未保存文件正文合并并串行加密写入本机，数量、大小与保留期见 [草稿定义](../internal/app/workspace_state.go)。设置可查看、复制及清除副本；关闭恢复会确认清除。正文不进入 localStorage 或 WebDAV 快照。正常退出会等待待写状态；启用时可“保留本地草稿并退出”，写入失败会显示错误，需明确选择忽略后才能继续。远端文件保存仍独立进行，本机副本不代表上传成功。
-
-上次工作布局在启动时可选择恢复，也可从命令搜索打开恢复入口。布局保存连接目标、标签顺序、临时名称、窗格、目录和文件入口，恢复后保持断开。显式连接会新建终端并重新读取文件；加密草稿先进入最新远端对比，不自动上传或重放命令。保存配置已删除时需重新填写认证，目标改变时阻止直接复用；失效文件保留真实错误，可重新读取或关闭入口。布局不保存凭据、授权、PTY ID、终端输出或正文，不进入 WebDAV 快照。
-
-顶部“命名工作集”及命令搜索“管理命名工作集”可保存多套 SSH/RDP 布局，支持查看入口、重命名、使用当前布局更新和删除。同名创建会报错，更新与删除需确认。保存范围为打开管理窗口时捕获的远程工作区，本地终端不加入，未保存正文仍由独立草稿恢复处理。打开工作集会追加新的断开工作区，保留既有会话和草稿，按当前工作区容量检查后一次加入；每次打开使用新的界面 ID，避免复用旧会话或误关联历史草稿。连接与文件恢复沿用上次布局的身份核对、认证和冲突规则。工作集可显式加入加密快照，携带属于导出连接及其跳板的入口，空工作集不携带；会话存储模式退出后不保留。数量、单份布局及总存储限额见 [工作集服务](../internal/app/workspace_sets.go)。
-
-### 备份与恢复
-
-在设置的“备份恢复”分类填写 WebDAV 地址、登录信息、相对备份目录和独立备份密码。使用 HTTPS，隔离本地测试允许回环 IP 的 HTTP。目录必须位于服务商已有可写集合下，目录与内容选择的初始值由 [GetBackupSettings](../internal/app/backup_settings.go) 定义；服务商不允许在根集合创建目录时，改用其授权集合下的相对路径。
-
-“恢复密钥”可创建并导出 `.agekey` 文件，也可选择已有恢复密钥；确认已妥善保存后启用。导出默认使用带时间的文件名，拒绝覆盖已有密钥文件。密钥文件持有者可解密对应备份，应离线保管并与备份分开保存。本机保存恢复公钥，私钥不写入应用配置。启用后，本地导出与 WebDAV 新备份使用 `.tqbackup`，同一份备份可用备份密码或恢复密钥解锁。恢复窗口选择解锁方式，可输入密钥或选择密钥文件，随后仍须预览并确认恢复。停用、更换密钥或修改密码影响后续备份，历史文件保留原解锁要求；新密钥不能解锁启用前的旧备份。新容器与原 `.json.age` 可同时浏览和恢复，旧版本 TermQuay 不支持新容器。
-
-恢复密钥保护限已备份的内容，不重置本机主密码。使用恢复密钥执行全量替换时，恢复前保护副本也可由该密钥解锁，无需原备份密码。加密与格式约束见 [备份契约](architecture.md#加密备份与恢复)。本地 WebDAV 集成覆盖密钥恢复、事务替换和保护副本解锁；原生文件选择器、离线密钥导出及跨设备实际迁移仍待验收。
-
-保存备份位置后，浏览、备份和恢复复用加密保存的 WebDAV 登录信息；备份加密密码与 WebDAV 登录密码分别管理，密码留空沿用已保存值。首次配置默认勾选“保存后启用自动备份”，保存独立密码和内容范围后，读写与发布检查通过才启用；可取消勾选，已有配置的暂停状态保持原样。检查失败保留已保存设置并显示错误，自动备份保持暂停，可手动开启重试。“检查连接”在目标备份目录的独立检查子目录验证上传、发布、读回及同名拒绝，结束后清理检查目录。需要跨设备带回密码或私钥内容时，显式勾选携带已保存凭据并妥善保管备份加密密码。暂停自动备份保留位置、密码和内容范围，仍可浏览、恢复及立即备份。
-
-自动备份覆盖全部连接，使用已保存的内容范围。应用启动及连接目录、片段、界面设置、任务、工作集、预设、连接偏好或日志规则变化后合并等待任务，串行发布快照；运行期最多保留一个等待信号，监控、最近连接时间和传输进度不触发备份。失败状态可见，不自动重试，可通过“立即备份”重试，后续配置变化或重新启用也会再次触发。自动备份仅在应用运行时工作，退出取消后台任务，不清理远端历史快照。
-
-设备备份按来源设备聚合，默认显示最新一份，历史按需展开。设备名称默认使用系统计算机名，可在本机备份设置修改；名称随新备份加密保存，解锁摘要后显示。旧备份可添加本机备注。多设备使用相同的备份位置与加密密码时可直接浏览、解锁；其他密码可在恢复窗口临时输入。浏览与恢复不要求开启自动备份，“立即备份”也可用于手动重试。仅引用本机私钥文件或使用 SSH Agent 的连接会列出迁移时需要补齐的认证。
-
-“设备备份 → 清理历史”按设备设置保留最近 N 份，先预览保留项、待删除项及预计空间，再确认执行。按正式文件名中的 UTC 发布时间排序，未知命名、子目录和上传暂存保留。设备清理独立读取该设备目录，常规快照总列表超限时仍可使用；数量及单批边界见 [清理实现](../internal/backup/prune.go)，存在更多旧快照时需再次预览。执行只处理已确认清单，复核当前保留范围和每项大小、修改时间及 ETag；强 ETag 随 DELETE 作为 If-Match 条件。没有强 ETag 的服务仅能在删除前复核元数据，仍有检查与删除间的竞争窗口。错误或停止后保留逐项结果，未执行项需重新预览；网络失败可能无法确认远端是否已删除，刷新后核对。自动备份继续追加，不触发清理。
-
-备份可选择连接、凭据、命令片段及外观与快捷键，也可分别勾选多主机任务、命名工作集、隧道预设、目录同步预设、书签与连接偏好、日志筛选与高亮规则。新配置默认勾选这些工作配置，携带密码与私钥须显式选择，旧设置不自动扩大范围。连接选择包含依赖跳板和分组，相关预设及工作集入口按该范围筛选，最近连接记录不携带。支持导出本地加密文件，也可从文件预览恢复。加密、格式兼容与跨设备迁移规则见 [备份契约](architecture.md#加密备份与恢复)。
-
-恢复先解密并预览，分别展示连接、凭据变化及各类配置数量，可分项选择。导入模式将所选连接作为独立副本追加，并导入勾选的配置；替换模式替换所选类别。预览后相关本机配置发生变化会拒绝恢复。全量替换前保存加密保护副本，可从备份页面打开所在目录，再通过本地文件入口恢复。未携带凭据的快照在全量替换时也会替换本机凭据集合，恢复前应核对预览。
-
-恢复的隧道暂停自动启动，需重新启用。预览列出同步目录与私钥文件路径；私钥原路径不启用，需在目标设备重新选择，同步目录在执行前核对。事务、ID 映射、重名处理及保留的本机设置见 [恢复契约](architecture.md#加密备份与恢复)。
-
-## 重连修复与验证缺口
-
-同 ID 跳板配置变化未停止自动重连的问题已通过实际路径快照及拨号前核对修复。[局部回归](../internal/app/reconnect_test.go) 覆盖跳板目标、用户、代理、认证、Agent、MFA、目标端口与缺失路径；[真实工作流](../internal/app/ssh_tasks_integration_test.go) 包含连接中断、保存连接重连和路径变化拒绝。下方专项记录仍未覆盖真实多级跳板断线后的原生自动重连调度。
-
-## 已有验收记录与缺口
-
-以下是仓库保留的历史验证证据，不表示本次文档审查重新运行。systemd、多来源日志与 CLI 查询的合并检查记录见 `751a076`，包含绑定生成、前端类型检查与 diff 检查，未记录构建、测试或真实链路通过。后续变更按提交和场景列出，不能用较早记录推断新增行为已验收。
-
-2026-11-08 延迟装载改动 `2f332fa` 的同机生产构建记录中，RDP JS 从 6060.25 kB 降至 45.57 kB，独立 WASM 为 4511.02 kB，入口 JS 从 148.91 kB 降至 130.09 kB；无大包告警。浏览器预览确认初始资源未加载重型视图，显式导入后 WASM 初始化成功。该记录衡量构建产物与浏览器装载，不证明原生冷启动、内存或真实 RDP 性能。
-
-2026-11-08 连接工作台增强覆盖 `73e2b78` 至 `47078d1`，环境为 macOS 26.6.2 / arm64、Go 1.26.10、Node 26.11.0、pnpm 11.20.0。全仓 `go test -race ./...` 基于 `1578cc5` 通过，后续取消清理、密钥导出及协商身份改动在最终 `internal/app`、`internal/ssh` 竞态复验中通过。前端 64 项逻辑测试、类型检查、生产构建及 Windows amd64 生产交叉构建通过，Go 绑定已同步；Vite 无大包提示，macOS SDK 链接告警仍存在。
-
-本地 SFTP 覆盖递归删除、符号链接目标保护、取消与目录链变化，以及零进度暂存清理；本地 SSH 覆盖多密钥匹配、真实协商指纹及身份变化阻断。脱敏构造样例覆盖四种客户端格式、分组及代理阻断，known_hosts 覆盖哈希、多密钥、撤销与预览失效。本地 WebDAV 覆盖清理范围、版本复核、条件删除、预览后追加与位置变化；备份覆盖两种解锁、旧格式、损坏及混合封装拒绝，以及无原密码时生成可由恢复密钥解锁的保护副本。浏览器替身检查来源选择、信任冲突、清理预览确认、密钥保存确认与传输操作，实际浏览器组件检查另覆盖 Unicode 11 宽度及 RDP WASM 初始化。
-
-此次未注入应用测试所需的真实 SSH/WebDAV 认证配置，对应真实服务场景未运行。四种客户端真实导出及跨版本、原生文件选择器和密钥离线导出、真实 RDP、三平台原生 WebView、冷启动/空闲内存及 WebGL 性能与 GPU 资源回收仍待验收。浏览器替身、本地协议服务和交叉编译各自只证明对应层次。
-
-| 变更与证据入口 | 已记录检查 | 待验证 |
-| --- | --- | --- |
-| systemd 状态操作 `eb62017`，[服务实现](../internal/app/linux_inspection.go) | 上述合并检查 | 当前用户权限、非交互授权拒绝、启停操作与超时后的状态核对；无真实服务变更或原生交互验收 |
-| 多来源日志 `286769c`，[日志工作区](../frontend/src/features/logs/LogWorkspace.tsx) | 上述合并检查 | 跨主机三类来源并排、原生可见性、正则超时与断线 |
-| CLI 结构化查询 `751a076`，[查询实现](../internal/app/cli_queries.go) | 上述合并检查及帮助同步 | 授权、取消、编码、超限、结果分页与真实远端读取 |
-| 终端工具与多主机交互 `0842c47` 至 `d51e224` | 前端类型检查、diff 检查；浏览器替身覆盖主机选择、巡检示例、结果矩阵与异常详情 | 替身不能证明远端执行；原生后台执行、首台确认、认证交接与退出协调仍待验收 |
-| 操作手册 `16de774`、配置变更 `f3c567a`、应用锁 `8ebc6f2`、排障快照 `967b2c7` | 实现阶段记录绑定同步、前端类型检查与 diff 检查 | 对应原生交互、主密码运行期解锁、系统睡眠/锁屏联动；配置变更流程与快照保存、比较、导出仍缺实际应用链路验收 |
-
-服务浏览器/剪贴板、跨主机文件基线、新设置的真实 WebDAV 迁移及跨平台原生文件身份读取仍待验收。续传的新服务实例恢复与原生进程重启属于不同层次，见专项记录。
-
-2026-11-05 SSH 专项回归基于 `5f58308`，客户端为 macOS 26.6.2 / arm64、Go 1.26.10，目标为 Ubuntu 24.04.5 LTS / Linux 6.8.0，密码与私钥认证均沿核对后的主机指纹运行。未注入真实服务配置的 `go test -race -count=1 ./...`、62 项前端逻辑测试、类型检查与生产构建通过；跳过的真实服务测试不计通过。构建仍有 macOS SDK 链接版本和前端大包提示。
-
-真实应用协议栈已通过 PTY、SFTP 浏览与编辑、权限与保存冲突、监控、回环跳板和目录同步。新增工作流测试通过加密私钥、错误口令、独立 Agent、命令退出码与超时后的连接复用、多编码/CRLF/BOM 保存、默认文件历史、浏览模式写入阻断、循环链接搜索、日志读取、root 免密 sudo 保存与版本冲突。512 KiB 文件完成上传和下载的限速取消、续传记录持久化、新服务实例恢复与完整字节核对，并验证两工作区远端目录复制及重叠目录拒绝。真实录制经 Relay 与消费确认写入，结束后再次开始可回读；tmux 两次附着及缺失会话拒绝通过。两个工作区的任务首台确认与巡检结果、客户端 TCP 中断后保存连接重连、路径变化停止重试及本地 SOCKS5 路径通过。20 次工作区创建与关闭分四轮、每轮五个并存，关闭后工作区/终端/隧道记录与本地监听均释放，测试进程 goroutine 回到起始值；这些结果不构成多台真实主机或原生自动重连调度验收。
-
-macOS 原生 Wails 窗口使用 Go overlay 将数据目录重定向到临时目录，业务实现与生产前端资源沿用测试开始时的代码；输出边界修复另经后端真实链路复验。实际完成快速连接解析、主机指纹确认、密码登录、第二个 PTY、关闭另一 PTY 后保留输入输出、监控显示、原生文件选择与确认上传，以及文件保存后的内容与 0640 权限核对。远端文件被外部改写后，保存阻止覆盖并保留草稿，关闭确认选择取消后草稿继续保留，应用退出也被未保存文件阻止且可返回编辑。保留本地草稿并退出后，原生进程重新启动、恢复布局、重新认证，冲突对比中保留原草稿并展示最新远端内容。终端输出 50000 行后继续输入可用，锁定输入时测试写入命令未执行；录制经过原生目录选择，结束后回放可见真实命令输出，再次开始生成独立录制文件。部分身份确认、冲突与退出弹窗显示期间，System Events 无障碍树未暴露弹窗控件，截图仍可见且可点击；需进一步验证 VoiceOver 与键盘访问，不能把该场景记为页面空白。
-
-该次回归发现并在 `d646775` 修复命令输出边界缺陷：嵌入 `bytes.Buffer` 继承的 `ReadFrom` 绕过限长写入，真实命令输出 100000 字节时未截断。[本地回归](../internal/ssh/command_test.go) 覆盖标准输出与错误输出的边界，[真实工作流](../internal/app/ssh_workflow_integration_test.go) 复验截断。修复后八组真实工作流及未注入真实服务配置的全量 Go 竞态检查通过，记录归档于 `2fd46a1`；原生持续负载与内存趋势仍需单独量化验收。
-
-原始 `TestSG1Transfers` 在 45 秒总时限内超时并留下私有暂存，`TestSG1Forwarding` 在 5 秒读写时限内超时。OpenSSH 对照使用相同目标与密钥，1 MiB 下载约 6.6 秒，上传约 70.8 秒，表明本轮链路上下行差异明显，不能由此推导应用吞吐。保持数据量、通过临时 overlay 延长诊断时限后，三种转发与资源释放在约 26 秒内通过；完整传输测试将总时限改为 20 分钟后，在约 739 秒内通过 4 MiB 上传、同名跳过、另存、覆盖、下载、批量下载与文件操作，并完成原测试清理。原测试时限未修改，首次残留另行清理。更大文件、跨原生进程重启续传、MFA/用户证书、独立多主机与其他客户端平台仍须补验；Docker 本轮限只读列表，未操作现有业务容器。
-
-以下归并 2026-11-02 的工作台验收、重设计及 UI 交接记录（`6d0603f:handoff.md`）。表中缺口保留该次记录的范围，后续 macOS/SSH 覆盖以上方 2026-11-05 专项记录为准。当前代码的自动化结果须按前述命令重验。
-
-| 层次与环境 | 已记录证据 | 限制与缺口 |
-| --- | --- | --- |
-| 自动化与构建 | 前端类型检查、生产构建、Go 普通测试、Windows 生产构建；UI 交接记录另含 TypeScript 逻辑测试与 `go test -race ./...` 通过 | Windows 工作台记录因 CGO 关闭且无 C 编译器未运行 race，两次记录不能合并为 Windows race 通过；Vite 仍提示大包 |
-| 浏览器替身 | 900×600、1280×820、1600×1000 下的导航、多选、查找替换、片段、批量入口、任务筛选与清理；布局调整保持 xterm/CodeMirror DOM 实例与草稿连续，监控收起停止订阅 | 使用临时绑定与流替身，不证明真实网络或原生输入 |
-| Windows 11 / WebView2，125% 缩放 | 原生外窗 1280×820、1366×768、1440×900；连接操作、键盘焦点、草稿保护与窄窗面板；真实 SSH 编辑、冲突及保存期间继续编辑，原生文件选择后 8 MiB 上传下载往返一致 | 请求 900×600 时实际外窗为 1125×750、内容为 886×563 CSS px；视口模拟另有 900×600，不能记为同尺寸物理外窗通过 |
-| macOS 26.6.2 / arm64 | Wails 原生窗口、最小窗口连接入口；真实 SSH 新建第二个 PTY、输入与查找，移至另一窗格并关闭另一 PTY 后会话与输出保留 | 限交接记录中的场景，不证明 macOS RDP 或其他系统版本通过；链接器有 SDK 对象版本提示，旧系统兼容性待验 |
-| 真实 SSH | 核对目标指纹后，应用协议栈的 PTY、SFTP、监控与传输通过；批量下载、同名跳过、移动逐项失败及拒绝覆盖、非空目录拒绝删除 | 操作限本次 `/tmp/termquay-*` 目录；真实 Agent、跳板与跨平台原生文件选择仍需相应环境 |
-| 真实 Windows RDP | Windows WebView2 下核对证书后完成认证、持续画面、键盘、焦点、尺寸、断开与重连；空密码失败保留、过期授权事件隔离、WASM 初始化失败后恢复；显式启用并重连后手动文本剪贴板往返 | TLS 1.3、并行多会话与剪贴板隔离、macOS/Linux RDP 原生 WebView、中文输入法、100%/150% 缩放仍待验；取消后晚到拒绝曾产生 `CancelledRejectionError` 诊断，未全局吞错 |
-| 真实 WebDAV | UI 交接记录曾在唯一测试子目录创建集合时返回 HTTP 400 | 尚未完成该服务的密文往返；需已有可写的独立测试集合，其他会话跳过不算通过 |
-
-原生回环测试使用过内存文件系统和合成监控指标，其结果限于本地集成。此前 Windows 图标检查不能替代 macOS/Linux 系统入口验收；后续图标、标题栏、本地 PTY、SSH 网关桌面、目录树与延迟探测等改动需按实际影响补验。持续负载与整个桌面应用的资源占用尚无完整验收证据。
-
-### 内置 AI 验收（2026-11-06）
-
-实现提交为 `fb03c1e` 至 `8f549f1`。环境为 Windows 11 26100 / amd64、Go 1.26.10、Wails 3.0.0、WebView2 156.0.4314.58、Node 22.17.0，命令使用本机 pnpm 12.16.1；项目声明的包管理器版本保持不变。
-
-`go test -count=1 -json ./...` 全部普通包检查通过，21 个测试因缺少真实 SSH/WebDAV 配置或 Windows 下 POSIX SFTP 条件而跳过，不计通过。`go vet ./internal/ai ./internal/store ./internal/app`、64 项前端逻辑测试、前端类型检查、生产构建和 Windows `go build -tags production` 通过；Go 绑定重新生成后无遗漏。`go test -race ./internal/ai ./internal/store ./internal/app` 因 CGO 关闭且没有 C 编译器未能运行。Vite 仍有既有大包提示。Windows 原生进程占用本机 CLI 独占端点，验证该 IPC 包前须先正常退出应用。
-
-三种模型协议经本机 HTTP 服务验证文本分片、工具参数累积、工具结果续接、协议错误、取消和响应限制；Messages 覆盖空 thinking 字段与签名，Responses 覆盖加密 reasoning 完成项。应用回归覆盖加密迁移与分页、Key 更新、AI/CLI 四种开关组合、目标绑定、重复/篡改/过期批准、拒绝与未知状态禁止同轮重试、锁定、取消、删除、退出、长上下文压缩及存储失败。测试替身不证明真实模型兼容性或摘要质量。
-
-Windows 原生 Wails 窗口使用生产前端资源，经临时 Go overlay 配置回环调试端口和独立 WebView 目录，应用数据也隔离到临时目录。已检查设置保存与两项连接测试、Shell 逐次批准及拒绝、停止、新对话、历史读取与删除、面板宽度键盘调整、980 CSS px 下的辅助面板布局、右键与 Shift+F10/操作菜单加入选文、查看/移除引用、第二终端来源固定及加入后的输入焦点。收起与切换工作区不增加模型请求，批准前及拒绝后不执行命令。该链路使用本机合成 SSE 服务与 SSH 服务，文件浏览不在该测试端能力内。
-
-主密码存储下，锁定使待批准项失效；解锁后没有执行或重放。正常退出并重启、解锁、重新认证 SSH 后，可读取同目标临时连接的加密历史与工具输出，模型请求和命令计数均未增加。待批准时正常退出也未执行命令。原生检查了 stdout 与退出码展示，stderr 和截断保留由后端回归覆盖。原生复验源码对应 `e2b5d56`，其后的定位控件无障碍属性修改通过类型检查与构建。
-
-未提供真实模型端点和 Key，三种协议均未做真实模型验收。`sg1` 的 MCP 只读探测在 SSH 连接/认证握手阶段超过 15 秒，应用测试环境也没有安全注入的 SSH 凭据，因此没有完成本次真实 SSH 链路验证。macOS/Linux 原生 AI 交互、系统锁屏/睡眠的原生联动、屏幕阅读器及整个桌面应用的持续负载与内存回收仍待对应环境验证；后端锁定路径测试不代替这些原生场景。测试进程已经退出，未修改真实服务器或用户模型配置。
-
-### Windows SSH AI 适配验收（2026-11-09）
-
-基础实现提交为 `7806873`、`478e2ef`、`1e4e0f5`，编码与批准补验见本记录同提交的修正。环境为 Windows / amd64、Go 1.26.10、Windows PowerShell 5.1。全仓 `go test ./...`、相关 SSH、文件、AI 和应用包的 `go vet`、前端类型检查与生产构建、Windows production 构建通过；缺少外部资源而跳过的测试不计作真实远端通过。绑定已重新生成。当前 CGO 关闭且没有 C 编译器，未运行竞态检查。
-
-[执行器测试](../internal/ssh/environment_test.go) 经本机 cmd 启动 PowerShell，覆盖中文、长脚本、语法与 cmdlet 错误、原生命令及显式退出码、GBK/GB18030 输出和无效字节保留。[Windows 查询测试](../internal/app/ai_windows_queries_test.go) 经本地 Go SSH 服务调用本机 PowerShell，读取真实本机服务、端口及服务控制管理器事件；该服务不是 Win32-OpenSSH。[AI 回归](../internal/app/ai_environment_test.go) 覆盖工具能力边界、批准前不执行、Windows 解释器绑定、解码失败禁止同轮重放及完整 JSON。内存 SFTP 服务覆盖大目录分页、筛选、Windows 路径转换、跨字符边界续读、文件属性变化与符号链接拒绝。
-
-浏览器组件检查覆盖实际解释器展示、批准与拒绝回调、原始输出展开、续读状态及窄窗布局。未使用真实模型、真实 Windows OpenSSH 服务器或原生 WebView 验收本次适配；Linux/macOS 原生执行及 Windows 远端权限、代码页差异仍需对应环境验证。测试未修改用户远端环境或默认 Shell。
-
-## 内置 AI 助手
-
-在“设置 → AI 助手”选择 Chat Completions、Messages 或 Responses，填写完整请求 URL、模型名称及所需 API Key，开启后保存。URL 包含实际请求路径，不自动拼接 `/v1`；示例路径显示在设置输入框。全应用使用一份配置，已有 Key 不回显，留空保留，也可替换或显式清除。保存完整配置后即可使用，测试连接分别验证普通回复及本机无副作用的工具调用与结果续接，测试不发送工作区和 SSH 资料。修改配置后，新轮次使用新配置，进行中的轮次继续使用原快照。
-
-“模型最长等待时间”控制每次模型请求的总时长，覆盖排队、思考和流式输出；默认值与可选范围见 [模型配置](../internal/ai/config.go)。聊天、较早上下文压缩及连接测试均使用该设置，连接测试的每次请求单独计时。持续无正文不会提前取消，连接与响应头仍有独立时限。超时或断流后不会自动重试。
-
-没有正文时，面板显示“等待模型响应”和本次请求已等待时间。思考片段、工具参数和 SSE 心跳都计作连接活动；输出中断但连接未报错时继续等待，直到设定时限或你主动停止。切换或收起面板不重新开始模型请求或等待计时。
-
-Agent 整轮另有运行总预算，涵盖多次模型请求、摘要压缩和工具执行，时限见 [Agent 定义](../internal/app/ai.go)。等待你批准命令时暂停计时，批准或拒绝后从剩余时间继续；达到整轮上限会停止后续请求和工具，并明确报告超时。停止、锁定、断线和退出在批准等待期间仍然生效。
-
-已连接 SSH 工作区的工具栏打开“AI 助手”，右侧面板与监控切换，拖动分隔条调整宽度。每个真实工作区保持独立当前对话；收起、隐藏或切换标签保留后台运行，重开读取状态，不重复请求模型。面板提供停止、新对话、历史分页与删除。新对话或删除当前历史会先停止旧轮次；同一历史已在另一工作区打开时，需新建对话。保存连接改过目标后，继续旧历史须核对界面中的原目标和当前目标。
-
-选中当前真实 SSH 终端文本后，右键“加入 AI 对话”；也可使用终端操作菜单，或选区上的 Shift+F10/菜单键打开选文菜单。选文先进入待发送引用区，可以展开查看或移除，点击发送才请求模型。引用固定记录原工作区、终端和选文，随后切换终端不会更改来源；重连清除待发送的旧实例引用。不自动采集终端画面、滚动历史或按键。
-
-临时连接各自保留独立归档，重新连接相同用户名、地址和端口后可查阅之前的临时对话。当前对话仍按工作区隔离；历史不会恢复运行或旧批准。
-
-首次使用时，应用探测当前 SSH 实例的操作系统、脚本解释器和查询命令，结果保留到重连。按实际能力提供工具；无法识别时保留文件工具，不默认按 Linux 执行。Linux 服务查询依赖 systemd，端口查询依赖 ss；Windows 使用 Windows PowerShell 5.1 查询服务、TCP 监听与 UDP 绑定端点。Windows 服务日志限定 System 日志中近期 Service Control Manager 事件的匹配项，结果带扫描范围，不代表完整应用日志。Windows 当前不支持既有 Docker Unix socket 查询通道，不能据此判断是否安装 Docker。
-
-文件、服务、端口和支持的容器查询自动执行；`exec` 默认展示完整脚本、实际解释器与超时，逐次批准或拒绝。“执行 Shell 命令前确认”关闭后可以连续执行。批准由后端一次消费，旧批准不能用于重连后的实例，同一轮被拒绝的脚本不会自动重试。命令使用独立无 PTY session：POSIX 主机使用 `sh -s`，Windows 显式启动 PowerShell，从标准输入读取 UTF-8 脚本，不修改远端默认 Shell。需要目录时在脚本中显式设置，不继承交互终端的目录、环境或别名，不代填密码。PowerShell cmdlet 错误按失败返回，末条原生命令失败保留其退出码；取消仍不能保证派生进程已终止。AI 与“本机 CLI”开关互不影响，CLI 和多主机任务继续使用原有 sh 脚本契约。
-
-工具结果明确区分成功、部分结果与失败，错误码及输出预算以 [工具定义](../internal/app/ai_tools.go) 为准，查询失败不能解读为空列表。命令输出默认 UTF-8，已确认编码时可指定 GBK 或 GB18030；解码失败保留有界原始字节 Base64，不能从乱码反推执行成功，也不能为换编码自动重放可能修改远端的脚本。
-
-AI 文件工具支持 Windows 盘符绝对路径，应用转换为当前 SFTP 通道使用的路径；例如 `C:\Windows` 与 `/C:/Windows`。`file_list` 按名称排序，支持名称包含筛选及 `offset/limit` 分页，使用 `next_offset` 续读；扫描条数、名称字节和响应正文均有界。目录分页每次重新读取，目录发生变化时条目可能移动，`consistency=live` 不表示原子快照。`file_read` 按原文件字节范围读取，使用返回的 `next_offset` 与 `revision` 续读，避免切断多字节字符；不再为每段读取整个文件。revision 校验大小、修改时间和模式，不能发现属性相同的所有内容变化。普通文件、编码及大小边界沿用文件服务，单段和目录页边界见 [AI 文件工具](../internal/app/ai_files.go) 与 [范围读取](../internal/files/range.go)。
-
-问题、主动加入的引用，以及工具读取的文件、日志和命令输出会传到配置的模型服务，内容可能包含敏感信息。配置、历史正文、标题和摘要在本机加密保存，排除常规备份；会话存储不保证退出后保留。长对话按预算压缩较早上下文，界面可查看摘要，本机完整记录保留。压缩失败、存储失败、输出截断和未知退出状态会展示。具体限制以 [客户端](../internal/ai/types.go)、[Agent](../internal/app/ai.go) 和 [历史存储](../internal/store/ai.go) 为准。
-
-停止、关闭 AI、断线、关闭工作区、应用锁定及退出会取消 AI；已发出的远端命令可能仍在运行，取消不能证明操作撤销。解锁、重连或恢复历史不自动重放。首版入口限定 SSH 工作区，不提供本地、RDP、容器交互终端或跨主机执行。
-
-## 本机 CLI
-
-从 1.3.0 起，CLI 与桌面共用程序。无参数启动桌面；`--help`、`help`、各级子命令 `--help` 和 `--version` 在桌面初始化前处理。Windows 使用解压后的 `termquay.exe`，Linux 使用 `termquay`，macOS 使用 `termquay.app/Contents/MacOS/termquay`。将程序所在目录加入 PATH 由用户自行决定。Windows 使用 PowerShell 调用或脚本进程 API 等待并捕获标准流；从 cmd 直接调用 GUI 子系统程序可能提前返回提示符，需要用 `start /wait` 或等待进程的调用器。
-
-先运行桌面并初始化或解锁存储，在“设置 → 本机 CLI”打开默认关闭的“允许本机 CLI 访问”。授权同一操作系统用户的本机进程查看保存连接、远端文件和诊断、本机任务与执行结果，并在已连接 SSH 工作区执行命令，无法区分同用户下不同 Agent。授权保存在本机设置，不随备份迁移；会话存储按会话语义处理。CLI 不打开数据库、不解锁、不建立 SSH 连接、不确认身份。未运行、授权关闭、应用锁定和协议不兼容均有明确结果，存储未就绪返回 `storage_unavailable`。锁定时最小状态不披露开关值，`enabled` 返回 false。新增结构化查询沿用同一开关，既有 `exec` 仍可修改远端，开关不表示读取专用权限。
-
-```sh
+termquay --version
+termquay --help
 termquay status --json --no-input
-termquay connection list --protocol ssh --json --no-input
+termquay connection list --json --no-input
 termquay workspace list --json --no-input
-termquay file list --workspace '<精确工作区ID>' --path /etc --json --no-input
-termquay file read --workspace '<精确工作区ID>' --path '<文本文件绝对路径>' --json --no-input
-termquay service inspect --workspace '<精确工作区ID>' --unit '<完整服务名.service>' --json --no-input
-termquay port list --workspace '<精确工作区ID>' --json --no-input
-termquay container list --workspace '<精确工作区ID>' --json --no-input
+termquay file list --workspace '<exact-workspace-id>' --path /tmp --json --no-input
 termquay task list --json --no-input
 termquay run list --json --no-input
-termquay run show --id '<精确执行记录ID>' --offset 0 --limit 8 --json --no-input
-termquay exec --workspace '<精确工作区ID>' --script-file ./inspect.sh --timeout 30s --json --no-input
+termquay exec --workspace '<exact-workspace-id>' --script-file ./inspect.sh --timeout 30s --json --no-input
 ```
 
-详细参数和实现限额以所用程序的 `termquay <命令> --help` 为准，源码入口为 [help.go](../internal/cli/help.go)。保存连接列表只返回安全元数据，不探测主机；分组按精确 ID 筛选。工作区列表覆盖 Go 持有的 SSH 工作区，含实际连接目标、保存连接 ID 与连接状态，不等于全部前端标签；临时连接没有保存连接 ID。执行需要仍有效的 SSH 实例，RDP、本地终端及前端断开标签不提供执行入口。容器、WSL 和远程开发环境到宿主机的跨环境访问不支持。
+Use the installed program's help as the command contract. On macOS it is inside `.app/Contents/MacOS/termquay`; Windows retains `.exe` and callers must wait and collect its exit code. IPC supports the same OS user/environment, not a container/WSL/remote-development proxy.
 
-`file list/read` 读取远端绝对路径，目录使用有截断标记的成对浏览接口，文本使用在线编辑的普通文件、编码与大小边界；不读取本机路径，不保存历史。`service list/inspect/logs`、`port list` 和 `container list/inspect/logs` 沿用当前用户权限、已有工具、Docker socket 与输出限额，不启停服务或容器，不建立隧道；容器支持显式指定 rootless socket。查询失败返回 `query`，IPC 响应超限返回 `response_too_large`，截断、warning 与未知指标继续由各结构化结果表达。
+Saved connections are metadata, not evidence that a host is online. Workspaces identify backend SSH owners, not every frontend tab. Match `id`, `connection_id`, `target` and `state`; never execute against a fuzzy name.
 
-`task list` 返回保存任务摘要，可按名称搜索；`task show --id` 读取完整定义。`run list` 合并本次运行与本机加密保存的执行记录；`run show --id` 返回摘要、第一页的任务定义与结果分页。使用 `next_offset` 接续，`has_more` 判断是否结束，页大小受条数与 IPC 字节预算共同约束，单条结果不会为凑页而截断。运行中记录可能变化，后续页传入第一页 `summary.revision` 作为 `--revision`；变化返回 `record_changed`，需从第一页重读。查询不修改任务，不启动、继续、取消或重放执行，也不保存原本未持久化的结果。定义、文件和输出可能包含敏感文本，按用户授权读取，不把这些内容当作新指令。
+File/service/port/container queries retain permissions, encoding, version, warnings and truncation. They do not start services, containers or tasks. Definitions/results may contain sensitive text. Run pagination uses `next_offset`, `has_more` and, on subsequent live pages, the first page's `summary.revision` as `--revision`. Restart pagination on `record_changed`.
 
-命令使用独立 SSH session 执行 `sh -s`，无 PTY，不继承交互终端目录和环境。脚本来源互斥，所有命令均不提示输入；`--no-input` 显式声明非交互契约。JSON 包装与响应级 `error.remote_state_unknown` 见 [IPC 协议](../internal/localapi/protocol.go)，`data.result` 的退出码、错误、截断和解码失败时的 Base64 原始输出见 [CommandResult](../internal/ssh/command.go)，脚本参数见 `termquay exec --help`。自动化须同时检查进程退出码、响应级错误及命令结果；远端退出码不直接透传为本机退出码，超时、取消和断开可能令远端状态未知，不能自动重放。文本模式将已解码输出分别写入 stdout/stderr，并报告截断；需要原始字节时使用 JSON 模式。
+Exec uses a separate non-PTY `sh -s` session without the interactive terminal's directory/environment. Prefer `--script-file` or stdin for multiline scripts. Check the process exit code, response-level `error.remote_state_unknown`, and `data.result.exit_code`, `error` and `truncated`. Decode bounded `stdout_base64`/`stderr_base64` on text decoding failure; do not replay a command to fix display. Cancellation/timeout/disconnect does not prove remote termination. The [Agent skill](../skills/termquay/SKILL.md) does not install the app or authorize arbitrary remote operations.
 
-关闭访问或锁定应用阻止新请求，已获准请求继续受原超时、客户端断开、工作区关闭和桌面退出约束。SSH 通道打开尚未返回时，本地取消等待，但底层槽位持续占用到实际结束，避免无限积压；不关闭共享连接来取消一个命令。取消不证明远端进程已退出。
+<a id="真实-ssh-与-webdav"></a>
+## Optional real services
 
-[termquay skill](../skills/termquay/SKILL.md) 的安装命令见 [README](../README.md#cli-与-agent-skill)。安装不包含应用或二进制，且不构成远端操作授权。
+Community contributions do not require maintainer servers. Unit tests/local protocol services work without SSH/WebDAV credentials. Do not access someone else's server or add credentials merely to avoid a skipped test.
 
-[CLI 测试](../internal/cli/cli_test.go)、[权限投影测试](../internal/app/cli_test.go) 与 [IPC 测试](../internal/localapi/server_test.go) 覆盖已有参数、授权、JSON、协议和断开取消场景；[SSH 命令测试](../internal/ssh/command_test.go) 覆盖通道打开阻塞时取消仍保留槽位。[CI](../.github/workflows/ci.yml) 及 [发布工作流](../.github/workflows/release.yml) 还在三平台构建后通过 [原生程序检查](../scripts/cli-smoke.mjs) 核对帮助、版本、标准流重定向与未运行状态。测试代码和工作流配置不代表本次运行通过，也不能替代原生窗口、Windows 控制台 Ctrl-C 或真实 SSH 经 CLI 调用的验收；近期查询的验证缺口见 [验收记录](#已有验收记录与缺口)。
+Real tests opt in through securely injected process settings. Never put real values in Git, screenshots or shell history:
 
-## 构建与本地打包
+| Suite | Configuration |
+| --- | --- |
+| `TestSG1*` password entry | `SSH_MCP_SERVER_SG1_HOST`, `SSH_MCP_SERVER_SG1_PORT`, `SSH_MCP_SERVER_SG1_USERNAME`, `SSH_MCP_SERVER_SG1_PASSWORD`, `TERMQUAY_TEST_HOST_FINGERPRINT` |
+| `TestSG1Workflow*` | Host, port, username and verified fingerprint above, plus `TERMQUAY_TEST_PRIVATE_KEY_PATH`; no password required |
+| `TestRealWebDAV` | `TERMQUAY_WEBDAV_URL`, `TERMQUAY_WEBDAV_USERNAME`, `TERMQUAY_WEBDAV_PASSWORD`, `TERMQUAY_WEBDAV_DIRECTORY` for an isolated writable collection |
+
+Independently verify the target fingerprint. File tests create and clean their own `/tmp/termquay-*` directories. Do not change system/SSH/services/business files or install remote tools. Some workflow cases require existing sudo/tmux/Docker permissions. Follow [remote-operation boundaries](../AGENTS.md#credentials-and-remote-operations).
+
+```sh
+go test -count=1 -v ./internal/app ./internal/ssh ./internal/files ./internal/monitor -run '^TestSG1'
+go test -v ./internal/backup -run '^TestRealWebDAV$'
+```
+
+Use `-race` where supported. The [saved-connection file test](../internal/app/files_integration_test.go) uses `TERMQUAY_TEST_SAVED_CONNECTION`, a verified fingerprint and the system vault; it does not implement master-password unlock. Read the test before using it.
+
+<a id="已有验收记录与缺口"></a>
+<a id="重连修复与验证缺口"></a>
+<a id="内置-ai-验收2026-11-06"></a>
+<a id="windows-ssh-ai-适配验收2026-11-09"></a>
+## Verification and known gaps
+
+Report unit tests, local protocol integration, browser substitutes, native desktop, real SSH, real RDP and real WebDAV separately. A browser substitute, local SSH fixture or cross-build cannot establish native/real-remote acceptance.
+
+Historical evidence and unresolved gaps remain in the [Chinese acceptance ledger](development.zh-CN.md#已有验收记录与缺口), including [AI acceptance](development.zh-CN.md#内置-ai-验收2026-11-06) and [Windows SSH AI adaptation](development.zh-CN.md#windows-ssh-ai-适配验收2026-11-09). Platform input/IME, RDP clipboard/concurrency, native menus/dialogs, real multi-hop reconnect, provider behavior and sustained application-wide resource measurements need environment-specific evidence. Do not present historical results as current checks.
+
+<a id="构建与本地打包"></a>
+## Build and local packaging
 
 ```sh
 wails3 build
 wails3 task package
 ```
 
-`wails3 build` 将可执行文件写入 `bin/`，Windows 文件带 `.exe`；`wails3 task package` 再生成平台包。macOS 打包生成 `.app` 并作本机 ad-hoc 签名；Windows 默认 NSIS 打包需要 `makensis`，MSIX 使用相应 Windows 工具；Linux 包格式及工具按平台 Taskfile 选择。完整构建任务可能执行 `go mod tidy` 并更新绑定，完成后检查实际 diff。
+Builds go to `bin/`. Consult [platform tasks](../build): macOS packaging uses local ad-hoc signing; Windows NSIS needs `makensis`; MSIX/Linux formats need their tools. These documented workflows do not authorize publishing or signed distribution. Full tasks can run `go mod tidy` and regenerate bindings; inspect the diff and preserve build customizations. The [Chinese resource guide](development.zh-CN.md#构建与本地打包) retains detailed icon procedures.
 
-`build/config.yml` 是产品元数据与资源生成入口，平台产物仍由 `build/` 中模板和任务决定。版本使用下方版本工具同步；修改其他 `info` 或文件关联时按配置文件说明更新资源，再检查生成 diff，避免覆盖已有打包定制。
+<a id="版本与发布"></a>
+<a id="应用检查与安装更新"></a>
+## Versions and releases
 
-应用图标以 [build/appicon.svg](../build/appicon.svg) 为唯一矢量源稿。使用 SVG 渲染工具导出 `build/appicon.png`（1024px）、Linux 的 `build/linux/icon-128.png` 和 DMG 的 `build/darwin/dmg-file-icon.png`。macOS 单独使用 `build/darwin/appicon.png`：将通用 PNG 等比缩放至 880px，居中置于 1024px 透明画布，四边各留 72px，避免 Dock 主体比其他应用显著偏大。随后运行 `wails3 task common:generate:icons`，分别由通用和 macOS PNG 生成 ICO/ICNS；将生成的 `icons.icns` 同步到 `dmg-file-icon.icns`。运行时同样按平台选择 PNG。Windows 构建由 syso 嵌入 ICO，macOS app 包与 DMG 卷引用 ICNS，Linux 包的 hicolor 路径使用对应 128px PNG。修改资源后需重新构建并启动原生程序检查系统入口，文件生成不能替代任务栏、Dock 或启动器验收。
+[frontend/package.json](../frontend/package.json) is the application version source; [scripts/version.mjs](../scripts/version.mjs) synchronizes platform resources. Database, backup and layout versions evolve independently.
 
-macOS 正式包和开发包通过 `CFBundleIconFile` 引用 `icons.icns`。更新 Wails 构建资源后检查并移除模板自带的 `Assets.car` 和 `CFBundleIconName`，避免系统优先显示模板图标。
+Before an authorized future bump, write `docs/releases/<version>.md`, English first and Chinese second in the same file, and commit it with version resources. Preserve published logs/public versions. Language/contribution work does not authorize a bump, tag, push, release or signed distribution.
 
-当前打包入口不代表正式发行就绪。分发前补齐目标系统原生验证、签名分发所需资源和 [依赖许可审计](../THIRD_PARTY_NOTICES.md)。程序内嵌项目许可及收集的依赖材料，“设置 → 关于 → 开源许可”可读取；macOS 应用包另复制资源目录。推送、Release 和签名分发需相应授权。
-
-## 版本与发布
-
-程序版本以 [frontend/package.json](../frontend/package.json) 为源，由 [版本工具](../scripts/version.mjs) 同步平台资源；资源清单及版本格式由该工具维护。数据库、备份及布局格式版本独立维护。其他产品元数据按 [构建资源流程](#构建与本地打包) 处理。
-
-每次 bump 前先编写 `docs/releases/<version>.md`。首版介绍实际交付能力、运行前提和已知限制；后续版本按上个标签以来的用户可见变化整理简体中文日志，有内容才保留对应分组。版本资源与日志放在同一个提交，不另维护重复更新日志。
-
-将下方变量填为拟发布的新版本号；这些命令使用 sh 兼容 Shell：
-
-```sh
-next_version='<新版本号>'
-pnpm --dir frontend bump "$next_version"
-node scripts/version.mjs check "v$next_version"
-```
-
-工具只接受正式三段数字版本，先检查非空日志及资源结构，再写入版本文件；不会自动提交或打标签。`check` 拒绝标签、资源版本或日志不一致。相关回归包含在 `pnpm --dir frontend test`。
-
-[CI](../.github/workflows/ci.yml) 在 PR 和 `main` 上运行逻辑测试、前端构建、Go 测试及原生构建，Linux 另检查竞态。构建任务限制源码扫描范围，避免递归扫描 pnpm 依赖链接；新增源码目录或 Wails include 资源时同步 [任务输入](../build/Taskfile.yml)。
-
-三平台 runner、构建架构与附件命名由工作流维护。调整 macOS runner 时核对镜像支持与原生依赖，并继续验证通用程序的两种架构。
-
-发布前，先在已进入 `main` 的候选提交上手动运行“发布桌面应用”工作流。手动运行执行相同正式构建，上传三平台附件及 `SHA256SUMS` 到 `release-bundle` artifact，不创建 Release。平台、架构和附件命名以工作流为准；压缩包内必须只有一个顶层程序或 `.app`，与 [更新 provider](../internal/update/provider.go) 的选择及框架解包约定一致。候选包同样带正式构建标记，启动后会查询当前公开稳定版本。
-
-验收候选包的启动、系统集成、核心连接、退出保护及旧程序升级到候选版本的链路。下载失败、取消、摘要不符、不可写目录和替换失败需要覆盖。测试替身和 CI 原生构建不能替代实际桌面运行；某个平台尚未验收时保留缺口，不能据构建成功宣称全面可用。
-
-获发布授权、完成验收并解决第三方声明的“发行前待办”后，在已检查且已进入 `main` 的提交创建版本标签，再推送：
-
-```sh
-git tag -a "v$next_version" -m "发布 v$next_version"
-git push origin main
-git push origin "v$next_version"
-```
-
-标签发布检查版本、日志、提交属于 `main` 及发行审计状态，三平台全部构建成功后合并附件并生成校验文件，先创建草稿、附齐文件，再公开并标记 Latest。Release 正文原样读取仓库日志，应用更新窗口复用该正文。工作流允许继续同版本未公开草稿，拒绝覆盖公开版本；修复通过新版本交付。`node scripts/release-check.mjs` 拒绝非空发行待办、已变化的依赖核对输入，以及缺失或空白的 WASM 许可材料。依赖或固定补丁变化后更新核对记录，不能绕过失败发布。
-
-正式构建通过 `TERMQUAY_RELEASE_LDFLAGS` 注入发布标记与提交号，具体值见工作流。普通本地生产构建仍显示开发版，不检查或安装更新。Windows 压缩包当前未配置 Authenticode 分发签名；macOS 未配置证书时明确记录 ad-hoc 状态。配置以下 GitHub Secrets 后，macOS 工作流执行 Developer ID 签名、公证和票据附加：`MACOS_CERTIFICATE`、`MACOS_CERTIFICATE_PASSWORD`、`MACOS_SIGNING_IDENTITY`、`APPLE_ID`、`APPLE_TEAM_ID`、`APPLE_APP_PASSWORD`。证书使用 Base64 编码的 p12，凭据不得进入仓库或日志。
-
-前端生产依赖变更后，可使用 pnpm 导出元数据，再通过收集工具更新许可副本。输出文件放在临时目录，以下示例中的路径需替换为当前系统的临时路径：
-
-```sh
-license_metadata='<临时文件的绝对路径>'
-pnpm --dir frontend licenses list --prod --json > "$license_metadata"
-node scripts/licenses.mjs "$license_metadata"
-```
-
-工具移除本机安装路径，复制包内许可原文，并列出缺少材料的依赖。收集成功不等于审计完成；Go 模块、预构建 WASM 来源及第三方声明仍需按最终制品核对。依赖变化后同步现有收集清单。
-
-### 应用检查与安装更新
-
-“设置 → 关于”展示程序版本、构建提交、自动检查开关、更新状态、发布页面和开源许可。正式构建在界面就绪并读取设置后延迟检查，应用运行中定期检查；调度间隔、超时与单任务约束见 [update.go](../internal/app/update.go)。设置立即保存于本机，不进入便携界面备份；会话存储模式仍不保证跨重启保存。网络请求使用 Go 默认网络配置及其支持的环境代理，不借用 SSH 连接的 SOCKS5 或跳板。
-
-发现更新时在设置入口标记，不自动弹窗、下载或重启。点击新版本查看 Markdown 日志，确认后下载，可取消。新版本必须来自本项目稳定 Release，附件版本、平台、架构及 SHA-256 记录均须匹配。摘要校验不等于代码签名或独立发布者认证。
-
-下载完成后显式选择“重启并更新”，确认活动工作区与传输中断，再处理未保存文件和本地持久化。取消退出后继续使用当前应用；持久化失败必须处理或明确忽略，之后才启动更新辅助进程。安装位置及其父目录必须可写，系统安装包管理的路径应通过相应安装器或手动安装更新。框架负责替换和替换失败的恢复，实际各平台替换、恢复与重启仍需候选包验收；程序恢复不代表数据库迁移回滚。
-
-`06daf3b` 引入的 Windows 隔离程序验收记录包含框架辅助进程的实际替换、新程序启动和启动失败后的旧程序恢复，未启动 TermQuay 工作台或访问真实用户配置。该记录属于更新组件的历史本地集成，不能替代当前工作台保存、关闭和重启验收。当时观察到辅助进程仍占用旧程序，留下 `<程序名>.old.<时间戳>` 备份；应用不扫描删除用户安装目录中的历史文件。后续应核对框架修复或提供有明确归属的清理机制。
+Candidate artifacts/checksums and publishing are defined in [the release workflow](../.github/workflows/release.yml). Native candidate acceptance and [third-party audit gaps](../THIRD_PARTY_NOTICES.md) must be addressed before an authorized public release. Checksums prove integrity; signing/authenticity is separate.
