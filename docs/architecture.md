@@ -22,7 +22,7 @@ Agent 由 Go 持有，固定绑定真实 SSH owner，工具参数不能选择工
 
 SSH 脚本执行器提供 POSIX sh 与 Windows PowerShell 通道，均使用独立无 PTY session。PowerShell 用固定短引导命令从标准输入读取 UTF-8 脚本，避免默认 cmd 的命令行长度限制；不修改远端默认 Shell、不安装工具。连接级环境探测有界并随 SSH 实例缓存，未知环境不能推定为 Linux。命令输出按明确编码解码，解码失败返回错误及有界原始字节的 Base64，不能先以替换字符丢弃字节。既有 CLI 与多主机任务保持 `sh -s` 语义。实现见 [执行器](../internal/ssh/command.go) 和 [环境探测](../internal/ssh/environment.go)。
 
-查询结果必须保留权限、扫描范围和工具能力限制，区分成功、部分结果、失败及未执行；缺少查询通道不能推断目标未安装相应软件。结构化正文超过预算时明确失败，禁止切断 JSON 后冒充有效结果。平台操作与限制见 [AI 使用说明](development.md#内置-ai-助手)，实现见 [工具能力](../internal/app/ai_environment.go)、[Windows 查询](../internal/app/ai_windows.go) 和 [工具结果](../internal/app/ai_tools.go)。
+查询结果必须保留权限、扫描范围和工具能力限制，区分成功、部分结果、失败及未执行；缺少查询通道不能推断目标未安装相应软件。结构化正文超过预算时明确失败，禁止切断 JSON 后冒充有效结果。平台操作与限制见 [AI 使用说明](development.md#内置-ai-助手)，实现见 [工具能力](../internal/app/ai_environment.go)、[Windows 查询](../internal/app/ai_windows_queries.go) 和 [工具结果](../internal/app/ai_tools.go)。
 
 AI 文件查询经 SFTP 独立读取，不回落本机。目录按有界扫描结果排序后分页，每页为实时读取，不能拼成原子快照；文件按字节范围读取并保留完整字符，按属性修订检查续读，仍受普通文件、编码和文件大小约束。响应预算在条目或字符边界生效，保留有效 JSON 与续读位置，不通过丢弃结果尾部掩盖未返回数据。实现见 [文件工具](../internal/app/ai_files.go) 与 [文本范围](../internal/files/range.go)。
 
