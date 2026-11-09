@@ -2,17 +2,19 @@ package app
 
 import (
 	"context"
-	"errors"
+
 	"time"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/Sanjeever/termquay/internal/monitor"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 type MonitorEvent struct {
-	ID     string          `json:"id"`
-	Sample *monitor.Sample `json:"sample"`
-	Error  string          `json:"error"`
+	ID           string                 `json:"id"`
+	Sample       *monitor.Sample        `json:"sample"`
+	Error        string                 `json:"error"`
+	ErrorMessage *appmessage.Descriptor `json:"error_message,omitempty"`
 }
 
 func init() { application.RegisterEvent[MonitorEvent]("monitor:sample") }
@@ -22,7 +24,7 @@ func (a *AppService) SubscribeMonitor(id string) error {
 	p := a.workspaces[id]
 	if p == nil {
 		a.mu.Unlock()
-		return errors.New("SSH 工作区已关闭")
+		return appmessage.New("backend:sSHWorkspaceClosed", "SSH 工作区已关闭")
 	}
 	t := p.terminal
 	if a.monitors[id] != nil {
@@ -51,6 +53,7 @@ func (a *AppService) SubscribeMonitor(id string) error {
 				}
 				if err != nil {
 					fileSystems.Error = "文件系统容量采集失败（需要 util-linux findmnt）：" + err.Error()
+					fileSystems.ErrorMessage = appmessage.Describe(appmessage.Errorf("backend:fileSystemsFailed", "文件系统容量采集失败（需要 util-linux findmnt）：%w", err))
 				}
 			}
 			request, stop := context.WithTimeout(ctx, 10*time.Second)
@@ -71,6 +74,7 @@ func (a *AppService) SubscribeMonitor(id string) error {
 			}
 			if err != nil {
 				event.Error = err.Error()
+				event.ErrorMessage = appmessage.Describe(err)
 				previous = nil
 			}
 			application.Get().Event.Emit("monitor:sample", event)

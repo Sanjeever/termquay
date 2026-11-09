@@ -2,8 +2,8 @@ package ssh
 
 import (
 	"context"
-	"errors"
-	"fmt"
+
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	socks "github.com/armon/go-socks5"
 	"io"
 	"log"
@@ -25,26 +25,27 @@ type ForwardSpec struct {
 
 func (s ForwardSpec) Validate() error {
 	if s.Kind != "local" && s.Kind != "remote" && s.Kind != "dynamic" {
-		return errors.New("转发类型无效")
+		return appmessage.New("backend:invalidForwardingType", "转发类型无效")
 	}
 	ip := net.ParseIP(s.BindHost)
 	if ip == nil || s.BindPort < 0 || s.BindPort > 65535 {
-		return errors.New("监听 IP 或端口无效")
+		return appmessage.New("backend:invalidListenIPOrPort", "监听 IP 或端口无效")
 	}
 	if !ip.IsLoopback() && !s.AllowPublic {
-		return errors.New("非回环监听需明确允许向网络暴露")
+		return appmessage.New("backend:nonLoopbackListenersRequireExplicitPermissionToExpose", "非回环监听需明确允许向网络暴露")
 	}
 	if s.Kind != "dynamic" && (s.TargetHost == "" || len(s.TargetHost) > 1024 || s.TargetPort < 1 || s.TargetPort > 65535) {
-		return errors.New("转发目标无效")
+		return appmessage.New("backend:invalidForwardingDestination", "转发目标无效")
 	}
 	return nil
 }
 
 type ForwardInfo struct {
-	Address string `json:"address"`
-	State   string `json:"state"`
-	Active  int    `json:"active"`
-	Error   string `json:"error"`
+	Address      string                 `json:"address"`
+	State        string                 `json:"state"`
+	Active       int                    `json:"active"`
+	Error        string                 `json:"error"`
+	ErrorMessage *appmessage.Descriptor `json:"error_message,omitempty"`
 }
 type activityConn struct {
 	net.Conn
@@ -107,7 +108,7 @@ func (t *Terminal) OpenForward(start, life context.Context, spec ForwardSpec) (*
 		case <-start.Done():
 			return nil, start.Err()
 		default:
-			return nil, errors.New("远端转发请求达到上限（4 个）")
+			return nil, appmessage.New("backend:pendingRemoteForwardingRequestLimitReached4", "远端转发请求达到上限（4 个）")
 		}
 		release = func() { <-t.forwardRequests }
 		type result struct {
@@ -170,7 +171,7 @@ func (f *Forward) stopListening() {
 				f.remoteRelease()
 			}
 			if err != nil && f.owner.client.Conn != nil {
-				f.setError(fmt.Errorf("关闭监听: %w", err))
+				f.setError(appmessage.Errorf("backend:closingListener", "关闭监听: %w", err))
 			}
 			close(f.stopDone)
 		}()
@@ -265,7 +266,7 @@ func (f *Forward) accept() {
 			return
 		default:
 			conn.Close()
-			f.setError(errors.New("工作区转发连接达到上限（8 个）"))
+			f.setError(appmessage.New("backend:workspaceForwardingConnectionLimitReached8", "工作区转发连接达到上限（8 个）"))
 			continue
 		}
 		source := &activityConn{Conn: conn}

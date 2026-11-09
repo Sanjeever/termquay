@@ -3,7 +3,7 @@ package app
 import (
 	"context"
 	"encoding/base64"
-	"errors"
+
 	"io"
 	"net"
 	"path"
@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Sanjeever/termquay/internal/docker"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -44,7 +45,7 @@ func (c *containerTerminal) close() {
 
 func (a *AppService) dockerClient(ctx context.Context, workspace, socket string) (*docker.Client, context.Context, func(), error) {
 	if !path.IsAbs(socket) || path.Clean(socket) != socket || len(socket) > 4096 || strings.ContainsAny(socket, "\x00\r\n") {
-		return nil, nil, nil, errors.New("Docker socket 必须是远端 Unix 绝对路径")
+		return nil, nil, nil, appmessage.New("backend:dockerSocketMustBeAnAbsoluteRemoteUnix", "Docker socket 必须是远端 Unix 绝对路径")
 	}
 	a.mu.Lock()
 	owner := a.workspaces[workspace]
@@ -54,7 +55,7 @@ func (a *AppService) dockerClient(ctx context.Context, workspace, socket string)
 	slots := a.commandSlots
 	a.mu.Unlock()
 	if owner == nil {
-		return nil, nil, nil, errors.New("SSH 工作区已关闭")
+		return nil, nil, nil, appmessage.New("backend:sSHWorkspaceClosed", "SSH 工作区已关闭")
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	stop := context.AfterFunc(owner.ctx, cancel)
@@ -127,7 +128,7 @@ func (a *AppService) ChangeContainerState(ctx context.Context, workspace, socket
 }
 func (a *AppService) OpenContainerTerminal(ctx context.Context, workspace, socket, id, shell string) (OpenResult, error) {
 	if !path.IsAbs(socket) || path.Clean(socket) != socket || len(socket) > 4096 || strings.ContainsAny(socket, "\x00\r\n") {
-		return OpenResult{}, errors.New("Docker socket 必须是远端 Unix 绝对路径")
+		return OpenResult{}, appmessage.New("backend:dockerSocketMustBeAnAbsoluteRemoteUnix", "Docker socket 必须是远端 Unix 绝对路径")
 	}
 	a.mu.Lock()
 	owner := a.workspaces[workspace]
@@ -139,7 +140,7 @@ func (a *AppService) OpenContainerTerminal(ctx context.Context, workspace, socke
 	}
 	if a.closed || owner == nil || count+owner.opening >= 4 || len(a.terminals)+len(a.containerTerminals)+a.opening >= 64 {
 		a.mu.Unlock()
-		return OpenResult{}, errors.New("工作区已关闭或容器终端达到上限（每工作区 4 个，全局终端 64 个）")
+		return OpenResult{}, appmessage.New("backend:workspaceClosedOrContainerTerminalLimitReached4", "工作区已关闭或容器终端达到上限（每工作区 4 个，全局终端 64 个）")
 	}
 	a.opening++
 	owner.opening++
@@ -166,7 +167,7 @@ func (a *AppService) OpenContainerTerminal(ctx context.Context, workspace, socke
 		stream.Close()
 		client.Close()
 		cancel()
-		return OpenResult{}, errors.New("容器终端创建已取消或超时")
+		return OpenResult{}, appmessage.New("backend:containerTerminalCreationCanceledOrTimedOut", "容器终端创建已取消或超时")
 	}
 	reader, writer := io.Pipe()
 	console := &containerTerminal{workspace: workspace, execID: execID, client: client, stream: stream, output: reader, writer: writer, done: make(chan struct{}), cancel: cancel}
@@ -179,7 +180,7 @@ func (a *AppService) OpenContainerTerminal(ctx context.Context, workspace, socke
 		writer.Close()
 		client.Close()
 		cancel()
-		return OpenResult{}, errors.New("SSH 工作区已关闭")
+		return OpenResult{}, appmessage.New("backend:sSHWorkspaceClosed", "SSH 工作区已关闭")
 	}
 	if a.containerTerminals == nil {
 		a.containerTerminals = map[string]*containerTerminal{}
@@ -202,7 +203,7 @@ func (a *AppService) ResizeContainerTerminal(ctx context.Context, id string, col
 	console := a.containerTerminals[id]
 	a.mu.Unlock()
 	if console == nil {
-		return errors.New("容器终端已关闭")
+		return appmessage.New("backend:containerTerminalClosed", "容器终端已关闭")
 	}
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
@@ -238,6 +239,6 @@ func (a *AppService) handleContainerTerminal(stream *application.StreamConn) {
 	defer a.CloseContainerTerminal(id)
 	err = terminal.RelayIO(console.stream, console.output, console.done, console.close, func() error { console.mu.Lock(); defer console.mu.Unlock(); return console.err }, nil, stream, a.applicationInputAllowed)
 	if err != nil && stream.Context().Err() == nil {
-		application.Get().Event.Emit("terminal:error", map[string]string{"id": id, "error": err.Error()})
+		application.Get().Event.Emit("terminal:error", map[string]any{"id": id, "error": err.Error(), "error_message": appmessage.Describe(err)})
 	}
 }

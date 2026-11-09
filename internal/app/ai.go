@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
-	"fmt"
+
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/Sanjeever/termquay/internal/ai"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 	"github.com/Sanjeever/termquay/internal/store"
 )
@@ -20,7 +20,7 @@ const maxAIToolSteps = 32
 const maxAIToolResultBytes = 16 << 10
 const maxAIRunDuration = 30 * time.Minute
 
-var errAIRunTimeout = errors.New("AI 轮次已达到运行时限，后续模型请求与工具已停止；已发出的远端操作需核对实际状态")
+var errAIRunTimeout = appmessage.New("backend:aITurnExceededItsRuntimeBudgetFurtherModel", "AI 轮次已达到运行时限，后续模型请求与工具已停止；已发出的远端操作需核对实际状态")
 
 type AIMessage struct {
 	Result    *AIToolResult `json:"result,omitempty"`
@@ -56,18 +56,19 @@ type AIToolDecision struct {
 }
 
 type AIRunView struct {
-	ModelStartedAt      int64              `json:"model_started_at"`
-	ModelLastActivityAt int64              `json:"model_last_activity_at"`
-	ID                  string             `json:"id"`
-	Workspace           string             `json:"workspace"`
-	ConversationID      string             `json:"conversation_id"`
-	State               string             `json:"state"`
-	LiveText            string             `json:"live_text"`
-	Pending             *AIPendingApproval `json:"pending,omitempty"`
-	LastSeq             int                `json:"last_seq"`
-	Revision            uint64             `json:"revision"`
-	Compressed          bool               `json:"compressed"`
-	Error               string             `json:"error"`
+	ModelStartedAt      int64                  `json:"model_started_at"`
+	ModelLastActivityAt int64                  `json:"model_last_activity_at"`
+	ID                  string                 `json:"id"`
+	Workspace           string                 `json:"workspace"`
+	ConversationID      string                 `json:"conversation_id"`
+	State               string                 `json:"state"`
+	LiveText            string                 `json:"live_text"`
+	Pending             *AIPendingApproval     `json:"pending,omitempty"`
+	LastSeq             int                    `json:"last_seq"`
+	Revision            uint64                 `json:"revision"`
+	Compressed          bool                   `json:"compressed"`
+	Error               string                 `json:"error"`
+	ErrorMessage        *appmessage.Descriptor `json:"error_message,omitempty"`
 }
 
 type AIStartRequest struct {
@@ -121,14 +122,14 @@ func (a *AppService) aiOwner(workspace string, expected *workspaceOwner) (*works
 	defer a.mu.Unlock()
 	owner := a.workspaces[workspace]
 	if workspace == "" || owner == nil || (expected != nil && owner != expected) || a.closed || a.appLocked.Load() || owner.ctx.Err() != nil {
-		return nil, errors.New("AI 所属 SSH 实例已断开、变化或应用已锁定")
+		return nil, appmessage.New("backend:theAITurnSSSHInstanceDisconnectedOr", "AI 所属 SSH 实例已断开、变化或应用已锁定")
 	}
 	return owner, nil
 }
 
 func (a *AppService) aiAvailable(workspace string) (*workspaceOwner, error) {
 	if a.aiStopped {
-		return nil, errors.New("AI 服务已退出")
+		return nil, appmessage.New("backend:aIServiceExited", "AI 服务已退出")
 	}
 	owner, err := a.aiOwner(workspace, nil)
 	if err != nil {
@@ -136,7 +137,7 @@ func (a *AppService) aiAvailable(workspace string) (*workspaceOwner, error) {
 	}
 	c, err := a.aiConfig()
 	if err == nil && !c.Enabled {
-		err = errors.New("AI 助手已关闭")
+		err = appmessage.New("backend:aIAssistantDisabled", "AI 助手已关闭")
 	}
 	return owner, err
 }
@@ -205,11 +206,11 @@ func (a *AppService) StopAIRun(workspace, runID string) error {
 	a.aiMu.Lock()
 	defer a.aiMu.Unlock()
 	if a.appLocked.Load() {
-		return errors.New("应用已锁定")
+		return appmessage.New("backend:applicationLocked", "应用已锁定")
 	}
 	run := a.aiRuns[workspace]
 	if run == nil || run.view.ID != runID {
-		return errors.New("AI 轮次已失效")
+		return appmessage.New("backend:aITurnNoLongerValid", "AI 轮次已失效")
 	}
 	run.cancel()
 	return nil
@@ -217,17 +218,17 @@ func (a *AppService) StopAIRun(workspace, runID string) error {
 
 func (a *AppService) StartAIRun(ctx context.Context, request AIStartRequest) (AIRunView, error) {
 	if len(request.Text) > ai.MaxInputBytes || len(request.References) > 4 || strings.ContainsRune(request.Text, 0) {
-		return AIRunView{}, errors.New("AI 输入或引用超过限制")
+		return AIRunView{}, appmessage.New("backend:aIInputOrReferencesExceedTheLimit", "AI 输入或引用超过限制")
 	}
 	referenceBytes := 0
 	for _, r := range request.References {
 		if r.Workspace != request.Workspace || r.Terminal == "" || len(r.Terminal) > 128 || len(r.Label) > 128 {
-			return AIRunView{}, errors.New("终端引用不属于当前工作区")
+			return AIRunView{}, appmessage.New("backend:terminalReferenceDoesNotBelongToThisWorkspace", "终端引用不属于当前工作区")
 		}
 		referenceBytes += len(r.Text)
 	}
 	if referenceBytes > ai.MaxReferenceBytes || (strings.TrimSpace(request.Text) == "" && referenceBytes == 0) {
-		return AIRunView{}, errors.New("请输入问题；引用总量不能超过限制")
+		return AIRunView{}, appmessage.New("backend:enterAQuestionAndKeepReferencesWithinThe", "请输入问题；引用总量不能超过限制")
 	}
 	a.aiMu.Lock()
 	defer a.aiMu.Unlock()
@@ -242,16 +243,16 @@ func (a *AppService) StartAIRun(ctx context.Context, request AIStartRequest) (AI
 		default:
 			active++
 			if workspace == request.Workspace || run.view.ConversationID == request.ConversationID {
-				return AIRunView{}, errors.New("当前工作区或对话已有运行轮次")
+				return AIRunView{}, appmessage.New("backend:thisWorkspaceOrConversationAlreadyHasARunning", "当前工作区或对话已有运行轮次")
 			}
 		}
 	}
 	if active >= maxAIRuns {
-		return AIRunView{}, errors.New("AI 同时运行数量达到上限")
+		return AIRunView{}, appmessage.New("backend:concurrentAITurnLimitReached", "AI 同时运行数量达到上限")
 	}
 	current := a.aiCurrent[request.Workspace]
 	if current.owner != owner || current.id != request.ConversationID || request.ConversationID == "" {
-		return AIRunView{}, errors.New("请先打开当前工作区对话")
+		return AIRunView{}, appmessage.New("backend:openAConversationForThisWorkspaceFirst", "请先打开当前工作区对话")
 	}
 	config, err := a.aiConfig()
 	if err != nil {
@@ -267,10 +268,10 @@ func (a *AppService) StartAIRun(ctx context.Context, request AIStartRequest) (AI
 		return AIRunView{}, err
 	}
 	if !aiConversationAllowed(owner, request.Workspace, c) {
-		return AIRunView{}, errors.New("AI 对话不属于当前连接")
+		return AIRunView{}, appmessage.New("backend:aIConversationDoesNotBelongToThisConnection", "AI 对话不属于当前连接")
 	}
 	if c.Target != owner.target && !request.AcceptTargetChange {
-		return AIRunView{}, errors.New("连接目标已变化，请核对原目标与当前目标")
+		return AIRunView{}, appmessage.New("backend:connectionDestinationChangedVerifyTheOriginalAndCurrent", "连接目标已变化，请核对原目标与当前目标")
 	}
 	if err := ctx.Err(); err != nil {
 		return AIRunView{}, err
@@ -359,12 +360,12 @@ func (a *AppService) persistAIMessage(run *aiRun, message ai.Message, state stri
 	defer cancel()
 	a.storeMu.Lock()
 	if a.store == nil {
-		err = errors.New("AI 历史存储不可用")
+		err = appmessage.New("backend:aIHistoryStorageUnavailable", "AI 历史存储不可用")
 	} else {
 		m.Seq, err = a.store.AppendAIMessage(ctx, run.view.ConversationID, string(b))
 	}
 	if err != nil && a.aiSaveError == nil {
-		a.aiSaveError = fmt.Errorf("AI 历史未完整保存: %w", err)
+		a.aiSaveError = appmessage.Errorf("backend:aIHistoryWasNotSavedCompletely", "AI 历史未完整保存: %w", err)
 	}
 	a.storeMu.Unlock()
 	if err != nil {

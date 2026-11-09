@@ -2,7 +2,8 @@ package app
 
 import (
 	"encoding/json"
-	"errors"
+
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"path"
 	"strings"
 	"time"
@@ -65,7 +66,7 @@ func (a *AppService) recoveryData() (recoveryData, error) {
 		return result, err
 	}
 	if len(value) > 16<<20 {
-		return result, errors.New("本地草稿编码超过 16 MiB 上限")
+		return result, appmessage.New("backend:encodedLocalDraftsExceed16MiB", "本地草稿编码超过 16 MiB 上限")
 	}
 	decoder := json.NewDecoder(strings.NewReader(value))
 	decoder.DisallowUnknownFields()
@@ -73,7 +74,7 @@ func (a *AppService) recoveryData() (recoveryData, error) {
 		return result, err
 	}
 	if result.Version != 1 && result.Version != 2 {
-		return result, errors.New("本地草稿版本不受支持")
+		return result, appmessage.New("backend:unsupportedLocalDraftVersion", "本地草稿版本不受支持")
 	}
 	next := result.Drafts[:0]
 	for _, d := range result.Drafts {
@@ -92,24 +93,24 @@ func (a *AppService) recoveryData() (recoveryData, error) {
 func (a *AppService) writeRecoveryData(value recoveryData) error {
 	value.Version = 2
 	if len(value.Drafts) > maxRecoveryDocuments {
-		return errors.New("本地草稿超过 64 个文档上限")
+		return appmessage.New("backend:localDraftDocumentCountExceeds64", "本地草稿超过 64 个文档上限")
 	}
 	total := 0
 	for _, d := range value.Drafts {
 		if len(d.Content) > maxRecoveryDocumentBytes {
-			return errors.New("本地单份草稿超过 2 MiB 上限")
+			return appmessage.New("backend:localDraftExceeds2MiB", "本地单份草稿超过 2 MiB 上限")
 		}
 		total += len(d.Content)
 	}
 	if total > maxRecoveryBytes {
-		return errors.New("本地草稿总量超过 8 MiB 上限")
+		return appmessage.New("backend:localDraftsExceed8MiBInTotal", "本地草稿总量超过 8 MiB 上限")
 	}
 	encoded, err := json.Marshal(value)
 	if err != nil {
 		return err
 	}
 	if len(encoded) > 16<<20 {
-		return errors.New("本地草稿编码超过 16 MiB 上限")
+		return appmessage.New("backend:encodedLocalDraftsExceed16MiB", "本地草稿编码超过 16 MiB 上限")
 	}
 	return a.store.SetSecretSetting("workspace_drafts", string(encoded))
 }
@@ -151,25 +152,25 @@ type WorkspaceDraftUpdate struct {
 
 func (a *AppService) SaveRecoveryDrafts(updates []WorkspaceDraftUpdate) error {
 	if len(updates) > 128 {
-		return errors.New("草稿更新工作区过多")
+		return appmessage.New("backend:tooManyWorkspacesUpdatingDrafts", "草稿更新工作区过多")
 	}
 	seenWorkspaces := map[string]bool{}
 	inputBytes, inputDocuments := 0, 0
 	for _, update := range updates {
 		if !validWorkspaceID(update.Workspace) || len(update.Name) > 256 || seenWorkspaces[update.Workspace] {
-			return errors.New("草稿工作区无效或重复")
+			return appmessage.New("backend:invalidOrDuplicateDraftWorkspace", "草稿工作区无效或重复")
 		}
 		seenWorkspaces[update.Workspace] = true
 		a.mu.Lock()
 		registered := a.views[update.Workspace]
 		a.mu.Unlock()
 		if len(update.Documents) > 0 && !registered {
-			return errors.New("草稿所属界面工作区已关闭")
+			return appmessage.New("backend:theDraftSUIWorkspaceClosed", "草稿所属界面工作区已关闭")
 		}
 		seen := map[string]bool{}
 		for _, d := range update.Documents {
 			if !path.IsAbs(d.Path) || path.Clean(d.Path) != d.Path || len(d.Path) > 4096 || seen[d.Path] || !utf8.ValidString(d.Content) || len(d.Content) > maxRecoveryDocumentBytes {
-				return errors.New("草稿路径、编码、重复项或正文大小无效")
+				return appmessage.New("backend:invalidDraftPathEncodingDuplicateEntryOrBody", "草稿路径、编码、重复项或正文大小无效")
 			}
 			seen[d.Path] = true
 			inputBytes += len(d.Content)
@@ -177,7 +178,7 @@ func (a *AppService) SaveRecoveryDrafts(updates []WorkspaceDraftUpdate) error {
 		}
 	}
 	if inputBytes > maxRecoveryBytes || inputDocuments > maxRecoveryDocuments {
-		return errors.New("本地草稿超过 64 份或 8 MiB 总量上限")
+		return appmessage.New("backend:localDraftsExceed64DraftsOr8MiB", "本地草稿超过 64 份或 8 MiB 总量上限")
 	}
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
@@ -189,7 +190,7 @@ func (a *AppService) SaveRecoveryDrafts(updates []WorkspaceDraftUpdate) error {
 		if inputDocuments == 0 {
 			return nil
 		}
-		return errors.New("尚未启用加密本地草稿恢复")
+		return appmessage.New("backend:encryptedLocalDraftRecoveryIsNotEnabled", "尚未启用加密本地草稿恢复")
 	}
 	next := make([]RecoveryDraft, 0, len(value.Drafts)+inputDocuments)
 	for _, d := range value.Drafts {
@@ -218,7 +219,7 @@ func (a *AppService) ReadRecoveryDraft(workspace, remote string) (RecoveryDraft,
 			return d, nil
 		}
 	}
-	return RecoveryDraft{}, errors.New("本地草稿不存在或已过期")
+	return RecoveryDraft{}, appmessage.New("backend:localDraftMissingOrExpired", "本地草稿不存在或已过期")
 }
 func (a *AppService) WorkspaceRecoveryDrafts(workspace string) ([]RecoveryDraft, error) {
 	a.storeMu.Lock()

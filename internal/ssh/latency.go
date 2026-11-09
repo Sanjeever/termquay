@@ -2,7 +2,8 @@ package ssh
 
 import (
 	"context"
-	"errors"
+
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"net"
 	"strconv"
 	"time"
@@ -30,7 +31,7 @@ func (t *Terminal) MeasureHopTCP(ctx context.Context, hop int, address string) (
 	}
 	client := t.client
 	if hop < 0 || hop > len(t.jumps) {
-		return 0, errors.New("跳板通道不存在")
+		return 0, appmessage.New("backend:jumpHostChannelDoesNotExist", "跳板通道不存在")
 	}
 	if hop < len(t.jumps) {
 		client = t.jumps[hop]

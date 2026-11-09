@@ -2,9 +2,10 @@ package app
 
 import (
 	"encoding/json"
-	"errors"
+
 	"slices"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 )
 
@@ -43,7 +44,7 @@ func (a *AppService) ListCredentialReferences() ([]CredentialReference, error) {
 
 func (a *AppService) AssignCredential(connectionIDs []string, credentialID string) error {
 	if len(connectionIDs) == 0 || len(connectionIDs) > 256 {
-		return errors.New("请选择 1 至 256 个连接")
+		return appmessage.New("backend:selectFrom1To256Connections", "请选择 1 至 256 个连接")
 	}
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
@@ -62,12 +63,12 @@ func (a *AppService) AssignCredential(connectionIDs []string, credentialID strin
 		}
 	}
 	if kind == "" {
-		return errors.New("所选凭据不存在")
+		return appmessage.New("backend:selectedCredentialsDoNotExist", "所选凭据不存在")
 	}
 	selected := map[string]bool{}
 	for _, id := range connectionIDs {
 		if selected[id] {
-			return errors.New("连接选择重复")
+			return appmessage.New("backend:duplicateConnectionSelection", "连接选择重复")
 		}
 		selected[id] = true
 	}
@@ -76,7 +77,7 @@ func (a *AppService) AssignCredential(connectionIDs []string, credentialID strin
 			continue
 		}
 		if connection.Protocol == "rdp" && kind != "password" {
-			return errors.New("RDP 不能使用私钥凭据")
+			return appmessage.New("backend:rDPCannotUsePrivateKeyCredentials", "RDP 不能使用私钥凭据")
 		}
 		data.Connections[i].CredentialID = credentialID
 		if connection.Protocol == "ssh" {
@@ -88,7 +89,7 @@ func (a *AppService) AssignCredential(connectionIDs []string, credentialID strin
 		delete(selected, connection.ID)
 	}
 	if len(selected) > 0 {
-		return errors.New("部分连接已失效")
+		return appmessage.New("backend:someConnectionsAreNoLongerValid", "部分连接已失效")
 	}
 	used := map[string]bool{}
 	for _, connection := range data.Connections {
@@ -126,7 +127,7 @@ func (a *AppService) UpdateCredential(id string, auth terminal.Request, expected
 	slices.Sort(actual)
 	slices.Sort(expectedConnections)
 	if !slices.Equal(actual, expectedConnections) {
-		return errors.New("凭据引用在预览后发生变化，请重新打开")
+		return appmessage.New("backend:credentialReferencesChangedAfterPreviewOpenAgain", "凭据引用在预览后发生变化，请重新打开")
 	}
 	for i, credential := range data.Credentials {
 		if credential.ID != id {
@@ -134,12 +135,12 @@ func (a *AppService) UpdateCredential(id string, auth terminal.Request, expected
 		}
 		if credential.Kind == "password" {
 			if auth.Password == "" || len(auth.Password) > 64<<10 {
-				return errors.New("密码不能为空或超过 64 KiB")
+				return appmessage.New("backend:passwordIsEmptyOrExceeds64KiB", "密码不能为空或超过 64 KiB")
 			}
 			data.Credentials[i].Secret = auth.Password
 		} else {
 			if auth.PrivateKey == "" || len(auth.PrivateKey) > 1<<20 {
-				return errors.New("私钥不能为空或超过 1 MiB")
+				return appmessage.New("backend:privateKeyIsEmptyOrExceeds1MiB", "私钥不能为空或超过 1 MiB")
 			}
 			encoded, err := json.Marshal(struct {
 				Key        string `json:"key"`
@@ -152,5 +153,5 @@ func (a *AppService) UpdateCredential(id string, auth terminal.Request, expected
 		}
 		return a.store.Replace(data)
 	}
-	return errors.New("凭据不存在")
+	return appmessage.New("backend:credentialsDoNotExist", "凭据不存在")
 }

@@ -15,7 +15,9 @@ type ConnectionStep struct {
 	Host       string `json:"host"`
 	Port       int    `json:"port"`
 	Role       string `json:"role"`
+	RoleCode   string `json:"role_code"`
 	Stage      string `json:"stage"`
+	StageCode  string `json:"stage_code"`
 	State      string `json:"state"`
 	DurationMS int64  `json:"duration_ms"`
 	Code       string `json:"code,omitempty"`
@@ -28,8 +30,11 @@ func WithConnectionProgress(r Request, hop, total int, observe func(ConnectionSt
 			return func(error) {}
 		}
 		step := ConnectionStep{Hop: hop, Host: r.Host, Port: r.Port, Role: "目标", Stage: stage, State: "running"}
+		step.RoleCode = "destination"
+		step.StageCode = map[string]string{"终端通道与 Shell": "terminal_channel", "认证材料": "credentials", "主机身份校验": "host_identity", "SSH 用户认证": "ssh_authentication", "SSH 协商": "ssh_handshake", "TCP 建连（含 DNS）": "tcp_dns", "SOCKS5 路径连接": "proxy_route", "跳板转发目标端口": "jump_route"}[stage]
 		if hop < total {
 			step.Role = "跳板"
+			step.RoleCode = "jump_host"
 		}
 		started := time.Now()
 		observe(step)

@@ -3,12 +3,13 @@ package app
 import (
 	"context"
 	"errors"
-	"fmt"
+
 	"io"
 	"os"
 	"path"
 	"path/filepath"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -39,14 +40,14 @@ func (a *AppService) downloadFiles(id, directory string, remotes []string, overw
 		return TransferBatch{}, err
 	}
 	if !filepath.IsAbs(directory) {
-		return TransferBatch{}, errors.New("下载目录必须是本机绝对路径")
+		return TransferBatch{}, appmessage.New("backend:downloadDirectoryMustBeAnAbsoluteLocalPath", "下载目录必须是本机绝对路径")
 	}
 	info, err := os.Stat(directory)
 	if err != nil {
 		return TransferBatch{}, err
 	}
 	if !info.IsDir() {
-		return TransferBatch{}, errors.New("下载目标不是目录")
+		return TransferBatch{}, appmessage.New("backend:downloadDestinationIsNotADirectory", "下载目标不是目录")
 	}
 	if _, err := a.terminal(id); err != nil {
 		return TransferBatch{}, err
@@ -76,7 +77,7 @@ func (a *AppService) downloadPath(id, remote, local string, overwrite bool) (Tra
 }
 func (a *AppService) downloadOperation(id, remote, local string, overwrite bool, expected ...transferExpectation) (func(context.Context, func(int64, int64)) error, error) {
 	if !filepath.IsAbs(local) || !path.IsAbs(remote) {
-		return nil, errors.New("传输路径无效")
+		return nil, appmessage.New("backend:invalidTransferPath", "传输路径无效")
 	}
 	return func(ctx context.Context, report func(int64, int64)) (result error) {
 		before, err := os.Lstat(local)
@@ -88,7 +89,7 @@ func (a *AppService) downloadOperation(id, remote, local string, overwrite bool,
 				return errTransferSkipped
 			}
 			if !before.Mode().IsRegular() {
-				return errors.New("覆盖目标必须是普通文件")
+				return appmessage.New("backend:overwriteDestinationMustBeARegularFile", "覆盖目标必须是普通文件")
 			}
 		}
 		c, close, err := a.fileClient(ctx, id)
@@ -101,7 +102,7 @@ func (a *AppService) downloadOperation(id, remote, local string, overwrite bool,
 			return err
 		}
 		if !info.Mode().IsRegular() {
-			return errors.New("下载支持普通文件")
+			return appmessage.New("backend:downloadsSupportRegularFiles", "下载支持普通文件")
 		}
 		if err = checkTransferExpectation(info, before, expected); err != nil {
 			return err
@@ -146,12 +147,12 @@ func (a *AppService) downloadOperation(id, remote, local string, overwrite bool,
 			return err
 		}
 		if info.Size() != remoteLatest.Size() || !info.ModTime().Equal(remoteLatest.ModTime()) || info.Mode() != remoteLatest.Mode() {
-			return errors.New("下载期间远端源文件已变化")
+			return appmessage.New("backend:remoteSourceFileChangedDuringDownload", "下载期间远端源文件已变化")
 		}
 		latest, err := os.Lstat(local)
 		if before == nil {
 			if err == nil {
-				return errors.New("本地目标在下载期间出现")
+				return appmessage.New("backend:localDestinationAppearedDuringDownload", "本地目标在下载期间出现")
 			}
 			if !os.IsNotExist(err) {
 				return err
@@ -161,7 +162,7 @@ func (a *AppService) downloadOperation(id, remote, local string, overwrite bool,
 				return err
 			}
 			if !os.SameFile(before, latest) || before.Size() != latest.Size() || !before.ModTime().Equal(latest.ModTime()) {
-				return errors.New("本地目标在下载期间已变化")
+				return appmessage.New("backend:localDestinationChangedDuringDownload", "本地目标在下载期间已变化")
 			}
 		}
 		if before == nil {
@@ -170,7 +171,7 @@ func (a *AppService) downloadOperation(id, remote, local string, overwrite bool,
 			}
 			if err = os.Remove(target.Name()); err != nil {
 				published = true
-				return fmt.Errorf("文件已下载，暂存清理失败: %w", err)
+				return appmessage.Errorf("backend:fileDownloadedButStagingCleanupFailed", "文件已下载，暂存清理失败: %w", err)
 			}
 			published = true
 			return nil

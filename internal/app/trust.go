@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/Sanjeever/termquay/internal/rdp"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 	"net"
@@ -37,12 +38,12 @@ type TrustReview struct {
 func parseTrust(key, fp string) (TrustRecord, error) {
 	r := TrustRecord{Key: key, Fingerprint: fp}
 	if !strings.HasPrefix(key, "trust:") {
-		return r, errors.New("信任键无效")
+		return r, appmessage.New("backend:invalidTrustKey", "信任键无效")
 	}
 	value := strings.TrimPrefix(key, "trust:")
 	r.Protocol, value, _ = strings.Cut(value, ":")
 	if r.Protocol != "ssh" && r.Protocol != "rdp" {
-		return r, errors.New("信任类型无效")
+		return r, appmessage.New("backend:invalidTrustType", "信任类型无效")
 	}
 	if r.Protocol == "ssh" && strings.HasPrefix(fp, "[") {
 		keys, err := terminal.DecodeHostTrust(fp)
@@ -58,23 +59,23 @@ func parseTrust(key, fp string) (TrustRecord, error) {
 	if strings.HasPrefix(value, "via:") {
 		r.Via, value, _ = strings.Cut(strings.TrimPrefix(value, "via:"), ":")
 		if r.Via == "" {
-			return r, errors.New("跳板信任无效")
+			return r, appmessage.New("backend:invalidJumpHostTrust", "跳板信任无效")
 		}
 		if r.Protocol == "rdp" {
 			value, err := base64.RawURLEncoding.DecodeString(r.Via)
 			if err != nil || len(value) != 32 {
-				return r, errors.New("RDP 跳板信任无效")
+				return r, appmessage.New("backend:invalidRDPJumpHostTrust", "RDP 跳板信任无效")
 			}
 		}
 	}
 	host, port, err := net.SplitHostPort(value)
 	if err != nil || host == "" {
-		return r, errors.New("信任地址无效")
+		return r, appmessage.New("backend:invalidTrustAddress", "信任地址无效")
 	}
 	r.Host = host
 	r.Port, err = strconv.Atoi(port)
 	if err != nil || r.Port < 1 || r.Port > 65535 {
-		return r, errors.New("信任地址无效")
+		return r, appmessage.New("backend:invalidTrustAddress", "信任地址无效")
 	}
 	return r, nil
 }
@@ -97,7 +98,7 @@ func (a *AppService) setPendingTrustLocked(key, fp string) error {
 		}
 	}
 	if len(a.pendingTrust) >= 128 && a.pendingTrust[key] == "" {
-		return errors.New("待核对身份达到上限")
+		return appmessage.New("backend:pendingIdentityReviewLimitReached", "待核对身份达到上限")
 	}
 	a.pendingTrust[key] = fp
 	a.pendingTrustAt[key] = time.Now()
@@ -188,7 +189,7 @@ func (a *AppService) probeTrust(ctx context.Context, r TrustRecord, expected str
 			return "", err
 		}
 		if c.Protocol != "ssh" {
-			return "", errors.New("跳板引用已失效")
+			return "", appmessage.New("backend:jumpHostReferenceNoLongerValid", "跳板引用已失效")
 		}
 		hops, err = a.resolveSSHChain(request)
 		if err != nil {
@@ -197,7 +198,7 @@ func (a *AppService) probeTrust(ctx context.Context, r TrustRecord, expected str
 		for index, hop := range hops {
 			hop.Fingerprint, err = a.readTrust("ssh:" + sshTrustKey(hop.Host, hop.Port, hop.JumpID))
 			if err != nil || hop.Fingerprint == "" {
-				return "", errors.New("请先核对链上所有跳板身份")
+				return "", appmessage.New("backend:verifyAllJumpHostIdentitiesInTheChain", "请先核对链上所有跳板身份")
 			}
 			hops[index] = hop
 		}
@@ -215,7 +216,7 @@ func (a *AppService) probeTrust(ctx context.Context, r TrustRecord, expected str
 			}
 		}
 		if len(routes) > 1 {
-			return "", errors.New("此主机有多个连接代理路径，请先明确使用的连接配置")
+			return "", appmessage.New("backend:thisHostHasMultipleConnectionProxyRoutesSelect", "此主机有多个连接代理路径，请先明确使用的连接配置")
 		}
 		for address := range routes {
 			request.ProxyAddress = address
@@ -247,7 +248,7 @@ func (a *AppService) ProbeTrustReview(ctx context.Context, key string) (TrustRev
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if generation != a.trustEpoch[cache] {
-		return TrustReview{}, errors.New("探测已被更新或撤销")
+		return TrustReview{}, appmessage.New("backend:probeWasUpdatedOrRevoked", "探测已被更新或撤销")
 	}
 	if a.trustReviews == nil {
 		a.trustReviews = map[string]TrustReview{}
@@ -258,7 +259,7 @@ func (a *AppService) ProbeTrustReview(ctx context.Context, key string) (TrustRev
 		}
 	}
 	if len(a.trustReviews) >= 32 {
-		return TrustReview{}, errors.New("待审核信任达到上限")
+		return TrustReview{}, appmessage.New("backend:pendingTrustReviewLimitReached", "待审核信任达到上限")
 	}
 	display, err := parseTrust(key, old)
 	if err != nil {
@@ -273,20 +274,20 @@ func (a *AppService) ConfirmTrustReview(ctx context.Context, id string) error {
 	review, ok := a.trustReviews[id]
 	a.mu.Unlock()
 	if !ok || time.Now().After(review.expires) {
-		return errors.New("信任审核已过期")
+		return appmessage.New("backend:trustReviewExpired", "信任审核已过期")
 	}
 	fp, err := a.probeTrust(ctx, review.Record, review.New)
 	if err != nil {
 		return err
 	}
 	if fp != review.New {
-		return errors.New("身份再次变化，请重新探测")
+		return appmessage.New("backend:identityChangedAgainProbeAgain", "身份再次变化，请重新探测")
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	cache := trustCacheKey(review.Record)
 	if a.trustEpoch[cache] != review.generation || time.Now().After(review.expires) {
-		return errors.New("信任审核已失效")
+		return appmessage.New("backend:trustReviewNoLongerValid", "信任审核已失效")
 	}
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
@@ -295,7 +296,7 @@ func (a *AppService) ConfirmTrustReview(ctx context.Context, id string) error {
 		return err
 	}
 	if old != review.oldValue {
-		return errors.New("原信任记录已变化")
+		return appmessage.New("backend:originalTrustRecordChanged", "原信任记录已变化")
 	}
 	if err = a.store.SetSetting(review.Record.Key, review.New); err != nil {
 		return err

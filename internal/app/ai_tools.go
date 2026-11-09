@@ -10,6 +10,7 @@ import (
 
 	"github.com/Sanjeever/termquay/internal/ai"
 	"github.com/Sanjeever/termquay/internal/files"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 )
 
@@ -42,27 +43,28 @@ type aiToolArguments struct {
 }
 
 type AIToolResult struct {
-	Shell         string `json:"shell,omitempty"`
-	Status        string `json:"status"`
-	ErrorCode     string `json:"error_code,omitempty"`
-	StdoutBase64  string `json:"stdout_base64,omitempty"`
-	StderrBase64  string `json:"stderr_base64,omitempty"`
-	Data          string `json:"data"`
-	Stderr        string `json:"stderr,omitempty"`
-	Error         string `json:"error,omitempty"`
-	Truncated     bool   `json:"truncated"`
-	ExitCode      *int   `json:"exit_code,omitempty"`
-	StatusUnknown bool   `json:"status_unknown"`
+	Shell         string                 `json:"shell,omitempty"`
+	Status        string                 `json:"status"`
+	ErrorCode     string                 `json:"error_code,omitempty"`
+	StdoutBase64  string                 `json:"stdout_base64,omitempty"`
+	StderrBase64  string                 `json:"stderr_base64,omitempty"`
+	Data          string                 `json:"data"`
+	Stderr        string                 `json:"stderr,omitempty"`
+	Error         string                 `json:"error,omitempty"`
+	ErrorMessage  *appmessage.Descriptor `json:"error_message,omitempty"`
+	Truncated     bool                   `json:"truncated"`
+	ExitCode      *int                   `json:"exit_code,omitempty"`
+	StatusUnknown bool                   `json:"status_unknown"`
 }
 
 func validateAITool(call ai.ToolCall) (aiToolArguments, error) {
 	var args aiToolArguments
 	if len(call.Arguments) > ai.MaxArgumentsBytes {
-		return args, errors.New("工具参数超过限制")
+		return args, appmessage.New("backend:toolArgumentsExceedTheLimit", "工具参数超过限制")
 	}
 	var properties map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(call.Arguments), &properties); err != nil || properties == nil {
-		return args, errors.New("工具参数必须是 JSON 对象")
+		return args, appmessage.New("backend:toolArgumentsMustBeAJSONObject", "工具参数必须是 JSON 对象")
 	}
 	found := false
 	for _, tool := range aiTools {
@@ -89,28 +91,28 @@ func validateAITool(call ai.ToolCall) (aiToolArguments, error) {
 		}
 	}
 	if !found {
-		return args, errors.New("未知 AI 工具")
+		return args, appmessage.New("backend:unknownAITool", "未知 AI 工具")
 	}
 	if err := json.Unmarshal([]byte(call.Arguments), &args); err != nil {
 		return args, err
 	}
 	if call.Name == "file_list" || call.Name == "file_read" {
 		if (!path.IsAbs(args.Path) && !windowsAbsolutePath(args.Path)) || len(args.Path) > 4096 || strings.ContainsRune(args.Path, 0) {
-			return args, errors.New("文件工具需要远端绝对路径")
+			return args, appmessage.New("backend:fileToolsRequireAnAbsoluteRemotePath", "文件工具需要远端绝对路径")
 		}
 		maxLimit := 8192
 		if call.Name == "file_list" {
 			maxLimit = 64
 		}
 		if args.Offset < 0 || args.Offset > files.MaxEditSize || args.Limit < 0 || args.Limit > maxLimit || len(args.Search) > 256 || strings.ContainsAny(args.Search, "\x00\r\n") || len(args.Revision) > 256 {
-			return args, errors.New("文件工具分页或筛选参数无效")
+			return args, appmessage.New("backend:invalidFileToolPaginationOrFilterParameters", "文件工具分页或筛选参数无效")
 		}
 		if _, exists := properties["limit"]; exists && args.Limit == 0 {
-			return args, errors.New("分页大小必须大于零")
+			return args, appmessage.New("backend:pageSizeMustBePositive", "分页大小必须大于零")
 		}
 	}
 	if call.Name == "exec" && (len(args.Script) == 0 || len(args.Script) > 32<<10 || strings.ContainsRune(args.Script, 0) || args.TimeoutSeconds < 1 || args.TimeoutSeconds > 600) {
-		return args, errors.New("Shell 脚本或超时无效")
+		return args, appmessage.New("backend:invalidShellScriptOrTimeout", "Shell 脚本或超时无效")
 	}
 	if args.Encoding == "" {
 		args.Encoding = "UTF-8"
@@ -119,7 +121,7 @@ func validateAITool(call ai.ToolCall) (aiToolArguments, error) {
 		args.OutputEncoding = "UTF-8"
 	}
 	if args.OutputEncoding != "UTF-8" && args.OutputEncoding != "GBK" && args.OutputEncoding != "GB18030" {
-		return args, errors.New("命令输出编码无效")
+		return args, appmessage.New("backend:invalidCommandOutputEncoding", "命令输出编码无效")
 	}
 	if args.Socket == "" {
 		args.Socket = "/var/run/docker.sock"
@@ -129,37 +131,37 @@ func validateAITool(call ai.ToolCall) (aiToolArguments, error) {
 
 func (a *AppService) invokeAITool(ctx context.Context, run *aiRun, call ai.ToolCall, args aiToolArguments) (AIToolResult, string) {
 	if err := ctx.Err(); err != nil {
-		return AIToolResult{Status: "not_executed", ErrorCode: "canceled", Error: "已取消，未执行"}, "not_executed"
+		return AIToolResult{Status: "not_executed", ErrorCode: "canceled", Error: "已取消，未执行", ErrorMessage: appmessage.Describe(appmessage.New("backend:canceledNotExecuted", "已取消，未执行"))}, "not_executed"
 	}
 	if _, err := a.aiOwner(run.view.Workspace, run.owner); err != nil {
-		return AIToolResult{Status: "not_executed", ErrorCode: "workspace_unavailable", Error: err.Error()}, "not_executed"
+		return AIToolResult{Status: "not_executed", ErrorCode: "workspace_unavailable", Error: err.Error(), ErrorMessage: appmessage.Describe(err)}, "not_executed"
 	}
 	if err := aiToolUnavailable(run.environment, call.Name); err != nil {
 		return boundedAIToolResult(nil, err)
 	}
 	if call.Name == "exec" {
 		if run.unknownScripts[args.Script] {
-			return AIToolResult{Status: "not_executed", ErrorCode: "replay_blocked", Error: "此脚本上次执行状态未知或输出解码失败，本轮禁止自动重试，请先核对远端状态或已有原始输出"}, "not_executed"
+			return AIToolResult{Status: "not_executed", ErrorCode: "replay_blocked", Error: "此脚本上次执行状态未知或输出解码失败，本轮禁止自动重试，请先核对远端状态或已有原始输出", ErrorMessage: appmessage.Describe(appmessage.New("backend:unknownExecutionNoRetry", "此脚本上次执行状态未知或输出解码失败，本轮禁止自动重试，请先核对远端状态或已有原始输出"))}, "not_executed"
 		}
 		if run.rejected[args.Script] {
-			return AIToolResult{Status: "not_executed", ErrorCode: "rejected", Error: "此脚本在本轮已被用户拒绝，禁止自动重试"}, "rejected"
+			return AIToolResult{Status: "not_executed", ErrorCode: "rejected", Error: "此脚本在本轮已被用户拒绝，禁止自动重试", ErrorMessage: appmessage.Describe(appmessage.New("backend:deniedNoRetry", "此脚本在本轮已被用户拒绝，禁止自动重试"))}, "rejected"
 		}
 		if run.config.ConfirmExec {
 			approved, err := a.awaitAIApproval(ctx, run, call, args.TimeoutSeconds)
 			if err != nil {
-				return AIToolResult{Status: "not_executed", ErrorCode: "canceled", Error: err.Error()}, "not_executed"
+				return AIToolResult{Status: "not_executed", ErrorCode: "canceled", Error: err.Error(), ErrorMessage: appmessage.Describe(err)}, "not_executed"
 			}
 			if !approved {
 				run.rejected[args.Script] = true
-				return AIToolResult{Status: "not_executed", ErrorCode: "rejected", Error: "用户拒绝，命令未执行"}, "rejected"
+				return AIToolResult{Status: "not_executed", ErrorCode: "rejected", Error: "用户拒绝，命令未执行", ErrorMessage: appmessage.Describe(appmessage.New("backend:userDeniedNotExecuted", "用户拒绝，命令未执行"))}, "rejected"
 			}
 		}
 	}
 	if err := ctx.Err(); err != nil {
-		return AIToolResult{Status: "not_executed", ErrorCode: "canceled", Error: "已取消，未执行"}, "not_executed"
+		return AIToolResult{Status: "not_executed", ErrorCode: "canceled", Error: "已取消，未执行", ErrorMessage: appmessage.Describe(appmessage.New("backend:canceledNotExecuted", "已取消，未执行"))}, "not_executed"
 	}
 	if _, err := a.aiOwner(run.view.Workspace, run.owner); err != nil {
-		return AIToolResult{Status: "not_executed", ErrorCode: "workspace_unavailable", Error: err.Error()}, "not_executed"
+		return AIToolResult{Status: "not_executed", ErrorCode: "workspace_unavailable", Error: err.Error(), ErrorMessage: appmessage.Describe(err)}, "not_executed"
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	if call.Name == "exec" {
@@ -208,7 +210,7 @@ func (a *AppService) invokeAITool(ctx context.Context, run *aiRun, call ai.ToolC
 	case "exec":
 		value, err = a.runRemoteScript(ctx, workspace, args.Script, args.TimeoutSeconds, run.environment.Shell, args.OutputEncoding)
 	default:
-		err = errors.New("未知 AI 工具")
+		err = appmessage.New("backend:unknownAITool", "未知 AI 工具")
 	}
 	result, state := boundedAIToolResult(value, err)
 	if call.Name == "exec" {
@@ -245,6 +247,7 @@ func boundedAIToolResult(value any, err error) (AIToolResult, string) {
 		}
 		if command.Error != "" {
 			result.Error = command.Error
+			result.ErrorMessage = command.ErrorMessage
 		}
 		if command.ExitCode != 0 || command.Error != "" {
 			state = "failed"
@@ -268,6 +271,7 @@ func boundedAIToolResult(value any, err error) (AIToolResult, string) {
 		result.Truncated = result.Truncated || stdoutRawBytes < len(command.StdoutBase64) || stderrRawBytes < len(command.StderrBase64)
 		if err != nil {
 			result.Error = err.Error()
+			result.ErrorMessage = appmessage.Describe(err)
 			state = "failed"
 			if command.ExitCode == 0 {
 				result.ExitCode = nil
@@ -276,11 +280,13 @@ func boundedAIToolResult(value any, err error) (AIToolResult, string) {
 		}
 		if result.StatusUnknown {
 			result.Error += "；远端执行状态未知，不能据此认定远端进程已退出"
+			result.ErrorMessage = appmessage.Join(result.ErrorMessage, appmessage.Describe(appmessage.New("backend:remoteExecutionUnknown", "远端执行状态未知，不能据此认定远端进程已退出")))
 		}
 		return deferResult()
 	}
 	if err != nil {
 		result.Error = err.Error()
+		result.ErrorMessage = appmessage.Describe(err)
 		state = "failed"
 		var toolErr *aiToolError
 		if errors.As(err, &toolErr) {
@@ -295,6 +301,7 @@ func boundedAIToolResult(value any, err error) (AIToolResult, string) {
 	if marshalErr != nil {
 		b = []byte("null")
 		result.Error = marshalErr.Error()
+		result.ErrorMessage = appmessage.Describe(marshalErr)
 		result.ErrorCode = "result_encoding"
 		state = "failed"
 	}
@@ -307,6 +314,7 @@ func boundedAIToolResult(value any, err error) (AIToolResult, string) {
 		b = []byte("null")
 		result.Truncated = true
 		result.Error = "结构化结果超过 AI 输出预算，请缩小查询范围"
+		result.ErrorMessage = appmessage.Describe(appmessage.New("backend:structuredOutputBudget", "结构化结果超过 AI 输出预算，请缩小查询范围"))
 		result.ErrorCode = "result_too_large"
 		state = "failed"
 	}
@@ -355,7 +363,7 @@ func (a *AppService) decideAITool(d AIToolDecision, approved bool) error {
 	defer a.aiMu.Unlock()
 	run := a.aiRuns[d.Workspace]
 	if run == nil || run.ctx.Err() != nil {
-		return errors.New("AI 批准已失效")
+		return appmessage.New("backend:aIApprovalNoLongerValid", "AI 批准已失效")
 	}
 	if _, err := a.aiOwner(d.Workspace, run.owner); err != nil {
 		return err
@@ -364,7 +372,7 @@ func (a *AppService) decideAITool(d AIToolDecision, approved bool) error {
 	defer run.mu.Unlock()
 	p := run.view.Pending
 	if p == nil || run.view.ID != d.RunID || run.view.ConversationID != d.ConversationID || p.Token != d.Token || p.Call.ID != d.CallID || p.Call.Arguments != d.Arguments || p.TimeoutSeconds != d.TimeoutSeconds {
-		return errors.New("AI 批准内容已变化或已消费")
+		return appmessage.New("backend:aIApprovalContentsChangedOrWereAlreadyConsumed", "AI 批准内容已变化或已消费")
 	}
 	run.view.Pending = nil
 	run.view.Revision++

@@ -3,7 +3,7 @@ package app
 import (
 	"context"
 	"errors"
-	"fmt"
+
 	"io"
 	"os"
 	"path"
@@ -11,6 +11,7 @@ import (
 	"time"
 
 	remotefiles "github.com/Sanjeever/termquay/internal/files"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -30,7 +31,7 @@ func (a *AppService) StartUploads(id, directory string, overwrite bool) (Transfe
 }
 func (a *AppService) uploadFiles(id, directory string, locals []string, overwrite bool) (TransferBatch, error) {
 	if len(locals) > 64 || !path.IsAbs(directory) {
-		return TransferBatch{}, errors.New("上传目录无效或文件超过 64 个")
+		return TransferBatch{}, appmessage.New("backend:uploadDirectoryInvalidOrMoreThan64Files", "上传目录无效或文件超过 64 个")
 	}
 	if _, err := a.terminal(id); err != nil {
 		return TransferBatch{}, err
@@ -58,7 +59,7 @@ func (a *AppService) uploadOperation(id, local, remote string, overwrite bool, e
 		return 0, nil, err
 	}
 	if !filepath.IsAbs(local) || !path.IsAbs(remote) || len(local) > 4096 || len(remote) > 4096 {
-		return 0, nil, errors.New("传输路径无效")
+		return 0, nil, appmessage.New("backend:invalidTransferPath", "传输路径无效")
 	}
 	owner, err := a.terminal(id)
 	if err != nil {
@@ -69,7 +70,7 @@ func (a *AppService) uploadOperation(id, local, remote string, overwrite bool, e
 		return 0, nil, err
 	}
 	if !info.Mode().IsRegular() {
-		return 0, nil, errors.New("上传支持普通文件")
+		return 0, nil, appmessage.New("backend:uploadsSupportRegularFiles", "上传支持普通文件")
 	}
 	return info.Size(), func(ctx context.Context, report func(int64, int64)) (result error) {
 		c, close, err := a.fileWriteClient(ctx, id)
@@ -86,7 +87,7 @@ func (a *AppService) uploadOperation(id, local, remote string, overwrite bool, e
 				return errTransferSkipped
 			}
 			if !before.Mode().IsRegular() {
-				return errors.New("覆盖目标必须是普通文件")
+				return appmessage.New("backend:overwriteDestinationMustBeARegularFile", "覆盖目标必须是普通文件")
 			}
 		}
 		if err = checkTransferExpectation(info, before, expected); err != nil {
@@ -102,7 +103,7 @@ func (a *AppService) uploadOperation(id, local, remote string, overwrite bool, e
 			return err
 		}
 		if !os.SameFile(info, current) || info.Size() != current.Size() || !info.ModTime().Equal(current.ModTime()) {
-			return errors.New("本地源文件已变化，请显式重试")
+			return appmessage.New("backend:localSourceFileChangedRetryExplicitly", "本地源文件已变化，请显式重试")
 		}
 		staging, err := remotefiles.CreateStaging(c, path.Dir(remote))
 		if err != nil {
@@ -129,7 +130,7 @@ func (a *AppService) uploadOperation(id, local, remote string, overwrite bool, e
 					a.retainTransferCleanup(ctx, staging)
 				}
 				if result == nil && cleanupErr != nil {
-					result = fmt.Errorf("文件已上传，但临时目录清理失败: %w", cleanupErr)
+					result = appmessage.Errorf("backend:fileUploadedButTemporaryDirectoryCleanupFailed", "文件已上传，但临时目录清理失败: %w", cleanupErr)
 				} else {
 					result = errors.Join(result, cleanupErr)
 				}
@@ -172,12 +173,12 @@ func (a *AppService) uploadOperation(id, local, remote string, overwrite bool, e
 			return err
 		}
 		if info.Size() != current.Size() || !info.ModTime().Equal(current.ModTime()) {
-			return errors.New("上传期间本地源文件已变化")
+			return appmessage.New("backend:localSourceFileChangedDuringUpload", "上传期间本地源文件已变化")
 		}
 		latest, err := c.Lstat(remote)
 		if before == nil {
 			if err == nil {
-				return errors.New("目标在上传期间出现，发布已阻止")
+				return appmessage.New("backend:destinationAppearedDuringUploadPublicationBlocked", "目标在上传期间出现，发布已阻止")
 			}
 			if !os.IsNotExist(err) {
 				return err
@@ -187,7 +188,7 @@ func (a *AppService) uploadOperation(id, local, remote string, overwrite bool, e
 				return err
 			}
 			if before.Size() != latest.Size() || !before.ModTime().Equal(latest.ModTime()) || before.Mode() != latest.Mode() {
-				return errors.New("目标在上传期间已变化，覆盖已阻止")
+				return appmessage.New("backend:destinationChangedDuringUploadOverwriteBlocked", "目标在上传期间已变化，覆盖已阻止")
 			}
 		}
 		if before != nil {
@@ -196,7 +197,7 @@ func (a *AppService) uploadOperation(id, local, remote string, overwrite bool, e
 			err = c.Rename(temporary, remote)
 		}
 		if err != nil {
-			return fmt.Errorf("上传发布失败: %w", err)
+			return appmessage.Errorf("backend:uploadPublicationFailed", "上传发布失败: %w", err)
 		}
 		return nil
 	}, nil

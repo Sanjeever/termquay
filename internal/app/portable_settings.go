@@ -8,29 +8,30 @@ import (
 	"strings"
 
 	"github.com/Sanjeever/termquay/internal/backup"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 )
 
 func validatePortableUI(values map[string]string) error {
 	for key, value := range values {
 		if len(value) > 16<<10 {
-			return errors.New("可迁移界面设置超过 16 KiB")
+			return appmessage.New("backend:portableInterfaceSettingsExceed16KiB", "可迁移界面设置超过 16 KiB")
 		}
 		switch key {
 		case "appearance":
 			var settings map[string]json.RawMessage
 			if err := json.Unmarshal([]byte(value), &settings); err != nil || settings == nil {
-				return errors.New("外观设置无效")
+				return appmessage.New("backend:invalidAppearanceSettings", "外观设置无效")
 			}
 			for field, options := range map[string]string{"theme": "dark|light|system", "uiFont": "system|yahei|pingfang", "monoFont": "system|cascadia|consolas|jetbrains", "terminalPalette": "theme|dark|light|one-dark|tokyo-night"} {
 				var selected string
 				if err := json.Unmarshal(settings[field], &selected); err != nil || !slices.Contains(strings.Split(options, "|"), selected) {
-					return errors.New("外观设置字段无效")
+					return appmessage.New("backend:invalidAppearanceSettingsField", "外观设置字段无效")
 				}
 			}
 			if raw, ok := settings["terminalLogHighlight"]; ok {
 				var enabled bool
 				if err := json.Unmarshal(raw, &enabled); err != nil {
-					return errors.New("日志高亮设置无效")
+					return appmessage.New("backend:invalidLogHighlightingSettings", "日志高亮设置无效")
 				}
 			}
 			if raw, ok := settings["language"]; ok {
@@ -42,19 +43,19 @@ func validatePortableUI(values map[string]string) error {
 			if raw, ok := settings["terminalRenderer"]; ok {
 				var renderer string
 				if err := json.Unmarshal(raw, &renderer); err != nil || !slices.Contains([]string{"dom", "webgl"}, renderer) {
-					return errors.New("终端渲染设置无效")
+					return appmessage.New("backend:invalidTerminalRendererSettings", "终端渲染设置无效")
 				}
 			}
 			if raw, ok := settings["uiZoom"]; ok {
 				var zoom float64
 				if err := json.Unmarshal(raw, &zoom); err != nil || !slices.Contains([]float64{1, 1.1, 1.25, 1.5, 1.75, 2}, zoom) {
-					return errors.New("界面缩放设置无效")
+					return appmessage.New("backend:invalidInterfaceZoomSettings", "界面缩放设置无效")
 				}
 			}
 		case "shortcuts":
 			var shortcuts map[string]string
 			if err := json.Unmarshal([]byte(value), &shortcuts); err != nil || shortcuts == nil || len(shortcuts) > 32 {
-				return errors.New("快捷键设置无效")
+				return appmessage.New("backend:invalidShortcutSettings", "快捷键设置无效")
 			}
 			seen := map[string][]string{}
 			terminalActions := []string{"find", "terminalCompletion", "commandHelp", "copy", "paste", "selectAll", "clear", "zoomIn", "zoomOut", "zoomReset"}
@@ -62,24 +63,24 @@ func validatePortableUI(values map[string]string) error {
 			assignedInput := map[string]string{"closeTab": "Mod+KeyW", "closeWorkspace": "Mod+Shift+KeyW", "copy": "Mod+KeyC", "paste": "Mod+KeyV", "find": "Mod+KeyF"}
 			for name, shortcut := range shortcuts {
 				if len(name) > 64 || len(shortcut) > 128 {
-					return errors.New("快捷键字段过长")
+					return appmessage.New("backend:shortcutFieldTooLong", "快捷键字段过长")
 				}
 				if shortcut == "" {
 					continue
 				}
 				if reserved.MatchString(shortcut) && assignedInput[name] != shortcut {
-					return errors.New("快捷键重复或占用了系统和输入组件保留组合")
+					return appmessage.New("backend:duplicateShortcutOrReservedSystemInputCombination", "快捷键重复或占用了系统和输入组件保留组合")
 				}
 				for _, other := range seen[shortcut] {
 					if name == "completion" && slices.Contains(terminalActions, other) || other == "completion" && slices.Contains(terminalActions, name) {
 						continue
 					}
-					return errors.New("快捷键重复或占用了系统和输入组件保留组合")
+					return appmessage.New("backend:duplicateShortcutOrReservedSystemInputCombination", "快捷键重复或占用了系统和输入组件保留组合")
 				}
 				seen[shortcut] = append(seen[shortcut], name)
 			}
 		default:
-			return errors.New("可迁移设置包含未知字段")
+			return appmessage.New("backend:portableSettingsContainAnUnknownField", "可迁移设置包含未知字段")
 		}
 	}
 	return nil
@@ -141,12 +142,12 @@ func (a *AppService) restoreSettings(settings map[string]string) (map[string]str
 				return nil, nil, err
 			}
 			if len(snippets) > 128 {
-				return nil, nil, errors.New("快照片段超过 128 项")
+				return nil, nil, appmessage.New("backend:snapshotSnippetsExceed128Items", "快照片段超过 128 项")
 			}
 			seen := map[string]bool{}
 			for _, snippet := range snippets {
 				if snippet.ID == "" || seen[snippet.ID] || len(snippet.ID) > 128 || snippet.Name == "" || len(snippet.Name) > 128 || len(snippet.Group) > 128 || snippet.Body == "" || len(snippet.Body) > 32<<10 {
-					return nil, nil, errors.New("快照片段字段无效")
+					return nil, nil, appmessage.New("backend:invalidSnapshotSnippetFields", "快照片段字段无效")
 				}
 				seen[snippet.ID] = true
 			}

@@ -13,32 +13,34 @@ import (
 	"time"
 
 	remotefiles "github.com/Sanjeever/termquay/internal/files"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 type Transfer struct {
-	ID               string `json:"id"`
-	Workspace        string `json:"workspace"`
-	Name             string `json:"name"`
-	Direction        string `json:"direction"`
-	State            string `json:"state"`
-	Total            int64  `json:"total"`
-	Completed        int64  `json:"completed"`
-	Error            string `json:"error"`
-	Sequence         uint64 `json:"sequence"`
-	Retryable        bool   `json:"retryable"`
-	Target           string `json:"target"`
-	SourcePath       string `json:"source_path"`
-	DestinationPath  string `json:"destination_path"`
-	Resumable        bool   `json:"resumable"`
-	CleanupRequired  bool   `json:"cleanup_required"`
-	ResumePersisted  bool   `json:"resume_persisted"`
-	TemporaryPath    string `json:"temporary_path,omitempty"`
-	BatchID          string `json:"batch_id"`
-	Phase            string `json:"phase"`
-	Speed            int64  `json:"speed"`
-	RemainingSeconds int64  `json:"remaining_seconds"`
-	Directory        bool   `json:"directory"`
+	ID               string                 `json:"id"`
+	Workspace        string                 `json:"workspace"`
+	Name             string                 `json:"name"`
+	Direction        string                 `json:"direction"`
+	State            string                 `json:"state"`
+	Total            int64                  `json:"total"`
+	Completed        int64                  `json:"completed"`
+	Error            string                 `json:"error"`
+	ErrorMessage     *appmessage.Descriptor `json:"error_message,omitempty"`
+	Sequence         uint64                 `json:"sequence"`
+	Retryable        bool                   `json:"retryable"`
+	Target           string                 `json:"target"`
+	SourcePath       string                 `json:"source_path"`
+	DestinationPath  string                 `json:"destination_path"`
+	Resumable        bool                   `json:"resumable"`
+	CleanupRequired  bool                   `json:"cleanup_required"`
+	ResumePersisted  bool                   `json:"resume_persisted"`
+	TemporaryPath    string                 `json:"temporary_path,omitempty"`
+	BatchID          string                 `json:"batch_id"`
+	Phase            string                 `json:"phase"`
+	Speed            int64                  `json:"speed"`
+	RemainingSeconds int64                  `json:"remaining_seconds"`
+	Directory        bool                   `json:"directory"`
 }
 type transferTask struct {
 	view           Transfer
@@ -60,7 +62,7 @@ type transferSpec struct {
 	resume                              *transferResume
 }
 
-var errTransferSkipped = errors.New("同名目标已跳过")
+var errTransferSkipped = appmessage.New("backend:skippedDestinationWithMatchingName", "同名目标已跳过")
 
 type transferExpectation struct {
 	source, target remotefiles.SyncNode
@@ -73,14 +75,14 @@ func checkTransferExpectation(source, target os.FileInfo, expected []transferExp
 	}
 	value := expected[0]
 	if !remotefiles.SameSyncNode(remotefiles.SyncInfo(source), value.source) {
-		return errors.New("源文件自预览后已变化")
+		return appmessage.New("backend:sourceFileChangedAfterPreview", "源文件自预览后已变化")
 	}
 	if value.targetExists {
 		if target == nil || !remotefiles.SameSyncNode(remotefiles.SyncInfo(target), value.target) {
-			return errors.New("目标自预览后已变化")
+			return appmessage.New("backend:destinationChangedAfterPreview", "目标自预览后已变化")
 		}
 	} else if target != nil {
-		return errors.New("目标自预览后已出现")
+		return appmessage.New("backend:destinationAppearedAfterPreview", "目标自预览后已出现")
 	}
 	return nil
 }
@@ -117,6 +119,7 @@ func (a *AppService) CancelTransfer(id string) {
 		if err := a.persistTransferResumes(); err != nil {
 			a.mu.Lock()
 			task.view.Error = "续传记录保存失败：" + err.Error()
+			task.view.ErrorMessage = appmessage.Describe(appmessage.Errorf("backend:resumeRecordSaveFailed", "续传记录保存失败：%w", err))
 			a.transferEvent(task.view)
 			a.mu.Unlock()
 		}
@@ -158,7 +161,7 @@ func (a *AppService) ClearTransfer(id string) (string, error) {
 		return id, nil
 	}
 	if task.resume != nil || task.cleanupStaging != "" || task.resumeClaimed || task.view.State == "running" || task.view.State == "queued" {
-		return "", errors.New("请先取消传输并处理保留的临时文件")
+		return "", appmessage.New("backend:cancelTheTransferAndHandleRetainedTemporaryFiles", "请先取消传输并处理保留的临时文件")
 	}
 	delete(a.transfers, id)
 	return id, nil
@@ -169,7 +172,7 @@ func (a *AppService) CancelAndDiscardTransfer(ctx context.Context, id, workspace
 	task := a.transfers[id]
 	a.mu.Unlock()
 	if task == nil {
-		return errors.New("传输任务不存在")
+		return appmessage.New("backend:transferTaskDoesNotExist", "传输任务不存在")
 	}
 	a.CancelTransfer(id)
 	select {
@@ -208,7 +211,7 @@ func (a *AppService) startTransfer(workspace, name, direction string, total int6
 	a.mu.Lock()
 	if a.workspaces[workspace] == nil || a.closed || len(a.transferQueue) >= 32 || len(a.transfers) >= 100 {
 		a.mu.Unlock()
-		return Transfer{}, errors.New("工作区已关闭，或传输任务达到上限（并行 2 个，等待 32 个，历史 100 个）")
+		return Transfer{}, appmessage.New("backend:workspaceClosedOrTransferLimitReached2Parallel", "工作区已关闭，或传输任务达到上限（并行 2 个，等待 32 个，历史 100 个）")
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	id := base64.RawURLEncoding.EncodeToString(randomBytes(16))
@@ -316,12 +319,15 @@ sampling:
 	} else if task.ctx.Err() != nil {
 		task.view.State = "cancelled"
 		task.view.Error = err.Error()
+		task.view.ErrorMessage = appmessage.Describe(err)
 	} else {
 		task.view.State = "failed"
 		task.view.Error = err.Error()
+		task.view.ErrorMessage = appmessage.Describe(err)
 	}
 	if errors.Is(err, errTransferSkipped) {
 		task.view.Error = err.Error()
+		task.view.ErrorMessage = appmessage.Describe(err)
 	}
 	task.view.Phase = ""
 	task.view.Speed, task.view.RemainingSeconds = 0, -1
@@ -340,6 +346,7 @@ sampling:
 		a.mu.Lock()
 		if a.transfers[task.view.ID] == task {
 			task.view.Error = strings.TrimSpace(task.view.Error + "\n续传记录保存失败：" + persistErr.Error())
+			task.view.ErrorMessage = appmessage.Join(task.view.ErrorMessage, appmessage.Describe(appmessage.Errorf("backend:resumeRecordSaveFailed", "续传记录保存失败：%w", persistErr)))
 			a.transferEvent(task.view)
 		}
 		a.mu.Unlock()
@@ -382,13 +389,13 @@ func (a *AppService) RetryTransfer(id, newName string, overwrite bool) (Transfer
 	task := a.transfers[id]
 	if task == nil || task.spec == nil || !task.view.Retryable || (task.view.State != "failed" && task.view.State != "cancelled" && task.view.State != "skipped") {
 		a.mu.Unlock()
-		return Transfer{}, errors.New("此任务不能重试")
+		return Transfer{}, appmessage.New("backend:thisTaskCannotBeRetried", "此任务不能重试")
 	}
 	spec := *task.spec
 	a.mu.Unlock()
 	if newName != "" {
 		if newName == "." || newName == ".." || strings.ContainsAny(newName, "/\\\x00\r\n:") {
-			return Transfer{}, errors.New("新文件名无效")
+			return Transfer{}, appmessage.New("backend:invalidNewFilename", "新文件名无效")
 		}
 		if spec.direction == "upload" {
 			spec.remote = path.Join(path.Dir(spec.remote), newName)

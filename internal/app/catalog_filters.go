@@ -2,7 +2,8 @@ package app
 
 import (
 	"encoding/json"
-	"errors"
+
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"strings"
 )
 
@@ -35,12 +36,12 @@ func (a *AppService) GetConnectionFilters() ([]ConnectionFilter, error) {
 
 func (a *AppService) SaveConnectionFilters(filters []ConnectionFilter) error {
 	if len(filters) > 32 {
-		return errors.New("保存筛选最多 32 项")
+		return appmessage.New("backend:savedFilterLimitReached32", "保存筛选最多 32 项")
 	}
 	seen := map[string]bool{}
 	for _, filter := range filters {
 		if filter.Name == "" || filter.Name != strings.TrimSpace(filter.Name) || len(filter.Name) > 128 || seen[filter.Name] || len(filter.Search) > 256 || len(filter.Group) > 256 || (filter.View != "all" && filter.View != "favorite" && filter.View != "recent") || (filter.Protocol != "all" && filter.Protocol != "ssh" && filter.Protocol != "rdp") || (filter.Environment != "" && filter.Environment != "production" && filter.Environment != "staging" && filter.Environment != "development") {
-			return errors.New("保存筛选字段无效或名称重复")
+			return appmessage.New("backend:invalidSavedFilterFieldOrDuplicateName", "保存筛选字段无效或名称重复")
 		}
 		if err := validateConnectionTags(filter.Tags); err != nil {
 			return err
@@ -52,7 +53,7 @@ func (a *AppService) SaveConnectionFilters(filters []ConnectionFilter) error {
 		return err
 	}
 	if len(data) > 64<<10 {
-		return errors.New("保存筛选总量超过 64 KiB")
+		return appmessage.New("backend:savedFiltersExceed64KiBInTotal", "保存筛选总量超过 64 KiB")
 	}
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()

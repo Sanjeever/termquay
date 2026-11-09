@@ -3,7 +3,7 @@ package app
 import (
 	"encoding/base64"
 	"encoding/json"
-	"errors"
+
 	"fmt"
 	"io"
 	"path"
@@ -12,6 +12,7 @@ import (
 
 	"github.com/Sanjeever/termquay/internal/backup"
 	"github.com/Sanjeever/termquay/internal/files"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/Sanjeever/termquay/internal/store"
 )
 
@@ -28,7 +29,7 @@ func decodeWorkflow(value string, target any) error {
 		return err
 	}
 	if err := decoder.Decode(new(any)); err != io.EOF {
-		return errors.New("工作环境设置包含额外数据")
+		return appmessage.New("backend:workflowSettingsContainExtraData", "工作环境设置包含额外数据")
 	}
 	return nil
 }
@@ -48,13 +49,13 @@ func validateWorkflowSettings(values map[string]string, data store.Data, checkRe
 			limit = maxWorkspaceSetBytes
 		}
 		if len(value) > limit || strings.TrimSpace(value) == "null" {
-			return nil, nil, errors.New("工作环境设置为空或超过大小上限")
+			return nil, nil, appmessage.New("backend:workflowSettingsAreEmptyOrOversized", "工作环境设置为空或超过大小上限")
 		}
 		switch key {
 		case "log_view_presets":
 			var items []LogViewPreset
 			if len(value) > 64<<10 {
-				return nil, nil, errors.New("日志规则超过 64 KiB")
+				return nil, nil, appmessage.New("backend:logRulesExceed64KiB", "日志规则超过 64 KiB")
 			}
 			if err := decodeWorkflow(value, &items); err != nil {
 				return nil, nil, err
@@ -69,12 +70,12 @@ func validateWorkflowSettings(values map[string]string, data store.Data, checkRe
 				return nil, nil, err
 			}
 			if len(items) > 64 {
-				return nil, nil, errors.New("命令任务超过 64 项")
+				return nil, nil, appmessage.New("backend:commandTaskCountExceeds64", "命令任务超过 64 项")
 			}
 			seen := map[string]bool{}
 			for _, item := range items {
 				if !validWorkspaceID(item.ID) || seen[item.ID] {
-					return nil, nil, errors.New("命令任务标识无效或重复")
+					return nil, nil, appmessage.New("backend:invalidOrDuplicateCommandTaskIdentifier", "命令任务标识无效或重复")
 				}
 				if err := validateCommandTask(item); err != nil {
 					return nil, nil, err
@@ -90,7 +91,7 @@ func validateWorkflowSettings(values map[string]string, data store.Data, checkRe
 			for _, item := range items {
 				for _, entry := range item.Layout.Entries {
 					if _, ok := connections[entry.ConnectionID]; checkReferences && (!ok || entry.Target.JumpID != "" && connections[entry.Target.JumpID].ID == "") {
-						return nil, nil, errors.New("工作集引用了快照之外的连接或跳板")
+						return nil, nil, appmessage.New("backend:workingSetReferencesAConnectionOrJumpHost", "工作集引用了快照之外的连接或跳板")
 					}
 				}
 			}
@@ -101,13 +102,13 @@ func validateWorkflowSettings(values map[string]string, data store.Data, checkRe
 				return nil, nil, err
 			}
 			if len(items) > 128 {
-				return nil, nil, errors.New("隧道预设超过 128 项")
+				return nil, nil, appmessage.New("backend:tunnelPresetCountExceeds128", "隧道预设超过 128 项")
 			}
 			seen, automatic := map[string]bool{}, map[string]int{}
 			for _, item := range items {
 				id := item.ConnectionID + "\x00" + item.Name
 				if checkReferences && connections[item.ConnectionID].Protocol != "ssh" || strings.TrimSpace(item.Name) == "" || len(item.Name) > 128 || seen[id] {
-					return nil, nil, errors.New("隧道预设名称、连接或重复项无效")
+					return nil, nil, appmessage.New("backend:invalidTunnelPresetNameConnectionOrDuplicateEntry", "隧道预设名称、连接或重复项无效")
 				}
 				if err := item.Spec.Validate(); err != nil {
 					return nil, nil, err
@@ -119,7 +120,7 @@ func validateWorkflowSettings(values map[string]string, data store.Data, checkRe
 				if item.AutoStart {
 					automatic[item.ConnectionID]++
 					if automatic[item.ConnectionID] > 4 {
-						return nil, nil, errors.New("连接自动启动的隧道超过 4 项")
+						return nil, nil, appmessage.New("backend:moreThan4TunnelsStartAutomaticallyForA", "连接自动启动的隧道超过 4 项")
 					}
 				}
 			}
@@ -130,13 +131,13 @@ func validateWorkflowSettings(values map[string]string, data store.Data, checkRe
 				return nil, nil, err
 			}
 			if len(items) > 128 {
-				return nil, nil, errors.New("同步预设超过 128 项")
+				return nil, nil, appmessage.New("backend:syncPresetCountExceeds128", "同步预设超过 128 项")
 			}
 			seen := map[string]bool{}
 			for _, item := range items {
 				id := item.ConnectionID + "\x00" + item.Name
 				if checkReferences && connections[item.ConnectionID].Protocol != "ssh" || strings.TrimSpace(item.Name) == "" || len(item.Name) > 128 || item.Local == "" || len(item.Local) > 4096 || strings.ContainsRune(item.Local, 0) || !path.IsAbs(item.Remote) || len(item.Remote) > 4096 || (item.Direction != "upload" && item.Direction != "download") || seen[id] {
-					return nil, nil, errors.New("同步预设名称、连接、路径或方向无效")
+					return nil, nil, appmessage.New("backend:invalidSyncPresetNameConnectionPathOrDirection", "同步预设名称、连接、路径或方向无效")
 				}
 				if err := files.ValidateSyncExcludes(item.Exclude); err != nil {
 					return nil, nil, err
@@ -155,12 +156,12 @@ func validateWorkflowSettings(values map[string]string, data store.Data, checkRe
 					return nil, nil, err
 				}
 				if checkReferences && connections[id].ID == "" || len(item.Bookmarks) > 32 || len(item.PrivateKeyPath) > 4096 || strings.ContainsRune(item.PrivateKeyPath, 0) || item.Environment != "" && item.Environment != "production" && item.Environment != "staging" && item.Environment != "development" || item.RDPResolution != "" && item.RDPResolution != "dynamic" && item.RDPResolution != "1280x800" && item.RDPResolution != "1920x1080" && item.RDPResolution != "multimon" || item.RDPClient != "" && item.RDPClient != "internal" && item.RDPClient != "system" {
-					return nil, nil, errors.New("连接偏好字段或引用无效")
+					return nil, nil, appmessage.New("backend:invalidConnectionPreferenceFieldOrReference", "连接偏好字段或引用无效")
 				}
 				seen := map[string]bool{}
 				for _, bookmark := range item.Bookmarks {
 					if !path.IsAbs(bookmark) || path.Clean(bookmark) != bookmark || len(bookmark) > 4096 || seen[bookmark] {
-						return nil, nil, errors.New("目录书签无效或重复")
+						return nil, nil, appmessage.New("backend:invalidOrDuplicateDirectoryBookmark", "目录书签无效或重复")
 					}
 					seen[bookmark] = true
 				}

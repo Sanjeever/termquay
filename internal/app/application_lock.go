@@ -2,9 +2,10 @@ package app
 
 import (
 	"encoding/json"
-	"errors"
+
 	"time"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/Sanjeever/termquay/internal/store"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -59,17 +60,17 @@ func (a *AppService) GetApplicationLock() (ApplicationLockStatus, error) {
 
 func (a *AppService) ConfigureApplicationLock(idleMinutes int, lockOnSystem bool) (ApplicationLockStatus, error) {
 	if a.appLocked.Load() {
-		return ApplicationLockStatus{}, errors.New("请先解锁应用")
+		return ApplicationLockStatus{}, appmessage.New("backend:unlockTheApplicationFirst", "请先解锁应用")
 	}
 	if idleMinutes < 0 || idleMinutes > 120 {
-		return ApplicationLockStatus{}, errors.New("空闲锁定时间须为 0 至 120 分钟，0 表示关闭")
+		return ApplicationLockStatus{}, appmessage.New("backend:idleLockTimeoutMustBeFrom0To", "空闲锁定时间须为 0 至 120 分钟，0 表示关闭")
 	}
 	status, err := a.GetApplicationLock()
 	if err != nil {
 		return status, err
 	}
 	if !status.Available {
-		return status, errors.New("请先启用主密码存储，再配置应用锁")
+		return status, appmessage.New("backend:enableMasterPasswordStorageBeforeConfiguringApplicationLock", "请先启用主密码存储，再配置应用锁")
 	}
 	value, err := json.Marshal(struct {
 		IdleMinutes  int  `json:"idle_minutes"`
@@ -125,7 +126,7 @@ func (a *AppService) LockApplication() error {
 	status := a.lockState
 	if !status.Available {
 		a.lockMu.Unlock()
-		return errors.New("应用锁需要已解锁的主密码存储")
+		return appmessage.New("backend:applicationLockRequiresUnlockedMasterPasswordStorage", "应用锁需要已解锁的主密码存储")
 	}
 	if a.lockTimer != nil {
 		a.lockTimer.Stop()
@@ -145,7 +146,7 @@ func (a *AppService) LockApplication() error {
 
 func (a *AppService) UnlockApplication(password string) (ApplicationLockStatus, error) {
 	if !a.lockAuthMu.TryLock() {
-		return ApplicationLockStatus{}, errors.New("正在验证主密码，请稍后重试")
+		return ApplicationLockStatus{}, appmessage.New("backend:masterPasswordVerificationInProgressTryAgainShortly", "正在验证主密码，请稍后重试")
 	}
 	defer a.lockAuthMu.Unlock()
 	if !a.appLocked.Load() {
@@ -154,7 +155,7 @@ func (a *AppService) UnlockApplication(password string) (ApplicationLockStatus, 
 	a.storeMu.Lock()
 	var err error
 	if a.store == nil || a.sessionDir != "" {
-		err = errors.New("主密码存储不可用")
+		err = appmessage.New("backend:masterPasswordStorageUnavailable", "主密码存储不可用")
 	} else {
 		err = a.store.VerifyVaultPassword(password)
 	}

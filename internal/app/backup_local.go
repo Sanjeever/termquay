@@ -3,14 +3,14 @@ package app
 import (
 	"encoding/base64"
 	"encoding/json"
-	"errors"
-	"fmt"
+
 	"io"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/Sanjeever/termquay/internal/backup"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/Sanjeever/termquay/internal/store"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -92,14 +92,14 @@ func (a *AppService) previewLocalRestore(password, recovery string) (RestorePrev
 		return RestorePreview{}, err
 	}
 	if !info.Mode().IsRegular() || info.Size() > backup.MaxSnapshot+(1<<20) {
-		return RestorePreview{}, errors.New("快照须为大小受限的普通文件")
+		return RestorePreview{}, appmessage.New("backend:snapshotMustBeARegularFileWithinThe", "快照须为大小受限的普通文件")
 	}
 	data, err := io.ReadAll(io.LimitReader(file, backup.MaxSnapshot+(1<<20)+1))
 	if err != nil {
 		return RestorePreview{}, err
 	}
 	if len(data) > backup.MaxSnapshot+(1<<20) {
-		return RestorePreview{}, errors.New("加密快照超过限制")
+		return RestorePreview{}, appmessage.New("backend:encryptedSnapshotExceedsTheLimit", "加密快照超过限制")
 	}
 	a.backupMu.Lock()
 	defer a.backupMu.Unlock()
@@ -126,7 +126,7 @@ func (a *AppService) localSnapshotPassword(password string) (string, error) {
 	a.automaticMu.Lock()
 	defer a.automaticMu.Unlock()
 	if a.automaticConfig == nil || a.automaticConfig.Password == "" {
-		return "", errors.New("请输入备份加密密码")
+		return "", appmessage.New("backend:enterTheBackupEncryptionPassword", "请输入备份加密密码")
 	}
 	return a.automaticConfig.Password, nil
 }
@@ -154,7 +154,7 @@ func (a *AppService) protectRestore(current store.Data) error {
 		}
 	}
 	if password == "" && recipient == "" {
-		return errors.New("缺少保护副本的加密密码，请重新解锁备份")
+		return appmessage.New("backend:safetyCopyEncryptionPasswordMissingUnlockTheBackup", "缺少保护副本的加密密码，请重新解锁备份")
 	}
 	device, err := a.deviceID()
 	if err != nil {
@@ -187,18 +187,18 @@ func (a *AppService) protectRestore(current store.Data) error {
 	includeCredentials := true
 	encrypted, err := backup.EncryptSnapshotWithRecovery(backup.Snapshot{DeviceID: device, DeviceName: name, CreatedAt: time.Now().UTC(), Data: current, Settings: settings, CredentialsIncluded: &includeCredentials}, password, recipient)
 	if err != nil {
-		return fmt.Errorf("创建恢复前保护副本失败：%w", err)
+		return appmessage.Errorf("backend:couldNotCreatePreRestoreSafetyCopy", "创建恢复前保护副本失败：%w", err)
 	}
 	directory, err := a.restoreBackupDirectory()
 	if err != nil {
 		return err
 	}
 	if err := os.MkdirAll(directory, 0700); err != nil {
-		return fmt.Errorf("创建保护副本目录失败：%w", err)
+		return appmessage.Errorf("backend:couldNotCreateSafetyCopyDirectory", "创建保护副本目录失败：%w", err)
 	}
 	filename := "before-restore-" + time.Now().UTC().Format("20060102T150405.000000000Z") + "_" + base64.RawURLEncoding.EncodeToString(randomBytes(8)) + backup.SnapshotExtension(encrypted)
 	if err := writeSnapshotFile(filepath.Join(directory, filename), encrypted); err != nil {
-		return fmt.Errorf("保存恢复前保护副本失败，已停止替换：%w", err)
+		return appmessage.Errorf("backend:couldNotSavePreRestoreSafetyCopyReplacement", "保存恢复前保护副本失败，已停止替换：%w", err)
 	}
 	return nil
 }

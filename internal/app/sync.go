@@ -3,7 +3,7 @@ package app
 import (
 	"context"
 	"encoding/base64"
-	"errors"
+
 	"fmt"
 	"os"
 	"path"
@@ -12,6 +12,7 @@ import (
 	"time"
 
 	files "github.com/Sanjeever/termquay/internal/files"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/pkg/sftp"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -42,7 +43,7 @@ func (a *AppService) PreviewDirectorySync(ctx context.Context, workspace, direct
 		}
 	}
 	if !filepath.IsAbs(local) || len(local) > 4096 {
-		return DirectorySyncPreview{}, errors.New("本地同步目录必须是绝对路径")
+		return DirectorySyncPreview{}, appmessage.New("backend:localSyncDirectoryMustBeAnAbsolutePath", "本地同步目录必须是绝对路径")
 	}
 	return a.previewDirectorySync(ctx, workspace, direction, local, remote)
 }
@@ -62,7 +63,7 @@ func (a *AppService) PreviewDirectorySyncFiltered(ctx context.Context, workspace
 		}
 	}
 	if !filepath.IsAbs(local) || len(local) > 4096 {
-		return DirectorySyncPreview{}, errors.New("本地同步目录必须是绝对路径")
+		return DirectorySyncPreview{}, appmessage.New("backend:localSyncDirectoryMustBeAnAbsolutePath", "本地同步目录必须是绝对路径")
 	}
 	return a.previewDirectorySyncFiltered(ctx, workspace, direction, local, remote, exclude)
 }
@@ -71,7 +72,7 @@ func (a *AppService) previewDirectorySyncFiltered(ctx context.Context, workspace
 	ctx, cancel := context.WithTimeout(ctx, 45*time.Second)
 	defer cancel()
 	if direction != "upload" && direction != "download" {
-		return DirectorySyncPreview{}, errors.New("同步方向无效")
+		return DirectorySyncPreview{}, appmessage.New("backend:invalidSyncDirection", "同步方向无效")
 	}
 	a.mu.Lock()
 	for id, p := range a.syncPlans {
@@ -81,7 +82,7 @@ func (a *AppService) previewDirectorySyncFiltered(ctx context.Context, workspace
 	}
 	if a.workspaces[workspace] == nil || a.closed || len(a.syncPlans)+a.syncOpening >= 4 {
 		a.mu.Unlock()
-		return DirectorySyncPreview{}, errors.New("工作区已关闭或同步计划达到上限（4 个）")
+		return DirectorySyncPreview{}, appmessage.New("backend:workspaceClosedOrSyncPlanLimitReached4", "工作区已关闭或同步计划达到上限（4 个）")
 	}
 	a.syncOpening++
 	ownerContext := a.workspaces[workspace].ctx
@@ -123,7 +124,7 @@ func (a *AppService) previewDirectorySyncFiltered(ctx context.Context, workspace
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.workspaces[workspace] == nil || ctx.Err() != nil {
-		return DirectorySyncPreview{}, errors.New("同步扫描已取消或工作区已关闭")
+		return DirectorySyncPreview{}, appmessage.New("backend:syncScanCanceledOrWorkspaceClosed", "同步扫描已取消或工作区已关闭")
 	}
 	a.syncPlans[preview.ID] = &directorySyncPlan{preview: preview, workspace: workspace, source: source, target: target, expires: time.Now().Add(10 * time.Minute)}
 	return preview, nil
@@ -140,14 +141,14 @@ func (a *AppService) ExecuteDirectorySync(id string, selected []string) (Transfe
 	p := a.syncPlans[id]
 	if p == nil || p.executing || time.Now().After(p.expires) || len(selected) == 0 || len(selected) > files.MaxSyncEntries {
 		a.mu.Unlock()
-		return Transfer{}, errors.New("同步预览已失效或选择无效")
+		return Transfer{}, appmessage.New("backend:syncPreviewExpiredOrInvalidSelection", "同步预览已失效或选择无效")
 	}
 	chosen := map[string]bool{}
 	for _, name := range selected {
 		node, ok := p.source[name]
 		if !ok || !node.Supported() {
 			a.mu.Unlock()
-			return Transfer{}, errors.New("同步选择包含未知或不支持路径")
+			return Transfer{}, appmessage.New("backend:syncSelectionContainsUnknownOrUnsupportedPaths", "同步选择包含未知或不支持路径")
 		}
 		chosen[name] = true
 		if node.Mode.IsDir() {
@@ -166,7 +167,7 @@ func (a *AppService) ExecuteDirectorySync(id string, selected []string) (Transfe
 		}
 		if entry.State == "conflict" {
 			a.mu.Unlock()
-			return Transfer{}, errors.New("选择中存在符号链接、类型或特殊文件冲突")
+			return Transfer{}, appmessage.New("backend:selectionContainsSymbolicLinkTypeOrSpecialFile", "选择中存在符号链接、类型或特殊文件冲突")
 		}
 		if entry.State == "same" {
 			continue
@@ -178,7 +179,7 @@ func (a *AppService) ExecuteDirectorySync(id string, selected []string) (Transfe
 	}
 	if len(entries) == 0 {
 		a.mu.Unlock()
-		return Transfer{}, errors.New("所选路径没有可同步差异")
+		return Transfer{}, appmessage.New("backend:selectedPathsHaveNoSyncableDifferences", "所选路径没有可同步差异")
 	}
 	p.executing = true
 	a.mu.Unlock()
@@ -188,7 +189,7 @@ func (a *AppService) ExecuteDirectorySync(id string, selected []string) (Transfe
 	}
 	view, err := a.startTransfer(p.workspace, fmt.Sprintf("目录同步（%d 项）", len(entries)), p.preview.Direction, total, func(ctx context.Context, report func(int64, int64)) error {
 		if time.Now().After(p.expires) {
-			return errors.New("同步预览已过期，请重新预览")
+			return appmessage.New("backend:syncPreviewExpiredPreviewAgain", "同步预览已过期，请重新预览")
 		}
 		completed := int64(0)
 		for index, entry := range entries {
@@ -196,7 +197,7 @@ func (a *AppService) ExecuteDirectorySync(id string, selected []string) (Transfe
 				return err
 			}
 			if err := a.syncEntry(ctx, p, entry, func(done, _ int64) { report(completed+done, total) }); err != nil {
-				return fmt.Errorf("同步停止（%d/%d）%s: %w；请重新预览剩余差异", index, len(entries), entry.Path, err)
+				return appmessage.Errorf("backend:syncStoppedPreviewRemainingDifferencesAgain", "同步停止（%d/%d）%s: %w；请重新预览剩余差异", index, len(entries), entry.Path, err)
 			}
 			if !entry.Directory {
 				completed += entry.Size
@@ -225,7 +226,7 @@ func (a *AppService) syncEntry(ctx context.Context, p *directorySyncPlan, entry 
 	remote := path.Join(p.preview.Remote, entry.Path)
 	resolved, err := filepath.EvalSymlinks(p.preview.Local)
 	if err != nil || resolved != p.preview.Local {
-		return errors.New("本地同步根已变化")
+		return appmessage.New("backend:localSyncRootChanged", "本地同步根已变化")
 	}
 	c, closeClient, err := a.fileClient(ctx, p.workspace)
 	if err != nil {
@@ -234,7 +235,7 @@ func (a *AppService) syncEntry(ctx context.Context, p *directorySyncPlan, entry 
 	canonical, err := c.RealPath(p.preview.Remote)
 	if err != nil || canonical != p.preview.Remote {
 		closeClient()
-		return errors.New("远端同步根已变化")
+		return appmessage.New("backend:remoteSyncRootChanged", "远端同步根已变化")
 	}
 	if err = files.CheckLocalSyncPath(p.preview.Local, entry.Path, false); err != nil && !(p.preview.Direction == "download" && os.IsNotExist(err)) {
 		closeClient()
@@ -256,7 +257,7 @@ func (a *AppService) syncEntry(ctx context.Context, p *directorySyncPlan, entry 
 	}
 	if !files.SameSyncNode(files.SyncInfo(sourceInfo), p.source[entry.Path]) {
 		closeClient()
-		return errors.New("源路径自预览后已变化")
+		return appmessage.New("backend:sourcePathChangedAfterPreview", "源路径自预览后已变化")
 	}
 	old, exists := p.target[entry.Path]
 	if exists {
@@ -266,14 +267,14 @@ func (a *AppService) syncEntry(ctx context.Context, p *directorySyncPlan, entry 
 		}
 		if !files.SameSyncNode(files.SyncInfo(targetInfo), old) {
 			closeClient()
-			return errors.New("目标自预览后已变化")
+			return appmessage.New("backend:destinationChangedAfterPreview", "目标自预览后已变化")
 		}
 	} else if !os.IsNotExist(targetErr) {
 		closeClient()
 		if targetErr != nil {
 			return targetErr
 		}
-		return errors.New("目标自预览后已出现")
+		return appmessage.New("backend:destinationAppearedAfterPreview", "目标自预览后已出现")
 	}
 	if p.preview.Direction == "upload" {
 		err = checkRemoteSyncPath(c, p.preview.Remote, entry.Path, true)
@@ -324,7 +325,7 @@ func checkRemoteSyncPath(c *sftp.Client, root, relative string, create bool) err
 			return err
 		}
 		if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-			return errors.New("远端同步父路径不是普通目录")
+			return appmessage.New("backend:remoteSyncParentIsNotARegularDirectory", "远端同步父路径不是普通目录")
 		}
 	}
 	return nil

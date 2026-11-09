@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
+
 	"io"
 	"os"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 	"github.com/Sanjeever/termquay/internal/store"
 )
@@ -43,13 +44,13 @@ func (a *AppService) SaveConnectionWithCredential(c store.Connection, auth termi
 	}
 	if referenceID != "" {
 		if auth.Password != "" || auth.PrivateKey != "" {
-			return store.Connection{}, errors.New("复用凭据时不能同时填写新秘密")
+			return store.Connection{}, appmessage.New("backend:cannotSupplyNewSecretsWhenReusingCredentials", "复用凭据时不能同时填写新秘密")
 		}
 		found := false
 		for _, credential := range d.Credentials {
 			if credential.ID == referenceID {
 				if c.Protocol == "rdp" && credential.Kind != "password" {
-					return store.Connection{}, errors.New("RDP 需要密码凭据")
+					return store.Connection{}, appmessage.New("backend:rDPRequiresPasswordCredentials", "RDP 需要密码凭据")
 				}
 				c.CredentialID = referenceID
 				if c.Protocol == "ssh" {
@@ -61,7 +62,7 @@ func (a *AppService) SaveConnectionWithCredential(c store.Connection, auth termi
 			}
 		}
 		if !found {
-			return store.Connection{}, errors.New("引用凭据已失效")
+			return store.Connection{}, appmessage.New("backend:referencedCredentialsNoLongerValid", "引用凭据已失效")
 		}
 	}
 	if c.AuthMethod == "agent" || c.AuthMethod == "keyboard_interactive" {
@@ -171,7 +172,7 @@ func (a *AppService) DuplicateConnection(id string, includeCredentials bool) (st
 				break
 			}
 			if !found {
-				return store.Connection{}, errors.New("连接凭据不存在")
+				return store.Connection{}, appmessage.New("backend:connectionCredentialsDoNotExist", "连接凭据不存在")
 			}
 		}
 		d.Connections = append(d.Connections, copy)
@@ -180,7 +181,7 @@ func (a *AppService) DuplicateConnection(id string, includeCredentials bool) (st
 		}
 		return copy, nil
 	}
-	return store.Connection{}, errors.New("连接不存在")
+	return store.Connection{}, appmessage.New("backend:connectionDoesNotExist", "连接不存在")
 }
 
 func (a *AppService) DeleteConnection(id string) error {
@@ -195,7 +196,7 @@ func (a *AppService) DeleteConnection(id string) error {
 	}
 	for _, c := range d.Connections {
 		if c.JumpID == id {
-			return errors.New("此连接仍被用作跳板机")
+			return appmessage.New("backend:thisConnectionIsStillUsedAsAJump", "此连接仍被用作跳板机")
 		}
 	}
 	connections := d.Connections[:0]
@@ -246,14 +247,14 @@ func (a *AppService) GetConnectionPassword(id string) (string, error) {
 		for _, credential := range d.Credentials {
 			if credential.ID == c.CredentialID {
 				if credential.Kind != "password" {
-					return "", errors.New("所选连接未使用密码凭据")
+					return "", appmessage.New("backend:selectedConnectionDoesNotUsePasswordCredentials", "所选连接未使用密码凭据")
 				}
 				return credential.Secret, nil
 			}
 		}
-		return "", errors.New("连接凭据不存在")
+		return "", appmessage.New("backend:connectionCredentialsDoNotExist", "连接凭据不存在")
 	}
-	return "", errors.New("连接不存在")
+	return "", appmessage.New("backend:connectionDoesNotExist", "连接不存在")
 }
 
 func (a *AppService) savedRequest(id string) (terminal.Request, store.Connection, error) {
@@ -306,7 +307,7 @@ func (a *AppService) requestFromData(d store.Data, id string) (terminal.Request,
 				info, e := f.Stat()
 				if e != nil || !info.Mode().IsRegular() || info.Size() > 1<<20 {
 					f.Close()
-					return r, c, errors.New("导入私钥引用无效或超过 1 MiB")
+					return r, c, appmessage.New("backend:invalidImportedPrivateKeyReferenceOrSizeExceeds", "导入私钥引用无效或超过 1 MiB")
 				}
 				key, e := io.ReadAll(io.LimitReader(f, (1<<20)+1))
 				f.Close()
@@ -314,14 +315,14 @@ func (a *AppService) requestFromData(d store.Data, id string) (terminal.Request,
 					return r, c, e
 				}
 				if len(key) > 1<<20 {
-					return r, c, errors.New("私钥超过 1 MiB")
+					return r, c, appmessage.New("backend:privateKeyExceeds1MiB", "私钥超过 1 MiB")
 				}
 				r.PrivateKey = string(key)
 			}
 		}
 		return r, c, nil
 	}
-	return terminal.Request{}, store.Connection{}, errors.New("连接不存在")
+	return terminal.Request{}, store.Connection{}, appmessage.New("backend:connectionDoesNotExist", "连接不存在")
 }
 
 func (a *AppService) OpenSavedTerminal(ctx context.Context, id string) (OpenResult, error) {
@@ -330,7 +331,7 @@ func (a *AppService) OpenSavedTerminal(ctx context.Context, id string) (OpenResu
 		return OpenResult{}, err
 	}
 	if c.Protocol != "ssh" {
-		return OpenResult{}, errors.New("所选连接不是 SSH")
+		return OpenResult{}, appmessage.New("backend:selectedConnectionIsNotSSH", "所选连接不是 SSH")
 	}
 	return a.OpenTerminal(ctx, r)
 }

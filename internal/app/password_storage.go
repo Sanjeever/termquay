@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/Sanjeever/termquay/internal/store"
 )
 
@@ -51,7 +52,7 @@ func (a *AppService) UnlockPasswordStorage(password string) error {
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
 	if a.store != nil {
-		return errors.New("本机存储已经打开")
+		return appmessage.New("backend:localStorageIsAlreadyOpen", "本机存储已经打开")
 	}
 	dir, err := storageDirectory()
 	if err != nil {
@@ -67,7 +68,7 @@ func (a *AppService) CreatePasswordStorage(password string) error {
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
 	if a.store != nil {
-		return errors.New("本机存储已经打开，请从凭据设置切换保护方式")
+		return appmessage.New("backend:localStorageIsAlreadyOpenSwitchProtectionIn", "本机存储已经打开，请从凭据设置切换保护方式")
 	}
 	dir, err := storageDirectory()
 	if err != nil {
@@ -81,23 +82,23 @@ func (a *AppService) CreatePasswordStorage(password string) error {
 }
 func (a *AppService) SetStoragePassword(current, password string) error {
 	if a.appLocked.Load() {
-		return errors.New("请先解锁应用")
+		return appmessage.New("backend:unlockTheApplicationFirst", "请先解锁应用")
 	}
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
 	if a.store == nil || a.sessionDir != "" {
-		return errors.New("请先打开持久存储；会话存储不能切换保护方式")
+		return appmessage.New("backend:openPersistentStorageFirstSessionStorageCannotSwitch", "请先打开持久存储；会话存储不能切换保护方式")
 	}
 	return a.store.SetVaultPassword(current, password)
 }
 func (a *AppService) UseSystemStorage(password string) error {
 	if a.appLocked.Load() {
-		return errors.New("请先解锁应用")
+		return appmessage.New("backend:unlockTheApplicationFirst", "请先解锁应用")
 	}
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
 	if a.store == nil || a.sessionDir != "" {
-		return errors.New("请先打开主密码持久存储")
+		return appmessage.New("backend:openMasterPasswordPersistentStorageFirst", "请先打开主密码持久存储")
 	}
 	return a.store.UseSystemVault(password)
 }

@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"io"
 	"io/fs"
 	"os"
@@ -31,7 +32,7 @@ func invalidCompletionText(value string) bool {
 func (a *AppService) CompleteTerminalPath(ctx context.Context, workspace, terminal, directory, prefix string, directoriesOnly bool) (CompletionPaths, error) {
 	result := CompletionPaths{Entries: []CompletionPath{}}
 	if !strings.HasPrefix(directory, "/") || len(directory) > 4096 || len(prefix) > 1024 || strings.Contains(prefix, "/") || invalidCompletionText(directory+prefix) {
-		return result, errors.New("补全路径无效")
+		return result, appmessage.New("backend:invalidCompletionPath", "补全路径无效")
 	}
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
@@ -39,7 +40,7 @@ func (a *AppService) CompleteTerminalPath(ctx context.Context, workspace, termin
 	case a.fileSlots <- struct{}{}:
 		defer func() { <-a.fileSlots }()
 	default:
-		return result, errors.New("文件通道繁忙，请稍后重试补全")
+		return result, appmessage.New("backend:fileChannelBusyRetryCompletionShortly", "文件通道繁忙，请稍后重试补全")
 	}
 	a.mu.Lock()
 	local := a.locals[terminal]
@@ -51,7 +52,7 @@ func (a *AppService) CompleteTerminalPath(ctx context.Context, workspace, termin
 	var stat func(string) (fs.FileInfo, error)
 	if local != nil && workspace == terminal {
 		if runtime.GOOS == "windows" {
-			return result, errors.New("本地路径补全当前支持 Unix 终端")
+			return result, appmessage.New("backend:localPathCompletionCurrentlySupportsUnixTerminals", "本地路径补全当前支持 Unix 终端")
 		}
 		file, err := os.Open(directory)
 		if err != nil {
@@ -78,7 +79,7 @@ func (a *AppService) CompleteTerminalPath(ctx context.Context, workspace, termin
 		read = func() ([]fs.FileInfo, error) { return file.ReaddirContext(ctx, 64) }
 		stat = func(name string) (fs.FileInfo, error) { return client.Stat(path.Join(directory, name)) }
 	} else {
-		return result, errors.New("补全所属终端已关闭")
+		return result, appmessage.New("backend:completionTerminalClosed", "补全所属终端已关闭")
 	}
 	for scanned := 0; scanned < 8192; {
 		if err := ctx.Err(); err != nil {

@@ -3,12 +3,13 @@ package app
 import (
 	"bytes"
 	"context"
-	"errors"
+
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/Sanjeever/termquay/internal/files"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 )
 
 const sudoFilePrelude = `set -eu
@@ -29,7 +30,7 @@ func (a *AppService) sudoFile(ctx context.Context, id, remote, password, script 
 		return files.Document{}, err
 	}
 	if strings.ContainsAny(remote, "\x00\r\n") {
-		return files.Document{}, errors.New("sudo 文件路径不能包含换行或空字符")
+		return files.Document{}, appmessage.New("backend:sudoFilePathCannotContainNewlinesOrNull", "sudo 文件路径不能包含换行或空字符")
 	}
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
@@ -41,7 +42,7 @@ func (a *AppService) sudoFile(ctx context.Context, id, remote, password, script 
 	slots := a.commandSlots
 	a.mu.Unlock()
 	if owner == nil {
-		return files.Document{}, errors.New("SSH 工作区已关闭")
+		return files.Document{}, appmessage.New("backend:sSHWorkspaceClosed", "SSH 工作区已关闭")
 	}
 	stop := context.AfterFunc(owner.ctx, cancel)
 	defer stop()
@@ -57,10 +58,10 @@ func (a *AppService) sudoFile(ctx context.Context, id, remote, password, script 
 	}
 	header, content, ok := bytes.Cut(data, []byte{'\n'})
 	if !ok || len(header) > 256 {
-		return files.Document{}, errors.New("sudo 文件版本响应无效")
+		return files.Document{}, appmessage.New("backend:invalidSudoFileVersionResponse", "sudo 文件版本响应无效")
 	}
 	if len(content) > files.MaxEditSize {
-		return files.Document{}, errors.New("文件超过编辑大小限制")
+		return files.Document{}, appmessage.New("backend:fileExceedsEditingSizeLimit", "文件超过编辑大小限制")
 	}
 	text, encoding, bom, err := files.DecodeText(content, charset)
 	if err != nil {
@@ -95,7 +96,7 @@ func (a *AppService) SaveSudoFile(ctx context.Context, id string, document files
 			return files.Document{}, err
 		}
 		if previous.Revision != document.Revision {
-			return files.Document{}, errors.New("远端文件已变化，请先对比与合并")
+			return files.Document{}, appmessage.New("backend:remoteFileChangedCompareAndMergeFirst", "远端文件已变化，请先对比与合并")
 		}
 		if err := a.recordFileVersion(id, previous); err != nil {
 			return files.Document{}, err
@@ -109,7 +110,7 @@ func (a *AppService) SaveSudoFile(ctx context.Context, id string, document files
 		data = []byte{}
 	}
 	if len(document.Revision) == 0 || len(document.Revision) > 256 {
-		return files.Document{}, errors.New("文件版本无效，请重新读取")
+		return files.Document{}, appmessage.New("backend:invalidFileVersionReadItAgain", "文件版本无效，请重新读取")
 	}
 	script := "expected=" + sudoQuote(document.Revision) + "\n" + `test "$expected" = "$(revision)" || { echo '远端文件已变化，请先对比与合并' >&2; exit 1; }
 mode=$(stat -c %a -- "$file")

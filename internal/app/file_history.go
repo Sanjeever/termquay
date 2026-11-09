@@ -6,11 +6,12 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
+
 	"strings"
 	"time"
 
 	"github.com/Sanjeever/termquay/internal/files"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 )
 
@@ -43,7 +44,7 @@ func (a *AppService) fileHistoryKey(workspace, remote string) (string, error) {
 	owner := a.workspaces[workspace]
 	a.mu.Unlock()
 	if owner == nil {
-		return "", errors.New("SSH 工作区已关闭")
+		return "", appmessage.New("backend:sSHWorkspaceClosed", "SSH 工作区已关闭")
 	}
 	sum := sha256.Sum256([]byte(owner.target + "\x00" + owner.identity + "\x00" + remote))
 	return hex.EncodeToString(sum[:]), nil
@@ -85,7 +86,7 @@ func (a *AppService) ConfigureFileWorkflow(workspace, remote string, enabled boo
 
 func (a *AppService) setFileWorkflow(workspace, remote string, enabled bool, validate, reload string, health *string) error {
 	if len(validate) > 8192 || len(reload) > 8192 || strings.ContainsRune(validate+reload, 0) || health != nil && (len(*health) > 8192 || strings.ContainsRune(*health, 0)) {
-		return errors.New("验证、reload 与健康检查命令各最多 8 KiB，不能含空字符")
+		return appmessage.New("backend:validationReloadAndHealthCheckCommandsAllowUp", "验证、reload 与健康检查命令各最多 8 KiB，不能含空字符")
 	}
 	key, err := a.fileHistoryKey(workspace, remote)
 	if err != nil {
@@ -104,7 +105,7 @@ func (a *AppService) setFileWorkflow(workspace, remote string, enabled bool, val
 		}
 	}
 	if item, exists := items[key]; (!exists || item.Automatic) && configured >= maxFileHistories {
-		return errors.New("最多自定义 64 个文件的历史或操作设置，请先清除其他文件的设置")
+		return appmessage.New("backend:historyAndOperationSettingsLimitReached64Files", "最多自定义 64 个文件的历史或操作设置，请先清除其他文件的设置")
 	}
 	item := items[key]
 	item.Automatic = false
@@ -169,7 +170,7 @@ func (a *AppService) recordFileVersion(workspace string, document files.Document
 		return err
 	}
 	if len(data) > 4*files.MaxEditSize {
-		return errors.New("配置历史单版本超过大小限制")
+		return appmessage.New("backend:historicalConfigurationVersionExceedsSizeLimit", "配置历史单版本超过大小限制")
 	}
 	version := FileVersion{ID: base64.RawURLEncoding.EncodeToString(randomBytes(16)), Time: time.Now().UTC(), Size: len(data), Revision: document.Revision}
 	item.Versions = append(item.Versions, version)
@@ -237,7 +238,7 @@ func (a *AppService) ReadFileVersion(workspace, remote, versionID string) (files
 			return document, nil
 		}
 	}
-	return files.Document{}, errors.New("配置历史版本不存在或已淘汰")
+	return files.Document{}, appmessage.New("backend:historicalConfigurationVersionMissingOrEvicted", "配置历史版本不存在或已淘汰")
 }
 func (a *AppService) RunFileAction(ctx context.Context, workspace, remote, action, expectedScript string) (terminal.CommandResult, error) {
 	if action == "reload" {
@@ -255,13 +256,13 @@ func (a *AppService) RunFileAction(ctx context.Context, workspace, remote, actio
 	} else if action == "health" {
 		script = history.HealthCheck
 	} else if action != "validate" {
-		return terminal.CommandResult{}, errors.New("文件操作类型无效")
+		return terminal.CommandResult{}, appmessage.New("backend:invalidFileOperationType", "文件操作类型无效")
 	}
 	if strings.TrimSpace(script) == "" {
-		return terminal.CommandResult{}, errors.New("尚未设置此文件的操作命令")
+		return terminal.CommandResult{}, appmessage.New("backend:noOperationCommandConfiguredForThisFile", "尚未设置此文件的操作命令")
 	}
 	if script != expectedScript {
-		return terminal.CommandResult{}, errors.New("操作命令已变化，请重新读取设置并确认")
+		return terminal.CommandResult{}, appmessage.New("backend:operationCommandChangedReloadSettingsAndConfirmAgain", "操作命令已变化，请重新读取设置并确认")
 	}
 	return a.RunRemoteCommand(ctx, workspace, "export TERMQUAY_FILE="+sudoQuote(remote)+"\n"+script, 60)
 }

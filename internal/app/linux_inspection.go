@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
+
 	"io"
 	"strconv"
 	"strings"
 	"time"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 )
 
@@ -70,7 +71,7 @@ func (a *AppService) inspectLinux(ctx context.Context, workspace, script string)
 		return result, errors.New(result.Error)
 	}
 	if result.ExitCode != 0 {
-		return result, fmt.Errorf("远端查询失败（退出码 %d）：%s", result.ExitCode, strings.TrimSpace(result.Stderr))
+		return result, appmessage.Errorf("backend:remoteQueryFailedExitCode", "远端查询失败（退出码 %d）：%s", result.ExitCode, strings.TrimSpace(result.Stderr))
 	}
 	return result, nil
 }
@@ -80,7 +81,7 @@ func (a *AppService) ListLinuxProcesses(ctx context.Context, workspace, order st
 	if order == "memory" {
 		column = "-rss"
 	} else if order != "cpu" {
-		return LinuxProcessList{}, errors.New("进程排序无效")
+		return LinuxProcessList{}, appmessage.New("backend:invalidProcessSorting", "进程排序无效")
 	}
 	result, err := a.inspectLinux(ctx, workspace, "exec ps -ww -eo pid=,ppid=,user:32=,pcpu=,pmem=,rss=,etime=,args= --sort="+column)
 	view := LinuxProcessList{Items: []LinuxProcess{}, Time: time.Now(), Truncated: result.Truncated, Warning: strings.TrimSpace(result.Stderr)}
@@ -97,7 +98,7 @@ func (a *AppService) ListLinuxProcesses(ctx context.Context, workspace, order st
 			continue
 		}
 		if len(fields) < 8 {
-			return view, errors.New("进程列表格式无效，需要 procps ps")
+			return view, appmessage.New("backend:invalidProcessListFormatProcpsPsIsRequired", "进程列表格式无效，需要 procps ps")
 		}
 		if len(view.Items) == maxInspectionItems {
 			view.Truncated = true
@@ -109,7 +110,7 @@ func (a *AppService) ListLinuxProcesses(ctx context.Context, workspace, order st
 		memory, memoryErr := strconv.ParseFloat(fields[4], 64)
 		rss, rssErr := strconv.ParseInt(fields[5], 10, 64)
 		if err := errors.Join(pidErr, parentErr, cpuErr, memoryErr, rssErr); err != nil {
-			return view, fmt.Errorf("进程指标格式无效：%w", err)
+			return view, appmessage.Errorf("backend:invalidProcessMetricsFormat", "进程指标格式无效：%w", err)
 		}
 		view.Items = append(view.Items, LinuxProcess{PID: pid, Parent: parent, User: fields[2], CPU: cpu, Memory: memory, RSS: rss * 1024, Elapsed: fields[6], Command: strings.Join(fields[7:], " ")})
 	}
@@ -119,7 +120,7 @@ func (a *AppService) ListLinuxProcesses(ctx context.Context, workspace, order st
 func (a *AppService) ReadLinuxProcessDetails(ctx context.Context, workspace string, pid int) (LinuxProcessDetails, error) {
 	view := LinuxProcessDetails{Errors: []string{}}
 	if pid < 1 || pid > 1<<31-1 {
-		return view, errors.New("进程 ID 无效")
+		return view, appmessage.New("backend:invalidProcessID", "进程 ID 无效")
 	}
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
@@ -130,7 +131,7 @@ func (a *AppService) ReadLinuxProcessDetails(ctx context.Context, workspace stri
 	defer release()
 	root := "/proc/" + strconv.Itoa(pid)
 	if _, err := client.Lstat(root); err != nil {
-		return view, fmt.Errorf("读取进程失败，进程可能已退出：%w", err)
+		return view, appmessage.Errorf("backend:couldNotReadProcessItMayHaveExited", "读取进程失败，进程可能已退出：%w", err)
 	}
 	view.Directory, err = client.ReadLink(root + "/cwd")
 	if err != nil {
@@ -169,7 +170,7 @@ func (a *AppService) ReadLinuxProcessDetails(ctx context.Context, workspace stri
 
 func (a *AppService) ListLinuxServices(ctx context.Context, workspace, filter string) (LinuxServiceList, error) {
 	if len(filter) > 256 || strings.ContainsAny(filter, "'\"\x00\r\n/") {
-		return LinuxServiceList{}, errors.New("服务筛选须为服务名称或通配符")
+		return LinuxServiceList{}, appmessage.New("backend:serviceFilterMustBeANameOrWildcard", "服务筛选须为服务名称或通配符")
 	}
 	pattern := "*.service"
 	if filter != "" {
@@ -181,14 +182,14 @@ func (a *AppService) ListLinuxServices(ctx context.Context, workspace, filter st
 		return view, err
 	}
 	if result.Truncated {
-		return view, errors.New("服务列表超过输出限制，请填写服务名后刷新")
+		return view, appmessage.New("backend:serviceListExceedsOutputLimitEnterAService", "服务列表超过输出限制，请填写服务名后刷新")
 	}
 	if err := json.Unmarshal([]byte(result.Stdout), &view.Items); err != nil {
-		return view, fmt.Errorf("服务列表格式无效，需要支持 list-units JSON 输出的 systemctl：%w", err)
+		return view, appmessage.Errorf("backend:invalidServiceListFormatSystemctlWithListUnits", "服务列表格式无效，需要支持 list-units JSON 输出的 systemctl：%w", err)
 	}
 	for _, item := range view.Items {
 		if !validServiceUnit(item.Unit) || item.Load == "" || item.Active == "" || item.Sub == "" {
-			return view, errors.New("服务列表缺少有效名称或状态")
+			return view, appmessage.New("backend:serviceListHasNoValidNameOrState", "服务列表缺少有效名称或状态")
 		}
 	}
 	if len(view.Items) > maxInspectionItems {
@@ -205,7 +206,7 @@ func validServiceUnit(unit string) bool {
 func (a *AppService) ReadLinuxServiceDetails(ctx context.Context, workspace, unit string) (LinuxServiceDetails, error) {
 	view := LinuxServiceDetails{Properties: map[string]string{}}
 	if !validServiceUnit(unit) {
-		return view, errors.New("服务名称无效")
+		return view, appmessage.New("backend:invalidServiceName", "服务名称无效")
 	}
 	a.mu.Lock()
 	if owner := a.workspaces[workspace]; owner != nil {
@@ -217,7 +218,7 @@ func (a *AppService) ReadLinuxServiceDetails(ctx context.Context, workspace, uni
 		return view, err
 	}
 	if result.Truncated {
-		return view, errors.New("服务详情超过读取限制")
+		return view, appmessage.New("backend:serviceDetailsExceedReadLimit", "服务详情超过读取限制")
 	}
 	view.Warning = strings.TrimSpace(result.Stderr)
 	for line := range strings.SplitSeq(result.Stdout, "\n") {
@@ -226,26 +227,26 @@ func (a *AppService) ReadLinuxServiceDetails(ctx context.Context, workspace, uni
 		}
 	}
 	if view.Properties["Id"] == "" || view.Properties["LoadState"] == "" || view.Properties["LoadState"] == "not-found" || view.Properties["ActiveState"] == "" {
-		return view, errors.New("服务不存在或无法读取")
+		return view, appmessage.New("backend:serviceMissingOrUnreadable", "服务不存在或无法读取")
 	}
 	return view, nil
 }
 
 func (a *AppService) ChangeLinuxServiceState(ctx context.Context, workspace, unit, action string) (terminal.CommandResult, error) {
 	if !validServiceUnit(unit) {
-		return terminal.CommandResult{}, errors.New("服务名称无效")
+		return terminal.CommandResult{}, appmessage.New("backend:invalidServiceName", "服务名称无效")
 	}
 	switch action {
 	case "start", "stop", "restart", "reload", "enable", "disable":
 	default:
-		return terminal.CommandResult{}, errors.New("服务操作无效")
+		return terminal.CommandResult{}, appmessage.New("backend:invalidServiceOperation", "服务操作无效")
 	}
 	return a.RunRemoteCommand(ctx, workspace, "export LC_ALL=C SYSTEMD_COLORS=0\nexec systemctl --no-pager --no-ask-password "+action+" -- '"+unit+"'", 60)
 }
 
 func (a *AppService) ReadLinuxServiceLog(ctx context.Context, workspace, unit string) (terminal.CommandResult, error) {
 	if !validServiceUnit(unit) {
-		return terminal.CommandResult{}, errors.New("服务名称无效")
+		return terminal.CommandResult{}, appmessage.New("backend:invalidServiceName", "服务名称无效")
 	}
 	return a.inspectLinux(ctx, workspace, "exec journalctl --no-pager --lines=200 --output=short-iso --unit='"+unit+"'")
 }

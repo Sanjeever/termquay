@@ -21,9 +21,10 @@ import "C"
 
 import (
 	"encoding/json"
-	"errors"
+
 	"unsafe"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -32,13 +33,13 @@ func localClipboardFiles() ([]string, error) {
 	err := application.InvokeSyncWithError(func() error {
 		value := C.clipboardFilePaths()
 		if value == nil {
-			return errors.New("无法读取文件剪贴板或文件超过 64 个")
+			return appmessage.New("backend:couldNotReadFileClipboardOrMoreThan", "无法读取文件剪贴板或文件超过 64 个")
 		}
 		defer C.free(unsafe.Pointer(value))
 		return json.Unmarshal([]byte(C.GoString(value)), &paths)
 	})
 	if err == nil && len(paths) == 0 {
-		err = errors.New("剪贴板没有本地文件，请先在文件管理器中复制文件")
+		err = appmessage.New("backend:noLocalFilesInClipboardCopyFilesIn", "剪贴板没有本地文件，请先在文件管理器中复制文件")
 	}
 	return paths, err
 }

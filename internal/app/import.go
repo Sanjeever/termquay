@@ -3,7 +3,8 @@ package app
 import (
 	"encoding/base64"
 	"encoding/json"
-	"errors"
+
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/Sanjeever/termquay/internal/store"
 	"github.com/google/shlex"
 	sshconfig "github.com/kevinburke/ssh_config"
@@ -51,7 +52,7 @@ func (a *AppService) SelectSSHImport() (SSHImportPreview, error) {
 
 func (a *AppService) previewSSHImportFiles(names []string) (SSHImportPreview, error) {
 	if len(names) == 0 || len(names) > 16 {
-		return SSHImportPreview{}, errors.New("请选择 1 至 16 个配置文件")
+		return SSHImportPreview{}, appmessage.New("backend:selectFrom1To16ConfigurationFiles", "请选择 1 至 16 个配置文件")
 	}
 	approved := map[string]string{}
 	total := 0
@@ -67,7 +68,7 @@ func (a *AppService) previewSSHImportFiles(names []string) (SSHImportPreview, er
 			return SSHImportPreview{}, e
 		}
 		if total > 1<<20 {
-			return SSHImportPreview{}, errors.New("配置超过 1 MiB")
+			return SSHImportPreview{}, appmessage.New("backend:configurationExceeds1MiB", "配置超过 1 MiB")
 		}
 		absolute, e := filepath.Abs(name)
 		if e != nil {
@@ -81,7 +82,7 @@ func (a *AppService) previewSSHImportFiles(names []string) (SSHImportPreview, er
 	size := 0
 	expand = func(name string, depth int, stack map[string]bool) (string, error) {
 		if depth > 8 || stack[name] {
-			return "", errors.New("Include 超过八层或存在循环")
+			return "", appmessage.New("backend:includeDepthExceedsEightLevelsOrContainsA", "Include 超过八层或存在循环")
 		}
 		stack[name] = true
 		defer delete(stack, name)
@@ -94,7 +95,7 @@ func (a *AppService) previewSSHImportFiles(names []string) (SSHImportPreview, er
 			}
 			if key == "include" {
 				if len(values) == 0 {
-					return "", errors.New("Include 缺少文件路径")
+					return "", appmessage.New("backend:includeFilePathMissing", "Include 缺少文件路径")
 				}
 				for _, pattern := range values {
 					if !filepath.IsAbs(pattern) {
@@ -109,7 +110,7 @@ func (a *AppService) previewSSHImportFiles(names []string) (SSHImportPreview, er
 					for _, selected := range selectedNames {
 						ok, err := filepath.Match(pattern, selected)
 						if err != nil {
-							return "", errors.New("Include 路径模式无效")
+							return "", appmessage.New("backend:invalidIncludePathPattern", "Include 路径模式无效")
 						}
 						if ok {
 							matched = true
@@ -128,7 +129,7 @@ func (a *AppService) previewSSHImportFiles(names []string) (SSHImportPreview, er
 			}
 			size += len(line) + 1
 			if size > 1<<20 {
-				return "", errors.New("展开配置超过 1 MiB")
+				return "", appmessage.New("backend:expandedConfigurationExceeds1MiB", "展开配置超过 1 MiB")
 			}
 			result.WriteString(line + "\n")
 		}
@@ -157,7 +158,7 @@ func (a *AppService) previewSSHImportFiles(names []string) (SSHImportPreview, er
 func sshImportDirective(line string) (string, []string, error) {
 	words, err := shlex.Split(line)
 	if err != nil {
-		return "", nil, errors.New("OpenSSH 配置引号或转义无效")
+		return "", nil, appmessage.New("backend:invalidOpenSSHConfigurationQuotingOrEscaping", "OpenSSH 配置引号或转义无效")
 	}
 	if len(words) == 0 {
 		return "", nil, nil
@@ -178,7 +179,7 @@ func sshImportDirective(line string) (string, []string, error) {
 
 func (a *AppService) PreviewSSHImport(text string) (SSHImportPreview, error) {
 	if len(text) > 1<<20 {
-		return SSHImportPreview{}, errors.New("配置超过 1 MiB")
+		return SSHImportPreview{}, appmessage.New("backend:configurationExceeds1MiB", "配置超过 1 MiB")
 	}
 	warnings := []string{}
 	lines := []string{}
@@ -210,7 +211,7 @@ func (a *AppService) PreviewSSHImport(text string) (SSHImportPreview, error) {
 	}
 	config, err := sshconfig.Decode(strings.NewReader(strings.Join(lines, "\n")))
 	if err != nil {
-		return SSHImportPreview{}, errors.New("OpenSSH 配置语法无效")
+		return SSHImportPreview{}, appmessage.New("backend:invalidOpenSSHConfigurationSyntax", "OpenSSH 配置语法无效")
 	}
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
@@ -245,7 +246,7 @@ func (a *AppService) PreviewSSHImport(text string) (SSHImportPreview, error) {
 			}
 			seen[alias] = true
 			if len(p.Rows) >= 512 {
-				return SSHImportPreview{}, errors.New("Host 超过 512 个")
+				return SSHImportPreview{}, appmessage.New("backend:hostCountExceeds512", "Host 超过 512 个")
 			}
 			get := func(key string) string { v, _ := config.Get(alias, key); return v }
 			host := get("HostName")
@@ -256,7 +257,7 @@ func (a *AppService) PreviewSSHImport(text string) (SSHImportPreview, error) {
 			if value := get("Port"); value != "" {
 				port, err = strconv.Atoi(value)
 				if err != nil || port < 1 || port > 65535 {
-					return SSHImportPreview{}, errors.New("配置端口无效")
+					return SSHImportPreview{}, appmessage.New("backend:invalidConfiguredPort", "配置端口无效")
 				}
 			}
 			row := SSHImportRow{ID: base64.RawURLEncoding.EncodeToString(randomBytes(16)), Connection: store.Connection{Name: alias, Protocol: "ssh", Host: host, Port: port, Username: get("User")}, IdentityFile: get("IdentityFile"), JumpAlias: get("ProxyJump"), Warnings: []string{}}
@@ -313,14 +314,14 @@ func (a *AppService) ConfirmSSHImport(id string, choices []SSHImportChoice) erro
 	defer a.storeMu.Unlock()
 	p := a.importPreview
 	if p == nil || p.ID != id || time.Now().After(p.expires) {
-		return errors.New("导入预览已失效")
+		return appmessage.New("backend:importPreviewNoLongerValid", "导入预览已失效")
 	}
 	current, err := a.store.Read()
 	if err != nil {
 		return err
 	}
 	if !reflect.DeepEqual(current, p.base) {
-		return errors.New("连接已变化，请重新预览")
+		return appmessage.New("backend:connectionChangedPreviewAgain", "连接已变化，请重新预览")
 	}
 	selected := map[string]string{}
 	known := map[string]bool{}
@@ -328,11 +329,11 @@ func (a *AppService) ConfirmSSHImport(id string, choices []SSHImportChoice) erro
 		known[row.ID] = true
 	}
 	if len(choices) > len(p.Rows) {
-		return errors.New("导入选择超过预览数量")
+		return appmessage.New("backend:importSelectionExceedsPreviewCount", "导入选择超过预览数量")
 	}
 	for _, choice := range choices {
 		if !known[choice.ID] || selected[choice.ID] != "" || (choice.Action != "new" && choice.Action != "replace" && choice.Action != "skip") {
-			return errors.New("导入选择无效")
+			return appmessage.New("backend:invalidImportSelection", "导入选择无效")
 		}
 		selected[choice.ID] = choice.Action
 	}
@@ -359,7 +360,7 @@ func (a *AppService) ConfirmSSHImport(id string, choices []SSHImportChoice) erro
 			continue
 		}
 		if len(row.Warnings) > 0 {
-			return errors.New("所选条目有不支持字段，请修正")
+			return appmessage.New("backend:selectedEntriesHaveUnsupportedFieldsCorrectThemFirst", "所选条目有不支持字段，请修正")
 		}
 		c := row.Connection
 		parent := ""
@@ -383,14 +384,14 @@ func (a *AppService) ConfirmSSHImport(id string, choices []SSHImportChoice) erro
 		c.ID = row.ID
 		if action == "replace" {
 			if row.Conflict == "" {
-				return errors.New("替换目标不存在")
+				return appmessage.New("backend:replacementDestinationDoesNotExist", "替换目标不存在")
 			}
 			c.ID = row.Conflict
 		}
 		if row.JumpAlias != "" && row.JumpAlias != "none" {
 			c.JumpID = aliases[row.JumpAlias]
 			if c.JumpID == "" {
-				return errors.New("ProxyJump 未选择或不能映射")
+				return appmessage.New("backend:proxyJumpNotSelectedOrCannotBeMapped", "ProxyJump 未选择或不能映射")
 			}
 		}
 		found := false

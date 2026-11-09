@@ -3,10 +3,11 @@ package app
 import (
 	"context"
 	"encoding/base64"
-	"errors"
+
 	"time"
 
 	"github.com/Sanjeever/termquay/internal/backup"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 )
 
 type SnapshotPrunePreview struct {
@@ -58,9 +59,10 @@ func (a *AppService) PreviewSnapshotPrune(ctx context.Context, device string, ke
 }
 
 type SnapshotPruneResult struct {
-	Path  string `json:"path"`
-	State string `json:"state"`
-	Error string `json:"error"`
+	Path         string                 `json:"path"`
+	State        string                 `json:"state"`
+	Error        string                 `json:"error"`
+	ErrorMessage *appmessage.Descriptor `json:"error_message,omitempty"`
 }
 
 func (a *AppService) ConfirmSnapshotPrune(ctx context.Context, id string) ([]SnapshotPruneResult, error) {
@@ -68,14 +70,14 @@ func (a *AppService) ConfirmSnapshotPrune(ctx context.Context, id string) ([]Sna
 	defer a.backupMu.Unlock()
 	p := a.snapshotPrune
 	if p == nil || p.ID != id || time.Now().After(p.expires) {
-		return nil, errors.New("清理预览已失效")
+		return nil, appmessage.New("backend:prunePreviewNoLongerValid", "清理预览已失效")
 	}
 	config, err := a.savedBackupConfig()
 	if err != nil {
 		return nil, err
 	}
 	if config.Options != p.options {
-		return nil, errors.New("备份位置或登录配置已变化，请重新预览")
+		return nil, appmessage.New("backend:backupLocationOrLoginConfigurationChangedPreviewAgain", "备份位置或登录配置已变化，请重新预览")
 	}
 	if len(p.Removed) == 0 {
 		a.snapshotPrune = nil
@@ -93,12 +95,12 @@ func (a *AppService) ConfirmSnapshotPrune(ctx context.Context, id string) ([]Sna
 		return nil, err
 	}
 	if len(retained) < len(p.Retained) {
-		return nil, errors.New("保留快照已变化，请重新预览")
+		return nil, appmessage.New("backend:retainedSnapshotsChangedPreviewAgain", "保留快照已变化，请重新预览")
 	}
 	for _, keep := range retained {
 		for _, item := range p.Removed {
 			if keep.Path == item.Path {
-				return nil, errors.New("待删除快照已进入保留范围，请重新预览")
+				return nil, appmessage.New("backend:aSnapshotMarkedForDeletionIsNowRetained", "待删除快照已进入保留范围，请重新预览")
 			}
 		}
 	}
@@ -110,10 +112,12 @@ func (a *AppService) ConfirmSnapshotPrune(ctx context.Context, id string) ([]Sna
 		if !stopped {
 			if err := ctx.Err(); err != nil {
 				result.Error = err.Error()
+				result.ErrorMessage = appmessage.Describe(err)
 				stopped = true
 			} else if err := p.options.DeletePreviewedSnapshot(ctx, item); err != nil {
 				result.State = "failed"
 				result.Error = err.Error()
+				result.ErrorMessage = appmessage.Describe(err)
 				stopped = true
 			} else {
 				result.State = "done"

@@ -3,13 +3,14 @@ package app
 import (
 	"context"
 	"errors"
-	"fmt"
+
 	"io"
 	"os"
 	"path"
 	"time"
 
 	"github.com/Sanjeever/termquay/internal/files"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/pkg/sftp"
 )
 
@@ -55,11 +56,11 @@ func (a *AppService) ResumeTransfer(id, workspace string) (Transfer, error) {
 	owner := a.workspaces[workspace]
 	if previous == nil || previous.resume == nil || previous.resumeClaimed || previous.spec == nil || (previous.view.State != "failed" && previous.view.State != "cancelled") {
 		a.mu.Unlock()
-		return Transfer{}, errors.New("此任务没有可续传数据")
+		return Transfer{}, appmessage.New("backend:thisTaskHasNoResumableData", "此任务没有可续传数据")
 	}
 	if owner == nil || owner.target != previous.view.Target || owner.identity != previous.peerIdentity {
 		a.mu.Unlock()
-		return Transfer{}, errors.New("请选择目标、用户、主机身份及跳板均一致的已连接工作区")
+		return Transfer{}, appmessage.New("backend:selectAConnectedWorkspaceWithTheSameDestination", "请选择目标、用户、主机身份及跳板均一致的已连接工作区")
 	}
 	state := previous.resume
 	spec := *previous.spec
@@ -83,7 +84,7 @@ func (a *AppService) ResumeTransfer(id, workspace string) (Transfer, error) {
 	a.mu.Unlock()
 	if err == nil {
 		if persistErr := a.persistTransferResumes(); persistErr != nil {
-			return view, fmt.Errorf("续传已入队，但旧记录更新失败：%w", persistErr)
+			return view, appmessage.Errorf("backend:resumeQueuedButUpdatingTheOldRecordFailed", "续传已入队，但旧记录更新失败：%w", persistErr)
 		}
 	}
 	return view, err
@@ -137,21 +138,21 @@ func (a *AppService) resumeTransferOperation(ctx context.Context, workspace stri
 			return err
 		}
 		if !sameTransferVersion(state.source, current, true) {
-			return errors.New("本地源文件已变化，续传已阻止")
+			return appmessage.New("backend:localSourceFileChangedResumingBlocked", "本地源文件已变化，续传已阻止")
 		}
 		destination, err = client.Lstat(spec.remote)
 		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
 		if !sameTransferVersion(state.before, destination, false) {
-			return errors.New("远端目标自中断后已变化")
+			return appmessage.New("backend:remoteDestinationChangedAfterInterruption", "远端目标自中断后已变化")
 		}
 		partial, err := client.Lstat(state.temporary)
 		if err != nil {
 			return err
 		}
 		if !partial.Mode().IsRegular() || partial.Size() != state.offset {
-			return errors.New("远端暂存长度或类型已变化")
+			return appmessage.New("backend:remoteStagingLengthOrTypeChanged", "远端暂存长度或类型已变化")
 		}
 		output, err := client.OpenFile(state.temporary, os.O_WRONLY)
 		if err != nil {
@@ -168,21 +169,21 @@ func (a *AppService) resumeTransferOperation(ctx context.Context, workspace stri
 			return err
 		}
 		if !sameTransferVersion(state.source, current, false) {
-			return errors.New("远端源文件已变化，续传已阻止")
+			return appmessage.New("backend:remoteSourceFileChangedResumingBlocked", "远端源文件已变化，续传已阻止")
 		}
 		destination, err = os.Lstat(spec.local)
 		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
 		if !sameTransferVersion(state.before, destination, true) {
-			return errors.New("本地目标自中断后已变化")
+			return appmessage.New("backend:localDestinationChangedAfterInterruption", "本地目标自中断后已变化")
 		}
 		partial, err := os.Lstat(state.temporary)
 		if err != nil {
 			return err
 		}
 		if !partial.Mode().IsRegular() || partial.Size() != state.offset {
-			return errors.New("本地暂存长度或类型已变化")
+			return appmessage.New("backend:localStagingLengthOrTypeChanged", "本地暂存长度或类型已变化")
 		}
 		file, err := client.Open(spec.remote)
 		if err != nil {
@@ -215,14 +216,14 @@ func (a *AppService) resumeTransferOperation(ctx context.Context, workspace stri
 	if spec.direction == "upload" {
 		latest, err := os.Stat(spec.local)
 		if err != nil || !sameTransferVersion(state.source, latest, true) {
-			return errors.Join(err, errors.New("上传源文件在续传期间已变化"))
+			return errors.Join(err, appmessage.New("backend:uploadSourceFileChangedDuringResume", "上传源文件在续传期间已变化"))
 		}
 		latest, err = client.Lstat(spec.remote)
 		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
 		if !sameTransferVersion(state.before, latest, false) {
-			return errors.New("远端目标在续传期间已变化")
+			return appmessage.New("backend:remoteDestinationChangedDuringResume", "远端目标在续传期间已变化")
 		}
 		if err = target.(*sftp.File).Chmod(state.source.Mode().Perm()); err != nil {
 			return err
@@ -244,19 +245,19 @@ func (a *AppService) resumeTransferOperation(ctx context.Context, workspace stri
 		a.finishTransferResume(ctx)
 		if err := files.RemoveStaging(client, state.staging); err != nil {
 			a.retainTransferCleanup(ctx, state.staging)
-			return fmt.Errorf("文件已发布，暂存目录清理失败：%w", err)
+			return appmessage.Errorf("backend:filePublishedButStagingDirectoryCleanupFailed", "文件已发布，暂存目录清理失败：%w", err)
 		}
 	} else {
 		latest, err := client.Lstat(spec.remote)
 		if err != nil || !sameTransferVersion(state.source, latest, false) {
-			return errors.Join(err, errors.New("远端源文件在续传期间已变化"))
+			return errors.Join(err, appmessage.New("backend:remoteSourceFileChangedDuringResume", "远端源文件在续传期间已变化"))
 		}
 		latest, err = os.Lstat(spec.local)
 		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
 		if !sameTransferVersion(state.before, latest, true) {
-			return errors.New("本地目标在续传期间已变化")
+			return appmessage.New("backend:localDestinationChangedDuringResume", "本地目标在续传期间已变化")
 		}
 		if err = target.(*os.File).Sync(); err != nil {
 			return err
@@ -273,7 +274,7 @@ func (a *AppService) resumeTransferOperation(ctx context.Context, workspace stri
 			}
 			a.finishTransferResume(ctx)
 			if err = os.Remove(state.temporary); err != nil {
-				return fmt.Errorf("文件已下载，暂存清理失败：%w", err)
+				return appmessage.Errorf("backend:fileDownloadedButStagingCleanupFailed2", "文件已下载，暂存清理失败：%w", err)
 			}
 		} else {
 			if err = os.Rename(state.temporary, spec.local); err != nil {
@@ -299,7 +300,7 @@ func (a *AppService) DiscardTransferResume(id, workspace string) error {
 	task := a.transfers[id]
 	if task == nil || task.spec == nil || (task.resume == nil && task.cleanupStaging == "") || task.resumeClaimed || task.view.State == "running" || task.view.State == "queued" {
 		a.mu.Unlock()
-		return errors.New("暂存任务已失效或仍在执行")
+		return appmessage.New("backend:stagingTaskExpiredOrStillRunning", "暂存任务已失效或仍在执行")
 	}
 	state, spec := task.resume, *task.spec
 	staging := task.cleanupStaging
@@ -310,11 +311,11 @@ func (a *AppService) DiscardTransferResume(id, workspace string) error {
 		owner := a.workspaces[workspace]
 		if owner == nil || owner.target != task.view.Target || owner.identity != task.peerIdentity {
 			a.mu.Unlock()
-			return errors.New("清理远端暂存需要同一目标的已连接工作区")
+			return appmessage.New("backend:cleaningRemoteStagingRequiresAConnectedWorkspaceFor", "清理远端暂存需要同一目标的已连接工作区")
 		}
 		if owner.browseOnly {
 			a.mu.Unlock()
-			return errors.New("当前工作区处于文件浏览模式，请先允许文件写入")
+			return appmessage.New("backend:workspaceIsInFileBrowsingModeAllowWrites", "当前工作区处于文件浏览模式，请先允许文件写入")
 		}
 	}
 	task.resumeClaimed = true

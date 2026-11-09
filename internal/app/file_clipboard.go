@@ -3,12 +3,13 @@ package app
 import (
 	"context"
 	"encoding/base64"
-	"errors"
+
 	"os"
 	"path"
 	"strings"
 	"time"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -28,16 +29,16 @@ func (a *AppService) CopyRemoteFiles(id string, paths []string) error {
 	a.mu.Lock()
 	if a.closed || a.workspaces[id] == nil {
 		a.mu.Unlock()
-		return errors.New("SSH 工作区已关闭")
+		return appmessage.New("backend:sSHWorkspaceClosed", "SSH 工作区已关闭")
 	}
 	a.mu.Unlock()
 	if !application.Get().Clipboard.SetText(clipboard.token) {
-		return errors.New("无法写入文件剪贴板")
+		return appmessage.New("backend:couldNotWriteFileClipboard", "无法写入文件剪贴板")
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.closed || a.workspaces[id] == nil {
-		return errors.New("SSH 工作区已关闭")
+		return appmessage.New("backend:sSHWorkspaceClosed", "SSH 工作区已关闭")
 	}
 	a.fileClipboard = clipboard
 	return nil
@@ -57,7 +58,7 @@ func (a *AppService) PasteClipboardFiles(ctx context.Context, id, directory stri
 	if clipboard != nil && text == clipboard.token {
 		preview, err = a.prepareRemotePaste(ctx, clipboard, id, directory)
 	} else if strings.HasPrefix(text, "termquay://files/") {
-		return errors.New("文件剪贴板已失效，请在来源工作区重新复制")
+		return appmessage.New("backend:fileClipboardExpiredCopyAgainFromTheSource", "文件剪贴板已失效，请在来源工作区重新复制")
 	} else {
 		var paths []string
 		paths, err = localClipboardFiles()
@@ -82,7 +83,7 @@ func (a *AppService) PasteClipboardFiles(ctx context.Context, id, directory stri
 
 func (a *AppService) prepareRemotePaste(ctx context.Context, clipboard *remoteFileClipboard, id, directory string) (UploadPreview, error) {
 	if !path.IsAbs(directory) || len(directory) > 4096 || strings.ContainsRune(directory, 0) {
-		return UploadPreview{}, errors.New("请输入有效的远端绝对目录")
+		return UploadPreview{}, appmessage.New("backend:enterAValidAbsoluteRemoteDirectory", "请输入有效的远端绝对目录")
 	}
 	sourceOwner, err := a.terminal(clipboard.workspace)
 	if err != nil {
@@ -105,10 +106,13 @@ func (a *AppService) prepareRemotePaste(ctx context.Context, clipboard *remoteFi
 		switch {
 		case err != nil:
 			file.Error = err.Error()
+			file.ErrorMessage = appmessage.Describe(err)
 		case !info.Mode().IsRegular() || info.Mode()&(os.ModeSetuid|os.ModeSetgid|os.ModeSticky) != 0:
 			file.Error = "粘贴支持无特殊权限位的普通文件；文件夹请使用目录复制"
+			file.ErrorMessage = appmessage.Describe(appmessage.New("backend:pasteRegularFilesOnly", "粘贴支持无特殊权限位的普通文件；文件夹请使用目录复制"))
 		case names[file.Name]:
 			file.Error = "来源包含同名文件，请分批复制"
+			file.ErrorMessage = appmessage.Describe(appmessage.New("backend:duplicateCopyNames", "来源包含同名文件，请分批复制"))
 		default:
 			file.Size, file.Supported = info.Size(), true
 			names[file.Name] = true
@@ -120,10 +124,10 @@ func (a *AppService) prepareRemotePaste(ctx context.Context, clipboard *remoteFi
 	defer a.mu.Unlock()
 	source, target := a.workspaces[clipboard.workspace], a.workspaces[id]
 	if a.closed || source == nil || target == nil {
-		return UploadPreview{}, errors.New("来源或目标 SSH 工作区已关闭")
+		return UploadPreview{}, appmessage.New("backend:sourceOrDestinationSSHWorkspaceClosed", "来源或目标 SSH 工作区已关闭")
 	}
 	if a.uploadPreview != nil {
-		return UploadPreview{}, errors.New("请先确认或取消当前文件上传或粘贴")
+		return UploadPreview{}, appmessage.New("backend:confirmOrCancelTheCurrentUploadOrPaste", "请先确认或取消当前文件上传或粘贴")
 	}
 	view.Source, view.Target = source.target, target.target
 	a.uploadPreview = &pendingUpload{view: view, paths: append([]string(nil), clipboard.paths...), sourceWorkspace: clipboard.workspace, sourceOwner: sourceOwner, sourceFiles: infos}

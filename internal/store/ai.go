@@ -4,8 +4,9 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
+
 	"fmt"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"time"
 )
 
@@ -40,18 +41,18 @@ func (s *Store) openAIValue(aad, encoded string, value any) error {
 	}
 	n := s.aead.NonceSize()
 	if len(b) < n {
-		return errors.New("AI 历史密文损坏")
+		return appmessage.New("backend:aIHistoryCiphertextCorrupted", "AI 历史密文损坏")
 	}
 	plain, err := s.aead.Open(nil, b[:n], b[n:], []byte("setting:"+aad))
 	if err != nil {
-		return fmt.Errorf("AI 历史解密失败: %w", err)
+		return appmessage.Errorf("backend:couldNotDecryptAIHistory", "AI 历史解密失败: %w", err)
 	}
 	return json.Unmarshal(plain, value)
 }
 
 func (s *Store) CreateAIConversation(ctx context.Context, c AIConversation) error {
 	if c.ID == "" || c.Archive == "" {
-		return errors.New("AI 对话标识不能为空")
+		return appmessage.New("backend:aIConversationIdentifierCannotBeEmpty", "AI 对话标识不能为空")
 	}
 	b, err := json.Marshal(c)
 	if err != nil {
@@ -71,7 +72,7 @@ func (s *Store) CreateAIConversation(ctx context.Context, c AIConversation) erro
 		return err
 	}
 	if count >= MaxAIConversations {
-		return errors.New("AI 历史数量达到上限，请删除旧对话")
+		return appmessage.New("backend:aIHistoryCountLimitReachedDeleteOlderConversations", "AI 历史数量达到上限，请删除旧对话")
 	}
 	if _, err := tx.ExecContext(ctx, "INSERT INTO ai_conversations VALUES(?,?,?,?)", c.ID, c.Archive, c.UpdatedAt, encoded); err != nil {
 		return err
@@ -93,7 +94,7 @@ func (s *Store) AIConversation(ctx context.Context, id string) (AIConversation, 
 
 func (s *Store) ListAIConversations(ctx context.Context, archive string, offset, limit int) ([]AIConversation, error) {
 	if offset < 0 || limit < 1 || limit > 50 {
-		return nil, errors.New("AI 历史分页参数无效")
+		return nil, appmessage.New("backend:invalidAIHistoryPagination", "AI 历史分页参数无效")
 	}
 	rows, err := s.db.QueryContext(ctx, "SELECT id,ciphertext,updated_at FROM ai_conversations WHERE archive = ? ORDER BY updated_at DESC,id LIMIT ? OFFSET ?", archive, limit, offset)
 	if err != nil {
@@ -132,14 +133,14 @@ func (s *Store) UpdateAIConversation(ctx context.Context, c AIConversation) erro
 	}
 	n, err := result.RowsAffected()
 	if err == nil && n != 1 {
-		return errors.New("AI 对话已删除")
+		return appmessage.New("backend:aIConversationDeleted", "AI 对话已删除")
 	}
 	return err
 }
 
 func (s *Store) ListAITemporaryConversations(ctx context.Context, target string, offset, limit int) ([]AIConversation, error) {
 	if offset < 0 || limit < 1 || limit > 50 {
-		return nil, errors.New("AI 历史分页参数无效")
+		return nil, appmessage.New("backend:invalidAIHistoryPagination", "AI 历史分页参数无效")
 	}
 	rows, err := s.db.QueryContext(ctx, "SELECT id,ciphertext,updated_at FROM ai_conversations WHERE archive LIKE 'temporary:%' ORDER BY updated_at DESC,id")
 	if err != nil {
@@ -175,7 +176,7 @@ func (s *Store) ListAITemporaryConversations(ctx context.Context, target string,
 
 func (s *Store) AppendAIMessage(ctx context.Context, id, data string) (int, error) {
 	if len(data) > MaxAIMessageBytes || !json.Valid([]byte(data)) {
-		return 0, errors.New("AI 消息无效或超过存储限制")
+		return 0, appmessage.New("backend:aIMessageInvalidOrExceedsStorageLimit", "AI 消息无效或超过存储限制")
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -187,7 +188,7 @@ func (s *Store) AppendAIMessage(ctx context.Context, id, data string) (int, erro
 		return 0, err
 	}
 	if seq > MaxAIMessages {
-		return 0, errors.New("对话消息达到上限，请新建对话")
+		return 0, appmessage.New("backend:conversationMessageLimitReachedStartANewConversation", "对话消息达到上限，请新建对话")
 	}
 	if err := tx.QueryRowContext(ctx, "SELECT coalesce(sum(length(ciphertext)),0) FROM ai_messages").Scan(&size); err != nil {
 		return 0, err
@@ -197,7 +198,7 @@ func (s *Store) AppendAIMessage(ctx context.Context, id, data string) (int, erro
 		return 0, err
 	}
 	if size+len(encoded) > MaxAIHistoryBytes {
-		return 0, errors.New("AI 历史空间达到上限，请删除旧对话")
+		return 0, appmessage.New("backend:aIHistorySpaceLimitReachedDeleteOlderConversations", "AI 历史空间达到上限，请删除旧对话")
 	}
 	if _, err := tx.ExecContext(ctx, "INSERT INTO ai_messages VALUES(?,?,?)", id, seq, encoded); err != nil {
 		return 0, err
@@ -210,7 +211,7 @@ func (s *Store) AppendAIMessage(ctx context.Context, id, data string) (int, erro
 
 func (s *Store) AIMessages(ctx context.Context, id string, before, limit int) ([]AIStoredMessage, error) {
 	if before < 0 || limit < 1 || limit > 100 {
-		return nil, errors.New("AI 消息分页参数无效")
+		return nil, appmessage.New("backend:invalidAIMessagePagination", "AI 消息分页参数无效")
 	}
 	if before == 0 {
 		before = MaxAIMessages + 1
@@ -247,7 +248,7 @@ func (s *Store) DeleteAIConversation(ctx context.Context, id string) error {
 
 func (s *Store) AIMessagesAfter(ctx context.Context, id string, after, limit int) ([]AIStoredMessage, error) {
 	if after < 0 || limit < 1 || limit > 64 {
-		return nil, errors.New("AI 上下文分页无效")
+		return nil, appmessage.New("backend:invalidAIContextPagination", "AI 上下文分页无效")
 	}
 	rows, err := s.db.QueryContext(ctx, "SELECT seq,ciphertext FROM ai_messages WHERE conversation_id=? AND seq>? ORDER BY seq LIMIT ?", id, after, limit)
 	if err != nil {

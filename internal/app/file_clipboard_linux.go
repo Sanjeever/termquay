@@ -52,9 +52,9 @@ static const char *clipboardURI(char **uris, int index) { return uris[index]; }
 import "C"
 
 import (
-	"errors"
 	"net/url"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -63,7 +63,7 @@ func localClipboardFiles() ([]string, error) {
 	err := application.InvokeSyncWithError(func() error {
 		uris := C.clipboardFileURIs()
 		if uris == nil {
-			return errors.New("无法读取本地文件剪贴板，请复制 1 至 64 个文件后重试")
+			return appmessage.New("backend:couldNotReadLocalFileClipboardCopyFrom", "无法读取本地文件剪贴板，请复制 1 至 64 个文件后重试")
 		}
 		defer C.g_strfreev(uris)
 		for i := 0; ; i++ {
@@ -72,16 +72,16 @@ func localClipboardFiles() ([]string, error) {
 				break
 			}
 			if i == 64 {
-				return errors.New("每次最多粘贴 64 个文件")
+				return appmessage.New("backend:pasteUpTo64FilesAtATime", "每次最多粘贴 64 个文件")
 			}
 			value, err := url.Parse(C.GoString(item))
 			if err != nil || value.Scheme != "file" || value.Host != "" && value.Host != "localhost" || value.RawQuery != "" || value.Fragment != "" {
-				return errors.New("剪贴板包含非本机文件地址")
+				return appmessage.New("backend:clipboardContainsANonlocalFileURL", "剪贴板包含非本机文件地址")
 			}
 			paths = append(paths, value.Path)
 		}
 		if len(paths) == 0 {
-			return errors.New("剪贴板没有本地文件")
+			return appmessage.New("backend:noLocalFilesInClipboard", "剪贴板没有本地文件")
 		}
 		return nil
 	})

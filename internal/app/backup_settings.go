@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Sanjeever/termquay/internal/backup"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 )
 
 type BackupSettings struct {
@@ -30,7 +31,7 @@ func (a *AppService) savedBackupConfig() (automaticBackupConfig, error) {
 	a.automaticMu.Lock()
 	defer a.automaticMu.Unlock()
 	if a.automaticConfig == nil {
-		return automaticBackupConfig{}, errors.New("请先保存 WebDAV 备份位置")
+		return automaticBackupConfig{}, appmessage.New("backend:saveTheWebDAVBackupLocationFirst", "请先保存 WebDAV 备份位置")
 	}
 	return *a.automaticConfig, nil
 }
@@ -115,10 +116,10 @@ func (a *AppService) SaveBackupSettings(options backup.WebDAVOptions, password, 
 	}
 	deviceName = strings.TrimSpace(deviceName)
 	if deviceName == "" || len(deviceName) > 200 || strings.ContainsAny(deviceName, "\r\n\x00") {
-		return errors.New("设备名称须为 1 至 200 字节的单行文字")
+		return appmessage.New("backend:deviceNameMustBeASingleLineOf", "设备名称须为 1 至 200 字节的单行文字")
 	}
 	if len(selection.ConnectionIDs) != 0 {
-		return errors.New("自动备份覆盖全部连接，请在导出文件时选择连接")
+		return appmessage.New("backend:automaticBackupsCoverAllConnectionsSelectConnectionsWhen", "自动备份覆盖全部连接，请在导出文件时选择连接")
 	}
 	destinationChanged := config.Options.URL != options.URL || config.Options.Directory != options.Directory || config.Options.Username != options.Username
 	config.Options, config.Password, config.Selection = options, password, selection
@@ -161,7 +162,7 @@ func (a *AppService) SetAutomaticBackupEnabled(ctx context.Context, enabled bool
 	}
 	if enabled {
 		if config.Password == "" {
-			return errors.New("请先设置备份加密密码")
+			return appmessage.New("backend:setTheBackupEncryptionPasswordFirst", "请先设置备份加密密码")
 		}
 		ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 		defer cancel()
@@ -188,6 +189,7 @@ func (a *AppService) BackupNow(ctx context.Context) (remote string, result error
 		if result != nil {
 			a.automaticMu.Lock()
 			a.automaticStatus.Error = result.Error()
+			a.automaticStatus.ErrorMessage = appmessage.Describe(result)
 			a.automaticStatus.FailureID++
 			a.automaticMu.Unlock()
 		}
@@ -211,6 +213,7 @@ func (a *AppService) BackupNow(ctx context.Context) (remote string, result error
 	a.automaticMu.Lock()
 	a.automaticStatus.LastSuccess = last
 	a.automaticStatus.Error = ""
+	a.automaticStatus.ErrorMessage = nil
 	a.automaticMu.Unlock()
 	if err != nil {
 		return remote, errors.New("备份已发布，但成功时间保存失败：" + err.Error())

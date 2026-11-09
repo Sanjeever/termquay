@@ -3,6 +3,7 @@ package ssh
 import (
 	"context"
 	"errors"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	gossh "golang.org/x/crypto/ssh"
 	"net"
 )
@@ -13,7 +14,7 @@ func DialThrough(ctx context.Context, target, jump Request) (*Terminal, error) {
 
 func dialChainClients(ctx context.Context, chain []Request) ([]*gossh.Client, error) {
 	if len(chain) < 1 || len(chain) > 5 {
-		return nil, errors.New("SSH 跳板链最多四跳")
+		return nil, appmessage.New("backend:sSHJumpChainsSupportUpToFourHops", "SSH 跳板链最多四跳")
 	}
 	clients := []*gossh.Client{}
 	for index, request := range chain {
@@ -21,7 +22,7 @@ func dialChainClients(ctx context.Context, chain []Request) ([]*gossh.Client, er
 			for _, client := range clients {
 				client.Close()
 			}
-			return nil, errors.New("连接代理只能配置在首个跳板")
+			return nil, appmessage.New("backend:connectionProxiesCanOnlyBeConfiguredOnThe", "连接代理只能配置在首个跳板")
 		}
 		connect := func(ctx context.Context, address string) (net.Conn, error) {
 			if len(clients) == 0 {

@@ -2,7 +2,8 @@ package store
 
 import (
 	"encoding/json"
-	"errors"
+
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"reflect"
 	"time"
 )
@@ -40,7 +41,7 @@ func (s *Store) SetConnectionPreferences(preferences map[string]ConnectionPrefer
 		return err
 	}
 	if len(value) > 1<<20 {
-		return errors.New("连接偏好超过 1 MiB 上限")
+		return appmessage.New("backend:connectionPreferencesExceed1MiB", "连接偏好超过 1 MiB 上限")
 	}
 	if err := s.SetSetting("connection_preferences", string(value)); err != nil {
 		return err

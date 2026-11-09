@@ -12,6 +12,7 @@ import (
 	"sort"
 	"sync"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/pkg/sftp"
 )
 
@@ -69,7 +70,7 @@ func List(ctx context.Context, client *sftp.Client, remote string) (Directory, e
 				return Directory{}, err
 			}
 			if resolved == canonical {
-				return Directory{}, errors.New("符号链接指向祖先目录，已阻止循环展开")
+				return Directory{}, appmessage.New("backend:symbolicLinkPointsToAnAncestorDirectoryRecursive", "符号链接指向祖先目录，已阻止循环展开")
 			}
 			if ancestor == "/" {
 				break
@@ -178,7 +179,7 @@ func readRaw(client *sftp.Client, remote string) (Document, []byte, error) {
 	sum := sha256.Sum256(data)
 	attributes, ok := info.Sys().(*sftp.FileStat)
 	if !ok {
-		return Document{}, nil, errors.New("服务端未提供可识别的文件属性")
+		return Document{}, nil, appmessage.New("backend:serverDidNotProvideIdentifiableFileAttributes", "服务端未提供可识别的文件属性")
 	}
 	return Document{Path: remote, Revision: hex.EncodeToString(sum[:]) + ":" + fmt.Sprint(info.ModTime().Unix(), ":", info.Mode(), ":", attributes.UID, ":", attributes.GID)}, data, nil
 }
@@ -193,21 +194,21 @@ func Save(client *sftp.Client, document Document) (result Document, err error) {
 		return result, err
 	}
 	if current.Revision != document.Revision {
-		return result, errors.New("远端文件已变化，请重新读取后比较，当前草稿已保留")
+		return result, appmessage.New("backend:remoteFileChangedReadItAgainAndCompare", "远端文件已变化，请重新读取后比较，当前草稿已保留")
 	}
 	if _, ok := client.HasExtension("posix-rename@openssh.com"); !ok {
-		return result, errors.New("服务端不支持 POSIX rename，无法安全替换文件")
+		return result, appmessage.New("backend:serverDoesNotSupportPOSIXRenameCannotSafely", "服务端不支持 POSIX rename，无法安全替换文件")
 	}
 	info, err := client.Lstat(document.Path)
 	if err != nil {
 		return result, err
 	}
 	if info.Mode()&(os.ModeSetuid|os.ModeSetgid|os.ModeSticky) != 0 {
-		return result, errors.New("在线保存不支持含特殊权限位的文件")
+		return result, appmessage.New("backend:onlineSavingDoesNotSupportFilesWithSpecial", "在线保存不支持含特殊权限位的文件")
 	}
 	attributes, ok := info.Sys().(*sftp.FileStat)
 	if !ok {
-		return result, errors.New("服务端未提供可识别的文件属性")
+		return result, appmessage.New("backend:serverDidNotProvideIdentifiableFileAttributes", "服务端未提供可识别的文件属性")
 	}
 	staging, err := CreateStaging(client, path.Dir(document.Path))
 	if err != nil {
@@ -216,7 +217,7 @@ func Save(client *sftp.Client, document Document) (result Document, err error) {
 	defer func() {
 		cleanupErr := RemoveStaging(client, staging)
 		if err == nil && cleanupErr != nil {
-			err = fmt.Errorf("文件已保存，但临时目录清理失败: %w", cleanupErr)
+			err = appmessage.Errorf("backend:fileSavedButTemporaryDirectoryCleanupFailed", "文件已保存，但临时目录清理失败: %w", cleanupErr)
 		} else {
 			err = errors.Join(err, cleanupErr)
 		}
@@ -232,7 +233,7 @@ func Save(client *sftp.Client, document Document) (result Document, err error) {
 	}
 	if err = f.Chown(int(attributes.UID), int(attributes.GID)); err != nil {
 		f.Close()
-		return result, fmt.Errorf("无法保留文件属主与用户组: %w", err)
+		return result, appmessage.Errorf("backend:couldNotPreserveFileOwnerAndGroup", "无法保留文件属主与用户组: %w", err)
 	}
 	if err = f.Chmod(info.Mode().Perm()); err != nil {
 		f.Close()
@@ -246,7 +247,7 @@ func Save(client *sftp.Client, document Document) (result Document, err error) {
 		return result, err
 	}
 	if latest.Revision != document.Revision {
-		return result, errors.New("保存期间远端文件已变化，当前草稿已保留")
+		return result, appmessage.New("backend:remoteFileChangedDuringSaveCurrentDraftPreserved", "保存期间远端文件已变化，当前草稿已保留")
 	}
 	if err = client.PosixRename(temporary, document.Path); err != nil {
 		return result, err

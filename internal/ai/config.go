@@ -1,7 +1,7 @@
 package ai
 
 import (
-	"errors"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"net/url"
 	"strings"
 	"time"
@@ -34,23 +34,23 @@ func (c Config) RequestTimeout() time.Duration {
 
 func (c Config) Validate() error {
 	if c.RequestTimeoutMinutes < 0 || c.RequestTimeoutMinutes > MaxRequestTimeoutMinutes {
-		return errors.New("模型最长等待时间须为 1 至 30 分钟")
+		return appmessage.New("backend:modelTimeoutMustBeFrom1To30", "模型最长等待时间须为 1 至 30 分钟")
 	}
 	if c.Protocol != "chat_completions" && c.Protocol != "messages" && c.Protocol != "responses" {
-		return errors.New("AI 接口类型无效")
+		return appmessage.New("backend:invalidAIAPIType", "AI 接口类型无效")
 	}
 	if len(c.APIKey) > 8192 || strings.ContainsAny(c.APIKey, "\r\n") || len(c.Model) > 256 || len(c.Endpoint) > 4096 {
-		return errors.New("AI 配置字段无效或过长")
+		return appmessage.New("backend:invalidOrOversizedAIConfigurationField", "AI 配置字段无效或过长")
 	}
 	if !c.Enabled && c.Endpoint == "" && c.Model == "" {
 		return nil
 	}
 	u, err := url.Parse(c.Endpoint)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil || u.Fragment != "" || u.RawQuery != "" {
-		return errors.New("请输入无凭据、查询参数和片段的完整 HTTP(S) 请求 URL")
+		return appmessage.New("backend:enterACompleteHTTPSRequestURLWithout", "请输入无凭据、查询参数和片段的完整 HTTP(S) 请求 URL")
 	}
 	if strings.TrimSpace(c.Model) == "" {
-		return errors.New("模型名称不能为空")
+		return appmessage.New("backend:modelNameCannotBeEmpty", "模型名称不能为空")
 	}
 	return nil
 }

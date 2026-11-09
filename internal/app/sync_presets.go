@@ -2,12 +2,13 @@ package app
 
 import (
 	"encoding/json"
-	"errors"
+
 	"path"
 	"path/filepath"
 	"strings"
 
 	"github.com/Sanjeever/termquay/internal/files"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 )
 
 type SyncPreset struct {
@@ -50,7 +51,7 @@ func (a *AppService) GetSyncPresets(connectionID string) ([]SyncPreset, error) {
 func (a *AppService) SaveSyncPreset(preset SyncPreset) error {
 	preset.Name = strings.TrimSpace(preset.Name)
 	if preset.Name == "" || len(preset.Name) > 128 || !filepath.IsAbs(preset.Local) || len(preset.Local) > 4096 || !path.IsAbs(preset.Remote) || len(preset.Remote) > 4096 || (preset.Direction != "upload" && preset.Direction != "download") {
-		return errors.New("同步预设名称、路径或方向无效")
+		return appmessage.New("backend:invalidSyncPresetNamePathOrDirection", "同步预设名称、路径或方向无效")
 	}
 	if err := files.ValidateSyncExcludes(preset.Exclude); err != nil {
 		return err
@@ -73,7 +74,7 @@ func (a *AppService) SaveSyncPreset(preset SyncPreset) error {
 		}
 	}
 	if !found {
-		return errors.New("请先保存 SSH 连接")
+		return appmessage.New("backend:saveTheSSHConnectionFirst", "请先保存 SSH 连接")
 	}
 	replaced := false
 	for i, item := range items {
@@ -85,7 +86,7 @@ func (a *AppService) SaveSyncPreset(preset SyncPreset) error {
 	}
 	if !replaced {
 		if len(items) >= 128 {
-			return errors.New("同步预设达到 128 项上限")
+			return appmessage.New("backend:syncPresetLimitReached128", "同步预设达到 128 项上限")
 		}
 		items = append(items, preset)
 	}

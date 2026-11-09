@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
-	"fmt"
+
 	"image"
 	"image/draw"
 	"image/gif"
@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	_ "golang.org/x/image/webp"
 )
 
@@ -51,7 +52,7 @@ func (a *AppService) imageContext(ctx context.Context, id string) (context.Conte
 	owner := a.workspaces[id]
 	if owner == nil || a.closed {
 		a.mu.Unlock()
-		return nil, nil, nil, errors.New("SSH 工作区已关闭")
+		return nil, nil, nil, appmessage.New("backend:sSHWorkspaceClosed", "SSH 工作区已关闭")
 	}
 	a.mu.Unlock()
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
@@ -61,7 +62,7 @@ func (a *AppService) imageContext(ctx context.Context, id string) (context.Conte
 		a.imageMu.Unlock()
 		stop()
 		cancel()
-		return nil, nil, nil, errors.New("图片读取任务达到上限，请稍后重试")
+		return nil, nil, nil, appmessage.New("backend:imageReadTaskLimitReachedTryAgainShortly", "图片读取任务达到上限，请稍后重试")
 	}
 	a.imagePending++
 	a.imageMu.Unlock()
@@ -83,7 +84,7 @@ func (a *AppService) imageContext(ctx context.Context, id string) (context.Conte
 
 func (a *AppService) PrepareImagePreview(ctx context.Context, id, remote string) (ImagePreview, error) {
 	if !path.IsAbs(remote) || len(remote) > 4096 {
-		return ImagePreview{}, errors.New("图片路径必须为远端绝对路径")
+		return ImagePreview{}, appmessage.New("backend:imagePathMustBeAnAbsoluteRemotePath", "图片路径必须为远端绝对路径")
 	}
 	ctx, release, owner, err := a.imageContext(ctx, id)
 	if err != nil {
@@ -100,10 +101,10 @@ func (a *AppService) PrepareImagePreview(ctx context.Context, id, remote string)
 		return ImagePreview{}, err
 	}
 	if !info.Mode().IsRegular() {
-		return ImagePreview{}, errors.New("图片预览支持普通文件，符号链接请使用实际目标路径")
+		return ImagePreview{}, appmessage.New("backend:imagePreviewSupportsRegularFilesUseTheResolved", "图片预览支持普通文件，符号链接请使用实际目标路径")
 	}
 	if info.Size() > maxImageBytes {
-		return ImagePreview{}, errors.New("图片超过 16 MiB，请下载后查看")
+		return ImagePreview{}, appmessage.New("backend:imageExceeds16MiBDownloadItToView", "图片超过 16 MiB，请下载后查看")
 	}
 	file, err := client.Open(remote)
 	if err != nil {
@@ -120,7 +121,7 @@ func (a *AppService) PrepareImagePreview(ctx context.Context, id, remote string)
 func (a *AppService) PrepareExternalImagePreview(ctx context.Context, id, address string) (ImagePreview, error) {
 	u, err := url.Parse(address)
 	if err != nil || u.Host == "" || u.User != nil || (u.Scheme != "http" && u.Scheme != "https") || len(address) > 8192 {
-		return ImagePreview{}, errors.New("外部图片地址必须为 HTTP 或 HTTPS")
+		return ImagePreview{}, appmessage.New("backend:externalImageURLMustUseHTTPOrHTTPS", "外部图片地址必须为 HTTP 或 HTTPS")
 	}
 	ctx, release, owner, err := a.imageContext(ctx, id)
 	if err != nil {
@@ -133,7 +134,7 @@ func (a *AppService) PrepareExternalImagePreview(ctx context.Context, id, addres
 	}
 	client := &http.Client{Timeout: 30 * time.Second, CheckRedirect: func(request *http.Request, previous []*http.Request) error {
 		if len(previous) >= 5 || request.URL.User != nil || (request.URL.Scheme != "http" && request.URL.Scheme != "https") {
-			return errors.New("外部图片重定向无效或超过限制")
+			return appmessage.New("backend:externalImageRedirectIsInvalidOrExceedsThe", "外部图片重定向无效或超过限制")
 		}
 		return nil
 	}}
@@ -147,10 +148,10 @@ func (a *AppService) PrepareExternalImagePreview(ctx context.Context, id, addres
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
-		return ImagePreview{}, fmt.Errorf("外部图片读取失败：HTTP %d", response.StatusCode)
+		return ImagePreview{}, appmessage.Errorf("backend:couldNotReadExternalImageHTTP", "外部图片读取失败：HTTP %d", response.StatusCode)
 	}
 	if response.ContentLength > maxImageBytes {
-		return ImagePreview{}, errors.New("图片超过 16 MiB，请下载后查看")
+		return ImagePreview{}, appmessage.New("backend:imageExceeds16MiBDownloadItToView", "图片超过 16 MiB，请下载后查看")
 	}
 	data, err := readImageBytes(response.Body)
 	if err != nil {
@@ -165,7 +166,7 @@ func readImageBytes(reader io.Reader) ([]byte, error) {
 		return nil, err
 	}
 	if len(data) > maxImageBytes {
-		return nil, errors.New("图片超过 16 MiB，请下载后查看")
+		return nil, appmessage.New("backend:imageExceeds16MiBDownloadItToView", "图片超过 16 MiB，请下载后查看")
 	}
 	return data, nil
 }
@@ -176,20 +177,20 @@ func (a *AppService) publishImage(ctx context.Context, workspace string, owner *
 	}
 	config, format, err := image.DecodeConfig(bytes.NewReader(data))
 	if err != nil {
-		return ImagePreview{}, errors.New("无法识别图片，预览支持 PNG、JPEG、GIF 和 WebP")
+		return ImagePreview{}, appmessage.New("backend:unrecognizedImagePreviewSupportsPNGJPEGGIFAnd", "无法识别图片，预览支持 PNG、JPEG、GIF 和 WebP")
 	}
 	if config.Width <= 0 || config.Height <= 0 || config.Width > 16384 || config.Height > 16384 || int64(config.Width)*int64(config.Height) > maxImagePixels {
-		return ImagePreview{}, errors.New("图片像素或尺寸超过预览限制，请下载后查看")
+		return ImagePreview{}, appmessage.New("backend:imagePixelsOrDimensionsExceedPreviewLimitsDownload", "图片像素或尺寸超过预览限制，请下载后查看")
 	}
 	size := int64(len(data))
 	mime := map[string]string{"png": "image/png", "jpeg": "image/jpeg", "gif": "image/png", "webp": "image/webp"}[format]
 	if mime == "" {
-		return ImagePreview{}, errors.New("图片格式暂不支持预览")
+		return ImagePreview{}, appmessage.New("backend:thisImageFormatCannotBePreviewedYet", "图片格式暂不支持预览")
 	}
 	if format == "gif" {
 		frame, err := gif.Decode(bytes.NewReader(data))
 		if err != nil {
-			return ImagePreview{}, fmt.Errorf("读取 GIF 首帧失败：%w", err)
+			return ImagePreview{}, appmessage.Errorf("backend:couldNotReadFirstGIFFrame", "读取 GIF 首帧失败：%w", err)
 		}
 		var output bytes.Buffer
 		canvas := image.NewNRGBA(image.Rect(0, 0, config.Width, config.Height))
@@ -205,13 +206,13 @@ func (a *AppService) publishImage(ctx context.Context, workspace string, owner *
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.closed || a.workspaces[workspace] != owner {
-		return ImagePreview{}, errors.New("SSH 工作区已关闭")
+		return ImagePreview{}, appmessage.New("backend:sSHWorkspaceClosed", "SSH 工作区已关闭")
 	}
 	a.imageMu.Lock()
 	defer a.imageMu.Unlock()
 	pixels := int64(config.Width) * int64(config.Height)
 	if len(a.imagePreviews) >= 64 || a.imageBytes+int64(len(data)) > imageCacheBytes || a.imagePixels+pixels > imageCachePixels {
-		return ImagePreview{}, errors.New("图片预览资源达到上限，请关闭其他图片或收起预览后重试")
+		return ImagePreview{}, appmessage.New("backend:imagePreviewResourceLimitReachedCloseOrCollapse", "图片预览资源达到上限，请关闭其他图片或收起预览后重试")
 	}
 	if a.imagePreviews == nil {
 		a.imagePreviews = map[string]*imagePreviewData{}

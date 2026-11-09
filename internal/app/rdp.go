@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/Sanjeever/termquay/internal/rdp"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -34,10 +35,10 @@ func (a *AppService) OpenSavedRDPRoute(id, gateway string) (RDPLaunch, error) {
 		return RDPLaunch{}, err
 	}
 	if c.Protocol != "rdp" {
-		return RDPLaunch{}, errors.New("所选连接不是 RDP")
+		return RDPLaunch{}, appmessage.New("backend:selectedConnectionIsNotRDP", "所选连接不是 RDP")
 	}
 	if r.PrivateKey != "" {
-		return RDPLaunch{}, errors.New("RDP 无法使用 SSH 私钥，请保存密码凭据")
+		return RDPLaunch{}, appmessage.New("backend:rDPCannotUseSSHPrivateKeysSavePassword", "RDP 无法使用 SSH 私钥，请保存密码凭据")
 	}
 	grant, err := a.OpenRDPRoute(r.Host, r.Port, gateway)
 	if err != nil {
@@ -66,7 +67,7 @@ func (a *AppService) ProbeRDPRoute(ctx context.Context, host string, port int, g
 	a.mu.Lock()
 	if generation != a.trustEpoch[address] {
 		a.mu.Unlock()
-		return RDPProbe{}, errors.New("证书探测已失效")
+		return RDPProbe{}, appmessage.New("backend:certificateProbeExpired", "证书探测已失效")
 	}
 	if stored != "" {
 		a.trusted[address] = stored
@@ -80,7 +81,7 @@ func (a *AppService) ProbeRDPRoute(ctx context.Context, host string, port int, g
 			a.mu.Lock()
 			if generation != a.trustEpoch[address] {
 				a.mu.Unlock()
-				return RDPProbe{}, errors.New("证书探测已失效")
+				return RDPProbe{}, appmessage.New("backend:certificateProbeExpired", "证书探测已失效")
 			}
 			if err = a.setPendingTrustLocked(address, cert.Fingerprint); err != nil {
 				a.mu.Unlock()
@@ -94,10 +95,10 @@ func (a *AppService) ProbeRDPRoute(ctx context.Context, host string, port int, g
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if generation != a.trustEpoch[address] {
-		return RDPProbe{}, errors.New("证书探测已失效")
+		return RDPProbe{}, appmessage.New("backend:certificateProbeExpired", "证书探测已失效")
 	}
 	if known := a.trusted[address]; known != "" && known != value {
-		return RDPProbe{}, errors.New("RDP 证书已变化，连接已阻止")
+		return RDPProbe{}, appmessage.New("backend:rDPCertificateChangedConnectionBlocked", "RDP 证书已变化，连接已阻止")
 	}
 	if err := a.saveTrust(address, value); err != nil {
 		return RDPProbe{}, err
@@ -119,7 +120,7 @@ func (a *AppService) TrustRDPCertificateRoute(host string, port int, fingerprint
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if !a.pendingTrustValidLocked(address, fingerprint) || a.trusted[address] != "" {
-		return errors.New("RDP 证书信任请求无效")
+		return appmessage.New("backend:invalidRDPCertificateTrustRequest", "RDP 证书信任请求无效")
 	}
 	if err := a.saveTrust(address, fingerprint); err != nil {
 		return err
@@ -155,14 +156,14 @@ func (a *AppService) OpenRDPRoute(host string, port int, gateway string) (rdp.Gr
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.closed {
-		return rdp.Grant{}, errors.New("应用正在关闭")
+		return rdp.Grant{}, appmessage.New("backend:applicationIsClosing", "应用正在关闭")
 	}
 	if a.rdp == nil {
 		b, err := rdp.NewBridge(rdpOrigins(), func(id string, closedErr error) {
 			if closedErr == nil {
 				application.Get().Event.Emit("rdp:closed", map[string]string{"id": id})
 			} else {
-				application.Get().Event.Emit("rdp:error", map[string]string{"id": id, "error": closedErr.Error()})
+				application.Get().Event.Emit("rdp:error", map[string]any{"id": id, "error": closedErr.Error(), "error_message": appmessage.Describe(closedErr)})
 			}
 		})
 		if err != nil {

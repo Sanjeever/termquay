@@ -2,11 +2,12 @@ package ssh
 
 import (
 	"context"
-	"errors"
+
 	"net"
 	"strconv"
 	"time"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"golang.org/x/net/proxy"
 )
 
@@ -18,7 +19,7 @@ func connectDirect(ctx context.Context, request Request, address string) (net.Co
 	host, port, err := net.SplitHostPort(request.ProxyAddress)
 	value, parseErr := strconv.Atoi(port)
 	if err != nil || parseErr != nil || host == "" || value < 1 || value > 65535 || len(request.ProxyAddress) > 1024 {
-		return nil, errors.New("SOCKS5 代理须为主机:端口，IPv6 使用方括号")
+		return nil, appmessage.New("backend:sOCKS5ProxyMustBeHostPortEncloseIPv6", "SOCKS5 代理须为主机:端口，IPv6 使用方括号")
 	}
 	forward, err := proxy.SOCKS5("tcp", request.ProxyAddress, nil, dialer)
 	if err != nil {

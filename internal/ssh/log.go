@@ -1,8 +1,8 @@
 package ssh
 
 import (
-	"errors"
 	"fmt"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
 	"io"
@@ -12,12 +12,13 @@ import (
 )
 
 type TerminalLogStatus struct {
-	Directory string `json:"directory"`
-	Recording bool   `json:"recording"`
-	Error     string `json:"error"`
-	Format    string `json:"format"`
-	File      string `json:"file"`
-	Finished  bool   `json:"finished"`
+	Directory    string                 `json:"directory"`
+	Recording    bool                   `json:"recording"`
+	Error        string                 `json:"error"`
+	ErrorMessage *appmessage.Descriptor `json:"error_message,omitempty"`
+	Format       string                 `json:"format"`
+	File         string                 `json:"file"`
+	Finished     bool                   `json:"finished"`
 }
 
 type terminalLog struct {
@@ -34,14 +35,14 @@ func (t *Terminal) StartLog(parent string) (TerminalLogStatus, error) {
 	t.logMu.Lock()
 	defer t.logMu.Unlock()
 	if t.logClosed {
-		return TerminalLogStatus{}, errors.New("终端已关闭")
+		return TerminalLogStatus{}, appmessage.New("backend:terminalClosed", "终端已关闭")
 	}
 	if t.log != nil && t.log.status.Finished {
 		t.log = nil
 	}
 	if t.log != nil && t.log.cast != nil {
 		if t.log.file != nil {
-			return t.log.status, errors.New("请先暂停当前录制")
+			return t.log.status, appmessage.New("backend:pauseTheCurrentRecordingFirst", "请先暂停当前录制")
 		}
 		t.log = nil
 	}
@@ -99,11 +100,13 @@ func (t *Terminal) pauseLogLocked() TerminalLogStatus {
 		if t.log.text != nil {
 			if err := t.log.text.Close(); err != nil {
 				t.log.status.Error = err.Error()
+				t.log.status.ErrorMessage = appmessage.Describe(err)
 			}
 			t.log.text = nil
 		}
 		if err := t.log.file.Close(); err != nil {
 			t.log.status.Error = err.Error()
+			t.log.status.ErrorMessage = appmessage.Describe(err)
 		}
 		t.log.file = nil
 	}
@@ -132,6 +135,7 @@ func (t *Terminal) recordOutput(data []byte) {
 		if _, err := log.text.Write(data); err != nil {
 			t.pauseLogLocked()
 			log.status.Error = err.Error()
+			log.status.ErrorMessage = appmessage.Describe(err)
 		}
 		return
 	}
@@ -140,6 +144,7 @@ func (t *Terminal) recordOutput(data []byte) {
 		log.file = nil
 		log.status.Recording = false
 		log.status.Error = err.Error()
+		log.status.ErrorMessage = appmessage.Describe(err)
 	}
 	if log.size+int64(len(data)) > 8<<20 {
 		if err := log.file.Close(); err != nil {
@@ -165,10 +170,10 @@ type castWriter struct{ log *terminalLog }
 
 func (w castWriter) Write(data []byte) (int, error) {
 	if w.log.size+int64(len(data)) > 16<<20 {
-		return 0, errors.New("录制达到 16 MiB 上限，已停止")
+		return 0, appmessage.New("backend:recordingReached16MiBAndStopped", "录制达到 16 MiB 上限，已停止")
 	}
 	if w.log.events >= 100001 {
-		return 0, errors.New("录制达到 100000 个事件上限，已停止")
+		return 0, appmessage.New("backend:recordingReached100000EventsAndStopped", "录制达到 100000 个事件上限，已停止")
 	}
 	w.log.events++
 	n, err := w.log.file.Write(data)
@@ -183,16 +188,16 @@ func (t *Terminal) StartTimedLog(parent string) (TerminalLogStatus, error) {
 	t.logMu.Lock()
 	defer t.logMu.Unlock()
 	if t.logClosed {
-		return TerminalLogStatus{}, errors.New("终端已关闭")
+		return TerminalLogStatus{}, appmessage.New("backend:terminalClosed", "终端已关闭")
 	}
 	if t.logCols < 1 || t.logRows < 1 {
-		return TerminalLogStatus{}, errors.New("终端尺寸尚未就绪")
+		return TerminalLogStatus{}, appmessage.New("backend:terminalDimensionsAreNotReadyYet", "终端尺寸尚未就绪")
 	}
 	if t.log != nil && t.log.status.Finished {
 		t.log = nil
 	}
 	if t.log != nil && t.log.file != nil {
-		return t.log.status, errors.New("请先暂停当前记录")
+		return t.log.status, appmessage.New("backend:pauseTheCurrentLogFirst", "请先暂停当前记录")
 	}
 	if t.log != nil && t.log.cast != nil && t.log.status.Error != "" {
 		t.log = nil
@@ -215,6 +220,7 @@ func (t *Terminal) StartTimedLog(parent string) (TerminalLogStatus, error) {
 		if err = log.cast.WriteHeader(); err != nil {
 			t.pauseLogLocked()
 			log.status.Error = err.Error()
+			log.status.ErrorMessage = appmessage.Describe(err)
 			return log.status, err
 		}
 	}
@@ -222,10 +228,12 @@ func (t *Terminal) StartTimedLog(parent string) (TerminalLogStatus, error) {
 	if err = log.cast.WriteEvent(asciicast.EventType("r"), fmt.Sprintf("%dx%d", t.logCols, t.logRows)); err != nil {
 		t.pauseLogLocked()
 		log.status.Error = err.Error()
+		log.status.ErrorMessage = appmessage.Describe(err)
 		return log.status, err
 	}
 	log.status.Recording = true
 	log.status.Error = ""
+	log.status.ErrorMessage = nil
 	return log.status, nil
 }
 
@@ -239,5 +247,6 @@ func (t *Terminal) recordResize(cols, rows int) {
 	if err := t.log.cast.WriteEvent(asciicast.EventType("r"), fmt.Sprintf("%dx%d", cols, rows)); err != nil {
 		t.pauseLogLocked()
 		t.log.status.Error = err.Error()
+		t.log.status.ErrorMessage = appmessage.Describe(err)
 	}
 }

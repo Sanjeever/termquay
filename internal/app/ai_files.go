@@ -3,7 +3,7 @@ package app
 import (
 	"context"
 	"encoding/json"
-	"errors"
+
 	"io"
 	"os"
 	"path"
@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/Sanjeever/termquay/internal/files"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 )
 
 const maxAIDirectoryScan = 16384
@@ -31,14 +32,14 @@ func windowsAbsolutePath(value string) bool {
 func aiRemotePath(value, platform string) (string, error) {
 	if windowsAbsolutePath(value) {
 		if platform != "windows" {
-			return "", errors.New("盘符绝对路径需要已识别的 Windows SSH 主机")
+			return "", appmessage.New("backend:driveLetterAbsolutePathsRequireAnIdentifiedWindows", "盘符绝对路径需要已识别的 Windows SSH 主机")
 		}
 		value = "/" + strings.ReplaceAll(value, "\\", "/")
 	} else if platform == "windows" {
 		value = strings.ReplaceAll(value, "\\", "/")
 	}
 	if !path.IsAbs(value) {
-		return "", errors.New("文件工具需要远端绝对路径")
+		return "", appmessage.New("backend:fileToolsRequireAnAbsoluteRemotePath", "文件工具需要远端绝对路径")
 	}
 	return path.Clean(value), nil
 }

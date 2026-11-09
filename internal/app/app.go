@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Sanjeever/termquay/internal/localapi"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/Sanjeever/termquay/internal/rdp"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 	"github.com/Sanjeever/termquay/internal/store"
@@ -303,7 +304,7 @@ func (a *AppService) ServiceShutdown() (result error) {
 		select {
 		case <-done:
 		case <-transferWait.Done():
-			result = errors.Join(result, errors.New("退出时传输记录尚未完成保存"))
+			result = errors.Join(result, appmessage.New("backend:transferRecordsWereNotFullySavedBeforeExit", "退出时传输记录尚未完成保存"))
 		}
 	}
 	for _, run := range commandRuns {

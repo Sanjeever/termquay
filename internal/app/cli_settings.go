@@ -1,13 +1,13 @@
 package app
 
 import (
-	"errors"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"strconv"
 )
 
 func (a *AppService) GetCLIAccess() (bool, error) {
 	if a.appLocked.Load() {
-		return false, errors.New("应用已锁定")
+		return false, appmessage.New("backend:applicationLocked", "应用已锁定")
 	}
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
@@ -26,7 +26,7 @@ func (a *AppService) GetCLIAccess() (bool, error) {
 
 func (a *AppService) SaveCLIAccess(enabled bool) error {
 	if a.appLocked.Load() {
-		return errors.New("应用已锁定")
+		return appmessage.New("backend:applicationLocked", "应用已锁定")
 	}
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()

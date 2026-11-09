@@ -5,7 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/xml"
-	"errors"
+
 	"fmt"
 	"io"
 	"io/fs"
@@ -16,6 +16,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/Sanjeever/termquay/internal/store"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"golang.org/x/text/encoding/charmap"
@@ -25,7 +26,7 @@ import (
 
 func (a *AppService) SelectSessionImport(source string, directory bool) (SSHImportPreview, error) {
 	if !validSessionSource(source) {
-		return SSHImportPreview{}, errors.New("导入来源无效")
+		return SSHImportPreview{}, appmessage.New("backend:invalidImportSource", "导入来源无效")
 	}
 	dialog := application.Get().Dialog.OpenFile().SetTitle(fmt.Sprintf(nativeText("Select %s session configuration", "选择 %s 会话配置"), source))
 	if directory {
@@ -34,7 +35,7 @@ func (a *AppService) SelectSessionImport(source string, directory bool) (SSHImpo
 			return SSHImportPreview{}, err
 		}
 		if name == "" {
-			return SSHImportPreview{}, errors.New("未选择配置目录")
+			return SSHImportPreview{}, appmessage.New("backend:noConfigurationDirectorySelected", "未选择配置目录")
 		}
 		names := []string{}
 		visited := 0
@@ -44,16 +45,16 @@ func (a *AppService) SelectSessionImport(source string, directory bool) (SSHImpo
 			}
 			visited++
 			if visited > 4096 {
-				return errors.New("配置目录超过 4096 项，请选择更小范围")
+				return appmessage.New("backend:configurationDirectoryExceeds4096EntriesSelectASmaller", "配置目录超过 4096 项，请选择更小范围")
 			}
 			if entry.Type()&os.ModeSymlink != 0 {
-				return errors.New("配置目录包含符号链接，请明确选择普通配置文件")
+				return appmessage.New("backend:configurationDirectoryContainsSymbolicLinksSelectRegularFiles", "配置目录包含符号链接，请明确选择普通配置文件")
 			}
 			if !entry.IsDir() && sessionExtension(source, filename) {
 				names = append(names, filename)
 			}
 			if len(names) > 512 {
-				return errors.New("配置文件超过 512 个")
+				return appmessage.New("backend:configurationFileCountExceeds512", "配置文件超过 512 个")
 			}
 			return nil
 		})
@@ -90,20 +91,20 @@ func sessionExtension(source, name string) bool {
 
 func (a *AppService) previewSessionFiles(source string, names []string, root string) (SSHImportPreview, error) {
 	if !validSessionSource(source) || len(names) == 0 || len(names) > 512 {
-		return SSHImportPreview{}, errors.New("请选择 1 至 512 个受支持配置文件")
+		return SSHImportPreview{}, appmessage.New("backend:selectFrom1To512SupportedConfigurationFiles", "请选择 1 至 512 个受支持配置文件")
 	}
 	rows := []SSHImportRow{}
 	total := 0
 	for _, name := range names {
 		if !sessionExtension(source, name) {
-			return SSHImportPreview{}, errors.New("文件扩展名与导入来源不匹配")
+			return SSHImportPreview{}, appmessage.New("backend:fileExtensionDoesNotMatchTheImportSource", "文件扩展名与导入来源不匹配")
 		}
 		info, err := os.Lstat(name)
 		if err != nil {
 			return SSHImportPreview{}, err
 		}
 		if !info.Mode().IsRegular() || info.Size() > 1<<20 {
-			return SSHImportPreview{}, errors.New("配置须为不超过 1 MiB 的普通文件")
+			return SSHImportPreview{}, appmessage.New("backend:configurationMustBeARegularFileNoLarger", "配置须为不超过 1 MiB 的普通文件")
 		}
 		file, err := os.Open(name)
 		if err != nil {
@@ -116,11 +117,11 @@ func (a *AppService) previewSessionFiles(source string, names []string, root str
 			return SSHImportPreview{}, err
 		}
 		if len(data) > 1<<20 || total > 8<<20 {
-			return SSHImportPreview{}, errors.New("配置文件超过 1 MiB 或合计超过 8 MiB")
+			return SSHImportPreview{}, appmessage.New("backend:configurationFileExceeds1MiBOrTotalSize", "配置文件超过 1 MiB 或合计超过 8 MiB")
 		}
 		parsed, err := parseSessionFile(source, filepath.Base(name), data)
 		if err != nil {
-			return SSHImportPreview{}, fmt.Errorf("%s：配置格式无效（%s）", filepath.Base(name), source)
+			return SSHImportPreview{}, appmessage.Errorf("backend:invalidConfigurationFormat", "%s：配置格式无效（%s）", filepath.Base(name), source)
 		}
 		if root != "" {
 			relative, err := filepath.Rel(root, filepath.Dir(name))
@@ -135,11 +136,11 @@ func (a *AppService) previewSessionFiles(source string, names []string, root str
 		}
 		rows = append(rows, parsed...)
 		if len(rows) > 512 {
-			return SSHImportPreview{}, errors.New("导入会话超过 512 项")
+			return SSHImportPreview{}, appmessage.New("backend:importedSessionCountExceeds512", "导入会话超过 512 项")
 		}
 	}
 	if len(rows) == 0 {
-		return SSHImportPreview{}, errors.New("没有找到受支持的连接会话")
+		return SSHImportPreview{}, appmessage.New("backend:noSupportedConnectionSessionsFound", "没有找到受支持的连接会话")
 	}
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
@@ -163,11 +164,11 @@ func (a *AppService) previewSessionFiles(source string, names []string, root str
 			row.Warnings = append(row.Warnings, "协议暂不支持")
 		}
 		if len(row.GroupPath) > 32 {
-			return SSHImportPreview{}, errors.New("分组超过 32 层")
+			return SSHImportPreview{}, appmessage.New("backend:groupNestingExceeds32Levels", "分组超过 32 层")
 		}
 		for _, name := range row.GroupPath {
 			if strings.TrimSpace(name) == "" || len(name) > 200 {
-				return SSHImportPreview{}, errors.New("分组名称无效")
+				return SSHImportPreview{}, appmessage.New("backend:invalidGroupName", "分组名称无效")
 			}
 		}
 		for _, old := range data.Connections {
@@ -193,7 +194,7 @@ func parseSessionFile(source, name string, data []byte) ([]SSHImportRow, error) 
 	data = bytes.TrimPrefix(data, []byte{0xef, 0xbb, 0xbf})
 	if !utf8.Valid(data) {
 		if source != "MobaXterm" {
-			return nil, errors.New("配置编码无效")
+			return nil, appmessage.New("backend:invalidConfigurationEncoding", "配置编码无效")
 		}
 		var err error
 		data, err = charmap.Windows1252.NewDecoder().Bytes(data)
@@ -230,7 +231,7 @@ func parseSessionFile(source, name string, data []byte) ([]SSHImportRow, error) 
 	for _, section := range config.Sections() {
 		for _, key := range section.Keys() {
 			if len(key.ValueWithShadows()) > 1 {
-				return nil, errors.New("配置字段重复")
+				return nil, appmessage.New("backend:duplicateConfigurationField", "配置字段重复")
 			}
 			field := strings.ToLower(key.Name())
 			value := strings.TrimSpace(key.String())
@@ -254,15 +255,15 @@ func parseMobaXterm(config *ini.File) ([]SSHImportRow, error) {
 				continue
 			}
 			if len(key.ValueWithShadows()) > 1 {
-				return nil, errors.New("会话名称重复")
+				return nil, appmessage.New("backend:duplicateSessionName", "会话名称重复")
 			}
 			parts := strings.Split(key.String(), "#")
 			if len(parts) < 3 {
-				return nil, errors.New("会话字段不完整")
+				return nil, appmessage.New("backend:incompleteSessionFields", "会话字段不完整")
 			}
 			fields := strings.Split(parts[2], "%")
 			if len(fields) < 4 {
-				return nil, errors.New("会话地址不完整")
+				return nil, appmessage.New("backend:incompleteSessionAddress", "会话地址不完整")
 			}
 			protocol := ""
 			if fields[0] == "0" {
@@ -338,19 +339,19 @@ func parseSecureCRT(data []byte) ([]SSHImportRow, error) {
 		if strings.EqualFold(charset, "UTF-16") || strings.EqualFold(charset, "UTF-8") {
 			return input, nil
 		}
-		return nil, errors.New("XML 字符编码暂不支持")
+		return nil, appmessage.New("backend:xMLCharacterEncodingIsNotSupportedYet", "XML 字符编码暂不支持")
 	}
 	if err := decoder.Decode(&root); err != nil {
 		return nil, err
 	}
 	if root.XMLName.Local != "VanDyke" {
-		return nil, errors.New("不是 SecureCRT XML")
+		return nil, appmessage.New("backend:notASecureCRTXMLFile", "不是 SecureCRT XML")
 	}
 	rows := []SSHImportRow{}
 	var visit func(secureCRTNode, []string, bool, int) error
 	visit = func(node secureCRTNode, group []string, inSessions bool, depth int) error {
 		if depth > 64 || len(rows) > 512 {
-			return errors.New("XML 超过深度或会话数量限制")
+			return appmessage.New("backend:xMLExceedsDepthOrSessionCountLimits", "XML 超过深度或会话数量限制")
 		}
 		if node.Name == "Sessions" {
 			inSessions = true

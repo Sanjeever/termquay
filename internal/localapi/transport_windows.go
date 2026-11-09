@@ -2,11 +2,12 @@ package localapi
 
 import (
 	"context"
-	"fmt"
+
 	"net"
 	"time"
 
 	"github.com/Microsoft/go-winio"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"golang.org/x/sys/windows"
 )
 
@@ -30,7 +31,7 @@ func listen() (net.Listener, error) {
 	}
 	l, err := winio.ListenPipe(path, &winio.PipeConfig{SecurityDescriptor: acl, InputBufferSize: 4096, OutputBufferSize: 4096})
 	if err != nil {
-		return nil, fmt.Errorf("CLI 端点被占用或不可用：%w", err)
+		return nil, appmessage.Errorf("backend:cLIEndpointOccupiedOrUnavailable", "CLI 端点被占用或不可用：%w", err)
 	}
 	return l, nil
 }

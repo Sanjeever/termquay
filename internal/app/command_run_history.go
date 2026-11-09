@@ -2,7 +2,8 @@ package app
 
 import (
 	"encoding/json"
-	"errors"
+
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -19,7 +20,7 @@ func (a *AppService) commandRunHistory() ([]CommandRunSummary, error) {
 	}
 	items := []CommandRunSummary{}
 	if len(value) > 64<<10 {
-		return nil, errors.New("执行记录索引超过大小限制")
+		return nil, appmessage.New("backend:executionHistoryIndexExceedsSizeLimit", "执行记录索引超过大小限制")
 	}
 	if value != "" {
 		if err := json.Unmarshal([]byte(value), &items); err != nil {
@@ -27,7 +28,7 @@ func (a *AppService) commandRunHistory() ([]CommandRunSummary, error) {
 		}
 	}
 	if len(items) > maxSavedCommandRuns {
-		return nil, errors.New("执行记录索引超过数量限制")
+		return nil, appmessage.New("backend:executionHistoryIndexExceedsCountLimit", "执行记录索引超过数量限制")
 	}
 	return items, nil
 }
@@ -55,6 +56,9 @@ func (a *AppService) ListCommandRuns() ([]CommandRunSummary, error) {
 	}
 	a.mu.Unlock()
 	sortCommandRuns(items)
+	for index := range items {
+		items[index].StateCode = commandStateCode(items[index].State)
+	}
 	return items, nil
 }
 
@@ -64,11 +68,11 @@ func (a *AppService) GetCommandRun(id string) (CommandRunRecord, error) {
 		view := run.view
 		view.Results = append([]CommandRunItem(nil), view.Results...)
 		a.mu.Unlock()
-		return view, nil
+		return commandRecordWithStateCodes(view), nil
 	}
 	a.mu.Unlock()
 	if !validWorkspaceID(id) {
-		return CommandRunRecord{}, errors.New("执行记录标识无效")
+		return CommandRunRecord{}, appmessage.New("backend:invalidExecutionHistoryIdentifier", "执行记录标识无效")
 	}
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
@@ -80,16 +84,16 @@ func (a *AppService) GetCommandRun(id string) (CommandRunRecord, error) {
 		return CommandRunRecord{}, err
 	}
 	if value == "" || len(value) > maxSavedCommandRunBytes {
-		return CommandRunRecord{}, errors.New("执行记录不存在或超过大小限制")
+		return CommandRunRecord{}, appmessage.New("backend:executionRecordMissingOrOversized", "执行记录不存在或超过大小限制")
 	}
 	var record CommandRunRecord
 	if err := json.Unmarshal([]byte(value), &record); err != nil {
 		return record, err
 	}
 	if record.Summary.ID != id || record.Summary.FinishedAt == 0 || len(record.Results) > 1024 {
-		return CommandRunRecord{}, errors.New("执行记录内容无效")
+		return CommandRunRecord{}, appmessage.New("backend:invalidExecutionRecordContents", "执行记录内容无效")
 	}
-	return record, nil
+	return commandRecordWithStateCodes(record), nil
 }
 
 func (a *AppService) SaveCommandRun(id string) (CommandRunSummary, error) {
@@ -97,7 +101,7 @@ func (a *AppService) SaveCommandRun(id string) (CommandRunSummary, error) {
 	run := a.commandRuns[id]
 	if run == nil || run.view.Summary.FinishedAt == 0 {
 		a.mu.Unlock()
-		return CommandRunSummary{}, errors.New("请选择本次运行中已结束的任务")
+		return CommandRunSummary{}, appmessage.New("backend:selectAFinishedTaskFromThisApplicationRun", "请选择本次运行中已结束的任务")
 	}
 	view := run.view
 	view.Summary.Saved = true
@@ -108,7 +112,7 @@ func (a *AppService) SaveCommandRun(id string) (CommandRunSummary, error) {
 		return CommandRunSummary{}, err
 	}
 	if len(data) > maxSavedCommandRunBytes {
-		return CommandRunSummary{}, errors.New("执行记录超过 8 MiB，无法保存；可选择部分结果导出")
+		return CommandRunSummary{}, appmessage.New("backend:executionRecordExceeds8MiBAndCannotBe", "执行记录超过 8 MiB，无法保存；可选择部分结果导出")
 	}
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
@@ -125,7 +129,7 @@ func (a *AppService) SaveCommandRun(id string) (CommandRunSummary, error) {
 	}
 	if !found {
 		if len(items) >= maxSavedCommandRuns {
-			return CommandRunSummary{}, errors.New("加密执行记录达到 16 项上限，请先移除旧记录")
+			return CommandRunSummary{}, appmessage.New("backend:encryptedExecutionHistoryLimitReached16RemoveOlder", "加密执行记录达到 16 项上限，请先移除旧记录")
 		}
 		items = append(items, view.Summary)
 	}
@@ -147,7 +151,7 @@ func (a *AppService) SaveCommandRun(id string) (CommandRunSummary, error) {
 
 func (a *AppService) DeleteCommandRun(id string) error {
 	if !validWorkspaceID(id) {
-		return errors.New("执行记录标识无效")
+		return appmessage.New("backend:invalidExecutionHistoryIdentifier", "执行记录标识无效")
 	}
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
@@ -158,7 +162,7 @@ func (a *AppService) DeleteCommandRun(id string) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if run := a.commandRuns[id]; run != nil && run.view.Summary.FinishedAt == 0 {
-		return errors.New("运行中的任务须先取消，结束后再移除")
+		return appmessage.New("backend:cancelRunningTasksAndWaitForCompletionBefore", "运行中的任务须先取消，结束后再移除")
 	}
 	remaining := make([]CommandRunSummary, 0, len(items))
 	for _, item := range items {

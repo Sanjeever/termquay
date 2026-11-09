@@ -3,12 +3,13 @@ package app
 import (
 	"context"
 	"encoding/base64"
-	"errors"
+
 	"reflect"
 	"sort"
 	"time"
 
 	"github.com/Sanjeever/termquay/internal/backup"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/Sanjeever/termquay/internal/store"
 )
 
@@ -132,11 +133,11 @@ func (a *AppService) ConfirmRestoreWithOptions(id string, connectionIDs []string
 	a.backupMu.Lock()
 	defer a.backupMu.Unlock()
 	if a.preview == nil || a.preview.id != id {
-		return errors.New("恢复预览已失效，请重新预览")
+		return appmessage.New("backend:restorePreviewNoLongerValidPreviewAgain", "恢复预览已失效，请重新预览")
 	}
 	if time.Now().After(a.preview.expires) {
 		a.preview = nil
-		return errors.New("恢复预览已失效，请重新预览")
+		return appmessage.New("backend:restorePreviewNoLongerValidPreviewAgain", "恢复预览已失效，请重新预览")
 	}
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
@@ -148,14 +149,14 @@ func (a *AppService) ConfirmRestoreWithOptions(id string, connectionIDs []string
 		return err
 	}
 	if !reflect.DeepEqual(current, a.preview.base) {
-		return errors.New("本地连接在预览后发生变化，请重新预览")
+		return appmessage.New("backend:localConnectionsChangedAfterPreviewPreviewAgain", "本地连接在预览后发生变化，请重新预览")
 	}
 	data := a.preview.data
 	settings := map[string]string{}
 	selectedSettings := map[string]string{}
 	for _, key := range settingKeys {
 		if key != "snippets" && key != "appearance" && key != "shortcuts" && !backup.IsWorkflowSetting(key) {
-			return errors.New("恢复设置包含未知选项")
+			return appmessage.New("backend:restoreSettingsContainAnUnknownOption", "恢复设置包含未知选项")
 		}
 		if value, ok := a.preview.sourceSettings[key]; ok {
 			selectedSettings[key] = value
@@ -173,7 +174,7 @@ func (a *AppService) ConfirmRestoreWithOptions(id string, connectionIDs []string
 				return err
 			}
 			if value != expected {
-				return errors.New("本机设置在预览后发生变化，请重新预览")
+				return appmessage.New("backend:localSettingsChangedAfterPreviewPreviewAgain", "本机设置在预览后发生变化，请重新预览")
 			}
 		}
 	}

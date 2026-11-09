@@ -3,12 +3,13 @@ package app
 import (
 	"context"
 	"encoding/json"
-	"errors"
+
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/Sanjeever/termquay/internal/backup"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 )
 
 type SnapshotDetails struct {
@@ -30,7 +31,7 @@ func (a *AppService) readSavedSnapshot(ctx context.Context, path, password strin
 		password = config.Password
 	}
 	if password == "" {
-		return backup.Snapshot{}, "", errors.New("请输入这份备份的加密密码")
+		return backup.Snapshot{}, "", appmessage.New("backend:enterThisBackupSEncryptionPassword", "请输入这份备份的加密密码")
 	}
 	data, err := config.Options.Read(ctx, path)
 	if err != nil {
@@ -134,7 +135,7 @@ func (a *AppService) backupDeviceAliases() (map[string]string, error) {
 func (a *AppService) SetBackupDeviceAlias(deviceID, name string) error {
 	name = strings.TrimSpace(name)
 	if deviceID == "" || len(deviceID) > 100 || strings.ContainsAny(deviceID, "/\\\x00") || len(name) > 200 || strings.ContainsAny(name, "\r\n\x00") {
-		return errors.New("设备标识或备注无效")
+		return appmessage.New("backend:invalidDeviceIdentifierOrLabel", "设备标识或备注无效")
 	}
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()

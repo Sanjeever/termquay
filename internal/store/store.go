@@ -8,10 +8,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
+
 	"os"
 	"path/filepath"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	_ "modernc.org/sqlite"
 )
 
@@ -56,10 +57,10 @@ func (d Data) Validate() error {
 	groups := map[string]string{}
 	for _, g := range d.Groups {
 		if g.ID == "" || g.Name == "" {
-			return errors.New("分组 ID 和名称不能为空")
+			return appmessage.New("backend:groupIDAndNameCannotBeEmpty", "分组 ID 和名称不能为空")
 		}
 		if _, ok := groups[g.ID]; ok {
-			return errors.New("分组 ID 重复")
+			return appmessage.New("backend:duplicateGroupID", "分组 ID 重复")
 		}
 		groups[g.ID] = g.ParentID
 	}
@@ -67,12 +68,12 @@ func (d Data) Validate() error {
 		seen := map[string]bool{}
 		for id != "" {
 			if seen[id] {
-				return errors.New("分组存在循环引用")
+				return appmessage.New("backend:groupReferencesContainACycle", "分组存在循环引用")
 			}
 			seen[id] = true
 			parent, ok := groups[id]
 			if !ok {
-				return errors.New("父分组不存在")
+				return appmessage.New("backend:parentGroupDoesNotExist", "父分组不存在")
 			}
 			id = parent
 		}
@@ -81,7 +82,7 @@ func (d Data) Validate() error {
 	kinds := map[string]string{}
 	for _, c := range d.Credentials {
 		if c.ID == "" || credentials[c.ID] || (c.Kind != "password" && c.Kind != "private_key") {
-			return errors.New("凭据 ID 或类型无效")
+			return appmessage.New("backend:invalidCredentialIDOrType", "凭据 ID 或类型无效")
 		}
 		credentials[c.ID] = true
 		kinds[c.ID] = c.Kind
@@ -90,26 +91,26 @@ func (d Data) Validate() error {
 	configs := map[string]Connection{}
 	for _, c := range d.Connections {
 		if len(c.Certificate) > 64<<10 || (c.Certificate != "" && (c.Protocol != "ssh" || c.AuthMethod != "private_key")) || len(c.ProxyAddress) > 1024 || (c.ProxyAddress != "" && (c.Protocol != "ssh" || c.JumpID != "")) {
-			return errors.New("用户证书或 SOCKS5 代理配置无效；代理与跳板不能同时设置")
+			return appmessage.New("backend:invalidUserCertificateOrSOCKS5ProxyConfigurationProxy", "用户证书或 SOCKS5 代理配置无效；代理与跳板不能同时设置")
 		}
 		if (c.AuthMethod != "" && c.AuthMethod != "password" && c.AuthMethod != "private_key" && c.AuthMethod != "agent" && c.AuthMethod != "keyboard_interactive") || (c.Protocol != "ssh" && (c.AuthMethod != "" || c.IdentityAgent != "" || c.MFA)) || len(c.IdentityAgent) > 4096 || ((c.AuthMethod == "agent" || c.AuthMethod == "keyboard_interactive") && c.CredentialID != "") {
-			return errors.New("连接认证配置无效")
+			return appmessage.New("backend:invalidConnectionAuthenticationConfiguration", "连接认证配置无效")
 		}
 		if c.ID == "" || connections[c.ID] || c.Name == "" || c.Host == "" || c.Port < 1 || c.Port > 65535 || (c.Protocol != "ssh" && c.Protocol != "rdp") {
-			return errors.New("连接配置无效")
+			return appmessage.New("backend:invalidConnectionConfiguration", "连接配置无效")
 		}
 		connections[c.ID] = true
 		configs[c.ID] = c
 		if c.GroupID != "" {
 			if _, ok := groups[c.GroupID]; !ok {
-				return errors.New("连接引用的分组不存在")
+				return appmessage.New("backend:referencedConnectionGroupDoesNotExist", "连接引用的分组不存在")
 			}
 		}
 		if c.CredentialID != "" && !credentials[c.CredentialID] {
-			return errors.New("连接引用的凭据不存在")
+			return appmessage.New("backend:referencedConnectionCredentialsDoNotExist", "连接引用的凭据不存在")
 		}
 		if c.CredentialID != "" && ((c.AuthMethod == "private_key" && kinds[c.CredentialID] != "private_key") || (c.AuthMethod == "password" && kinds[c.CredentialID] != "password")) {
-			return errors.New("连接认证方式与凭据类型不一致")
+			return appmessage.New("backend:connectionAuthenticationMethodDoesNotMatchCredentialType", "连接认证方式与凭据类型不一致")
 		}
 	}
 	for _, c := range d.Connections {
@@ -118,7 +119,7 @@ func (d Data) Validate() error {
 			for id := c.JumpID; id != ""; {
 				jump, ok := configs[id]
 				if !ok || c.Protocol != "ssh" || jump.Protocol != "ssh" || seen[id] || len(seen) > 4 {
-					return errors.New("跳板引用无效、存在循环或超过四跳")
+					return appmessage.New("backend:invalidJumpReferenceCycleOrMoreThanFour", "跳板引用无效、存在循环或超过四跳")
 				}
 				seen[id] = true
 				id = jump.JumpID
@@ -172,7 +173,7 @@ func Open(dir string, key []byte) (*Store, error) {
 	}
 	if version > 2 {
 		db.Close()
-		return nil, errors.New("数据库版本高于当前应用支持范围")
+		return nil, appmessage.New("backend:databaseVersionExceedsThisApplicationSSupportedRange", "数据库版本高于当前应用支持范围")
 	}
 	_, err = db.Exec(`PRAGMA foreign_keys = ON;`)
 	if err == nil {
@@ -215,7 +216,7 @@ func (s *Store) Connection(ctx context.Context, id string) (Connection, error) {
 	var data []byte
 	if err := s.db.QueryRowContext(ctx, "SELECT data FROM connections WHERE id = ?", id).Scan(&data); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return Connection{}, errors.New("连接配置不存在")
+			return Connection{}, appmessage.New("backend:connectionConfigurationDoesNotExist", "连接配置不存在")
 		}
 		return Connection{}, err
 	}
@@ -305,12 +306,12 @@ func (s *Store) read(includeCredentials bool) (Data, error) {
 		n := s.aead.NonceSize()
 		if len(ciphertext) < n {
 			rows.Close()
-			return Data{}, errors.New("凭据密文损坏")
+			return Data{}, appmessage.New("backend:credentialCiphertextCorrupted", "凭据密文损坏")
 		}
 		plain, err := s.aead.Open(nil, ciphertext[:n], ciphertext[n:], []byte(c.ID+":"+c.Kind))
 		if err != nil {
 			rows.Close()
-			return Data{}, fmt.Errorf("凭据解密失败: %w", err)
+			return Data{}, appmessage.Errorf("backend:couldNotDecryptCredentials", "凭据解密失败: %w", err)
 		}
 		c.Secret = string(plain)
 		d.Credentials = append(d.Credentials, c)

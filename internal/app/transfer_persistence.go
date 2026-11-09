@@ -3,7 +3,8 @@ package app
 import (
 	"encoding/hex"
 	"encoding/json"
-	"errors"
+
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"os"
 	"path"
 	"path/filepath"
@@ -70,14 +71,14 @@ func restoreLocalTransferFile(expected os.FileInfo, filename string) (os.FileInf
 		return nil, err
 	}
 	if identity != saved.LocalID || !sameTransferVersion(saved, current, false) {
-		return nil, errors.New("本地文件身份或版本自中断后已变化")
+		return nil, appmessage.New("backend:localFileIdentityOrVersionChangedAfterInterruption", "本地文件身份或版本自中断后已变化")
 	}
 	return current, nil
 }
 
 func validateSavedTransfer(item savedTransferResume) error {
 	if !validWorkspaceID(item.View.ID) || item.Source == nil || !item.Source.Mode().IsRegular() || item.Offset <= 0 || item.Offset > item.Source.Size() || len(item.Identity) > 4096 || item.Identity == "" || len(item.View.Target) > 1024 || !filepath.IsAbs(item.Local) || filepath.Clean(item.Local) != item.Local || len(item.Local) > 4096 {
-		return errors.New("续传记录的身份、文件版本或进度无效")
+		return appmessage.New("backend:invalidIdentityFileVersionOrProgressInResume", "续传记录的身份、文件版本或进度无效")
 	}
 	if err := validateRemotePaths([]string{item.Remote}); err != nil {
 		return err
@@ -85,14 +86,14 @@ func validateSavedTransfer(item savedTransferResume) error {
 	if item.View.Direction == "upload" {
 		token := strings.TrimPrefix(path.Base(item.Staging), ".termquay-")
 		if _, err := hex.DecodeString(token); err != nil || len(token) != 32 || path.Dir(item.Staging) != path.Dir(item.Remote) || item.Temporary != path.Join(item.Staging, "data") || item.Source.LocalID == "" {
-			return errors.New("上传续传暂存路径或源文件身份无效")
+			return appmessage.New("backend:invalidUploadStagingPathOrSourceFileIdentity", "上传续传暂存路径或源文件身份无效")
 		}
 	} else if item.View.Direction == "download" {
 		if filepath.Dir(item.Temporary) != filepath.Dir(item.Local) || !strings.HasPrefix(filepath.Base(item.Temporary), ".termquay-download-") || item.Partial == nil || item.Partial.LocalID == "" || item.Partial.Length != item.Offset || item.Before != nil && item.Before.LocalID == "" {
-			return errors.New("下载续传暂存路径或文件身份无效")
+			return appmessage.New("backend:invalidDownloadStagingPathOrFileIdentityIn", "下载续传暂存路径或文件身份无效")
 		}
 	} else {
-		return errors.New("续传记录的传输方向无效")
+		return appmessage.New("backend:invalidTransferDirectionInResumeRecord", "续传记录的传输方向无效")
 	}
 	return nil
 }
@@ -114,13 +115,13 @@ func (a *AppService) loadTransferResumesLocked() error {
 	}
 	if value != "" {
 		if len(value) > 1<<20 {
-			return errors.New("续传记录超过 1 MiB")
+			return appmessage.New("backend:resumeRecordExceeds1MiB", "续传记录超过 1 MiB")
 		}
 		if err := decodeWorkflow(value, &saved); err != nil {
 			return err
 		}
 		if saved.Version != 1 || len(saved.Items) > 100 {
-			return errors.New("续传记录版本未知或数量超限")
+			return appmessage.New("backend:unknownResumeRecordVersionOrTooManyRecords", "续传记录版本未知或数量超限")
 		}
 	}
 	seen := map[string]bool{}
@@ -129,18 +130,18 @@ func (a *AppService) loadTransferResumesLocked() error {
 			return err
 		}
 		if seen[item.View.ID] {
-			return errors.New("续传记录标识重复")
+			return appmessage.New("backend:duplicateResumeRecordIdentifier", "续传记录标识重复")
 		}
 		seen[item.View.ID] = true
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if len(a.transfers)+len(saved.Items) > 100 {
-		return errors.New("传输记录超过 100 项，请先清理已结束任务")
+		return appmessage.New("backend:transferHistoryExceeds100ItemsClearFinishedTasks", "传输记录超过 100 项，请先清理已结束任务")
 	}
 	for _, item := range saved.Items {
 		if a.transfers[item.View.ID] != nil {
-			return errors.New("续传记录与当前任务标识冲突")
+			return appmessage.New("backend:resumeRecordConflictsWithCurrentTaskIdentifier", "续传记录与当前任务标识冲突")
 		}
 	}
 	for _, item := range saved.Items {
@@ -151,6 +152,7 @@ func (a *AppService) loadTransferResumesLocked() error {
 		view.Retryable, view.Resumable, view.ResumePersisted = false, true, true
 		view.TemporaryPath = item.Temporary
 		view.Error = "上次传输已中断，请重新连接同一目标后显式续传"
+		view.ErrorMessage = appmessage.Describe(appmessage.New("backend:previousTransferInterrupted", "上次传输已中断，请重新连接同一目标后显式续传"))
 		var before os.FileInfo
 		if item.Before != nil {
 			before = item.Before
@@ -241,7 +243,7 @@ func (a *AppService) persistTransferResumes() error {
 		return err
 	}
 	if len(value) > 1<<20 {
-		return errors.New("续传记录超过 1 MiB")
+		return appmessage.New("backend:resumeRecordExceeds1MiB", "续传记录超过 1 MiB")
 	}
 	if err := a.store.UpdateSecretSettings(map[string]string{"transfer_resumes": string(value)}, nil); err != nil {
 		return err

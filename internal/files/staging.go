@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/pkg/sftp"
 )
 
@@ -16,10 +17,10 @@ func CreateStaging(client *sftp.Client, parent string) (string, error) {
 		return "", err
 	}
 	if !info.IsDir() {
-		return "", errors.New("临时文件的父路径不是目录")
+		return "", appmessage.New("backend:temporaryFileParentPathIsNotADirectory", "临时文件的父路径不是目录")
 	}
 	if info.Mode().Perm()&0022 != 0 && info.Mode()&os.ModeSticky == 0 {
-		return "", errors.New("目标目录允许其他用户改写，无法安全创建临时文件")
+		return "", appmessage.New("backend:otherUsersCanModifyTheDestinationDirectoryCannot", "目标目录允许其他用户改写，无法安全创建临时文件")
 	}
 	var token [16]byte
 	if _, err = rand.Read(token[:]); err != nil {

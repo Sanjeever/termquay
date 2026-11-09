@@ -2,9 +2,10 @@ package app
 
 import (
 	"context"
-	"errors"
+
 	"strings"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/services/notifications"
 )
@@ -35,7 +36,7 @@ func (a *AppService) EnableCommandNotification(ctx context.Context) error {
 		return err
 	}
 	if !allowed {
-		return errors.New("系统未授权通知，请在系统设置中允许 TermQuay 发送通知")
+		return appmessage.New("backend:systemNotificationPermissionMissingAllowTermQuayNotificationsIn", "系统未授权通知，请在系统设置中允许 TermQuay 发送通知")
 	}
 	return ctx.Err()
 }
@@ -44,7 +45,7 @@ func (a *AppService) NotifyCommandFinished(id string, failed bool) error {
 	a.notificationMu.Lock()
 	defer a.notificationMu.Unlock()
 	if a.notifications == nil {
-		return errors.New("尚未启用命令完成提醒")
+		return appmessage.New("backend:commandCompletionNotificationsAreNotEnabled", "尚未启用命令完成提醒")
 	}
 	a.mu.Lock()
 	_, remote := a.terminals[id]
@@ -52,7 +53,7 @@ func (a *AppService) NotifyCommandFinished(id string, failed bool) error {
 	_, container := a.containerTerminals[id]
 	a.mu.Unlock()
 	if !remote && !local && !container {
-		return errors.New("终端已关闭")
+		return appmessage.New("backend:terminalClosed", "终端已关闭")
 	}
 	app := application.Get()
 	if window, ok := app.Window.GetByName("workbench"); !ok || window.IsFocused() {

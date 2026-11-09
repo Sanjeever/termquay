@@ -1,9 +1,9 @@
 package app
 
 import (
-	"errors"
 	"slices"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 )
 
@@ -29,11 +29,11 @@ func sshRoute(chain []terminal.Request) []SSHRouteHop {
 
 func validateReconnectRoute(route, expected []SSHRouteHop) error {
 	if len(expected) == 0 || len(expected) > 5 || !slices.Equal(route, expected) {
-		return errors.New("连接目标、跳板路径或认证配置已改变，请手动连接")
+		return appmessage.New("backend:connectionDestinationJumpRouteOrAuthenticationConfigurationChanged", "连接目标、跳板路径或认证配置已改变，请手动连接")
 	}
 	for _, hop := range route {
 		if hop.MFA || hop.AuthMethod == "keyboard_interactive" {
-			return errors.New("跳板链需要手动认证")
+			return appmessage.New("backend:jumpChainRequiresManualAuthentication", "跳板链需要手动认证")
 		}
 	}
 	return nil
@@ -56,7 +56,7 @@ func (a *AppService) resolveSSHChain(target terminal.Request) ([]terminal.Reques
 	seen := map[string]bool{}
 	for id := target.JumpID; id != ""; {
 		if seen[id] || len(chain) >= 5 {
-			return nil, errors.New("SSH 跳板链存在循环或超过四跳")
+			return nil, appmessage.New("backend:sSHJumpChainContainsACycleOrExceeds", "SSH 跳板链存在循环或超过四跳")
 		}
 		seen[id] = true
 		request, connection, err := a.requestFromData(data, id)
@@ -64,7 +64,7 @@ func (a *AppService) resolveSSHChain(target terminal.Request) ([]terminal.Reques
 			return nil, err
 		}
 		if connection.Protocol != "ssh" {
-			return nil, errors.New("跳板必须使用 SSH 配置")
+			return nil, appmessage.New("backend:jumpHostsMustUseSSHConfigurations", "跳板必须使用 SSH 配置")
 		}
 		chain = append(chain, request)
 		id = request.JumpID

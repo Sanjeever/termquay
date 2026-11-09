@@ -2,7 +2,8 @@ package app
 
 import (
 	"encoding/json"
-	"errors"
+
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"strings"
 )
 
@@ -45,11 +46,11 @@ func (a *AppService) GetConnectionPlaybook(id string) (ConnectionPlaybook, error
 
 func (a *AppService) SaveConnectionPlaybook(id string, item ConnectionPlaybook) error {
 	if len(item.Notes) > 16<<10 || len(item.Resources) > 32 {
-		return errors.New("操作手册备注最多 16 KiB，快捷资源最多 32 项")
+		return appmessage.New("backend:playbookNotesAllowUpTo16KiBAnd", "操作手册备注最多 16 KiB，快捷资源最多 32 项")
 	}
 	for _, resource := range item.Resources {
 		if strings.TrimSpace(resource.Name) == "" || len(resource.Name) > 128 || resource.Target == "" || len(resource.Target) > 4096 || strings.ContainsRune(resource.Target, 0) {
-			return errors.New("快捷资源须有名称和有效目标")
+			return appmessage.New("backend:quickResourcesRequireANameAndValidDestination", "快捷资源须有名称和有效目标")
 		}
 		switch resource.Kind {
 		case "file", "directory", "log":
@@ -61,7 +62,7 @@ func (a *AppService) SaveConnectionPlaybook(id string, item ConnectionPlaybook) 
 			}
 		case "service", "container", "snippet", "task", "tunnel":
 		default:
-			return errors.New("不支持的快捷资源类型")
+			return appmessage.New("backend:unsupportedQuickResourceType", "不支持的快捷资源类型")
 		}
 	}
 	a.storeMu.Lock()
@@ -75,7 +76,7 @@ func (a *AppService) SaveConnectionPlaybook(id string, item ConnectionPlaybook) 
 		return err
 	}
 	if !valid[id] {
-		return errors.New("连接已不存在，请重新读取连接目录")
+		return appmessage.New("backend:connectionNoLongerExistsReloadTheCatalog", "连接已不存在，请重新读取连接目录")
 	}
 	for key := range items {
 		if !valid[key] {
@@ -92,7 +93,7 @@ func (a *AppService) SaveConnectionPlaybook(id string, item ConnectionPlaybook) 
 		return err
 	}
 	if len(value) > 1<<20 {
-		return errors.New("操作手册总量超过 1 MiB，请先清理旧内容")
+		return appmessage.New("backend:playbooksExceed1MiBInTotalRemoveOlder", "操作手册总量超过 1 MiB，请先清理旧内容")
 	}
 	return a.store.SetSecretSetting("connection_playbooks", string(value))
 }

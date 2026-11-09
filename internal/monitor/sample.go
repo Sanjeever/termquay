@@ -2,7 +2,8 @@ package monitor
 
 import (
 	_ "embed"
-	"errors"
+
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"strconv"
 	"strings"
 	"time"
@@ -54,7 +55,7 @@ func Parse(data []byte, now time.Time, previous *Sample) (Sample, error) {
 			s.System = line
 		case "[cpu]":
 			if fields[0] != "cpu" || len(fields) < 9 {
-				return s, errors.New("CPU 计数格式无效")
+				return s, appmessage.New("backend:invalidCPUCounterFormat", "CPU 计数格式无效")
 			}
 			for i := 1; i <= 8; i++ {
 				value, err := parse(fields[i])
@@ -70,7 +71,7 @@ func Parse(data []byte, now time.Time, previous *Sample) (Sample, error) {
 		case "[memory]":
 			if fields[0] == "MemTotal:" || fields[0] == "MemAvailable:" {
 				if len(fields) < 3 || fields[2] != "kB" {
-					return s, errors.New("内存计数格式无效")
+					return s, appmessage.New("backend:invalidMemoryCounterFormat", "内存计数格式无效")
 				}
 				value, err := parse(fields[1])
 				if err != nil {
@@ -88,7 +89,7 @@ func Parse(data []byte, now time.Time, previous *Sample) (Sample, error) {
 				continue
 			}
 			if len(fields) < 17 {
-				return s, errors.New("网络计数格式无效")
+				return s, appmessage.New("backend:invalidNetworkCounterFormat", "网络计数格式无效")
 			}
 			name := strings.TrimSuffix(fields[0], ":")
 			if name == "lo" {
@@ -105,7 +106,7 @@ func Parse(data []byte, now time.Time, previous *Sample) (Sample, error) {
 			s.Network = append(s.Network, Counter{Name: name, Read: received, Write: sent})
 		case "[disk]":
 			if len(fields) < 14 {
-				return s, errors.New("磁盘计数格式无效")
+				return s, appmessage.New("backend:invalidDiskCounterFormat", "磁盘计数格式无效")
 			}
 			read, err := parse(fields[5])
 			if err != nil {
@@ -123,7 +124,7 @@ func Parse(data []byte, now time.Time, previous *Sample) (Sample, error) {
 		}
 	}
 	if !cpuFound || s.MemoryTotal == 0 || !availableFound || s.System == "" {
-		return s, errors.New("采集缺少必要 Linux 指标")
+		return s, appmessage.New("backend:collectionMissingRequiredLinuxMetrics", "采集缺少必要 Linux 指标")
 	}
 	if previous != nil && now.After(previous.Time) {
 		seconds := now.Sub(previous.Time).Seconds()

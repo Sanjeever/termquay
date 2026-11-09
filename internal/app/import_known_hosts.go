@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 	"github.com/Sanjeever/termquay/internal/store"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -55,7 +56,7 @@ func (a *AppService) SelectKnownHostsImport() (KnownHostsPreview, error) {
 		return KnownHostsPreview{}, err
 	}
 	if name == "" {
-		return KnownHostsPreview{}, errors.New("未选择 known_hosts")
+		return KnownHostsPreview{}, appmessage.New("backend:noKnownHostsFileSelected", "未选择 known_hosts")
 	}
 	file, err := os.Open(name)
 	if err != nil {
@@ -71,7 +72,7 @@ func (a *AppService) SelectKnownHostsImport() (KnownHostsPreview, error) {
 
 func (a *AppService) PreviewKnownHostsImport(text string) (KnownHostsPreview, error) {
 	if len(text) > 1<<20 {
-		return KnownHostsPreview{}, errors.New("known_hosts 超过 1 MiB")
+		return KnownHostsPreview{}, appmessage.New("backend:knownHostsExceeds1MiB", "known_hosts 超过 1 MiB")
 	}
 	file, err := os.CreateTemp("", "termquay-known-hosts-*")
 	if err != nil {
@@ -87,7 +88,7 @@ func (a *AppService) PreviewKnownHostsImport(text string) (KnownHostsPreview, er
 	}
 	check, err := knownhosts.New(file.Name())
 	if err != nil {
-		return KnownHostsPreview{}, errors.New("known_hosts 语法无效")
+		return KnownHostsPreview{}, appmessage.New("backend:invalidKnownHostsSyntax", "known_hosts 语法无效")
 	}
 	a.mu.Lock()
 	epochs := map[string]uint64{}
@@ -113,7 +114,7 @@ func (a *AppService) PreviewKnownHostsImport(text string) (KnownHostsPreview, er
 		key := sshTrustKey(host, port, via)
 		targets[key] = KnownHostsRow{Host: host, Port: port, Via: via, key: key, epoch: epochs[key]}
 		if len(targets) > 1024 {
-			return errors.New("候选主机超过 1024 项，请分批导入")
+			return appmessage.New("backend:candidateHostCountExceeds1024ImportInBatches", "候选主机超过 1024 项，请分批导入")
 		}
 		return nil
 	}
@@ -129,14 +130,14 @@ func (a *AppService) PreviewKnownHostsImport(text string) (KnownHostsPreview, er
 	rest := []byte(text)
 	for count := 0; len(rest) > 0; count++ {
 		if count >= 4096 {
-			return KnownHostsPreview{}, errors.New("known_hosts 超过 4096 条")
+			return KnownHostsPreview{}, appmessage.New("backend:knownHostsExceeds4096Entries", "known_hosts 超过 4096 条")
 		}
 		marker, hosts, key, _, next, err := gossh.ParseKnownHosts(rest)
 		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
-			return KnownHostsPreview{}, errors.New("known_hosts 条目无效")
+			return KnownHostsPreview{}, appmessage.New("backend:invalidKnownHostsEntry", "known_hosts 条目无效")
 		}
 		rest = next
 		if marker != "" {
@@ -157,7 +158,7 @@ func (a *AppService) PreviewKnownHostsImport(text string) (KnownHostsPreview, er
 				var value string
 				host, value, err = net.SplitHostPort(host)
 				if err != nil {
-					return KnownHostsPreview{}, errors.New("known_hosts 端口无效")
+					return KnownHostsPreview{}, appmessage.New("backend:invalidKnownHostsPort", "known_hosts 端口无效")
 				}
 				port, err = strconv.Atoi(value)
 				if err != nil {
@@ -183,7 +184,7 @@ func (a *AppService) PreviewKnownHostsImport(text string) (KnownHostsPreview, er
 		var mismatch *knownhosts.KeyError
 		if err := check(address, &net.TCPAddr{IP: net.IPv4zero, Port: row.Port}, queryKey); !errors.As(err, &mismatch) {
 			if err != nil {
-				return KnownHostsPreview{}, errors.New("known_hosts 匹配失败")
+				return KnownHostsPreview{}, appmessage.New("backend:knownHostsMatchingFailed", "known_hosts 匹配失败")
 			}
 			continue
 		}
@@ -202,7 +203,7 @@ func (a *AppService) PreviewKnownHostsImport(text string) (KnownHostsPreview, er
 			continue
 		}
 		if len(row.Keys) > 16 {
-			return KnownHostsPreview{}, errors.New("同一主机密钥超过 16 项")
+			return KnownHostsPreview{}, appmessage.New("backend:moreThan16KeysForTheSameHost", "同一主机密钥超过 16 项")
 		}
 		sort.Slice(row.Keys, func(i, j int) bool {
 			if row.Keys[i].Algorithm == row.Keys[j].Algorithm {
@@ -245,7 +246,7 @@ func (a *AppService) PreviewKnownHostsImport(text string) (KnownHostsPreview, er
 	}
 	sort.Slice(rows, func(i, j int) bool { return rows[i].key < rows[j].key })
 	if len(rows) == 0 {
-		return KnownHostsPreview{}, errors.New("没有可导入的普通主机密钥；哈希及模式主机名需先有匹配的连接配置")
+		return KnownHostsPreview{}, appmessage.New("backend:noOrdinaryHostKeysToImportHashedOr", "没有可导入的普通主机密钥；哈希及模式主机名需先有匹配的连接配置")
 	}
 	warnings = append(warnings, "哈希及模式主机名仅匹配已保存或文件中可识别的目标，不解析 DNS；跳板路径需分别选择。")
 	p := KnownHostsPreview{ID: base64.RawURLEncoding.EncodeToString(randomBytes(18)), Rows: rows, Warnings: warnings, base: data, expires: time.Now().Add(10 * time.Minute)}
@@ -260,7 +261,7 @@ func (a *AppService) ConfirmKnownHostsImport(id string, choices []SSHImportChoic
 	defer a.mu.Unlock()
 	p := a.knownHostsPreview
 	if p == nil || p.ID != id || time.Now().After(p.expires) {
-		return errors.New("主机密钥预览已失效")
+		return appmessage.New("backend:hostKeyPreviewNoLongerValid", "主机密钥预览已失效")
 	}
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
@@ -269,12 +270,12 @@ func (a *AppService) ConfirmKnownHostsImport(id string, choices []SSHImportChoic
 		return err
 	}
 	if !reflect.DeepEqual(data, p.base) {
-		return errors.New("连接配置已变化，请重新预览")
+		return appmessage.New("backend:connectionConfigurationChangedPreviewAgain", "连接配置已变化，请重新预览")
 	}
 	selected := map[string]string{}
 	for _, choice := range choices {
 		if selected[choice.ID] != "" || (choice.Action != "new" && choice.Action != "replace" && choice.Action != "skip") {
-			return errors.New("导入选择无效")
+			return appmessage.New("backend:invalidImportSelection", "导入选择无效")
 		}
 		selected[choice.ID] = choice.Action
 	}
@@ -286,14 +287,14 @@ func (a *AppService) ConfirmKnownHostsImport(id string, choices []SSHImportChoic
 			continue
 		}
 		if row.Conflict && action != "replace" {
-			return errors.New("冲突指纹需显式选择替换")
+			return appmessage.New("backend:conflictingFingerprintsRequireExplicitReplacementSelection", "冲突指纹需显式选择替换")
 		}
 		old, err := a.store.Setting("trust:ssh:" + row.key)
 		if err != nil {
 			return err
 		}
 		if old != row.existing || a.trustEpoch[row.key] != row.epoch {
-			return errors.New("主机信任已变化，请重新预览")
+			return appmessage.New("backend:hostTrustChangedPreviewAgain", "主机信任已变化，请重新预览")
 		}
 		keys := append([]terminal.HostTrust(nil), row.Keys...)
 		if action != "replace" {
@@ -314,7 +315,7 @@ func (a *AppService) ConfirmKnownHostsImport(id string, choices []SSHImportChoic
 			}
 		}
 		if len(keys) > 16 {
-			return errors.New("合并后同一主机密钥超过 16 项")
+			return appmessage.New("backend:mergingWouldExceed16KeysForTheSame", "合并后同一主机密钥超过 16 项")
 		}
 		encoded, err := json.Marshal(keys)
 		if err != nil {
@@ -323,7 +324,7 @@ func (a *AppService) ConfirmKnownHostsImport(id string, choices []SSHImportChoic
 		settings["trust:ssh:"+row.key] = string(encoded)
 	}
 	if len(selected) > 0 {
-		return errors.New("导入选择不属于当前预览")
+		return appmessage.New("backend:importSelectionDoesNotBelongToThisPreview", "导入选择不属于当前预览")
 	}
 	if err := a.store.ImportTrustSettings(settings); err != nil {
 		return err

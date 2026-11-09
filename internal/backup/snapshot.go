@@ -3,13 +3,13 @@ package backup
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
-	"fmt"
+
 	"io"
 	"strings"
 	"time"
 
 	"filippo.io/age"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/Sanjeever/termquay/internal/store"
 )
 
@@ -47,7 +47,7 @@ func encryptSnapshot(snap Snapshot, password, recovery string) ([]byte, error) {
 		return nil, err
 	}
 	if deviceID == "" || password == "" && recovery == "" {
-		return nil, errors.New("设备标识和备份密码不能为空")
+		return nil, appmessage.New("backend:deviceIdentifierAndBackupPasswordCannotBeEmpty", "设备标识和备份密码不能为空")
 	}
 	if err := validateMetadata(snap); err != nil {
 		return nil, err
@@ -102,7 +102,7 @@ func encryptSnapshot(snap Snapshot, password, recovery string) ([]byte, error) {
 		return nil, err
 	}
 	if len(plain) > MaxSnapshot {
-		return nil, errors.New("快照超过 16 MiB 限制")
+		return nil, appmessage.New("backend:snapshotExceeds16MiB", "快照超过 16 MiB 限制")
 	}
 	defer clear(plain)
 	if recovery != "" {
@@ -133,7 +133,7 @@ func Decrypt(encrypted []byte, password string) (Snapshot, error) {
 func DecryptWithRecovery(encrypted []byte, password, recovery string) (Snapshot, error) {
 	var snap Snapshot
 	if len(encrypted) > MaxSnapshot+(1<<20) {
-		return snap, errors.New("加密快照超过限制")
+		return snap, appmessage.New("backend:encryptedSnapshotExceedsTheLimit", "加密快照超过限制")
 	}
 	var plain []byte
 	var err error
@@ -141,7 +141,7 @@ func DecryptWithRecovery(encrypted []byte, password, recovery string) (Snapshot,
 		plain, err = decryptRecoverySnapshot(encrypted, password, recovery)
 	} else {
 		if recovery != "" {
-			return snap, errors.New("这份旧格式备份未配置恢复密钥，请使用原备份密码")
+			return snap, appmessage.New("backend:thisLegacyBackupHasNoRecoveryKeyUse", "这份旧格式备份未配置恢复密钥，请使用原备份密码")
 		}
 		id, e := age.NewScryptIdentity(password)
 		if e != nil {
@@ -151,11 +151,11 @@ func DecryptWithRecovery(encrypted []byte, password, recovery string) (Snapshot,
 		plain, err = decryptAge(encrypted, id, MaxSnapshot)
 	}
 	if err != nil {
-		return snap, fmt.Errorf("快照解密或完整性校验失败：%w", err)
+		return snap, appmessage.Errorf("backend:snapshotDecryptionOrIntegrityVerificationFailed", "快照解密或完整性校验失败：%w", err)
 	}
 	defer clear(plain)
 	if len(plain) > MaxSnapshot {
-		return snap, errors.New("快照超过 16 MiB 限制")
+		return snap, appmessage.New("backend:snapshotExceeds16MiB", "快照超过 16 MiB 限制")
 	}
 	decoder := json.NewDecoder(bytes.NewReader(plain))
 	decoder.DisallowUnknownFields()
@@ -164,29 +164,29 @@ func DecryptWithRecovery(encrypted []byte, password, recovery string) (Snapshot,
 	}
 	var extra any
 	if err = decoder.Decode(&extra); err != io.EOF {
-		return snap, errors.New("快照尾部包含额外数据")
+		return snap, appmessage.New("backend:snapshotHasTrailingData", "快照尾部包含额外数据")
 	}
 	if snap.Version < 1 || snap.Version > 9 {
-		return snap, errors.New("不支持的快照版本")
+		return snap, appmessage.New("backend:unsupportedSnapshotVersion", "不支持的快照版本")
 	}
 	if snap.Version < 8 && (snap.DeviceName != "" || snap.CredentialsIncluded != nil) {
-		return snap, errors.New("旧快照不能包含设备名称或凭据携带标记")
+		return snap, appmessage.New("backend:legacySnapshotsCannotContainDeviceNamesOrCredential", "旧快照不能包含设备名称或凭据携带标记")
 	}
 	for key := range snap.Settings {
 		if snap.Version < 9 && IsWorkflowSetting(key) {
-			return snap, errors.New("旧快照不能包含工作环境设置")
+			return snap, appmessage.New("backend:legacySnapshotsCannotContainWorkflowSettings", "旧快照不能包含工作环境设置")
 		}
 	}
 	if err := validateMetadata(snap); err != nil {
 		return snap, err
 	}
 	if snap.Version < 5 && len(snap.Settings) > 0 {
-		return snap, errors.New("旧快照不能包含可迁移设置")
+		return snap, appmessage.New("backend:legacySnapshotsCannotContainPortableSettings", "旧快照不能包含可迁移设置")
 	}
 	if snap.Version < 6 {
 		for _, c := range snap.Data.Connections {
 			if c.Certificate != "" || c.ProxyAddress != "" {
-				return snap, errors.New("旧快照不能包含用户证书或代理字段")
+				return snap, appmessage.New("backend:legacySnapshotsCannotContainUserCertificatesOrProxy", "旧快照不能包含用户证书或代理字段")
 			}
 		}
 	}
@@ -197,7 +197,7 @@ func DecryptWithRecovery(encrypted []byte, password, recovery string) (Snapshot,
 		}
 		for _, c := range snap.Data.Connections {
 			if c.JumpID != "" && connections[c.JumpID].JumpID != "" {
-				return snap, errors.New("旧快照不能包含多跳连接")
+				return snap, appmessage.New("backend:legacySnapshotsCannotContainMultiHopConnections", "旧快照不能包含多跳连接")
 			}
 		}
 	}
@@ -207,36 +207,36 @@ func DecryptWithRecovery(encrypted []byte, password, recovery string) (Snapshot,
 	if snap.Version < 4 {
 		for _, c := range snap.Data.Connections {
 			if c.MFA || c.AuthMethod == "keyboard_interactive" {
-				return snap, errors.New("旧快照不能包含交互认证字段")
+				return snap, appmessage.New("backend:legacySnapshotsCannotContainInteractiveAuthenticationFields", "旧快照不能包含交互认证字段")
 			}
 		}
 	}
 	if snap.Version < 3 {
 		for _, c := range snap.Data.Connections {
 			if c.JumpID != "" {
-				return snap, errors.New("旧快照版本不能包含跳板字段")
+				return snap, appmessage.New("backend:legacySnapshotVersionCannotContainJumpFields", "旧快照版本不能包含跳板字段")
 			}
 		}
 	}
 	if snap.Version == 1 {
 		for _, c := range snap.Data.Connections {
 			if c.AuthMethod != "" || c.IdentityAgent != "" {
-				return snap, errors.New("v1 快照不能包含新认证字段")
+				return snap, appmessage.New("backend:snapshotV1CannotContainNewAuthenticationFields", "v1 快照不能包含新认证字段")
 			}
 		}
 	}
 	if snap.DeviceID == "" || snap.CreatedAt.IsZero() {
-		return snap, errors.New("快照元数据不完整")
+		return snap, appmessage.New("backend:snapshotMetadataIncomplete", "快照元数据不完整")
 	}
 	return snap, snap.Data.Validate()
 }
 
 func validateMetadata(snap Snapshot) error {
 	if snap.CreatedAt.IsZero() || len(snap.DeviceName) > 200 || strings.ContainsAny(snap.DeviceName, "\r\n\x00") {
-		return errors.New("快照创建时间或设备名称无效")
+		return appmessage.New("backend:invalidSnapshotCreationTimeOrDeviceName", "快照创建时间或设备名称无效")
 	}
 	if snap.CredentialsIncluded != nil && !*snap.CredentialsIncluded && len(snap.Data.Credentials) > 0 {
-		return errors.New("快照凭据携带标记与内容不一致")
+		return appmessage.New("backend:snapshotCredentialInclusionFlagDiffersFromItsContents", "快照凭据携带标记与内容不一致")
 	}
 	return nil
 }
@@ -248,7 +248,7 @@ func validateSettings(settings map[string]string) error {
 			limit = 2 << 20
 		}
 		if (key != "snippets" && key != "appearance" && key != "shortcuts" && !IsWorkflowSetting(key)) || len(value) > limit || !json.Valid([]byte(value)) {
-			return errors.New("快照设置类型、大小或 JSON 无效")
+			return appmessage.New("backend:invalidSnapshotSettingTypeSizeOrJSON", "快照设置类型、大小或 JSON 无效")
 		}
 	}
 	return nil

@@ -2,11 +2,12 @@ package files
 
 import (
 	"bytes"
-	"errors"
+
 	"fmt"
 	"strings"
 	"unicode/utf8"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/encoding/simplifiedchinese"
 )
@@ -16,7 +17,8 @@ type ReadError struct {
 	Message string `json:"message"`
 }
 
-func (e *ReadError) Error() string { return e.Message }
+func (e *ReadError) Error() string          { return e.Message }
+func (e *ReadError) DiagnosticCode() string { return "backend:" + e.Code }
 
 func textEncoding(name string) (string, encoding.Encoding, error) {
 	switch strings.ToUpper(name) {
@@ -84,7 +86,7 @@ func LineEnding(content string) string {
 
 func EncodeDocument(document Document) ([]byte, error) {
 	if !utf8.ValidString(document.Content) || strings.IndexByte(document.Content, 0) >= 0 || len(document.Content) > MaxEditSize {
-		return nil, errors.New("内容不是有效文本或超过 2 MiB")
+		return nil, appmessage.New("backend:contentIsInvalidTextOrExceeds2MiB", "内容不是有效文本或超过 2 MiB")
 	}
 	content := document.Content
 	switch document.LineEnding {
@@ -95,7 +97,7 @@ func EncodeDocument(document Document) ([]byte, error) {
 			content = strings.ReplaceAll(content, "\n", "\r\n")
 		}
 	default:
-		return nil, errors.New("换行符无效")
+		return nil, appmessage.New("backend:invalidLineEndings", "换行符无效")
 	}
 	name, codec, err := textEncoding(document.Encoding)
 	if err != nil {
@@ -105,13 +107,13 @@ func EncodeDocument(document Document) ([]byte, error) {
 	if codec != nil {
 		data, err = codec.NewEncoder().Bytes(data)
 		if err != nil {
-			return nil, fmt.Errorf("%s 无法表示当前内容，请改用 UTF-8 或 GB18030: %w", name, err)
+			return nil, appmessage.Errorf("backend:cannotRepresentTheCurrentContentUseUTF8", "%s 无法表示当前内容，请改用 UTF-8 或 GB18030: %w", name, err)
 		}
 	} else if document.BOM {
 		data = append([]byte{0xef, 0xbb, 0xbf}, data...)
 	}
 	if len(data) > MaxEditSize {
-		return nil, errors.New("编码后的文件超过 2 MiB")
+		return nil, appmessage.New("backend:encodedFileExceeds2MiB", "编码后的文件超过 2 MiB")
 	}
 	return data, nil
 }

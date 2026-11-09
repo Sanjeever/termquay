@@ -2,7 +2,8 @@ package app
 
 import (
 	"context"
-	"errors"
+
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"net"
 	"regexp"
 	"strconv"
@@ -44,7 +45,7 @@ func (a *AppService) ListLinuxPorts(ctx context.Context, workspace string) (Linu
 			continue
 		}
 		if len(fields) < 6 || (fields[0] != "tcp" && fields[0] != "udp") {
-			return view, errors.New("端口列表格式无效，需要 iproute2 ss")
+			return view, appmessage.New("backend:invalidPortListFormatIproute2SsIsRequired", "端口列表格式无效，需要 iproute2 ss")
 		}
 		if len(view.Items) == maxInspectionItems {
 			view.Truncated = true
@@ -53,11 +54,11 @@ func (a *AppService) ListLinuxPorts(ctx context.Context, workspace string) (Linu
 		address := fields[4]
 		colon := strings.LastIndexByte(address, ':')
 		if colon < 0 {
-			return view, errors.New("监听地址格式无效")
+			return view, appmessage.New("backend:invalidListeningAddressFormat", "监听地址格式无效")
 		}
 		port, err := strconv.Atoi(address[colon+1:])
 		if err != nil || port < 1 || port > 65535 {
-			return view, errors.New("监听端口格式无效")
+			return view, appmessage.New("backend:invalidListeningPortFormat", "监听端口格式无效")
 		}
 		item := LinuxPort{Protocol: fields[0], State: fields[1], Address: address, Host: strings.Trim(address[:colon], "[]"), Port: port, PIDs: []int{}, Process: strings.Join(fields[6:], " ")}
 		seen := map[int]bool{}
@@ -78,13 +79,13 @@ func (a *AppService) ListLinuxPorts(ctx context.Context, workspace string) (Linu
 
 func (a *AppService) ProbeNetworkTCP(ctx context.Context, workspace, source, host string, port int) (float64, error) {
 	if host == "" || len(host) > 255 || strings.ContainsAny(host, "\x00\r\n /\\") || port < 1 || port > 65535 || (source != "local" && source != "remote") {
-		return 0, errors.New("TCP 探测来源、主机或端口无效")
+		return 0, appmessage.New("backend:invalidTCPProbeSourceHostOrPort", "TCP 探测来源、主机或端口无效")
 	}
 	a.mu.Lock()
 	owner := a.workspaces[workspace]
 	if owner == nil || a.closed {
 		a.mu.Unlock()
-		return 0, errors.New("SSH 工作区已关闭")
+		return 0, appmessage.New("backend:sSHWorkspaceClosed", "SSH 工作区已关闭")
 	}
 	if a.commandSlots == nil {
 		a.commandSlots = make(chan struct{}, 4)

@@ -1,7 +1,7 @@
 package app
 
 import (
-	"errors"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -9,7 +9,7 @@ func (a *AppService) SetWorkspaceDirty(id string, dirty bool) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if !a.views[id] {
-		return errors.New("界面工作区已关闭")
+		return appmessage.New("backend:uIWorkspaceClosed", "界面工作区已关闭")
 	}
 	if dirty {
 		a.dirty[id] = true
@@ -22,7 +22,7 @@ func (a *AppService) RegisterWorkspaceView(id string) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if id == "" || len(id) > 64 || a.closed || (!a.views[id] && len(a.views) >= 16) {
-		return errors.New("界面工作区标识无效或达到上限（16 个）")
+		return appmessage.New("backend:uIWorkspaceIdentifierInvalidOrWorkspaceLimitReached", "界面工作区标识无效或达到上限（16 个）")
 	}
 	a.views[id] = true
 	return nil

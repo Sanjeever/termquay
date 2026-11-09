@@ -9,19 +9,21 @@ import (
 	"time"
 	"unicode/utf8"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	gossh "golang.org/x/crypto/ssh"
 	"golang.org/x/text/encoding/simplifiedchinese"
 )
 
 type CommandResult struct {
-	Stdout       string `json:"stdout"`
-	Stderr       string `json:"stderr"`
-	ExitCode     int    `json:"exit_code"`
-	DurationMS   int64  `json:"duration_ms"`
-	Truncated    bool   `json:"truncated"`
-	Error        string `json:"error"`
-	StdoutBase64 string `json:"stdout_base64,omitempty"`
-	StderrBase64 string `json:"stderr_base64,omitempty"`
+	Stdout       string                 `json:"stdout"`
+	Stderr       string                 `json:"stderr"`
+	ExitCode     int                    `json:"exit_code"`
+	DurationMS   int64                  `json:"duration_ms"`
+	Truncated    bool                   `json:"truncated"`
+	Error        string                 `json:"error"`
+	ErrorMessage *appmessage.Descriptor `json:"error_message,omitempty"`
+	StdoutBase64 string                 `json:"stdout_base64,omitempty"`
+	StderrBase64 string                 `json:"stderr_base64,omitempty"`
 }
 
 type commandOutput struct {
@@ -55,10 +57,10 @@ func (t *Terminal) RunScript(ctx context.Context, script, shell, encoding string
 	case "powershell":
 		command = powerShellCommand(encoding)
 	default:
-		return CommandResult{ExitCode: -1, Error: "不支持的脚本解释器"}
+		return CommandResult{ExitCode: -1, Error: "不支持的脚本解释器", ErrorMessage: appmessage.Describe(appmessage.New("backend:unsupportedScriptInterpreter", "不支持的脚本解释器"))}
 	}
 	if encoding != "UTF-8" && encoding != "GBK" && encoding != "GB18030" {
-		return CommandResult{ExitCode: -1, Error: "不支持的命令输出编码"}
+		return CommandResult{ExitCode: -1, Error: "不支持的命令输出编码", ErrorMessage: appmessage.Describe(appmessage.New("backend:unsupportedOutputEncoding", "不支持的命令输出编码"))}
 	}
 	return t.runCommandRequest(ctx, command, script, encoding)
 }
@@ -66,7 +68,7 @@ func (t *Terminal) RunScript(ctx context.Context, script, shell, encoding string
 func (t *Terminal) runCommandRequest(ctx context.Context, command, input, encoding string) CommandResult {
 	started := time.Now()
 	if err := ctx.Err(); err != nil {
-		return CommandResult{ExitCode: -1, Error: err.Error()}
+		return CommandResult{ExitCode: -1, Error: err.Error(), ErrorMessage: appmessage.Describe(err)}
 	}
 	t.mu.Lock()
 	if t.commandRequests == nil {
@@ -77,7 +79,7 @@ func (t *Terminal) runCommandRequest(ctx context.Context, command, input, encodi
 	select {
 	case slots <- struct{}{}:
 	default:
-		return CommandResult{ExitCode: -1, Error: "SSH 命令未完成请求达到上限"}
+		return CommandResult{ExitCode: -1, Error: "SSH 命令未完成请求达到上限", ErrorMessage: appmessage.Describe(appmessage.New("backend:pendingSSHCommandLimit", "SSH 命令未完成请求达到上限"))}
 	}
 	ready := make(chan CommandResult, 1)
 	go func() {
@@ -88,7 +90,7 @@ func (t *Terminal) runCommandRequest(ctx context.Context, command, input, encodi
 	case result := <-ready:
 		return result
 	case <-ctx.Done():
-		return CommandResult{ExitCode: -1, DurationMS: time.Since(started).Milliseconds(), Error: ctx.Err().Error()}
+		return CommandResult{ExitCode: -1, DurationMS: time.Since(started).Milliseconds(), Error: ctx.Err().Error(), ErrorMessage: appmessage.Describe(ctx.Err())}
 	}
 }
 
@@ -98,11 +100,13 @@ func (t *Terminal) runCommand(ctx context.Context, command, input, encoding stri
 	session, err := t.client.NewSession()
 	if err != nil {
 		result.Error = err.Error()
+		result.ErrorMessage = appmessage.Describe(err)
 		return result
 	}
 	defer session.Close()
 	if ctx.Err() != nil {
 		result.Error = ctx.Err().Error()
+		result.ErrorMessage = appmessage.Describe(ctx.Err())
 		return result
 	}
 	stop := context.AfterFunc(ctx, func() { session.Close() })
@@ -119,6 +123,7 @@ func (t *Terminal) runCommand(ctx context.Context, command, input, encoding stri
 	result.DurationMS = time.Since(started).Milliseconds()
 	if ctx.Err() != nil {
 		result.Error = ctx.Err().Error()
+		result.ErrorMessage = appmessage.Describe(ctx.Err())
 		return result
 	}
 	if err == nil {
@@ -129,10 +134,12 @@ func (t *Terminal) runCommand(ctx context.Context, command, input, encoding stri
 			result.ExitCode = exit.ExitStatus()
 		} else {
 			result.Error = err.Error()
+			result.ErrorMessage = appmessage.Describe(err)
 		}
 	}
 	if decodeErr := errors.Join(stdoutErr, stderrErr); decodeErr != nil {
-		result.Error = strings.TrimSpace(result.Error + "\n" + errors.Join(errors.New("命令输出解码失败，原始字节保存在 base64 字段；请核对输出编码"), decodeErr).Error())
+		result.Error = strings.TrimSpace(result.Error + "\n" + errors.Join(appmessage.New("backend:commandOutputDecodingFailedRawBytesAreIn", "命令输出解码失败，原始字节保存在 base64 字段；请核对输出编码"), decodeErr).Error())
+		result.ErrorMessage = appmessage.Join(result.ErrorMessage, appmessage.Describe(errors.Join(appmessage.New("backend:commandOutputDecodingFailedRawBytesAreIn", "命令输出解码失败，原始字节保存在 base64 字段；请核对输出编码"), decodeErr)))
 	}
 	return result
 }
@@ -163,7 +170,7 @@ func decodeCommandOutput(data []byte, encoding string, truncated bool) (string, 
 		}
 	}
 	if !utf8.Valid(data) {
-		return "", base64.StdEncoding.EncodeToString(raw), errors.New("输出不是 UTF-8")
+		return "", base64.StdEncoding.EncodeToString(raw), appmessage.New("backend:outputIsNotUTF8", "输出不是 UTF-8")
 	}
 	return string(data), "", nil
 }

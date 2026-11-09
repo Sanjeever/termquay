@@ -1,10 +1,10 @@
 package app
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/Sanjeever/termquay/internal/store"
 )
 
@@ -27,7 +27,7 @@ func (a *AppService) UseSessionStorage() error {
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
 	if a.store != nil {
-		return errors.New("存储已经打开")
+		return appmessage.New("backend:storageIsAlreadyOpen", "存储已经打开")
 	}
 	dir, err := os.MkdirTemp("", "termquay-session-")
 	if err != nil {

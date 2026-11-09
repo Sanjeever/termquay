@@ -3,21 +3,23 @@ package app
 import (
 	"context"
 	"encoding/base64"
-	"errors"
+
 	"os"
 	"path"
 	"path/filepath"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 type UploadFile struct {
-	Name      string `json:"name"`
-	Path      string `json:"path,omitempty"`
-	Size      int64  `json:"size"`
-	Supported bool   `json:"supported"`
-	Error     string `json:"error"`
+	Name         string                 `json:"name"`
+	Path         string                 `json:"path,omitempty"`
+	Size         int64                  `json:"size"`
+	Supported    bool                   `json:"supported"`
+	Error        string                 `json:"error"`
+	ErrorMessage *appmessage.Descriptor `json:"error_message,omitempty"`
 }
 
 type UploadPreview struct {
@@ -30,8 +32,9 @@ type UploadPreview struct {
 }
 
 type UploadPreparation struct {
-	Preview UploadPreview `json:"preview"`
-	Error   string        `json:"error"`
+	Preview      UploadPreview          `json:"preview"`
+	Error        string                 `json:"error"`
+	ErrorMessage *appmessage.Descriptor `json:"error_message,omitempty"`
 }
 
 type UploadSubmission struct {
@@ -58,7 +61,7 @@ func (a *AppService) ChooseUploadFiles(id, directory string) (UploadPreview, err
 
 func (a *AppService) prepareUploads(id, directory string, paths []string) (UploadPreview, error) {
 	if len(paths) == 0 || len(paths) > 64 || !path.IsAbs(directory) || len(directory) > 4096 {
-		return UploadPreview{}, errors.New("请选择 1 至 64 个文件和有效的远端绝对目录")
+		return UploadPreview{}, appmessage.New("backend:selectFrom1To64FilesAndA", "请选择 1 至 64 个文件和有效的远端绝对目录")
 	}
 	view := UploadPreview{ID: base64.RawURLEncoding.EncodeToString(randomBytes(16)), Workspace: id, Directory: path.Clean(directory), Files: []UploadFile{}}
 	names := make(map[string]bool, len(paths))
@@ -66,14 +69,19 @@ func (a *AppService) prepareUploads(id, directory string, paths []string) (Uploa
 		file := UploadFile{Name: filepath.Base(local), Path: local}
 		if !filepath.IsAbs(local) || len(local) > 4096 {
 			file.Error = "本地路径无效"
+			file.ErrorMessage = appmessage.Describe(appmessage.New("backend:invalidLocalPath", "本地路径无效"))
 		} else if info, err := os.Lstat(local); err != nil {
 			file.Error = err.Error()
+			file.ErrorMessage = appmessage.Describe(err)
 		} else if info.IsDir() {
 			file.Error = "文件夹请使用目录同步"
+			file.ErrorMessage = appmessage.Describe(appmessage.New("backend:folderUseDirectorySync", "文件夹请使用目录同步"))
 		} else if !info.Mode().IsRegular() {
 			file.Error = "上传支持普通文件，不支持符号链接或特殊文件"
+			file.ErrorMessage = appmessage.Describe(appmessage.New("backend:uploadRegularFilesOnly", "上传支持普通文件，不支持符号链接或特殊文件"))
 		} else if names[file.Name] {
 			file.Error = "本批次包含同名文件，请分批上传或先修改本地文件名"
+			file.ErrorMessage = appmessage.Describe(appmessage.New("backend:duplicateUploadNames", "本批次包含同名文件，请分批上传或先修改本地文件名"))
 		} else {
 			file.Size, file.Supported = info.Size(), true
 			names[file.Name] = true
@@ -84,10 +92,10 @@ func (a *AppService) prepareUploads(id, directory string, paths []string) (Uploa
 	defer a.mu.Unlock()
 	owner := a.workspaces[id]
 	if owner == nil || a.closed {
-		return UploadPreview{}, errors.New("SSH 工作区已关闭")
+		return UploadPreview{}, appmessage.New("backend:sSHWorkspaceClosed", "SSH 工作区已关闭")
 	}
 	if a.uploadPreview != nil {
-		return UploadPreview{}, errors.New("请先确认或取消当前上传")
+		return UploadPreview{}, appmessage.New("backend:confirmOrCancelTheCurrentUploadFirst", "请先确认或取消当前上传")
 	}
 	view.Target = owner.target
 	a.uploadPreview = &pendingUpload{view: view, paths: append([]string(nil), paths...)}
@@ -99,7 +107,7 @@ func (a *AppService) DiscardUpload(id string) error {
 	defer a.mu.Unlock()
 	if pending := a.uploadPreview; pending != nil && pending.view.ID == id {
 		if pending.submitting {
-			return errors.New("正在加入传输队列，请稍候")
+			return appmessage.New("backend:addingToTheTransferQueuePleaseWait", "正在加入传输队列，请稍候")
 		}
 		a.uploadPreview = nil
 	}
@@ -111,11 +119,11 @@ func (a *AppService) ConfirmUpload(ctx context.Context, id, directory string, ov
 	pending := a.uploadPreview
 	if pending == nil || pending.view.ID != id || pending.submitting {
 		a.mu.Unlock()
-		return UploadSubmission{}, errors.New("上传确认已失效或正在提交")
+		return UploadSubmission{}, appmessage.New("backend:uploadConfirmationExpiredOrSubmissionInProgress", "上传确认已失效或正在提交")
 	}
 	if !path.IsAbs(directory) || len(directory) > 4096 {
 		a.mu.Unlock()
-		return UploadSubmission{}, errors.New("请输入有效的远端绝对目录")
+		return UploadSubmission{}, appmessage.New("backend:enterAValidAbsoluteRemoteDirectory", "请输入有效的远端绝对目录")
 	}
 	pending.submitting = true
 	a.mu.Unlock()
@@ -126,7 +134,7 @@ func (a *AppService) ConfirmUpload(ctx context.Context, id, directory string, ov
 			return UploadSubmission{}, err
 		}
 		if owner != pending.sourceOwner {
-			return UploadSubmission{}, errors.New("来源 SSH 连接已变化，请重新复制")
+			return UploadSubmission{}, appmessage.New("backend:sourceSSHConnectionChangedCopyAgain", "来源 SSH 连接已变化，请重新复制")
 		}
 	}
 	c, close, err := a.fileClient(ctx, pending.view.Workspace)
@@ -139,7 +147,7 @@ func (a *AppService) ConfirmUpload(ctx context.Context, id, directory string, ov
 		return UploadSubmission{}, err
 	}
 	if !info.IsDir() {
-		return UploadSubmission{}, errors.New("上传目标必须是目录")
+		return UploadSubmission{}, appmessage.New("backend:uploadDestinationMustBeADirectory", "上传目标必须是目录")
 	}
 	directory = path.Clean(directory)
 	result := UploadSubmission{Batch: TransferBatch{Items: []Transfer{}, Errors: []string{}}}
@@ -175,6 +183,7 @@ func (a *AppService) ConfirmUpload(ctx context.Context, id, directory string, ov
 				continue
 			}
 			file.Error = err.Error()
+			file.ErrorMessage = appmessage.Describe(err)
 		}
 		result.Batch.Errors = append(result.Batch.Errors, file.Name+": "+file.Error)
 		remaining.Files = append(remaining.Files, file)

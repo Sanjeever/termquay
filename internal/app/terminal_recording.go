@@ -12,6 +12,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -31,7 +32,7 @@ func (a *AppService) StartTerminalRecording(id string) (terminal.TerminalLogStat
 	}
 	select {
 	case <-t.Done:
-		return terminal.TerminalLogStatus{}, errors.New("终端已断开")
+		return terminal.TerminalLogStatus{}, appmessage.New("backend:terminalDisconnected", "终端已断开")
 	default:
 	}
 	return t.StartTimedLog(parent)
@@ -57,17 +58,17 @@ func (a *AppService) ReadTerminalRecording(id string) (TerminalRecording, error)
 	}
 	status := t.LogStatus()
 	if status.Format != "asciicast" || status.File == "" {
-		return TerminalRecording{}, errors.New("本次终端尚未生成可回放录制；ANSI 输出日志不能按时间回放")
+		return TerminalRecording{}, appmessage.New("backend:noPlayableRecordingGeneratedForThisTerminalYet", "本次终端尚未生成可回放录制；ANSI 输出日志不能按时间回放")
 	}
 	if status.Recording {
-		return TerminalRecording{}, errors.New("请先暂停或结束录制，再打开回放")
+		return TerminalRecording{}, appmessage.New("backend:pauseOrFinishRecordingBeforeOpeningPlayback", "请先暂停或结束录制，再打开回放")
 	}
 	return readTerminalRecording(status.File)
 }
 
 func readTerminalRecording(filename string) (TerminalRecording, error) {
 	if strings.EqualFold(filepath.Ext(filename), ".ansi") {
-		return TerminalRecording{}, errors.New("该文件是 ANSI 输出日志，不能按时间回放，请选择 .cast 录制")
+		return TerminalRecording{}, appmessage.New("backend:thisIsAnANSIOutputLogWithoutTimed", "该文件是 ANSI 输出日志，不能按时间回放，请选择 .cast 录制")
 	}
 	file, err := os.Open(filename)
 	if err != nil {
@@ -79,14 +80,14 @@ func readTerminalRecording(filename string) (TerminalRecording, error) {
 		return TerminalRecording{}, err
 	}
 	if !info.Mode().IsRegular() || info.Size() > 16<<20 {
-		return TerminalRecording{}, errors.New("录制须为不超过 16 MiB 的普通文件")
+		return TerminalRecording{}, appmessage.New("backend:recordingMustBeARegularFileNoLarger", "录制须为不超过 16 MiB 的普通文件")
 	}
 	data, err := io.ReadAll(io.LimitReader(file, (16<<20)+1))
 	if err != nil {
 		return TerminalRecording{}, err
 	}
 	if len(data) > 16<<20 || !utf8.Valid(data) {
-		return TerminalRecording{}, errors.New("录制超过大小限制或不是 UTF-8")
+		return TerminalRecording{}, appmessage.New("backend:recordingExceedsSizeLimitOrIsNotUTF", "录制超过大小限制或不是 UTF-8")
 	}
 	if err := validateRecordingBounds(data); err != nil {
 		return TerminalRecording{}, err
@@ -105,7 +106,7 @@ func validateRecordingBounds(data []byte) error {
 		return err
 	}
 	if header.Version != 2 || header.Width < 1 || header.Height < 1 || header.Width > 1000 || header.Height > 1000 {
-		return errors.New("录制须为 asciicast v2，尺寸为 1 至 1000")
+		return appmessage.New("backend:recordingMustUseAsciicastV2WithDimensionsFrom", "录制须为 asciicast v2，尺寸为 1 至 1000")
 	}
 	previous := 0.0
 	for count := 0; ; count++ {
@@ -118,7 +119,7 @@ func validateRecordingBounds(data []byte) error {
 			return err
 		}
 		if count >= 100000 || len(event) != 3 {
-			return errors.New("录制事件无效或超过 100000 项")
+			return appmessage.New("backend:recordingEventsInvalidOrCountExceeds100000", "录制事件无效或超过 100000 项")
 		}
 		var timestamp float64
 		var kind, content string
@@ -126,7 +127,7 @@ func validateRecordingBounds(data []byte) error {
 			return err
 		}
 		if math.IsNaN(timestamp) || math.IsInf(timestamp, 0) || timestamp < previous {
-			return errors.New("录制时间无效")
+			return appmessage.New("backend:invalidRecordingTimestamp", "录制时间无效")
 		}
 		previous = timestamp
 		if err = json.Unmarshal(event[1], &kind); err != nil {
@@ -138,12 +139,12 @@ func validateRecordingBounds(data []byte) error {
 		if kind == "r" {
 			parts := strings.Split(content, "x")
 			if len(parts) != 2 {
-				return errors.New("录制尺寸事件无效")
+				return appmessage.New("backend:invalidRecordingResizeEvent", "录制尺寸事件无效")
 			}
 			width, e1 := strconv.Atoi(parts[0])
 			height, e2 := strconv.Atoi(parts[1])
 			if e1 != nil || e2 != nil || width < 1 || height < 1 || width > 1000 || height > 1000 {
-				return errors.New("录制尺寸超过限制")
+				return appmessage.New("backend:recordingDimensionsExceedTheLimit", "录制尺寸超过限制")
 			}
 		}
 	}

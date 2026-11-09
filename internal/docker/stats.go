@@ -2,7 +2,8 @@ package docker
 
 import (
 	"context"
-	"errors"
+
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"time"
 )
 
@@ -27,7 +28,7 @@ type cpuSample struct {
 
 func (c *Client) Stats(ctx context.Context, id string) (Stats, error) {
 	if !validID(id) {
-		return Stats{}, errors.New("容器 ID 无效")
+		return Stats{}, appmessage.New("backend:invalidContainerID", "容器 ID 无效")
 	}
 	var raw struct {
 		Read     time.Time `json:"read"`
@@ -52,7 +53,7 @@ func (c *Client) Stats(ctx context.Context, id string) (Stats, error) {
 		return Stats{}, err
 	}
 	if raw.Read.IsZero() {
-		return Stats{}, errors.New("容器采样缺少时间")
+		return Stats{}, appmessage.New("backend:containerSampleHasNoTimestamp", "容器采样缺少时间")
 	}
 	view := Stats{Time: raw.Read}
 	count := raw.CPU.Online
@@ -96,7 +97,7 @@ func (c *Client) Stats(ctx context.Context, id string) (Stats, error) {
 
 func (c *Client) ChangeState(ctx context.Context, id, action string) error {
 	if !validID(id) {
-		return errors.New("容器 ID 无效")
+		return appmessage.New("backend:invalidContainerID", "容器 ID 无效")
 	}
 	query := ""
 	switch action {
@@ -104,7 +105,7 @@ func (c *Client) ChangeState(ctx context.Context, id, action string) error {
 	case "stop", "restart":
 		query = "?t=10"
 	default:
-		return errors.New("容器操作无效")
+		return appmessage.New("backend:invalidContainerOperation", "容器操作无效")
 	}
 	return c.json(ctx, "POST", "/containers/"+id+"/"+action+query, nil, nil)
 }

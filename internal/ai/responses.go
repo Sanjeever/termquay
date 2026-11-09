@@ -3,6 +3,7 @@ package ai
 import (
 	"encoding/json"
 	"errors"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 )
 
 func responsesRequest(c Config, r Request) any {
@@ -75,15 +76,15 @@ func responsesParser(r *Response, delta func(string) error) func(string) (bool, 
 			return false, errors.New("模型拒绝回复: " + e.Delta)
 		case "response.function_call_arguments.delta":
 			if e.OutputIndex < 0 || e.OutputIndex >= 32 {
-				return false, errors.New("Responses 输出序号无效")
+				return false, appmessage.New("backend:invalidResponsesOutputIndex", "Responses 输出序号无效")
 			}
 			arguments[e.OutputIndex] += e.Delta
 			if len(arguments[e.OutputIndex]) > MaxArgumentsBytes {
-				return false, errors.New("模型工具参数超过限制")
+				return false, appmessage.New("backend:modelToolArgumentsExceedTheLimit", "模型工具参数超过限制")
 			}
 		case "response.completed":
 			if e.Response.Status != "completed" || e.Response.Output == nil {
-				return false, errors.New("Responses 回复状态无效")
+				return false, appmessage.New("backend:invalidResponsesCompletionState", "Responses 回复状态无效")
 			}
 			text := ""
 			for i, raw := range e.Response.Output {
@@ -110,11 +111,11 @@ func responsesParser(r *Response, delta func(string) error) func(string) (bool, 
 					}
 				case "function_call":
 					if args, ok := arguments[i]; ok && args != item.Arguments {
-						return false, errors.New("Responses 工具参数与完成项不一致")
+						return false, appmessage.New("backend:responsesToolArgumentsDifferFromTheCompletedItem", "Responses 工具参数与完成项不一致")
 					}
 					r.Message.ToolCalls = append(r.Message.ToolCalls, ToolCall{ID: item.CallID, Name: item.Name, Arguments: item.Arguments})
 					if len(r.Message.ToolCalls) > MaxToolCalls {
-						return false, errors.New("模型工具调用数量超过限制")
+						return false, appmessage.New("backend:modelToolCallCountExceedsTheLimit", "模型工具调用数量超过限制")
 					}
 				case "reasoning":
 				default:
@@ -122,7 +123,7 @@ func responsesParser(r *Response, delta func(string) error) func(string) (bool, 
 				}
 			}
 			if text != r.Message.Content {
-				return false, errors.New("Responses 流式文本与完成项不一致")
+				return false, appmessage.New("backend:responsesStreamedTextDiffersFromTheCompletedItem", "Responses 流式文本与完成项不一致")
 			}
 			b, err := json.Marshal(e.Response.Output)
 			if err != nil {

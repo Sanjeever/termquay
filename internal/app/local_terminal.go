@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 	pty "github.com/aymanbagabas/go-pty"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -51,11 +52,11 @@ func localShellCommand(kind string) (string, []string, error) {
 			path, err := exec.LookPath("wsl.exe")
 			return path, []string{"--cd", "~"}, err
 		default:
-			return "", nil, errors.New("本地 Shell 类型无效")
+			return "", nil, appmessage.New("backend:invalidLocalShellType", "本地 Shell 类型无效")
 		}
 	}
 	if kind != "shell" {
-		return "", nil, errors.New("当前系统不支持此 Shell")
+		return "", nil, appmessage.New("backend:thisShellIsUnsupportedOnTheCurrentSystem", "当前系统不支持此 Shell")
 	}
 	shell := os.Getenv("SHELL")
 	if shell == "" {
@@ -81,7 +82,7 @@ func (a *AppService) ListLocalShells() []LocalShell {
 
 func (a *AppService) OpenLocalTerminal(kind string, cols, rows int) (LocalTerminal, error) {
 	if cols < 1 || cols > 1000 || rows < 1 || rows > 1000 {
-		return LocalTerminal{}, errors.New("终端尺寸无效")
+		return LocalTerminal{}, appmessage.New("backend:invalidTerminalDimensions", "终端尺寸无效")
 	}
 	path, args, err := localShellCommand(kind)
 	if err != nil {
@@ -90,7 +91,7 @@ func (a *AppService) OpenLocalTerminal(kind string, cols, rows int) (LocalTermin
 	a.mu.Lock()
 	if a.closed || len(a.locals)+a.localOpening >= 16 {
 		a.mu.Unlock()
-		return LocalTerminal{}, errors.New("本地终端达到 16 个上限")
+		return LocalTerminal{}, appmessage.New("backend:localTerminalLimitReached16", "本地终端达到 16 个上限")
 	}
 	a.localOpening++
 	a.mu.Unlock()
@@ -127,7 +128,7 @@ func (a *AppService) OpenLocalTerminal(kind string, cols, rows int) (LocalTermin
 		command.Process.Kill()
 		command.Wait()
 		session.closeConsole(true)
-		return LocalTerminal{}, errors.New("应用正在关闭")
+		return LocalTerminal{}, appmessage.New("backend:applicationIsClosing", "应用正在关闭")
 	}
 	if a.locals == nil {
 		a.locals = map[string]*localTerminal{}
@@ -197,13 +198,13 @@ func (a *AppService) CloseLocalTerminal(id string) {
 }
 func (a *AppService) ResizeLocalTerminal(id string, cols, rows int) error {
 	if cols < 1 || cols > 1000 || rows < 1 || rows > 1000 {
-		return errors.New("终端尺寸无效")
+		return appmessage.New("backend:invalidTerminalDimensions", "终端尺寸无效")
 	}
 	a.mu.Lock()
 	session := a.locals[id]
 	a.mu.Unlock()
 	if session == nil {
-		return errors.New("本地终端已关闭")
+		return appmessage.New("backend:localTerminalClosed", "本地终端已关闭")
 	}
 	return session.pty.Resize(cols, rows)
 }
@@ -237,6 +238,6 @@ func (a *AppService) handleLocalTerminal(stream *application.StreamConn) {
 			}
 		default:
 		}
-		application.Get().Event.Emit("terminal:error", map[string]string{"id": id, "error": err.Error()})
+		application.Get().Event.Emit("terminal:error", map[string]any{"id": id, "error": err.Error(), "error_message": appmessage.Describe(err)})
 	}
 }

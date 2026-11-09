@@ -1,11 +1,11 @@
 package app
 
 import (
-	"errors"
 	"io"
 	"os"
 
 	"github.com/Sanjeever/termquay/internal/files"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -19,7 +19,7 @@ func (a *AppService) ChooseComparisonFile(charset string) (*files.Document, erro
 		return nil, err
 	}
 	if !info.Mode().IsRegular() || info.Size() > files.MaxEditSize {
-		return nil, errors.New("对比支持不超过 2 MiB 的普通文本文件")
+		return nil, appmessage.New("backend:comparisonSupportsRegularTextFilesNoLargerThan", "对比支持不超过 2 MiB 的普通文本文件")
 	}
 	f, err := os.Open(filename)
 	if err != nil {
@@ -31,7 +31,7 @@ func (a *AppService) ChooseComparisonFile(charset string) (*files.Document, erro
 		return nil, err
 	}
 	if len(data) > files.MaxEditSize {
-		return nil, errors.New("文件超过对比大小限制")
+		return nil, appmessage.New("backend:fileExceedsComparisonSizeLimit", "文件超过对比大小限制")
 	}
 	content, encoding, bom, err := files.DecodeText(data, charset)
 	if err != nil {

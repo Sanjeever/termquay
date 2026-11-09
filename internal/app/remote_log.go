@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"io"
 	"path"
 	"time"
@@ -21,7 +22,7 @@ func (a *AppService) ReadRemoteLog(ctx context.Context, workspace, remote string
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	if !path.IsAbs(remote) || len(remote) > 4096 || offset < -1 {
-		return RemoteLogSlice{}, errors.New("日志路径或偏移无效")
+		return RemoteLogSlice{}, appmessage.New("backend:invalidLogPathOrOffset", "日志路径或偏移无效")
 	}
 	client, release, err := a.fileClient(ctx, workspace)
 	if err != nil {
@@ -33,7 +34,7 @@ func (a *AppService) ReadRemoteLog(ctx context.Context, workspace, remote string
 		return RemoteLogSlice{}, err
 	}
 	if !info.Mode().IsRegular() {
-		return RemoteLogSlice{}, errors.New("日志查看支持普通文件，符号链接须使用实际目标路径")
+		return RemoteLogSlice{}, appmessage.New("backend:logViewerSupportsRegularFilesUseResolvedPaths", "日志查看支持普通文件，符号链接须使用实际目标路径")
 	}
 	file, err := client.Open(remote)
 	if err != nil {
@@ -79,7 +80,7 @@ func (a *AppService) ReadRemoteLog(ctx context.Context, workspace, remote string
 		}
 	}
 	if !utf8.Valid(data) {
-		return RemoteLogSlice{}, errors.New("日志片段包含无效 UTF-8，请下载后以原始编码查看")
+		return RemoteLogSlice{}, appmessage.New("backend:logSegmentContainsInvalidUTF8DownloadAnd", "日志片段包含无效 UTF-8，请下载后以原始编码查看")
 	}
 	result.Content = string(data)
 	return result, nil

@@ -1,12 +1,12 @@
 package app
 
 import (
-	"errors"
 	"path"
 	"sort"
 	"strings"
 	"time"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/Sanjeever/termquay/internal/store"
 )
 
@@ -45,7 +45,7 @@ func (a *AppService) GetConnectionPreferences() (map[string]store.ConnectionPref
 
 func (a *AppService) SetConnectionPreference(id string, favorite bool, environment string) error {
 	if environment != "" && environment != "production" && environment != "staging" && environment != "development" {
-		return errors.New("环境标识无效")
+		return appmessage.New("backend:invalidEnvironmentIdentifier", "环境标识无效")
 	}
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
@@ -66,17 +66,17 @@ func (a *AppService) SetConnectionPreference(id string, favorite bool, environme
 			return a.store.SetConnectionPreferences(preferences)
 		}
 	}
-	return errors.New("连接不存在")
+	return appmessage.New("backend:connectionDoesNotExist", "连接不存在")
 }
 
 func validateConnectionTags(tags []string) error {
 	if len(tags) > 16 {
-		return errors.New("每个连接最多 16 个标签")
+		return appmessage.New("backend:aConnectionSupportsUpTo16Tags", "每个连接最多 16 个标签")
 	}
 	seen := map[string]bool{}
 	for _, tag := range tags {
 		if tag == "" || tag != strings.TrimSpace(tag) || len(tag) > 64 || strings.ContainsAny(tag, ",，\r\n\x00") || seen[tag] {
-			return errors.New("标签须为不重复的 1 至 64 字节文本，不含逗号或换行")
+			return appmessage.New("backend:tagsMustBeUniqueTextFrom1To", "标签须为不重复的 1 至 64 字节文本，不含逗号或换行")
 		}
 		seen[tag] = true
 	}
@@ -105,7 +105,7 @@ func (a *AppService) SetConnectionTags(id string, tags []string) error {
 			return a.store.SetConnectionPreferences(preferences)
 		}
 	}
-	return errors.New("连接不存在")
+	return appmessage.New("backend:connectionDoesNotExist", "连接不存在")
 }
 
 func (a *AppService) RecordConnectionSuccess(id string) error {
@@ -127,7 +127,7 @@ func (a *AppService) RecordConnectionSuccess(id string) error {
 		}
 	}
 	if !found {
-		return errors.New("连接不存在")
+		return appmessage.New("backend:connectionDoesNotExist", "连接不存在")
 	}
 	now := time.Now().UTC()
 	p := preferences[id]
@@ -166,7 +166,7 @@ func (a *AppService) ClearRecentConnections() error {
 
 func (a *AppService) SetRDPResolution(id, resolution string) error {
 	if resolution != "dynamic" && resolution != "1280x800" && resolution != "1920x1080" && resolution != "multimon" {
-		return errors.New("远程分辨率无效")
+		return appmessage.New("backend:invalidRemoteResolution", "远程分辨率无效")
 	}
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
@@ -186,7 +186,7 @@ func (a *AppService) SetRDPResolution(id, resolution string) error {
 			return a.store.SetConnectionPreferences(preferences)
 		}
 	}
-	return errors.New("RDP 连接不存在")
+	return appmessage.New("backend:rDPConnectionDoesNotExist", "RDP 连接不存在")
 }
 
 func (a *AppService) GetDirectoryBookmarks(id string) ([]string, error) {
@@ -199,7 +199,7 @@ func (a *AppService) GetDirectoryBookmarks(id string) ([]string, error) {
 
 func (a *AppService) SetRDPClient(id, client string) error {
 	if client != "internal" && client != "system" {
-		return errors.New("RDP 连接方式无效")
+		return appmessage.New("backend:invalidRDPClientType", "RDP 连接方式无效")
 	}
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
@@ -219,16 +219,16 @@ func (a *AppService) SetRDPClient(id, client string) error {
 			return a.store.SetConnectionPreferences(preferences)
 		}
 	}
-	return errors.New("RDP 连接不存在")
+	return appmessage.New("backend:rDPConnectionDoesNotExist", "RDP 连接不存在")
 }
 func (a *AppService) SetDirectoryBookmarks(id string, bookmarks []string) error {
 	if len(bookmarks) > 32 {
-		return errors.New("目录书签达到上限（32 个）")
+		return appmessage.New("backend:directoryBookmarkLimitReached32", "目录书签达到上限（32 个）")
 	}
 	seen := map[string]bool{}
 	for _, value := range bookmarks {
 		if len(value) > 4096 || !path.IsAbs(value) || path.Clean(value) != value || seen[value] {
-			return errors.New("目录书签无效或重复")
+			return appmessage.New("backend:invalidOrDuplicateDirectoryBookmark", "目录书签无效或重复")
 		}
 		seen[value] = true
 	}
@@ -250,5 +250,5 @@ func (a *AppService) SetDirectoryBookmarks(id string, bookmarks []string) error 
 			return a.store.SetConnectionPreferences(p)
 		}
 	}
-	return errors.New("连接不存在")
+	return appmessage.New("backend:connectionDoesNotExist", "连接不存在")
 }

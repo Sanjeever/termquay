@@ -2,8 +2,8 @@
 
 package app
 
-import "errors"
+import appmessage "github.com/Sanjeever/termquay/internal/message"
 
 func localClipboardFiles() ([]string, error) {
-	return nil, errors.New("当前运行环境不支持本地文件剪贴板")
+	return nil, appmessage.New("backend:localFileClipboardIsUnsupportedInThisEnvironment", "当前运行环境不支持本地文件剪贴板")
 }

@@ -3,14 +3,15 @@ package app
 import (
 	"context"
 	"encoding/json"
-	"errors"
 
 	"github.com/Sanjeever/termquay/internal/ai"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 )
 
 type AITestResult struct {
-	OK    bool   `json:"ok"`
-	Error string `json:"error"`
+	OK           bool                   `json:"ok"`
+	Error        string                 `json:"error"`
+	ErrorMessage *appmessage.Descriptor `json:"error_message,omitempty"`
 }
 
 type AIConnectionTest struct {
@@ -22,7 +23,7 @@ func (a *AppService) TestAIConnection(ctx context.Context, update AISettingsUpda
 	a.aiMu.Lock()
 	if a.aiStopped || a.appLocked.Load() || len(a.aiTests) > 0 {
 		a.aiMu.Unlock()
-		return AIConnectionTest{}, errors.New("应用已锁定、退出或正在测试 AI 连接")
+		return AIConnectionTest{}, appmessage.New("backend:applicationLockedExitingOrAlreadyTestingAIConnection", "应用已锁定、退出或正在测试 AI 连接")
 	}
 	config, err := a.aiConfig()
 	if err == nil {
@@ -52,29 +53,30 @@ func (a *AppService) TestAIConnection(ctx context.Context, update AISettingsUpda
 	result := AIConnectionTest{}
 	response, err := client.Stream(testCtx, ai.Request{System: "连接测试，请简短回复。", Messages: []ai.Message{{Role: "user", Content: "请回复连接正常。"}}}, nil)
 	if err == nil && (response.Message.Content == "" || len(response.Message.ToolCalls) > 0) {
-		err = errors.New("模型未返回普通文本回复")
+		err = appmessage.New("backend:theModelDidNotReturnATextResponse", "模型未返回普通文本回复")
 	}
 	result.Reply.OK = err == nil
 	if err != nil {
 		result.Reply.Error = err.Error()
+		result.Reply.ErrorMessage = appmessage.Describe(err)
 	}
 	request := ai.Request{System: "本机无副作用的工具协议测试，只调用 connection_probe，参数 value 为 termquay。", Messages: []ai.Message{{Role: "user", Content: "请调用测试工具，收到结果后回复测试完成。"}}, Tools: []ai.Tool{{Name: "connection_probe", Description: "本机无副作用的连接测试", Parameters: json.RawMessage(`{"type":"object","properties":{"value":{"type":"string"}},"required":["value"],"additionalProperties":false}`)}}, ForceTool: "connection_probe"}
 	response, err = client.Stream(testCtx, request, nil)
 	if err == nil {
 		if len(response.Message.ToolCalls) != 1 || response.Message.ToolCalls[0].Name != "connection_probe" {
-			err = errors.New("模型没有调用测试工具")
+			err = appmessage.New("backend:theModelDidNotCallTheTestTool", "模型没有调用测试工具")
 		} else {
 			call := response.Message.ToolCalls[0]
 			var args map[string]string
 			if json.Unmarshal([]byte(call.Arguments), &args) != nil || len(args) != 1 || args["value"] != "termquay" {
-				err = errors.New("测试工具参数无效")
+				err = appmessage.New("backend:invalidTestToolArguments", "测试工具参数无效")
 			} else {
 				request.Messages = append(request.Messages, response.Message, ai.Message{Role: "tool", ToolCallID: call.ID, Content: `{"ok":true,"value":"termquay"}`})
 				request.ForceTool = ""
 				request.Tools = nil
 				response, err = client.Stream(testCtx, request, nil)
 				if err == nil && (response.Message.Content == "" || len(response.Message.ToolCalls) > 0) {
-					err = errors.New("模型未完成工具结果续接")
+					err = appmessage.New("backend:theModelDidNotCompleteToolResultContinuation", "模型未完成工具结果续接")
 				}
 			}
 		}
@@ -82,6 +84,7 @@ func (a *AppService) TestAIConnection(ctx context.Context, update AISettingsUpda
 	result.Tools.OK = err == nil
 	if err != nil {
 		result.Tools.Error = err.Error()
+		result.Tools.ErrorMessage = appmessage.Describe(err)
 	}
 	return result, nil
 }

@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"golang.org/x/sys/unix"
 )
 
@@ -28,7 +29,7 @@ func endpoint() (string, error) {
 		return "", err
 	}
 	if !info.IsDir() || info.Mode().Perm() != 0700 || stat.Uid != uint32(os.Getuid()) {
-		return "", fmt.Errorf("IPC 目录权限或所有者无效：%s", dir)
+		return "", appmessage.Errorf("backend:invalidIPCDirectoryPermissionsOrOwner", "IPC 目录权限或所有者无效：%s", dir)
 	}
 	return filepath.Join(dir, "cli.sock"), nil
 }
@@ -56,7 +57,7 @@ func listen() (net.Listener, error) {
 	lock := os.NewFile(uintptr(fd), path+".lock")
 	if err = unix.Flock(fd, unix.LOCK_EX|unix.LOCK_NB); err != nil {
 		lock.Close()
-		return nil, fmt.Errorf("已有桌面实例占用 CLI 端点：%w", err)
+		return nil, appmessage.Errorf("backend:anExistingDesktopInstanceOwnsTheCLIEndpoint", "已有桌面实例占用 CLI 端点：%w", err)
 	}
 	if err = os.Remove(path); err != nil && !os.IsNotExist(err) {
 		lock.Close()

@@ -2,7 +2,8 @@ package app
 
 import (
 	"encoding/base64"
-	"errors"
+
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"io"
@@ -39,14 +40,14 @@ func (a *AppService) stagePrivateKey(name string) (PrivateKeySelection, error) {
 		return PrivateKeySelection{}, err
 	}
 	if !info.Mode().IsRegular() || info.Size() > 1<<20 {
-		return PrivateKeySelection{}, errors.New("私钥必须是 1 MiB 内的普通文件")
+		return PrivateKeySelection{}, appmessage.New("backend:privateKeyMustBeARegularFileWithin", "私钥必须是 1 MiB 内的普通文件")
 	}
 	data, err := io.ReadAll(io.LimitReader(f, (1<<20)+1))
 	if err != nil {
 		return PrivateKeySelection{}, err
 	}
 	if len(data) > 1<<20 {
-		return PrivateKeySelection{}, errors.New("私钥超过 1 MiB 上限")
+		return PrivateKeySelection{}, appmessage.New("backend:privateKeyExceeds1MiBLimit", "私钥超过 1 MiB 上限")
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -57,7 +58,7 @@ func (a *AppService) stagePrivateKey(name string) (PrivateKeySelection, error) {
 		}
 	}
 	if len(a.privateKeys) >= 4 {
-		return PrivateKeySelection{}, errors.New("待使用私钥达到上限（4 个）")
+		return PrivateKeySelection{}, appmessage.New("backend:pendingPrivateKeyLimitReached4", "待使用私钥达到上限（4 个）")
 	}
 	id := base64.RawURLEncoding.EncodeToString(randomBytes(24))
 	a.privateKeys[id] = stagedPrivateKey{data: data, expires: time.Now().Add(5 * time.Minute), timer: time.AfterFunc(5*time.Minute, func() { a.ReleasePrivateKey(id) })}
@@ -81,10 +82,10 @@ func (a *AppService) resolvePrivateKey(r *terminal.Request) error {
 	defer a.mu.Unlock()
 	key, ok := a.privateKeys[r.PrivateKeyToken]
 	if !ok || time.Now().After(key.expires) {
-		return errors.New("私钥选择已失效，请重新选择")
+		return appmessage.New("backend:privateKeySelectionExpiredSelectAgain", "私钥选择已失效，请重新选择")
 	}
 	if r.PrivateKey != "" || r.AuthMethod == "agent" {
-		return errors.New("私钥文件与认证方式冲突")
+		return appmessage.New("backend:privateKeyFileConflictsWithAuthenticationMethod", "私钥文件与认证方式冲突")
 	}
 	r.PrivateKey = string(key.data)
 	return nil

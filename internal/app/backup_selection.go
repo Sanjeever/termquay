@@ -2,8 +2,8 @@ package app
 
 import (
 	"encoding/base64"
-	"errors"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/Sanjeever/termquay/internal/store"
 )
 
@@ -22,7 +22,7 @@ type BackupSelection struct {
 
 func selectSnapshotData(data store.Data, ids []string) (store.Data, error) {
 	if len(ids) == 0 || len(ids) > 256 {
-		return store.Data{}, errors.New("请选择 1 至 256 个连接")
+		return store.Data{}, appmessage.New("backend:selectFrom1To256Connections", "请选择 1 至 256 个连接")
 	}
 	connections := map[string]store.Connection{}
 	for _, c := range data.Connections {
@@ -36,7 +36,7 @@ func selectSnapshotData(data store.Data, ids []string) (store.Data, error) {
 		}
 		c, ok := connections[id]
 		if !ok {
-			return errors.New("所选连接不存在")
+			return appmessage.New("backend:selectedConnectionDoesNotExist", "所选连接不存在")
 		}
 		chosen[id] = true
 		if c.JumpID != "" {

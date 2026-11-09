@@ -2,9 +2,9 @@ package app
 
 import (
 	"encoding/json"
-	"errors"
 
 	"github.com/Sanjeever/termquay/internal/ai"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -40,7 +40,7 @@ func (a *AppService) aiConfig() (ai.Config, error) {
 func (a *AppService) aiConfigLocked() (ai.Config, error) {
 	c := ai.DefaultConfig()
 	if a.appLocked.Load() {
-		return c, errors.New("应用已锁定")
+		return c, appmessage.New("backend:applicationLocked", "应用已锁定")
 	}
 	if err := a.openStorage(); err != nil {
 		return c, err
@@ -96,7 +96,7 @@ func updatedAIConfig(c ai.Config, update AISettingsUpdate) (ai.Config, error) {
 	c.Enabled, c.Protocol, c.Endpoint, c.Model, c.ConfirmExec = update.Enabled, update.Protocol, update.Endpoint, update.Model, update.ConfirmExec
 	if update.RequestTimeoutMinutes != nil {
 		if *update.RequestTimeoutMinutes < 1 || *update.RequestTimeoutMinutes > ai.MaxRequestTimeoutMinutes {
-			return c, errors.New("模型最长等待时间须为 1 至 30 分钟")
+			return c, appmessage.New("backend:modelTimeoutMustBeFrom1To30", "模型最长等待时间须为 1 至 30 分钟")
 		}
 		c.RequestTimeoutMinutes = *update.RequestTimeoutMinutes
 	}
@@ -107,7 +107,7 @@ func updatedAIConfig(c ai.Config, update AISettingsUpdate) (ai.Config, error) {
 	case "clear":
 		c.APIKey = ""
 	default:
-		return c, errors.New("API Key 更新方式无效")
+		return c, appmessage.New("backend:invalidAPIKeyUpdateOperation", "API Key 更新方式无效")
 	}
 	if err := c.Validate(); err != nil {
 		return c, err

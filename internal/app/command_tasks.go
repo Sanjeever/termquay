@@ -3,7 +3,8 @@ package app
 import (
 	"encoding/base64"
 	"encoding/json"
-	"errors"
+
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"os"
@@ -38,7 +39,7 @@ func (a *AppService) commandTasks() ([]CommandTask, error) {
 		return nil, err
 	}
 	if len(value) > 1<<20 {
-		return nil, errors.New("命令任务存储超过 1 MiB")
+		return nil, appmessage.New("backend:commandTaskStorageExceeds1MiB", "命令任务存储超过 1 MiB")
 	}
 	result := []CommandTask{}
 	if value != "" {
@@ -66,7 +67,7 @@ func (a *AppService) SaveCommandTask(task CommandTask) (CommandTask, error) {
 	}
 	if task.ID == "" {
 		if len(items) >= 64 {
-			return CommandTask{}, errors.New("命令任务达到 64 项上限")
+			return CommandTask{}, appmessage.New("backend:commandTaskLimitReached64", "命令任务达到 64 项上限")
 		}
 		task.ID = base64.RawURLEncoding.EncodeToString(randomBytes(16))
 		items = append(items, task)
@@ -80,7 +81,7 @@ func (a *AppService) SaveCommandTask(task CommandTask) (CommandTask, error) {
 			}
 		}
 		if !found {
-			return CommandTask{}, errors.New("命令任务不存在")
+			return CommandTask{}, appmessage.New("backend:commandTaskDoesNotExist", "命令任务不存在")
 		}
 	}
 	data, err := json.Marshal(items)
@@ -88,7 +89,7 @@ func (a *AppService) SaveCommandTask(task CommandTask) (CommandTask, error) {
 		return CommandTask{}, err
 	}
 	if len(data) > 1<<20 {
-		return CommandTask{}, errors.New("命令任务总量超过 1 MiB")
+		return CommandTask{}, appmessage.New("backend:commandTasksExceed1MiBInTotal", "命令任务总量超过 1 MiB")
 	}
 	if err = a.store.SetSecretSetting("command_tasks", string(data)); err != nil {
 		return CommandTask{}, err
@@ -98,10 +99,10 @@ func (a *AppService) SaveCommandTask(task CommandTask) (CommandTask, error) {
 
 func validateCommandTask(task CommandTask) error {
 	if task.Concurrency < 0 || task.Concurrency > 3 || task.BatchSize < 0 || task.BatchSize > 64 {
-		return errors.New("并发须为 1 至 3，批次大小须为 1 至 64；0 沿用默认值")
+		return appmessage.New("backend:concurrencyMustBeFrom1To3And", "并发须为 1 至 3，批次大小须为 1 至 64；0 沿用默认值")
 	}
 	if task.Name == "" || len(task.Name) > 128 || len(task.Steps) == 0 || len(task.Steps) > 16 {
-		return errors.New("任务名称须为 1 至 128 字节，步骤须为 1 至 16 项")
+		return appmessage.New("backend:taskNameMustBeFrom1To128", "任务名称须为 1 至 128 字节，步骤须为 1 至 16 项")
 	}
 	for _, step := range task.Steps {
 		if err := validateCommandStep(step); err != nil {
@@ -112,19 +113,20 @@ func validateCommandTask(task CommandTask) error {
 }
 
 type CommandExportResult struct {
-	Target   string                  `json:"target"`
-	Address  string                  `json:"address"`
-	Step     string                  `json:"step"`
-	State    string                  `json:"state"`
-	Result   *terminal.CommandResult `json:"result,omitempty"`
-	Error    string                  `json:"error,omitempty"`
-	Check    *InspectionCheckResult  `json:"check,omitempty"`
-	Baseline string                  `json:"baseline,omitempty"`
+	Target       string                  `json:"target"`
+	Address      string                  `json:"address"`
+	Step         string                  `json:"step"`
+	State        string                  `json:"state"`
+	Result       *terminal.CommandResult `json:"result,omitempty"`
+	Error        string                  `json:"error,omitempty"`
+	ErrorMessage *appmessage.Descriptor  `json:"error_message,omitempty"`
+	Check        *InspectionCheckResult  `json:"check,omitempty"`
+	Baseline     string                  `json:"baseline,omitempty"`
 }
 
 func (a *AppService) ExportCommandResults(results []CommandExportResult) error {
 	if len(results) == 0 || len(results) > 1024 {
-		return errors.New("导出结果须为 1 至 1024 项")
+		return appmessage.New("backend:exportFrom1To1024Results", "导出结果须为 1 至 1024 项")
 	}
 	report := struct {
 		CreatedAt time.Time             `json:"created_at"`
@@ -135,7 +137,7 @@ func (a *AppService) ExportCommandResults(results []CommandExportResult) error {
 		return err
 	}
 	if len(data) > 16<<20 {
-		return errors.New("导出结果超过 16 MiB，请减少结果数量")
+		return appmessage.New("backend:exportExceeds16MiBSelectFewerResults", "导出结果超过 16 MiB，请减少结果数量")
 	}
 	filename, err := application.Get().Dialog.SaveFile().SetMessage(nativeText("Export selected execution results (including command output)", "导出所选执行结果（包含命令输出）")).SetFilename("termquay-command-results.json").PromptForSingleSelection()
 	if err != nil || filename == "" {
@@ -159,7 +161,7 @@ func (a *AppService) DeleteCommandTask(id string) error {
 		}
 	}
 	if index < 0 {
-		return errors.New("命令任务不存在")
+		return appmessage.New("backend:commandTaskDoesNotExist", "命令任务不存在")
 	}
 	items = append(items[:index], items[index+1:]...)
 	data, err := json.Marshal(items)

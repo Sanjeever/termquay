@@ -10,6 +10,7 @@ import (
 
 	"filippo.io/age"
 	"github.com/Sanjeever/termquay/internal/backup"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -30,7 +31,7 @@ func (a *AppService) GetBackupRecoveryRecipient() (string, error) {
 func (a *AppService) SetBackupRecoveryRecipient(recipient string) error {
 	if recipient != "" {
 		if _, err := age.ParseX25519Recipient(recipient); err != nil {
-			return errors.New("恢复公钥格式无效")
+			return appmessage.New("backend:invalidRecoveryPublicKeyFormat", "恢复公钥格式无效")
 		}
 	}
 	a.backupMu.Lock()
@@ -67,7 +68,7 @@ func (a *AppService) ExportBackupRecoveryKey() (BackupRecoveryKeyExport, error) 
 func writeRecoveryKey(filename string, secret []byte) error {
 	file, err := os.OpenFile(filename, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 	if errors.Is(err, os.ErrExist) {
-		return errors.New("恢复密钥文件已存在，请另存并保留旧密钥供历史备份使用")
+		return appmessage.New("backend:recoveryKeyFileAlreadyExistsSaveElsewhereAnd", "恢复密钥文件已存在，请另存并保留旧密钥供历史备份使用")
 	}
 	if err != nil {
 		return err
@@ -98,7 +99,7 @@ func selectBackupRecoveryKey() (string, error) {
 		return "", err
 	}
 	if !info.Mode().IsRegular() || info.Size() > 4096 {
-		return "", errors.New("恢复密钥须为不超过 4096 字节的普通文件")
+		return "", appmessage.New("backend:recoveryKeyMustBeARegularFileNo", "恢复密钥须为不超过 4096 字节的普通文件")
 	}
 	data, err := io.ReadAll(io.LimitReader(file, 4097))
 	if err != nil {
@@ -106,7 +107,7 @@ func selectBackupRecoveryKey() (string, error) {
 	}
 	defer clear(data)
 	if len(data) > 4096 {
-		return "", errors.New("恢复密钥超过长度限制")
+		return "", appmessage.New("backend:recoveryKeyExceedsTheLengthLimit", "恢复密钥超过长度限制")
 	}
 	secret := string(data)
 	if _, err := backup.RecoveryRecipient(secret); err != nil {

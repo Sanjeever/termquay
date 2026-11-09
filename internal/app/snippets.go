@@ -3,7 +3,8 @@ package app
 import (
 	"encoding/base64"
 	"encoding/json"
-	"errors"
+
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 )
 
 type Snippet struct {
@@ -22,7 +23,7 @@ func (a *AppService) snippets() ([]Snippet, error) {
 		return nil, err
 	}
 	if len(value) > 1<<20 {
-		return nil, errors.New("片段存储超过 1 MiB 上限")
+		return nil, appmessage.New("backend:snippetStorageExceeds1MiB", "片段存储超过 1 MiB 上限")
 	}
 	result := []Snippet{}
 	if value != "" {
@@ -37,7 +38,7 @@ func (a *AppService) ListSnippets() ([]Snippet, error) {
 }
 func (a *AppService) SaveSnippet(value Snippet) (Snippet, error) {
 	if value.Name == "" || value.Body == "" || len(value.Name) > 128 || len(value.Group) > 128 || len(value.Body) > 32<<10 {
-		return Snippet{}, errors.New("片段名称、分组或正文超过限制")
+		return Snippet{}, appmessage.New("backend:snippetNameGroupOrBodyExceedsTheLimit", "片段名称、分组或正文超过限制")
 	}
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
@@ -55,11 +56,11 @@ func (a *AppService) SaveSnippet(value Snippet) (Snippet, error) {
 			}
 		}
 		if !found {
-			return Snippet{}, errors.New("片段不存在")
+			return Snippet{}, appmessage.New("backend:snippetDoesNotExist", "片段不存在")
 		}
 	} else {
 		if len(values) >= 128 {
-			return Snippet{}, errors.New("片段达到上限（128 个）")
+			return Snippet{}, appmessage.New("backend:snippetLimitReached128", "片段达到上限（128 个）")
 		}
 		value.ID = base64.RawURLEncoding.EncodeToString(randomBytes(16))
 		values = append(values, value)
@@ -69,7 +70,7 @@ func (a *AppService) SaveSnippet(value Snippet) (Snippet, error) {
 		return Snippet{}, err
 	}
 	if len(encoded) > 1<<20 {
-		return Snippet{}, errors.New("片段总量超过 1 MiB 上限")
+		return Snippet{}, appmessage.New("backend:snippetsExceed1MiBInTotal", "片段总量超过 1 MiB 上限")
 	}
 	if err = a.store.SetSecretSetting("snippets", string(encoded)); err != nil {
 		return Snippet{}, err
@@ -93,7 +94,7 @@ func (a *AppService) DeleteSnippet(id string) error {
 		}
 	}
 	if !found {
-		return errors.New("片段不存在")
+		return appmessage.New("backend:snippetDoesNotExist", "片段不存在")
 	}
 	encoded, err := json.Marshal(next)
 	if err != nil {

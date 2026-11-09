@@ -2,9 +2,10 @@ package app
 
 import (
 	"encoding/base64"
-	"errors"
+
 	"sort"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/Sanjeever/termquay/internal/store"
 )
 
@@ -64,7 +65,7 @@ func (a *AppService) DeleteGroup(id string) error {
 	groups := d.Groups[:0]
 	for _, g := range d.Groups {
 		if g.ParentID == id {
-			return errors.New("分组仍有子分组")
+			return appmessage.New("backend:groupStillContainsSubgroups", "分组仍有子分组")
 		}
 		if g.ID != id {
 			groups = append(groups, g)
@@ -73,7 +74,7 @@ func (a *AppService) DeleteGroup(id string) error {
 	d.Groups = groups
 	for _, c := range d.Connections {
 		if c.GroupID == id {
-			return errors.New("分组仍有连接")
+			return appmessage.New("backend:groupStillContainsConnections", "分组仍有连接")
 		}
 	}
 	return a.store.Replace(d)
@@ -83,7 +84,7 @@ func (a *AppService) MoveConnectionsToGroup(ids []string, groupID string) error 
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
 	if len(ids) == 0 || len(ids) > 256 {
-		return errors.New("每批需选择 1 至 256 个连接")
+		return appmessage.New("backend:selectFrom1To256ConnectionsPerBatch", "每批需选择 1 至 256 个连接")
 	}
 	if err := a.openStorage(); err != nil {
 		return err
@@ -101,7 +102,7 @@ func (a *AppService) MoveConnectionsToGroup(ids []string, groupID string) error 
 			}
 		}
 		if !found {
-			return errors.New("目标分组不存在")
+			return appmessage.New("backend:destinationGroupDoesNotExist", "目标分组不存在")
 		}
 	}
 	indexes := make(map[string]int, len(d.Connections))
@@ -112,7 +113,7 @@ func (a *AppService) MoveConnectionsToGroup(ids []string, groupID string) error 
 	for _, id := range ids {
 		i, ok := indexes[id]
 		if !ok || seen[id] {
-			return errors.New("连接不存在或选择重复")
+			return appmessage.New("backend:connectionMissingOrSelectedMoreThanOnce", "连接不存在或选择重复")
 		}
 		seen[id] = true
 		d.Connections[i].GroupID = groupID
@@ -141,10 +142,10 @@ func (a *AppService) MoveGroup(id, parentID, beforeID string) error {
 		}
 	}
 	if index < 0 || !parentFound {
-		return errors.New("分组或目标父分组不存在")
+		return appmessage.New("backend:groupOrDestinationParentGroupDoesNotExist", "分组或目标父分组不存在")
 	}
 	if id == beforeID {
-		return errors.New("不能将分组移动到自身之前")
+		return appmessage.New("backend:cannotMoveAGroupBeforeItself", "不能将分组移动到自身之前")
 	}
 	siblings := []int{}
 	for i, g := range d.Groups {
@@ -163,7 +164,7 @@ func (a *AppService) MoveGroup(id, parentID, beforeID string) error {
 			}
 		}
 		if position < 0 {
-			return errors.New("排序目标已失效或不属于目标父分组")
+			return appmessage.New("backend:orderingDestinationIsInvalidOrBelongsToA", "排序目标已失效或不属于目标父分组")
 		}
 	}
 	siblings = append(siblings, 0)

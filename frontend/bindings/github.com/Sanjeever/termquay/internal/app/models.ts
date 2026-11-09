@@ -12,6 +12,9 @@ import * as backup$0 from "../backup/models.js";
 import * as files$0 from "../files/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as message$0 from "../message/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as monitor$0 from "../monitor/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -70,6 +73,7 @@ export interface AIRunView {
     "revision": number;
     "compressed": boolean;
     "error": string;
+    "error_message"?: message$0.Descriptor | null;
 }
 
 export interface AISettings {
@@ -104,6 +108,7 @@ export interface AIStartRequest {
 export interface AITestResult {
     "ok": boolean;
     "error": string;
+    "error_message"?: message$0.Descriptor | null;
 }
 
 export interface AIToolDecision {
@@ -125,6 +130,7 @@ export interface AIToolResult {
     "data": string;
     "stderr"?: string;
     "error"?: string;
+    "error_message"?: message$0.Descriptor | null;
     "truncated": boolean;
     "exit_code"?: number | null;
     "status_unknown": boolean;
@@ -144,6 +150,7 @@ export interface AutomaticBackupStatus {
     "url": string;
     "last_success": string;
     "error": string;
+    "error_message"?: message$0.Descriptor | null;
     "failure_id": number;
 }
 
@@ -212,6 +219,7 @@ export interface CommandExportResult {
     "state": string;
     "result"?: ssh$0.CommandResult | null;
     "error"?: string;
+    "error_message"?: message$0.Descriptor | null;
     "check"?: InspectionCheckResult | null;
     "baseline"?: string;
 }
@@ -221,10 +229,12 @@ export interface CommandRunItem {
     "index": number;
     "step": string;
     "state": string;
+    "state_code": string;
     "result"?: ssh$0.CommandResult | null;
     "check"?: InspectionCheckResult | null;
     "baseline"?: string;
     "error"?: string;
+    "error_message"?: message$0.Descriptor | null;
     "revision": number;
 }
 
@@ -238,11 +248,13 @@ export interface CommandRunSummary {
     "id": string;
     "name": string;
     "state": string;
+    "state_code": string;
     "started_at": number;
     "finished_at": number;
     "completed": number;
     "total": number;
     "error"?: string;
+    "error_message"?: message$0.Descriptor | null;
     "saved": boolean;
     "revision": number;
 }
@@ -302,6 +314,7 @@ export interface ConnectionLatency {
     "milliseconds": number;
     "status": string;
     "error"?: string;
+    "error_message"?: message$0.Descriptor | null;
 }
 
 export interface ConnectionPlaybook {
@@ -340,6 +353,7 @@ export interface DiagnosticSection {
     "time": string;
     "content": string;
     "error": string;
+    "error_message"?: message$0.Descriptor | null;
     "truncated": boolean;
 }
 
@@ -514,6 +528,7 @@ export interface MonitorEvent {
     "id": string;
     "sample": monitor$0.Sample | null;
     "error": string;
+    "error_message"?: message$0.Descriptor | null;
 }
 
 export interface OpenResult {
@@ -592,6 +607,7 @@ export interface RemotePathResult {
     "target": string;
     "state": string;
     "error": string;
+    "error_message"?: message$0.Descriptor | null;
 }
 
 export interface RestorePathHint {
@@ -665,6 +681,7 @@ export interface SSHReconnectResult {
     "steps": ssh$0.ConnectionStep[] | null;
     "result": OpenResult;
     "error": string;
+    "error_message"?: message$0.Descriptor | null;
     "retryable": boolean;
 }
 
@@ -704,6 +721,7 @@ export interface SnapshotPruneResult {
     "path": string;
     "state": string;
     "error": string;
+    "error_message"?: message$0.Descriptor | null;
 }
 
 export interface Snippet {
@@ -754,6 +772,7 @@ export interface Transfer {
     "total": number;
     "completed": number;
     "error": string;
+    "error_message"?: message$0.Descriptor | null;
     "sequence": number;
     "retryable": boolean;
     "target": string;
@@ -831,6 +850,7 @@ export interface UpdateStatus {
     "downloaded": number;
     "total": number;
     "error": string;
+    "error_message"?: message$0.Descriptor | null;
 }
 
 export interface UploadFile {
@@ -839,11 +859,13 @@ export interface UploadFile {
     "size": number;
     "supported": boolean;
     "error": string;
+    "error_message"?: message$0.Descriptor | null;
 }
 
 export interface UploadPreparation {
     "preview": UploadPreview;
     "error": string;
+    "error_message"?: message$0.Descriptor | null;
 }
 
 export interface UploadPreview {

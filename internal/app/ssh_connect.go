@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 )
 
@@ -19,7 +20,7 @@ func (a *AppService) OpenTerminal(ctx context.Context, r terminal.Request) (resu
 func (a *AppService) openTerminal(ctx context.Context, r terminal.Request, expected []SSHRouteHop) (result OpenResult, failure error) {
 	connectionID := r.ConnectionID
 	if r.ProxyAddress != "" && r.JumpID != "" {
-		return OpenResult{}, errors.New("目标不能同时配置跳板与连接代理，请在首个跳板配置代理")
+		return OpenResult{}, appmessage.New("backend:aDestinationCannotConfigureBothAJumpHost", "目标不能同时配置跳板与连接代理，请在首个跳板配置代理")
 	}
 	challenge, release, err := a.beginSSHAuthentication(ctx, r.AuthID)
 	if err != nil {
@@ -81,11 +82,11 @@ func (a *AppService) openTerminal(ctx context.Context, r terminal.Request, expec
 	a.mu.Lock()
 	if !unchanged() {
 		a.mu.Unlock()
-		return OpenResult{}, errors.New("信任记录已变化，请重新连接")
+		return OpenResult{}, appmessage.New("backend:trustRecordChangedConnectAgain", "信任记录已变化，请重新连接")
 	}
 	if a.closed || len(a.workspaces)+a.opening+a.closing >= 16 || len(a.terminals)+len(a.containerTerminals)+a.opening >= 64 {
 		a.mu.Unlock()
-		return OpenResult{}, errors.New("当前最多运行 16 个终端")
+		return OpenResult{}, appmessage.New("backend:concurrentTerminalLimitReached16", "当前最多运行 16 个终端")
 	}
 	fingerprints := make([]string, len(chain))
 	for index, request := range chain {
@@ -116,10 +117,10 @@ func (a *AppService) openTerminal(ctx context.Context, r terminal.Request, expec
 			a.mu.Lock()
 			defer a.mu.Unlock()
 			if a.trusted[identityKey] != "" {
-				return OpenResult{}, errors.New("SSH 主机密钥已变化，连接已阻止")
+				return OpenResult{}, appmessage.New("backend:sSHHostKeyChangedConnectionBlocked", "SSH 主机密钥已变化，连接已阻止")
 			}
 			if !unchanged() {
-				return OpenResult{}, errors.New("身份探测已失效")
+				return OpenResult{}, appmessage.New("backend:identityProbeExpired", "身份探测已失效")
 			}
 			if err = a.setPendingTrustLocked(identityKey, identity.Fingerprint); err != nil {
 				return OpenResult{}, err
@@ -137,11 +138,11 @@ func (a *AppService) openTerminal(ctx context.Context, r terminal.Request, expec
 	defer a.mu.Unlock()
 	if a.closed {
 		t.Close()
-		return OpenResult{}, errors.New("应用正在关闭")
+		return OpenResult{}, appmessage.New("backend:applicationIsClosing", "应用正在关闭")
 	}
 	if !unchanged() {
 		t.Disconnect()
-		return OpenResult{}, errors.New("信任记录已变化，请重新连接")
+		return OpenResult{}, appmessage.New("backend:trustRecordChangedConnectAgain", "信任记录已变化，请重新连接")
 	}
 	t.KeepConnection()
 	ownerCtx, ownerCancel := context.WithCancel(context.Background())
@@ -190,7 +191,7 @@ func (a *AppService) TrustSSHHost(host string, port int, fingerprint, via string
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if !a.pendingTrustValidLocked(address, fingerprint) || a.trusted[address] != "" {
-		return errors.New("主机信任请求无效")
+		return appmessage.New("backend:invalidHostTrustRequest", "主机信任请求无效")
 	}
 	if err := a.saveTrust("ssh:"+address, fingerprint); err != nil {
 		return err

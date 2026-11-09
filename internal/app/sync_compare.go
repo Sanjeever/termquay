@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"errors"
+
 	"io"
 	"os"
 	"path"
@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Sanjeever/termquay/internal/files"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 )
 
 type SyncContentComparison struct {
@@ -27,17 +28,17 @@ func (a *AppService) CompareDirectorySyncFile(ctx context.Context, id, relative 
 	plan := a.syncPlans[id]
 	if plan == nil || plan.executing || time.Now().After(plan.expires) {
 		a.mu.Unlock()
-		return SyncContentComparison{}, errors.New("同步预览已失效")
+		return SyncContentComparison{}, appmessage.New("backend:syncPreviewExpired", "同步预览已失效")
 	}
 	source, sourceOK := plan.source[relative]
 	target, targetOK := plan.target[relative]
 	if !sourceOK || !targetOK || !source.Mode.IsRegular() || !target.Mode.IsRegular() {
 		a.mu.Unlock()
-		return SyncContentComparison{}, errors.New("内容比较需要两端均存在普通文件")
+		return SyncContentComparison{}, appmessage.New("backend:contentComparisonRequiresRegularFilesOnBothSides", "内容比较需要两端均存在普通文件")
 	}
 	if source.Size > 16<<20 || target.Size > 16<<20 {
 		a.mu.Unlock()
-		return SyncContentComparison{}, errors.New("按需内容比较支持 16 MiB 内文件")
+		return SyncContentComparison{}, appmessage.New("backend:onDemandContentComparisonSupportsFilesWithin16", "按需内容比较支持 16 MiB 内文件")
 	}
 	a.mu.Unlock()
 	client, release, err := a.fileClient(ctx, plan.workspace)
@@ -69,7 +70,7 @@ func (a *AppService) CompareDirectorySyncFile(ctx context.Context, id, relative 
 			return err
 		}
 		if !files.SameSyncNode(localExpected, files.SyncInfo(localInfo)) || !files.SameSyncNode(remoteExpected, files.SyncInfo(remoteInfo)) {
-			return errors.New("文件自同步预览后已变化，请重新预览")
+			return appmessage.New("backend:fileChangedAfterSyncPreviewPreviewAgain", "文件自同步预览后已变化，请重新预览")
 		}
 		return nil
 	}
@@ -93,7 +94,7 @@ func (a *AppService) CompareDirectorySyncFile(ctx context.Context, id, relative 
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.syncPlans[id] != plan || plan.executing || time.Now().After(plan.expires) {
-		return SyncContentComparison{}, errors.New("同步预览已失效")
+		return SyncContentComparison{}, appmessage.New("backend:syncPreviewExpired", "同步预览已失效")
 	}
 	for index, entry := range plan.preview.Entries {
 		if entry.Path == relative {

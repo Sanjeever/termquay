@@ -3,9 +3,10 @@ package app
 import (
 	"context"
 	"encoding/base64"
-	"errors"
+
 	"time"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	gossh "golang.org/x/crypto/ssh"
 )
 
@@ -31,7 +32,7 @@ func (a *AppService) beginSSHAuthentication(ctx context.Context, id string) (gos
 	a.mu.Lock()
 	if len(id) < 16 || len(id) > 128 || a.closed || len(a.sshChallenges) >= 16 || a.sshChallenges[id] != nil {
 		a.mu.Unlock()
-		return nil, nil, errors.New("交互认证请求无效或已达到上限")
+		return nil, nil, appmessage.New("backend:interactiveAuthenticationRequestInvalidOrLimitReached", "交互认证请求无效或已达到上限")
 	}
 	if a.sshChallenges == nil {
 		a.sshChallenges = make(map[string]*sshAuthentication)
@@ -47,7 +48,7 @@ func (a *AppService) beginSSHAuthentication(ctx context.Context, id string) (gos
 		a.mu.Lock()
 		if state.rounds >= 16 || len(questions) > 8 || len(questions) != len(echo) || size > 16<<10 || a.closed {
 			a.mu.Unlock()
-			return nil, errors.New("服务器交互认证提示超出限制")
+			return nil, appmessage.New("backend:serverInteractiveAuthenticationPromptsExceedTheLimit", "服务器交互认证提示超出限制")
 		}
 		state.rounds++
 		state.challenge = &SSHChallenge{ID: base64.RawURLEncoding.EncodeToString(randomBytes(24)), Name: user, Instruction: instruction, Questions: append([]string{}, questions...), Echo: append([]bool{}, echo...)}
@@ -60,7 +61,7 @@ func (a *AppService) beginSSHAuthentication(ctx context.Context, id string) (gos
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case <-timer.C:
-			return nil, errors.New("等待交互认证超时")
+			return nil, appmessage.New("backend:timedOutWaitingForInteractiveAuthentication", "等待交互认证超时")
 		}
 	}
 	return challenge, func() {
@@ -84,11 +85,11 @@ func (a *AppService) AnswerSSHChallenge(id, challengeID string, answers []string
 	defer a.mu.Unlock()
 	state := a.sshChallenges[id]
 	if state == nil || state.challenge == nil || state.challenge.ID != challengeID || len(answers) != len(state.challenge.Questions) {
-		return errors.New("交互认证提示已失效")
+		return appmessage.New("backend:interactiveAuthenticationPromptExpired", "交互认证提示已失效")
 	}
 	for _, answer := range answers {
 		if len(answer) > 4096 {
-			return errors.New("认证输入超过 4096 字节")
+			return appmessage.New("backend:authenticationInputExceeds4096Bytes", "认证输入超过 4096 字节")
 		}
 	}
 	select {
@@ -96,7 +97,7 @@ func (a *AppService) AnswerSSHChallenge(id, challengeID string, answers []string
 		state.challenge = nil
 		return nil
 	default:
-		return errors.New("认证响应已提交")
+		return appmessage.New("backend:authenticationResponseAlreadySubmitted", "认证响应已提交")
 	}
 }
 
@@ -106,7 +107,7 @@ func (a *AppService) OpenSavedTerminalInteractive(ctx context.Context, id, authI
 		return OpenResult{}, err
 	}
 	if c.Protocol != "ssh" {
-		return OpenResult{}, errors.New("连接协议不是 SSH")
+		return OpenResult{}, appmessage.New("backend:connectionProtocolIsNotSSH", "连接协议不是 SSH")
 	}
 	r.AuthID = authID
 	return a.OpenTerminal(ctx, r)

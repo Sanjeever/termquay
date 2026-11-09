@@ -3,9 +3,10 @@ package app
 import (
 	"context"
 	"encoding/json"
-	"errors"
+
 	"time"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/Sanjeever/termquay/internal/store"
 )
 
@@ -64,7 +65,7 @@ func (a *AppService) GetAIConversation(ctx context.Context, workspace, id string
 		return AIConversationPage{}, err
 	}
 	if !aiConversationAllowed(owner, workspace, c) {
-		return AIConversationPage{}, errors.New("AI 历史不属于当前连接")
+		return AIConversationPage{}, appmessage.New("backend:aIHistoryDoesNotBelongToThisConnection", "AI 历史不属于当前连接")
 	}
 	items, err := a.store.AIMessages(ctx, id, before, limit)
 	if err != nil {
@@ -105,12 +106,12 @@ func (a *AppService) OpenAIConversation(ctx context.Context, workspace, id strin
 		return err
 	}
 	if !aiConversationAllowed(owner, workspace, c) {
-		return errors.New("AI 历史不属于当前连接")
+		return appmessage.New("backend:aIHistoryDoesNotBelongToThisConnection", "AI 历史不属于当前连接")
 	}
 	for other, current := range a.aiCurrent {
 		if other != workspace && current.id == id {
 			if _, err := a.aiOwner(other, current.owner); err == nil {
-				return errors.New("此对话已在另一个工作区打开，请新建对话")
+				return appmessage.New("backend:thisConversationIsOpenInAnotherWorkspaceStart", "此对话已在另一个工作区打开，请新建对话")
 			}
 		}
 	}
@@ -140,7 +141,7 @@ func (a *AppService) DeleteAIConversation(ctx context.Context, workspace, id str
 		return err
 	}
 	if !aiConversationAllowed(owner, workspace, c) {
-		return errors.New("AI 历史不属于当前连接")
+		return appmessage.New("backend:aIHistoryDoesNotBelongToThisConnection", "AI 历史不属于当前连接")
 	}
 	for _, run := range a.aiRuns {
 		if run.view.ConversationID == id {

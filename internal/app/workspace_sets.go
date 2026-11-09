@@ -3,7 +3,8 @@ package app
 import (
 	"encoding/base64"
 	"encoding/json"
-	"errors"
+
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"io"
 	"strings"
 	"time"
@@ -46,7 +47,7 @@ func decodeWorkspaceSets(value string) ([]WorkspaceSet, error) {
 		return data.Items, nil
 	}
 	if len(value) > maxWorkspaceSetBytes {
-		return nil, errors.New("工作集存储超过 2 MiB 上限")
+		return nil, appmessage.New("backend:workingSetStorageExceeds2MiB", "工作集存储超过 2 MiB 上限")
 	}
 	decoder := json.NewDecoder(strings.NewReader(value))
 	decoder.DisallowUnknownFields()
@@ -54,15 +55,15 @@ func decodeWorkspaceSets(value string) ([]WorkspaceSet, error) {
 		return nil, err
 	}
 	if err := decoder.Decode(new(any)); err != io.EOF {
-		return nil, errors.New("工作集存储包含多余数据")
+		return nil, appmessage.New("backend:workingSetStorageContainsExtraData", "工作集存储包含多余数据")
 	}
 	if data.Version != 1 || len(data.Items) > maxWorkspaceSets {
-		return nil, errors.New("工作集存储版本不受支持或数量超过上限")
+		return nil, appmessage.New("backend:workingSetStorageVersionUnsupportedOrCountExceeds", "工作集存储版本不受支持或数量超过上限")
 	}
 	ids, names := map[string]bool{}, map[string]bool{}
 	for _, item := range data.Items {
 		if !validWorkspaceID(item.ID) || !validWorkspaceSetName(item.Name) || ids[item.ID] || names[item.Name] || len(item.Layout.Entries) == 0 {
-			return nil, errors.New("工作集标识、名称或布局无效")
+			return nil, appmessage.New("backend:invalidWorkingSetIdentifierNameOrLayout", "工作集标识、名称或布局无效")
 		}
 		if err := item.Layout.validate(); err != nil {
 			return nil, err
@@ -81,20 +82,20 @@ func (a *AppService) ListWorkspaceSets() ([]WorkspaceSet, error) {
 func (a *AppService) SaveWorkspaceSet(id, name string, layout WorkspaceLayout) (WorkspaceSet, error) {
 	name = strings.TrimSpace(name)
 	if !validWorkspaceSetName(name) {
-		return WorkspaceSet{}, errors.New("工作集名称须为 1 至 128 字节的单行文字")
+		return WorkspaceSet{}, appmessage.New("backend:workingSetNameMustBeASingleLine", "工作集名称须为 1 至 128 字节的单行文字")
 	}
 	if err := layout.validate(); err != nil {
 		return WorkspaceSet{}, err
 	}
 	if len(layout.Entries) == 0 {
-		return WorkspaceSet{}, errors.New("请先打开 SSH 或 RDP 工作区")
+		return WorkspaceSet{}, appmessage.New("backend:openAnSSHOrRDPWorkspaceFirst", "请先打开 SSH 或 RDP 工作区")
 	}
 	encoded, err := json.Marshal(layout)
 	if err != nil {
 		return WorkspaceSet{}, err
 	}
 	if len(encoded) > 256<<10 {
-		return WorkspaceSet{}, errors.New("单个工作集布局超过 256 KiB 上限")
+		return WorkspaceSet{}, appmessage.New("backend:workingSetLayoutExceeds256KiB", "单个工作集布局超过 256 KiB 上限")
 	}
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
@@ -108,16 +109,16 @@ func (a *AppService) SaveWorkspaceSet(id, name string, layout WorkspaceLayout) (
 			index = i
 		}
 		if item.Name == name && item.ID != id {
-			return WorkspaceSet{}, errors.New("同名工作集已存在，请选择更新或更换名称")
+			return WorkspaceSet{}, appmessage.New("backend:aWorkingSetWithThisNameExistsUpdate", "同名工作集已存在，请选择更新或更换名称")
 		}
 	}
 	if id == "" {
 		if len(items) >= maxWorkspaceSets {
-			return WorkspaceSet{}, errors.New("工作集达到 32 项上限")
+			return WorkspaceSet{}, appmessage.New("backend:workingSetLimitReached32", "工作集达到 32 项上限")
 		}
 		id = base64.RawURLEncoding.EncodeToString(randomBytes(16))
 	} else if index < 0 {
-		return WorkspaceSet{}, errors.New("工作集不存在，请重新读取")
+		return WorkspaceSet{}, appmessage.New("backend:workingSetDoesNotExistReloadTheList", "工作集不存在，请重新读取")
 	}
 	item := WorkspaceSet{ID: id, Name: name, Layout: layout, UpdatedAt: time.Now()}
 	if index >= 0 {
@@ -137,7 +138,7 @@ func (a *AppService) writeWorkspaceSets(items []WorkspaceSet) error {
 		return err
 	}
 	if len(value) > maxWorkspaceSetBytes {
-		return errors.New("工作集存储超过 2 MiB 上限")
+		return appmessage.New("backend:workingSetStorageExceeds2MiB", "工作集存储超过 2 MiB 上限")
 	}
 	return a.store.SetSetting("workspace_sets", string(value))
 }
@@ -154,5 +155,5 @@ func (a *AppService) DeleteWorkspaceSet(id string) error {
 			return a.writeWorkspaceSets(append(items[:i], items[i+1:]...))
 		}
 	}
-	return errors.New("工作集不存在，请重新读取")
+	return appmessage.New("backend:workingSetDoesNotExistReloadTheList", "工作集不存在，请重新读取")
 }

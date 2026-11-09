@@ -31,8 +31,7 @@ static void titlebarDoubleClick(void *handle) {
 import "C"
 
 import (
-	"errors"
-
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -40,7 +39,7 @@ func (a *AppService) TitlebarDoubleClick() error {
 	return application.InvokeSyncWithError(func() error {
 		window, ok := application.Get().Window.GetByName("workbench")
 		if !ok {
-			return errors.New("工作台窗口已关闭")
+			return appmessage.New("backend:workbenchWindowClosed", "工作台窗口已关闭")
 		}
 		C.titlebarDoubleClick(window.(*application.WebviewWindow).NativeWindow())
 		return nil

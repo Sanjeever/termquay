@@ -2,11 +2,12 @@ package app
 
 import (
 	"encoding/json"
-	"errors"
+
 	"net"
 	"net/url"
 	"strings"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 )
 
@@ -24,22 +25,22 @@ func validateServicePreset(preset TunnelPreset) error {
 		return nil
 	}
 	if preset.ServiceType != "address" && preset.ServiceType != "http" && preset.ServiceType != "https" {
-		return errors.New("服务类型须为地址、HTTP 或 HTTPS")
+		return appmessage.New("backend:serviceTypeMustBeAddressHTTPOrHTTPS", "服务类型须为地址、HTTP 或 HTTPS")
 	}
 	bind := net.ParseIP(preset.Spec.BindHost)
 	if preset.Spec.Kind != "local" || bind == nil || !bind.IsLoopback() || preset.Spec.AllowPublic {
-		return errors.New("服务入口须使用回环本地转发")
+		return appmessage.New("backend:serviceEntryMustUseLoopbackLocalForwarding", "服务入口须使用回环本地转发")
 	}
 	if preset.AutoStart {
-		return errors.New("服务入口在显式打开时启动，请关闭连接后自动启动")
+		return appmessage.New("backend:serviceEntriesStartWhenExplicitlyOpenedDisableAutomatic", "服务入口在显式打开时启动，请关闭连接后自动启动")
 	}
 	if len(preset.URLPath) > 2048 || strings.ContainsAny(preset.URLPath, "\r\n\x00\\") {
-		return errors.New("服务 URL 路径无效或过长")
+		return appmessage.New("backend:invalidOrOversizedServiceURLPath", "服务 URL 路径无效或过长")
 	}
 	if preset.URLPath != "" {
 		u, err := url.Parse(preset.URLPath)
 		if err != nil || !strings.HasPrefix(preset.URLPath, "/") || strings.HasPrefix(preset.URLPath, "//") || u.IsAbs() || u.Host != "" || preset.ServiceType == "address" {
-			return errors.New("URL 路径须以单个 / 开头，且仅用于 HTTP/HTTPS 服务")
+			return appmessage.New("backend:uRLPathMustStartWithASingleAnd", "URL 路径须以单个 / 开头，且仅用于 HTTP/HTTPS 服务")
 		}
 	}
 	return nil
@@ -100,7 +101,7 @@ func (a *AppService) GetTunnelPresets(connectionID string) ([]TunnelPreset, erro
 func (a *AppService) SaveTunnelPreset(preset TunnelPreset) error {
 	preset.Name = strings.TrimSpace(preset.Name)
 	if preset.Name == "" || len(preset.Name) > 128 {
-		return errors.New("隧道名称须为 1 至 128 字节")
+		return appmessage.New("backend:tunnelNameMustBeFrom1To128", "隧道名称须为 1 至 128 字节")
 	}
 	if err := preset.Spec.Validate(); err != nil {
 		return err
@@ -126,13 +127,13 @@ func (a *AppService) SaveTunnelPreset(preset TunnelPreset) error {
 		}
 	}
 	if !found {
-		return errors.New("请先保存 SSH 连接")
+		return appmessage.New("backend:saveTheSSHConnectionFirst", "请先保存 SSH 连接")
 	}
 	replaced := false
 	for i, item := range items {
 		if item.ConnectionID == preset.ConnectionID && item.Name == preset.Name {
 			if item.ServiceType != "" && preset.ServiceType == "" {
-				return errors.New("此预设属于服务入口，请在远端服务中编辑")
+				return appmessage.New("backend:thisPresetBelongsToAServiceEntryEdit", "此预设属于服务入口，请在远端服务中编辑")
 			}
 			items[i] = preset
 			replaced = true
@@ -141,7 +142,7 @@ func (a *AppService) SaveTunnelPreset(preset TunnelPreset) error {
 	}
 	if !replaced {
 		if len(items) >= 128 {
-			return errors.New("隧道预设达到 128 项上限")
+			return appmessage.New("backend:tunnelPresetLimitReached128", "隧道预设达到 128 项上限")
 		}
 		items = append(items, preset)
 	}
@@ -152,7 +153,7 @@ func (a *AppService) SaveTunnelPreset(preset TunnelPreset) error {
 		}
 	}
 	if count > 4 {
-		return errors.New("每个连接最多自动启动 4 个隧道")
+		return appmessage.New("backend:eachConnectionCanAutomaticallyStartUpTo4", "每个连接最多自动启动 4 个隧道")
 	}
 	value, err := json.Marshal(items)
 	if err != nil {

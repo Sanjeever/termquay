@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 )
 
@@ -14,7 +15,7 @@ func powerShellLiteral(value string) string { return "'" + strings.ReplaceAll(va
 
 func windowsAIQuery(name string, args aiToolArguments, environment terminal.RemoteEnvironment) (string, error) {
 	if len(args.Unit) > 256 || strings.ContainsAny(args.Unit, "\x00\r\n") || len(args.Search) > 256 || strings.ContainsAny(args.Search, "\x00\r\n") {
-		return "", errors.New("服务名称或筛选无效")
+		return "", appmessage.New("backend:invalidServiceNameOrFilter", "服务名称或筛选无效")
 	}
 	service := `$services=@(Get-CimInstance -ClassName Win32_Service);`
 	switch name {
@@ -22,7 +23,7 @@ func windowsAIQuery(name string, args aiToolArguments, environment terminal.Remo
 		return service + `$search=` + powerShellLiteral(args.Search) + `; $items=@($services | Where-Object {$_.Name.IndexOf($search,[StringComparison]::OrdinalIgnoreCase) -ge 0 -or $_.DisplayName.IndexOf($search,[StringComparison]::OrdinalIgnoreCase) -ge 0} | Sort-Object Name | Select-Object -First 513 | ForEach-Object {@{name=$_.Name;display_name=$_.DisplayName;state=$_.State;start_mode=$_.StartMode;pid=$_.ProcessId}});@{items=@($items | Select-Object -First 512);truncated=($items.Count -gt 512)} | ConvertTo-Json -Depth 4 -Compress`, nil
 	case "service_inspect", "service_logs":
 		if args.Unit == "" {
-			return "", errors.New("需要 Windows 服务内部名称")
+			return "", appmessage.New("backend:aWindowsServiceInternalNameIsRequired", "需要 Windows 服务内部名称")
 		}
 		prefix := service + `$name=` + powerShellLiteral(args.Unit) + `;$service=$services | Where-Object {$_.Name -eq $name} | Select-Object -First 1;if ($null -eq $service) {throw '服务不存在或无法读取'};`
 		if name == "service_inspect" {
@@ -39,7 +40,7 @@ func windowsAIQuery(name string, args aiToolArguments, environment terminal.Remo
 		}
 		return query + `@{items=@($items | Sort-Object { $_.protocol },{ $_.port },{ $_.host } | Select-Object -First 512);truncated=($items.Count -gt 512);tcp_available=$` + strconv.FormatBool(environment.TCP) + `;udp_available=$` + strconv.FormatBool(environment.UDP) + `} | ConvertTo-Json -Depth 4 -Compress`, nil
 	}
-	return "", errors.New("未知 Windows 查询")
+	return "", appmessage.New("backend:unknownWindowsQuery", "未知 Windows 查询")
 }
 
 func (a *AppService) queryWindowsAI(ctx context.Context, workspace, name string, args aiToolArguments, environment terminal.RemoteEnvironment) (any, error) {

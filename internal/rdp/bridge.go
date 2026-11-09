@@ -11,7 +11,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
-	"fmt"
+
 	"io"
 	"log/slog"
 	"net"
@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/bouncyball-git/gopher-rdp/protocol/tpkt"
 	"github.com/bouncyball-git/gopher-rdp/protocol/x224"
 	"github.com/coder/websocket"
@@ -60,7 +61,7 @@ func WithDialer(target Target, dial func(context.Context, string) (net.Conn, err
 func (t Target) Address() string { return net.JoinHostPort(t.Host, strconv.Itoa(t.Port)) }
 func (t Target) validate() error {
 	if t.Host == "" || t.Port < 1 || t.Port > 65535 {
-		return errors.New("RDP 地址或端口无效")
+		return appmessage.New("backend:invalidRDPAddressOrPort", "RDP 地址或端口无效")
 	}
 	return nil
 }
@@ -70,7 +71,8 @@ type CertificateError struct {
 	Reason      string
 }
 
-func (e *CertificateError) Error() string { return "RDP 证书需要确认: " + e.Reason }
+func (e *CertificateError) Error() string          { return "RDP 证书需要确认: " + e.Reason }
+func (e *CertificateError) DiagnosticCode() string { return "backend:certificateIdentityRequired" }
 
 type Grant struct {
 	ID          string `json:"id"`
@@ -135,7 +137,7 @@ func (b *Bridge) Create(t Target) (Grant, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.ctx.Err() != nil {
-		return Grant{}, errors.New("RDP 桥接已关闭")
+		return Grant{}, appmessage.New("backend:rDPBridgeClosed", "RDP 桥接已关闭")
 	}
 	for id, a := range b.grants {
 		if !a.claimed && time.Now().After(a.expires) {
@@ -143,7 +145,7 @@ func (b *Bridge) Create(t Target) (Grant, error) {
 		}
 	}
 	if len(b.grants) >= 8 {
-		return Grant{}, errors.New("当前最多运行 8 个 RDP 会话")
+		return Grant{}, appmessage.New("backend:concurrentRDPSessionLimitReached8", "当前最多运行 8 个 RDP 会话")
 	}
 	id, token := randomToken(), randomToken()
 	b.grants[id] = &authorization{target: t, token: token, expires: time.Now().Add(time.Minute)}
@@ -184,7 +186,7 @@ func (b *Bridge) serve(w http.ResponseWriter, r *http.Request) {
 		b.mu.Unlock()
 		http.Error(w, "来源未授权", http.StatusForbidden)
 		if a != nil && b.onClose != nil {
-			b.onClose(id, errors.New("本地 WebSocket 来源未授权，请核对开发服务器端口"))
+			b.onClose(id, appmessage.New("backend:localWebSocketOriginNotAuthorizedVerifyTheDevelopment", "本地 WebSocket 来源未授权，请核对开发服务器端口"))
 		}
 		return
 	}
@@ -206,7 +208,7 @@ func (b *Bridge) serve(w http.ResponseWriter, r *http.Request) {
 	ws, err := websocket.Accept(w, r, &websocket.AcceptOptions{OriginPatterns: origins})
 	if err != nil {
 		if b.onClose != nil {
-			b.onClose(id, errors.New("本地 WebSocket 升级失败"))
+			b.onClose(id, appmessage.New("backend:localWebSocketUpgradeFailed", "本地 WebSocket 升级失败"))
 		}
 		return
 	}
@@ -232,12 +234,12 @@ func (b *Bridge) run(ctx context.Context, ws *websocket.Conn, a *authorization) 
 		return err
 	}
 	if kind != websocket.MessageBinary {
-		return errors.New("RDCleanPath 需要二进制消息")
+		return appmessage.New("backend:rDCleanPathRequiresABinaryMessage", "RDCleanPath 需要二进制消息")
 	}
 	var request cleanPathPDU
 	rest, err := asn1.Unmarshal(raw, &request)
 	if err != nil || len(rest) != 0 || request.Version != cleanPathVersion || len(request.X224) == 0 || request.Destination != a.target.Address() || request.PreconnectionBlob != "" || request.ServerAuth != "" || subtle.ConstantTimeCompare([]byte(request.ProxyAuth), []byte(a.token)) != 1 {
-		return errors.New("RDCleanPath 授权或请求无效")
+		return appmessage.New("backend:invalidRDCleanPathAuthorizationOrRequest", "RDCleanPath 授权或请求无效")
 	}
 	conn, response, err := negotiate(handshake, a.target, request.X224)
 	if err != nil {
@@ -268,7 +270,7 @@ func (b *Bridge) run(ctx context.Context, ws *websocket.Conn, a *authorization) 
 				return
 			}
 			if kind != websocket.MessageBinary {
-				finished <- errors.New("RDP 数据类型无效")
+				finished <- appmessage.New("backend:invalidRDPDataType", "RDP 数据类型无效")
 				return
 			}
 			if _, err = conn.Write(data); err != nil {
@@ -350,7 +352,7 @@ func negotiate(ctx context.Context, target Target, request []byte) (*tls.Conn, [
 		return nil, nil, err
 	}
 	if confirm.Type != x224.TypeRDPNegRsp || (confirm.SelectedProto != x224.ProtocolHybrid && confirm.SelectedProto != x224.ProtocolHybridEx) {
-		return nil, nil, errors.New("RDP 目标未协商 TLS/NLA，已阻止安全协议降级")
+		return nil, nil, appmessage.New("backend:rDPDestinationDidNotNegotiateTLSNLASecurity", "RDP 目标未协商 TLS/NLA，已阻止安全协议降级")
 	}
 	// 固定 TLS 1.2 的互操作证据与重新评估条件见 docs/architecture.md 的“内嵌 RDP”。
 	config := &tls.Config{ServerName: target.Host, MinVersion: tls.VersionTLS12, MaxVersion: tls.VersionTLS12}
@@ -359,12 +361,12 @@ func negotiate(ctx context.Context, target Target, request []byte) (*tls.Conn, [
 		config.InsecureSkipVerify = true
 		config.VerifyConnection = func(state tls.ConnectionState) error {
 			if len(state.PeerCertificates) == 0 || fingerprint(state.PeerCertificates[0].Raw) != target.Fingerprint {
-				return errors.New("RDP 证书已变化，连接已阻止")
+				return appmessage.New("backend:rDPCertificateChangedConnectionBlocked", "RDP 证书已变化，连接已阻止")
 			}
 			cert := state.PeerCertificates[0]
 			now := time.Now()
 			if now.Before(cert.NotBefore) || now.After(cert.NotAfter) {
-				return errors.New("RDP 证书已过期或尚未生效")
+				return appmessage.New("backend:rDPCertificateExpiredOrNotValidYet", "RDP 证书已过期或尚未生效")
 			}
 			return nil
 		}
@@ -376,7 +378,7 @@ func negotiate(ctx context.Context, target Target, request []byte) (*tls.Conn, [
 			cert := verification.UnverifiedCertificates[0]
 			now := time.Now()
 			if now.Before(cert.NotBefore) || now.After(cert.NotAfter) {
-				return nil, nil, errors.New("RDP 证书已过期或尚未生效")
+				return nil, nil, appmessage.New("backend:rDPCertificateExpiredOrNotValidYet", "RDP 证书已过期或尚未生效")
 			}
 			return nil, nil, &CertificateError{Fingerprint: fingerprint(verification.UnverifiedCertificates[0].Raw), Reason: verification.Err.Error()}
 		}
@@ -411,7 +413,7 @@ func fingerprint(raw []byte) string {
 func randomToken() string {
 	var b [32]byte
 	if _, err := rand.Read(b[:]); err != nil {
-		panic(fmt.Errorf("随机数生成失败: %w", err))
+		panic(appmessage.Errorf("backend:randomNumberGenerationFailed", "随机数生成失败: %w", err))
 	}
 	return base64.RawURLEncoding.EncodeToString(b[:])
 }

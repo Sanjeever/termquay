@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/Sanjeever/termquay/internal/monitor"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -26,12 +27,13 @@ type DiagnosticCaptureOptions struct {
 }
 
 type DiagnosticSection struct {
-	Kind      string    `json:"kind"`
-	Name      string    `json:"name"`
-	Time      time.Time `json:"time"`
-	Content   string    `json:"content"`
-	Error     string    `json:"error"`
-	Truncated bool      `json:"truncated"`
+	Kind         string                 `json:"kind"`
+	Name         string                 `json:"name"`
+	Time         time.Time              `json:"time"`
+	Content      string                 `json:"content"`
+	Error        string                 `json:"error"`
+	ErrorMessage *appmessage.Descriptor `json:"error_message,omitempty"`
+	Truncated    bool                   `json:"truncated"`
 }
 
 type DiagnosticSnapshotInfo struct {
@@ -50,15 +52,15 @@ type DiagnosticSnapshot struct {
 
 func (a *AppService) CaptureDiagnosticSnapshot(ctx context.Context, workspace string, options DiagnosticCaptureOptions) (DiagnosticSnapshot, error) {
 	if len(options.Services) > 8 || len(options.Logs) > 8 {
-		return DiagnosticSnapshot{}, errors.New("每次最多选择 8 个服务和 8 个日志文件")
+		return DiagnosticSnapshot{}, appmessage.New("backend:selectUpTo8ServicesAnd8Log", "每次最多选择 8 个服务和 8 个日志文件")
 	}
 	seenServices := map[string]bool{}
 	for _, unit := range options.Services {
 		if !validServiceUnit(unit) {
-			return DiagnosticSnapshot{}, errors.New("服务名称无效")
+			return DiagnosticSnapshot{}, appmessage.New("backend:invalidServiceName", "服务名称无效")
 		}
 		if seenServices[unit] {
-			return DiagnosticSnapshot{}, errors.New("服务名称重复")
+			return DiagnosticSnapshot{}, appmessage.New("backend:duplicateServiceName", "服务名称重复")
 		}
 		seenServices[unit] = true
 	}
@@ -71,7 +73,7 @@ func (a *AppService) CaptureDiagnosticSnapshot(ctx context.Context, workspace st
 	owner := a.workspaces[workspace]
 	if owner == nil || a.snapshotCapturing || a.closed {
 		a.mu.Unlock()
-		return DiagnosticSnapshot{}, errors.New("工作区已关闭或已有排障快照正在采集")
+		return DiagnosticSnapshot{}, appmessage.New("backend:workspaceClosedOrADiagnosticSnapshotIsAlready", "工作区已关闭或已有排障快照正在采集")
 	}
 	a.snapshotCapturing = true
 	info := DiagnosticSnapshotInfo{ID: base64.RawURLEncoding.EncodeToString(randomBytes(16)), Name: "排障快照", Time: time.Now().UTC(), Target: owner.target, Identity: owner.identity}
@@ -87,18 +89,22 @@ func (a *AppService) CaptureDiagnosticSnapshot(ctx context.Context, workspace st
 		section := DiagnosticSection{Kind: kind, Name: name, Time: time.Now().UTC()}
 		if err := ctx.Err(); err != nil {
 			section.Error = err.Error()
+			section.ErrorMessage = appmessage.Describe(err)
 		} else {
 			value, truncated, err := collect()
 			section.Truncated = truncated
 			if err != nil {
 				section.Error = err.Error()
+				section.ErrorMessage = appmessage.Describe(err)
 			}
 			if value != nil {
 				data, encodeErr := json.MarshalIndent(value, "", "  ")
 				if encodeErr != nil {
 					section.Error = errors.Join(err, encodeErr).Error()
+					section.ErrorMessage = appmessage.Describe(errors.Join(err, encodeErr))
 				} else if len(data)+bytes > 2<<20 {
 					section.Error = "快照正文达到 2 MiB 上限，本项未收录"
+					section.ErrorMessage = appmessage.Describe(appmessage.New("backend:snapshotSectionOmitted", "快照正文达到 2 MiB 上限，本项未收录"))
 					section.Truncated = true
 				} else {
 					section.Content = string(data)
@@ -115,7 +121,7 @@ func (a *AppService) CaptureDiagnosticSnapshot(ctx context.Context, workspace st
 				return nil, first.Truncated, err
 			}
 			if first.Truncated {
-				return nil, true, errors.New("系统采样输出已截断")
+				return nil, true, appmessage.New("backend:systemSampleOutputTruncated", "系统采样输出已截断")
 			}
 			previous, err := monitor.Parse([]byte(first.Stdout), time.Now(), nil)
 			if err != nil {
@@ -133,7 +139,7 @@ func (a *AppService) CaptureDiagnosticSnapshot(ctx context.Context, workspace st
 				return nil, second.Truncated, err
 			}
 			if second.Truncated {
-				return nil, true, errors.New("系统采样输出已截断")
+				return nil, true, appmessage.New("backend:systemSampleOutputTruncated", "系统采样输出已截断")
 			}
 			sample, err := monitor.Parse([]byte(second.Stdout), time.Now(), &previous)
 			return sample, false, err
@@ -201,18 +207,18 @@ func (a *AppService) CaptureDiagnosticSnapshot(ctx context.Context, workspace st
 		})
 	}
 	if len(snapshot.Sections) == 0 {
-		return DiagnosticSnapshot{}, errors.New("请至少选择一项采集内容")
+		return DiagnosticSnapshot{}, appmessage.New("backend:selectAtLeastOneCollectionItem", "请至少选择一项采集内容")
 	}
 	return snapshot, nil
 }
 
 func validateDiagnosticSnapshot(snapshot DiagnosticSnapshot) ([]byte, error) {
 	if snapshot.Version != 1 || !validWorkspaceID(snapshot.Info.ID) || strings.TrimSpace(snapshot.Info.Name) == "" || len(snapshot.Info.Name) > 128 || snapshot.Info.Time.IsZero() || len(snapshot.Info.Target) > 1024 || len(snapshot.Info.Identity) > 4096 || len(snapshot.Sections) == 0 || len(snapshot.Sections) > 32 {
-		return nil, errors.New("排障快照版本、名称或项目数量无效")
+		return nil, appmessage.New("backend:invalidDiagnosticSnapshotVersionNameOrItemCount", "排障快照版本、名称或项目数量无效")
 	}
 	for _, section := range snapshot.Sections {
 		if len(section.Kind) > 32 || len(section.Name) > 4096 || section.Time.IsZero() {
-			return nil, errors.New("排障快照项目无效")
+			return nil, appmessage.New("backend:invalidDiagnosticSnapshotItem", "排障快照项目无效")
 		}
 	}
 	value, err := json.Marshal(snapshot)
@@ -220,7 +226,7 @@ func validateDiagnosticSnapshot(snapshot DiagnosticSnapshot) ([]byte, error) {
 		return nil, err
 	}
 	if len(value) > 4<<20 {
-		return nil, errors.New("排障快照超过 4 MiB 上限")
+		return nil, appmessage.New("backend:diagnosticSnapshotExceeds4MiB", "排障快照超过 4 MiB 上限")
 	}
 	return value, nil
 }
@@ -235,7 +241,7 @@ func (a *AppService) diagnosticSnapshotIndex() ([]DiagnosticSnapshotInfo, error)
 	}
 	items := []DiagnosticSnapshotInfo{}
 	if len(value) > 64<<10 {
-		return nil, errors.New("排障快照索引超过大小限制")
+		return nil, appmessage.New("backend:diagnosticSnapshotIndexExceedsSizeLimit", "排障快照索引超过大小限制")
 	}
 	if value != "" {
 		if err := decodeWorkflow(value, &items); err != nil {
@@ -243,7 +249,7 @@ func (a *AppService) diagnosticSnapshotIndex() ([]DiagnosticSnapshotInfo, error)
 		}
 	}
 	if len(items) > 8 {
-		return nil, errors.New("排障快照超过 8 项上限")
+		return nil, appmessage.New("backend:diagnosticSnapshotLimitReached8", "排障快照超过 8 项上限")
 	}
 	return items, nil
 }
@@ -256,7 +262,7 @@ func (a *AppService) ListDiagnosticSnapshots() ([]DiagnosticSnapshotInfo, error)
 
 func (a *AppService) ReadDiagnosticSnapshot(id string) (DiagnosticSnapshot, error) {
 	if !validWorkspaceID(id) {
-		return DiagnosticSnapshot{}, errors.New("快照标识无效")
+		return DiagnosticSnapshot{}, appmessage.New("backend:invalidSnapshotIdentifier", "快照标识无效")
 	}
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
@@ -268,7 +274,7 @@ func (a *AppService) ReadDiagnosticSnapshot(id string) (DiagnosticSnapshot, erro
 		return DiagnosticSnapshot{}, err
 	}
 	if value == "" || len(value) > 4<<20 {
-		return DiagnosticSnapshot{}, errors.New("排障快照不存在或超过大小限制")
+		return DiagnosticSnapshot{}, appmessage.New("backend:diagnosticSnapshotMissingOrOversized", "排障快照不存在或超过大小限制")
 	}
 	var snapshot DiagnosticSnapshot
 	if err := decodeWorkflow(value, &snapshot); err != nil {
@@ -278,7 +284,7 @@ func (a *AppService) ReadDiagnosticSnapshot(id string) (DiagnosticSnapshot, erro
 		return snapshot, err
 	}
 	if snapshot.Info.ID != id {
-		return snapshot, errors.New("排障快照标识不匹配")
+		return snapshot, appmessage.New("backend:diagnosticSnapshotIdentifierMismatch", "排障快照标识不匹配")
 	}
 	return snapshot, nil
 }
@@ -303,7 +309,7 @@ func (a *AppService) SaveDiagnosticSnapshot(snapshot DiagnosticSnapshot) error {
 	}
 	if !found {
 		if len(items) >= 8 {
-			return errors.New("排障快照达到 8 项上限，请先移除旧快照")
+			return appmessage.New("backend:diagnosticSnapshotLimitReached8RemoveOlderSnapshots", "排障快照达到 8 项上限，请先移除旧快照")
 		}
 		items = append(items, snapshot.Info)
 	}
@@ -316,7 +322,7 @@ func (a *AppService) SaveDiagnosticSnapshot(snapshot DiagnosticSnapshot) error {
 
 func (a *AppService) DeleteDiagnosticSnapshot(id string) error {
 	if !validWorkspaceID(id) {
-		return errors.New("快照标识无效")
+		return appmessage.New("backend:invalidSnapshotIdentifier", "快照标识无效")
 	}
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()
@@ -342,13 +348,13 @@ func (a *AppService) ExportDiagnosticSnapshot(snapshot DiagnosticSnapshot, selec
 		return err
 	}
 	if len(selected) == 0 || len(selected) > len(snapshot.Sections) {
-		return errors.New("请选择导出项目")
+		return appmessage.New("backend:selectItemsToExport", "请选择导出项目")
 	}
 	sections := []DiagnosticSection{}
 	seen := map[int]bool{}
 	for _, index := range selected {
 		if index < 0 || index >= len(snapshot.Sections) || seen[index] {
-			return errors.New("导出项目无效或重复")
+			return appmessage.New("backend:invalidOrDuplicateExportItem", "导出项目无效或重复")
 		}
 		seen[index] = true
 		sections = append(sections, snapshot.Sections[index])

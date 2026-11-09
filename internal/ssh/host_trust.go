@@ -3,10 +3,11 @@ package ssh
 import (
 	"crypto/subtle"
 	"encoding/json"
-	"errors"
+
 	"slices"
 	"strings"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	gossh "golang.org/x/crypto/ssh"
 )
 
@@ -24,11 +25,11 @@ func DecodeHostTrust(value string) ([]HostTrust, error) {
 	}
 	var keys []HostTrust
 	if err := json.Unmarshal([]byte(value), &keys); err != nil || len(keys) == 0 || len(keys) > 16 {
-		return nil, errors.New("SSH 信任记录格式无效")
+		return nil, appmessage.New("backend:invalidSSHTrustRecordFormat", "SSH 信任记录格式无效")
 	}
 	for _, key := range keys {
 		if !slices.Contains([]string{gossh.KeyAlgoED25519, gossh.KeyAlgoECDSA256, gossh.KeyAlgoECDSA384, gossh.KeyAlgoECDSA521, gossh.KeyAlgoRSA, ""}, key.Algorithm) || !strings.HasPrefix(key.Fingerprint, "SHA256:") {
-			return nil, errors.New("SSH 信任记录算法或指纹无效")
+			return nil, appmessage.New("backend:invalidSSHTrustRecordAlgorithmOrFingerprint", "SSH 信任记录算法或指纹无效")
 		}
 	}
 	return keys, nil

@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	sftp "github.com/pkg/sftp/v2"
 )
 
@@ -56,7 +57,7 @@ func ScanLocalSync(ctx context.Context, root string, exclude ...string) (string,
 		return "", nil, err
 	}
 	if !info.IsDir() {
-		return "", nil, errors.New("同步根必须是目录")
+		return "", nil, appmessage.New("backend:syncRootMustBeADirectory", "同步根必须是目录")
 	}
 	nodes := map[string]SyncNode{}
 	pathBytes := 0
@@ -82,7 +83,7 @@ func ScanLocalSync(ctx context.Context, root string, exclude ...string) (string,
 				pathBytes += len(name)
 				if entry.Name() != path.Base(entry.Name()) || !validSyncRelative(name) || len(nodes) >= MaxSyncEntries || pathBytes > MaxSyncPathBytes {
 					directory.Close()
-					return "", nil, errors.New("同步路径无效或超过扫描上限（10000 项、64 层、8 MiB 路径）")
+					return "", nil, appmessage.New("backend:syncPathInvalidOrScanLimitExceeded10000", "同步路径无效或超过扫描上限（10000 项、64 层、8 MiB 路径）")
 				}
 				info, err := entry.Info()
 				if err != nil {
@@ -116,7 +117,7 @@ func ScanRemoteSync(ctx context.Context, client *sftp.Client, root string, exclu
 		return "", nil, err
 	}
 	if !info.IsDir() {
-		return "", nil, errors.New("同步根必须是目录")
+		return "", nil, appmessage.New("backend:syncRootMustBeADirectory", "同步根必须是目录")
 	}
 	nodes := map[string]SyncNode{}
 	pathBytes := 0
@@ -141,7 +142,7 @@ func ScanRemoteSync(ctx context.Context, client *sftp.Client, root string, exclu
 				pathBytes += len(name)
 				if info.Name() != path.Base(info.Name()) || !validSyncRelative(name) || len(nodes) >= MaxSyncEntries || pathBytes > MaxSyncPathBytes {
 					directory.Close()
-					return "", nil, errors.New("同步路径无效或超过扫描上限（10000 项、64 层、8 MiB 路径）")
+					return "", nil, appmessage.New("backend:syncPathInvalidOrScanLimitExceeded10000", "同步路径无效或超过扫描上限（10000 项、64 层、8 MiB 路径）")
 				}
 				node := SyncInfo(info)
 				nodes[name] = node
@@ -187,7 +188,7 @@ func CompareSync(source, target map[string]SyncNode) []SyncEntry {
 }
 func CheckLocalSyncPath(root, relative string, createParents bool) error {
 	if !validSyncRelative(relative) {
-		return errors.New("同步路径越界")
+		return appmessage.New("backend:syncPathIsOutsideItsRoot", "同步路径越界")
 	}
 	current := root
 	parts := strings.Split(relative, "/")
@@ -205,7 +206,7 @@ func CheckLocalSyncPath(root, relative string, createParents bool) error {
 			return err
 		}
 		if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-			return errors.New("同步父路径不是普通目录")
+			return appmessage.New("backend:syncParentIsNotARegularDirectory", "同步父路径不是普通目录")
 		}
 	}
 	return nil

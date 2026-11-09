@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
+
 	"time"
 
 	"github.com/Sanjeever/termquay/internal/backup"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/Sanjeever/termquay/internal/store"
 )
 
@@ -27,7 +28,7 @@ func (a *AppService) BackupWebDAVWithSelection(ctx context.Context, options back
 
 func (a *AppService) createSnapshot(password string, selection BackupSelection) ([]byte, string, error) {
 	if password == "" {
-		return nil, "", errors.New("备份加密密码不能为空")
+		return nil, "", appmessage.New("backend:backupEncryptionPasswordCannotBeEmpty", "备份加密密码不能为空")
 	}
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()

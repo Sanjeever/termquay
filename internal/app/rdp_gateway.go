@@ -4,9 +4,10 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
-	"errors"
+
 	"net"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/Sanjeever/termquay/internal/rdp"
 )
 
@@ -25,7 +26,7 @@ func rdpViaOwner(target rdp.Target, owner *workspaceOwner) rdp.Target {
 	target.Scope = rdpGatewayScope(owner)
 	return rdp.WithDialer(target, func(ctx context.Context, address string) (net.Conn, error) {
 		if err := owner.ctx.Err(); err != nil {
-			return nil, errors.New("SSH 跳板工作区已断开")
+			return nil, appmessage.New("backend:sSHJumpWorkspaceDisconnected", "SSH 跳板工作区已断开")
 		}
 		return owner.terminal.DialAddress(ctx, address)
 	})
@@ -41,7 +42,7 @@ func (a *AppService) rdpRouteTarget(host string, port int, gateway string) (rdp.
 	closed := a.closed
 	a.mu.Unlock()
 	if owner == nil || closed {
-		return target, errors.New("请先连接所选 SSH 跳板工作区")
+		return target, appmessage.New("backend:connectTheSelectedSSHJumpWorkspaceFirst", "请先连接所选 SSH 跳板工作区")
 	}
 	return rdpViaOwner(target, owner), nil
 }
@@ -58,5 +59,5 @@ func (a *AppService) rdpScopedTarget(host string, port int, scope string) (rdp.T
 			return rdpViaOwner(target, owner), nil
 		}
 	}
-	return target, errors.New("请先连接对应 SSH 跳板，再审核远程桌面证书")
+	return target, appmessage.New("backend:connectTheCorrespondingSSHJumpHostBeforeReviewing", "请先连接对应 SSH 跳板，再审核远程桌面证书")
 }

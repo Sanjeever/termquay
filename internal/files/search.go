@@ -11,6 +11,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	sftp "github.com/pkg/sftp/v2"
 )
 
@@ -38,8 +39,9 @@ type SearchMatch struct {
 }
 
 type SearchIssue struct {
-	Path  string `json:"path"`
-	Error string `json:"error"`
+	Path         string                 `json:"path"`
+	Error        string                 `json:"error"`
+	ErrorMessage *appmessage.Descriptor `json:"error_message,omitempty"`
 }
 
 type SearchResult struct {
@@ -56,10 +58,10 @@ type SearchResult struct {
 
 func (options SearchOptions) Validate() error {
 	if !path.IsAbs(options.Root) || len(options.Root) > 4096 || strings.ContainsRune(options.Root, 0) {
-		return errors.New("搜索范围须为远端绝对目录")
+		return appmessage.New("backend:searchScopeMustBeAnAbsoluteRemoteDirectory", "搜索范围须为远端绝对目录")
 	}
 	if options.Query == "" || len(options.Query) > 512 || !utf8.ValidString(options.Query) || strings.ContainsRune(options.Query, 0) || strings.ContainsAny(options.Query, "\r\n") {
-		return errors.New("搜索内容须为单行文本，最多 512 字节")
+		return appmessage.New("backend:searchTextMustBeASingleLineWithin", "搜索内容须为单行文本，最多 512 字节")
 	}
 	if err := ValidateSyncExcludes(options.Exclude); err != nil {
 		return err
@@ -97,12 +99,12 @@ func Search(ctx context.Context, client *sftp.Client, options SearchOptions) (Se
 		return result, err
 	}
 	if !rootInfo.IsDir() {
-		return result, errors.New("搜索范围必须是目录")
+		return result, appmessage.New("backend:searchScopeMustBeADirectory", "搜索范围必须是目录")
 	}
 	issue := func(remote string, err error) {
 		result.Failed++
 		if len(result.Issues) < 16 {
-			result.Issues = append(result.Issues, SearchIssue{Path: remote, Error: err.Error()})
+			result.Issues = append(result.Issues, SearchIssue{Path: remote, Error: err.Error(), ErrorMessage: appmessage.Describe(err)})
 		}
 	}
 	pending := []string{""}
@@ -136,7 +138,7 @@ func Search(ctx context.Context, client *sftp.Client, options SearchOptions) (Se
 				name := path.Join(relative, info.Name())
 				pathBytes += len(name)
 				if info.Name() != path.Base(info.Name()) || len(name)+len(result.Root)+1 > 4096 || strings.ContainsRune(name, 0) {
-					issue(remote, errors.New("目录返回无效或过长的路径"))
+					issue(remote, appmessage.New("backend:directoryReturnedAnInvalidOrOversizedPath", "目录返回无效或过长的路径"))
 					continue
 				}
 				if result.Scanned >= MaxSearchEntries || pathBytes > maxSearchPathBytes {
@@ -152,7 +154,7 @@ func Search(ctx context.Context, client *sftp.Client, options SearchOptions) (Se
 					if strings.Count(name, "/") < maxSearchDepth {
 						pending = append(pending, name)
 					} else {
-						issue(entryPath, errors.New("目录超过搜索深度上限，未继续扫描"))
+						issue(entryPath, appmessage.New("backend:directoryExceedsSearchDepthLimitFurtherScanningStopped", "目录超过搜索深度上限，未继续扫描"))
 					}
 				}
 				if !options.Content {

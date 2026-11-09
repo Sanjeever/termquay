@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
-	"fmt"
+
 	"net"
 	"os"
 	"os/exec"
@@ -14,6 +14,7 @@ import (
 	"unicode/utf16"
 	"unsafe"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/Sanjeever/termquay/internal/store"
 	"golang.org/x/sys/windows"
 )
@@ -23,7 +24,7 @@ var systemRDPSlots = make(chan struct{}, 8)
 func protectRDPPassword(password string) (string, error) {
 	units, err := windows.UTF16FromString(password)
 	if err != nil {
-		return "", errors.New("密码包含无效字符")
+		return "", appmessage.New("backend:passwordContainsInvalidCharacters", "密码包含无效字符")
 	}
 	plain := make([]byte, (len(units)-1)*2)
 	for i, unit := range units[:len(units)-1] {
@@ -34,7 +35,7 @@ func protectRDPPassword(password string) (string, error) {
 	input := windows.DataBlob{Size: uint32(len(plain)), Data: &plain[0]}
 	var output windows.DataBlob
 	if err := windows.CryptProtectData(&input, nil, nil, 0, nil, windows.CRYPTPROTECT_UI_FORBIDDEN, &output); err != nil {
-		return "", fmt.Errorf("加密系统 RDP 凭据失败: %w", err)
+		return "", appmessage.Errorf("backend:couldNotEncryptSystemRDPCredentials", "加密系统 RDP 凭据失败: %w", err)
 	}
 	defer windows.LocalFree(windows.Handle(unsafe.Pointer(output.Data)))
 	return hex.EncodeToString(unsafe.Slice(output.Data, output.Size)), nil
@@ -44,7 +45,7 @@ func launchSystemRDP(connection store.Connection, password, resolution string, c
 	select {
 	case systemRDPSlots <- struct{}{}:
 	default:
-		return errors.New("系统 RDP 启动任务达到上限（8 个）")
+		return appmessage.New("backend:systemRDPLaunchTaskLimitReached8", "系统 RDP 启动任务达到上限（8 个）")
 	}
 	started := false
 	defer func() {
@@ -54,7 +55,7 @@ func launchSystemRDP(connection store.Connection, password, resolution string, c
 	}()
 	client := filepath.Join(os.Getenv("SystemRoot"), "System32", "mstsc.exe")
 	if _, err := os.Stat(client); err != nil {
-		return fmt.Errorf("系统 RDP 客户端不可用: %w", err)
+		return appmessage.Errorf("backend:systemRDPClientUnavailable", "系统 RDP 客户端不可用: %w", err)
 	}
 	lines := []string{"full address:s:" + net.JoinHostPort(connection.Host, strconv.Itoa(connection.Port)), "username:s:" + connection.Username, "domain:s:" + connection.Domain, "authentication level:i:2", "enablecredsspsupport:i:1", "prompt for credentials:i:0", "redirectprinters:i:0", "redirectsmartcards:i:0", "redirectwebauthn:i:0", "drivestoredirect:s:", "redirectclipboard:i:" + strconv.Itoa(map[bool]int{false: 0, true: 1}[clipboard])}
 	if password != "" {
@@ -92,7 +93,7 @@ func launchSystemRDP(connection store.Connection, password, resolution string, c
 	}
 	if err != nil {
 		os.Remove(directory)
-		return fmt.Errorf("限制 RDP 临时目录访问失败: %w", err)
+		return appmessage.Errorf("backend:couldNotRestrictRDPTemporaryDirectoryAccess", "限制 RDP 临时目录访问失败: %w", err)
 	}
 	filename := filepath.Join(directory, "connection.rdp")
 	cleanup := func() error { return errors.Join(os.Remove(filename), os.Remove(directory)) }
@@ -108,14 +109,14 @@ func launchSystemRDP(connection store.Connection, password, resolution string, c
 	}
 	command := exec.Command(client, filename)
 	if err = command.Start(); err != nil {
-		return errors.Join(fmt.Errorf("启动系统 RDP 客户端失败: %w", err), cleanup())
+		return errors.Join(appmessage.Errorf("backend:couldNotStartSystemRDPClient", "启动系统 RDP 客户端失败: %w", err), cleanup())
 	}
 	started = true
 	go func() {
 		defer func() { <-systemRDPSlots }()
 		err := command.Wait()
 		if err != nil {
-			err = fmt.Errorf("系统 RDP 客户端退出异常: %w", err)
+			err = appmessage.Errorf("backend:systemRDPClientExitedAbnormally", "系统 RDP 客户端退出异常: %w", err)
 		}
 		onError(errors.Join(err, cleanup()))
 	}()

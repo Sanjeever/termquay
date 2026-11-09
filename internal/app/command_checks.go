@@ -3,8 +3,7 @@ package app
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
+
 	"io"
 	"math/big"
 	"regexp"
@@ -13,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Sanjeever/termquay/internal/files"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 )
 
@@ -45,7 +45,7 @@ type CommandStepResult struct {
 
 func (a *AppService) ValidateCommandSteps(steps []CommandStep) error {
 	if len(steps) == 0 || len(steps) > 16 {
-		return errors.New("步骤须为 1 至 16 项")
+		return appmessage.New("backend:provideFrom1To16Steps", "步骤须为 1 至 16 项")
 	}
 	for _, step := range steps {
 		if err := validateCommandStep(step); err != nil {
@@ -57,51 +57,51 @@ func (a *AppService) ValidateCommandSteps(steps []CommandStep) error {
 
 func validateCommandStep(step CommandStep) error {
 	if strings.TrimSpace(step.Name) == "" || len(step.Name) > 128 || len(step.Script) > 32<<10 || strings.ContainsRune(step.Script, 0) || step.TimeoutSeconds < 1 || step.TimeoutSeconds > 600 {
-		return errors.New("步骤须包含名称、最多 32 KiB 的命令及 1 至 600 秒超时")
+		return appmessage.New("backend:stepsRequireANameACommandWithin32", "步骤须包含名称、最多 32 KiB 的命令及 1 至 600 秒超时")
 	}
 	if step.Check == nil || step.Check.Kind != "file" {
 		if strings.TrimSpace(step.Script) == "" {
-			return errors.New("命令步骤不能为空")
+			return appmessage.New("backend:commandStepsCannotBeEmpty", "命令步骤不能为空")
 		}
 	} else if step.Script != "" {
-		return errors.New("文件基线比较步骤不能同时包含命令")
+		return appmessage.New("backend:fileBaselineComparisonStepsCannotAlsoContainA", "文件基线比较步骤不能同时包含命令")
 	}
 	if step.Check == nil {
 		return nil
 	}
 	c := step.Check
 	if len(c.Expected) > 4096 || len(c.Pointer) > 1024 || (c.Source != "" && c.Source != "stdout" && c.Source != "stderr") {
-		return errors.New("判定值、JSON Pointer 或输出通道无效")
+		return appmessage.New("backend:invalidExpectedValueJSONPointerOrOutputChannel", "判定值、JSON Pointer 或输出通道无效")
 	}
 	switch c.Kind {
 	case "exit":
 		code, err := strconv.Atoi(c.Expected)
 		if err != nil || code < 0 || code > 255 {
-			return errors.New("预期退出码须为 0 至 255")
+			return appmessage.New("backend:expectedExitCodeMustBeFrom0To", "预期退出码须为 0 至 255")
 		}
 	case "text":
 		if c.Expected == "" {
-			return errors.New("预期文本不能为空")
+			return appmessage.New("backend:expectedTextCannotBeEmpty", "预期文本不能为空")
 		}
 	case "regex":
 		if c.Expected == "" {
-			return errors.New("正则表达式不能为空")
+			return appmessage.New("backend:regularExpressionCannotBeEmpty", "正则表达式不能为空")
 		}
 		if _, err := regexp.Compile(c.Expected); err != nil {
-			return fmt.Errorf("判定正则无效：%w", err)
+			return appmessage.Errorf("backend:invalidCheckRegularExpression", "判定正则无效：%w", err)
 		}
 	case "json":
 		if c.Pointer != "" && (!strings.HasPrefix(c.Pointer, "/") || regexp.MustCompile(`~([^01]|$)`).MatchString(c.Pointer)) {
-			return errors.New("JSON Pointer 须为空或以 / 开头，使用 ~0 与 ~1 转义")
+			return appmessage.New("backend:jSONPointerMustBeEmptyOrStartWith", "JSON Pointer 须为空或以 / 开头，使用 ~0 与 ~1 转义")
 		}
 		expected, err := decodeInspectionJSON(c.Expected)
 		if err != nil {
-			return fmt.Errorf("预期 JSON 值无效：%w", err)
+			return appmessage.Errorf("backend:invalidExpectedJSONValue", "预期 JSON 值无效：%w", err)
 		}
 		switch expected.(type) {
 		case nil, bool, string, json.Number:
 		default:
-			return errors.New("预期 JSON 值须为字符串、数字、布尔值或 null")
+			return appmessage.New("backend:expectedJSONValueMustBeAStringNumber", "预期 JSON 值须为字符串、数字、布尔值或 null")
 		}
 		if number, ok := expected.(json.Number); ok {
 			if _, err := inspectionNumber(number); err != nil {
@@ -112,15 +112,15 @@ func validateCommandStep(step CommandStep) error {
 		case "", "eq", "ne":
 		case "gt", "gte", "lt", "lte":
 			if _, ok := expected.(json.Number); !ok {
-				return errors.New("大小比较需要 JSON 数字")
+				return appmessage.New("backend:orderingComparisonsRequireJSONNumbers", "大小比较需要 JSON 数字")
 			}
 		default:
-			return errors.New("JSON 比较方式无效")
+			return appmessage.New("backend:invalidJSONComparisonOperator", "JSON 比较方式无效")
 		}
 	case "file":
 		return validateRemotePaths([]string{c.FilePath})
 	default:
-		return errors.New("巡检判定类型无效")
+		return appmessage.New("backend:invalidInspectionCheckType", "巡检判定类型无效")
 	}
 	return nil
 }
@@ -133,7 +133,7 @@ func decodeInspectionJSON(value string) (any, error) {
 		return nil, err
 	}
 	if decoder.Decode(new(any)) != io.EOF {
-		return nil, errors.New("包含多份 JSON 或额外内容")
+		return nil, appmessage.New("backend:multipleJSONValuesOrTrailingContent", "包含多份 JSON 或额外内容")
 	}
 	return result, nil
 }
@@ -149,16 +149,16 @@ func inspectionJSONValue(root any, pointer string) (any, error) {
 			var ok bool
 			root, ok = value[part]
 			if !ok {
-				return nil, errors.New("JSON 字段不存在")
+				return nil, appmessage.New("backend:jSONFieldDoesNotExist", "JSON 字段不存在")
 			}
 		case []any:
 			index, err := strconv.Atoi(part)
 			if err != nil || strconv.Itoa(index) != part || index < 0 || index >= len(value) {
-				return nil, errors.New("JSON 数组索引不存在")
+				return nil, appmessage.New("backend:jSONArrayIndexDoesNotExist", "JSON 数组索引不存在")
 			}
 			root = value[index]
 		default:
-			return nil, errors.New("JSON 路径经过非对象或数组")
+			return nil, appmessage.New("backend:jSONPathCrossesAValueThatIsNot", "JSON 路径经过非对象或数组")
 		}
 	}
 	return root, nil
@@ -167,17 +167,17 @@ func inspectionJSONValue(root any, pointer string) (any, error) {
 func inspectionNumber(value json.Number) (*big.Rat, error) {
 	text := string(value)
 	if len(text) > 128 {
-		return nil, errors.New("JSON 数字超过 128 字符")
+		return nil, appmessage.New("backend:jSONNumberExceeds128Characters", "JSON 数字超过 128 字符")
 	}
 	if index := strings.IndexAny(text, "eE"); index >= 0 {
 		exponent, err := strconv.Atoi(text[index+1:])
 		if err != nil || exponent < -4096 || exponent > 4096 {
-			return nil, errors.New("JSON 数字指数超出比较范围")
+			return nil, appmessage.New("backend:jSONExponentExceedsComparisonRange", "JSON 数字指数超出比较范围")
 		}
 	}
 	number, ok := new(big.Rat).SetString(text)
 	if !ok {
-		return nil, errors.New("JSON 数字无法比较")
+		return nil, appmessage.New("backend:jSONNumberCannotBeCompared", "JSON 数字无法比较")
 	}
 	return number, nil
 }
@@ -321,7 +321,7 @@ func (a *AppService) RunCommandStep(ctx context.Context, workspace string, step 
 		return result, nil
 	}
 	if baseline == nil || baseline.Workspace == "" || baseline.Path != step.Check.FilePath || baseline.Revision == "" {
-		return CommandStepResult{}, errors.New("请先选择基线主机并准备当前文件版本")
+		return CommandStepResult{}, appmessage.New("backend:selectABaselineHostAndPrepareTheCurrent", "请先选择基线主机并准备当前文件版本")
 	}
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(step.TimeoutSeconds)*time.Second)
 	defer cancel()
@@ -330,10 +330,10 @@ func (a *AppService) RunCommandStep(ctx context.Context, workspace string, step 
 	}
 	reference, err := read(baseline.Workspace)
 	if err != nil {
-		return CommandStepResult{}, fmt.Errorf("读取基线失败：%w", err)
+		return CommandStepResult{}, appmessage.Errorf("backend:couldNotReadBaseline", "读取基线失败：%w", err)
 	}
 	if reference.Revision != baseline.Revision {
-		return CommandStepResult{}, errors.New("基线文件已变化，请重新开始巡检")
+		return CommandStepResult{}, appmessage.New("backend:baselineFileChangedStartTheInspectionAgain", "基线文件已变化，请重新开始巡检")
 	}
 	current := reference
 	if workspace != baseline.Workspace {

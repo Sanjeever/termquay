@@ -3,13 +3,14 @@ package app
 import (
 	"context"
 	"encoding/base64"
-	"errors"
+
 	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -26,28 +27,32 @@ type CommandRunTarget struct {
 }
 
 type CommandRunItem struct {
-	Target   CommandRunTarget        `json:"target"`
-	Index    int                     `json:"index"`
-	Step     string                  `json:"step"`
-	State    string                  `json:"state"`
-	Result   *terminal.CommandResult `json:"result,omitempty"`
-	Check    *InspectionCheckResult  `json:"check,omitempty"`
-	Baseline string                  `json:"baseline,omitempty"`
-	Error    string                  `json:"error,omitempty"`
-	Revision uint64                  `json:"revision"`
+	Target       CommandRunTarget        `json:"target"`
+	Index        int                     `json:"index"`
+	Step         string                  `json:"step"`
+	State        string                  `json:"state"`
+	StateCode    string                  `json:"state_code"`
+	Result       *terminal.CommandResult `json:"result,omitempty"`
+	Check        *InspectionCheckResult  `json:"check,omitempty"`
+	Baseline     string                  `json:"baseline,omitempty"`
+	Error        string                  `json:"error,omitempty"`
+	ErrorMessage *appmessage.Descriptor  `json:"error_message,omitempty"`
+	Revision     uint64                  `json:"revision"`
 }
 
 type CommandRunSummary struct {
-	ID         string `json:"id"`
-	Name       string `json:"name"`
-	State      string `json:"state"`
-	StartedAt  int64  `json:"started_at"`
-	FinishedAt int64  `json:"finished_at"`
-	Completed  int    `json:"completed"`
-	Total      int    `json:"total"`
-	Error      string `json:"error,omitempty"`
-	Saved      bool   `json:"saved"`
-	Revision   uint64 `json:"revision"`
+	ID           string                 `json:"id"`
+	Name         string                 `json:"name"`
+	State        string                 `json:"state"`
+	StateCode    string                 `json:"state_code"`
+	StartedAt    int64                  `json:"started_at"`
+	FinishedAt   int64                  `json:"finished_at"`
+	Completed    int                    `json:"completed"`
+	Total        int                    `json:"total"`
+	Error        string                 `json:"error,omitempty"`
+	ErrorMessage *appmessage.Descriptor `json:"error_message,omitempty"`
+	Saved        bool                   `json:"saved"`
+	Revision     uint64                 `json:"revision"`
 }
 
 type CommandRunRecord struct {
@@ -73,12 +78,12 @@ func (a *AppService) StartCommandRun(ctx context.Context, task CommandTask, targ
 		return CommandRunSummary{}, err
 	}
 	if len(targets) == 0 || len(targets) > 64 {
-		return CommandRunSummary{}, errors.New("每次需选择 1 至 64 个 SSH 工作区")
+		return CommandRunSummary{}, appmessage.New("backend:selectFrom1To64SSHWorkspacesPer", "每次需选择 1 至 64 个 SSH 工作区")
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.closed || len(a.commandRuns) >= maxCommandRuns {
-		return CommandRunSummary{}, errors.New("任务记录达到上限（8 项），请移除已结束记录后重试")
+		return CommandRunSummary{}, appmessage.New("backend:taskHistoryLimitReached8RemoveFinishedRecords", "任务记录达到上限（8 项），请移除已结束记录后重试")
 	}
 	active := 0
 	for _, run := range a.commandRuns {
@@ -87,16 +92,16 @@ func (a *AppService) StartCommandRun(ctx context.Context, task CommandTask, targ
 		}
 	}
 	if active >= 2 {
-		return CommandRunSummary{}, errors.New("最多同时运行两个多主机任务")
+		return CommandRunSummary{}, appmessage.New("backend:upToTwoMultiHostTasksCanRun", "最多同时运行两个多主机任务")
 	}
 	seen := map[string]bool{}
 	for i, target := range targets {
 		owner := a.workspaces[target.ID]
 		if owner == nil || seen[target.ID] || len(target.Name) > 128 {
-			return CommandRunSummary{}, errors.New("所选 SSH 工作区已关闭、重复或名称超限")
+			return CommandRunSummary{}, appmessage.New("backend:selectedSSHWorkspaceClosedDuplicatedOrNameOversized", "所选 SSH 工作区已关闭、重复或名称超限")
 		}
 		if err := owner.ctx.Err(); err != nil {
-			return CommandRunSummary{}, errors.New("所选 SSH 工作区已断开")
+			return CommandRunSummary{}, appmessage.New("backend:selectedSSHWorkspaceDisconnected", "所选 SSH 工作区已断开")
 		}
 		seen[target.ID] = true
 		targets[i].Address = owner.target
@@ -107,7 +112,7 @@ func (a *AppService) StartCommandRun(ctx context.Context, task CommandTask, targ
 	}
 	for _, step := range task.Steps {
 		if step.Check != nil && step.Check.Kind == "file" && a.workspaces[baselineWorkspace] == nil {
-			return CommandRunSummary{}, errors.New("请选择已连接的基线主机")
+			return CommandRunSummary{}, appmessage.New("backend:selectAConnectedBaselineHost", "请选择已连接的基线主机")
 		}
 	}
 	if err := ctx.Err(); err != nil {
@@ -125,16 +130,19 @@ func (a *AppService) StartCommandRun(ctx context.Context, task CommandTask, targ
 		a.commandRuns = map[string]*commandRun{}
 	}
 	a.commandRuns[run.view.Summary.ID] = run
+	run.view = commandRecordWithStateCodes(run.view)
 	go a.executeCommandRun(runCtx, run, targets, baselineWorkspace)
 	return run.view.Summary, nil
 }
 
 func (a *AppService) commandRunChangedLocked(run *commandRun) {
+	run.view.Summary.StateCode = commandStateCode(run.view.Summary.State)
 	run.view.Summary.Revision++
 	application.Get().Event.Emit("command-run:changed", run.view.Summary)
 }
 
 func (a *AppService) commandRunItemChangedLocked(run *commandRun, index int) {
+	run.view.Results[index].StateCode = commandStateCode(run.view.Results[index].State)
 	a.commandRunChangedLocked(run)
 	run.view.Results[index].Revision = run.view.Summary.Revision
 	application.Get().Event.Emit("command-run:item", struct {
@@ -148,6 +156,7 @@ func (a *AppService) executeCommandRun(ctx context.Context, run *commandRun, tar
 	defer run.cancel()
 	var failed, halted atomic.Bool
 	var runError string
+	var runMessage *appmessage.Descriptor
 	defer func() {
 		a.mu.Lock()
 		defer a.mu.Unlock()
@@ -159,6 +168,7 @@ func (a *AppService) executeCommandRun(ctx context.Context, run *commandRun, tar
 		summary := &run.view.Summary
 		summary.FinishedAt = time.Now().UnixMilli()
 		summary.Error = runError
+		summary.ErrorMessage = runMessage
 		switch {
 		case ctx.Err() != nil:
 			summary.State = "已取消"
@@ -178,6 +188,7 @@ func (a *AppService) executeCommandRun(ctx context.Context, run *commandRun, tar
 		baseline, err := a.PrepareInspectionBaseline(ctx, baselineWorkspace, step.Check.FilePath, step.TimeoutSeconds)
 		if err != nil {
 			runError = err.Error()
+			runMessage = appmessage.Describe(err)
 			return
 		}
 		baselines[index] = &baseline
@@ -226,6 +237,7 @@ func (a *AppService) executeCommandRun(ctx context.Context, run *commandRun, tar
 						item.Result, item.Check = result.Command, result.Check
 						if err != nil {
 							item.Error = err.Error()
+							item.ErrorMessage = appmessage.Describe(err)
 							if step.Check != nil {
 								item.Check = &InspectionCheckResult{State: "unknown", Message: err.Error()}
 							}
@@ -285,6 +297,7 @@ func (a *AppService) executeCommandRun(ctx context.Context, run *commandRun, tar
 	a.mu.Lock()
 	if run.bytes >= maxCommandRunOutput && run.view.Summary.Completed < run.view.Summary.Total {
 		runError = "任务输出达到 4 MiB 上限，后续步骤已停止；请缩小执行范围或命令输出"
+		runMessage = appmessage.Describe(appmessage.New("backend:runOutputLimit", runError))
 	}
 	a.mu.Unlock()
 }
@@ -294,7 +307,7 @@ func (a *AppService) ContinueCommandRun(id string) error {
 	defer a.mu.Unlock()
 	run := a.commandRuns[id]
 	if run == nil || run.view.Summary.State != "等待确认" {
-		return errors.New("任务当前未等待首台确认")
+		return appmessage.New("backend:taskIsNotAwaitingFirstHostConfirmation", "任务当前未等待首台确认")
 	}
 	run.view.Summary.State = "执行中"
 	run.approval <- true
@@ -307,7 +320,7 @@ func (a *AppService) CancelCommandRun(id string) error {
 	defer a.mu.Unlock()
 	run := a.commandRuns[id]
 	if run == nil || run.view.Summary.FinishedAt != 0 {
-		return errors.New("任务不存在或已结束")
+		return appmessage.New("backend:taskDoesNotExistOrHasFinished", "任务不存在或已结束")
 	}
 	run.cancel()
 	return nil

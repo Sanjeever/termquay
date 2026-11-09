@@ -1,3 +1,7 @@
+import enstatus from './locales/en/status.json' with { type: 'json' };
+import zhstatus from './locales/zh-CN/status.json' with { type: 'json' };
+import enbackend from './locales/en/backend.json' with { type: 'json' };
+import zhbackend from './locales/zh-CN/backend.json' with { type: 'json' };
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import en from './locales/en/common.json' with { type: 'json' };
@@ -22,7 +26,7 @@ export function systemLanguages(): readonly string[] {
 }
 
 void i18n.use(initReactI18next).init({
-  resources: { en: { common: en, settings: enSettings }, 'zh-CN': { common: zhCN, settings: zhSettings } },
+  resources: { en: { common: en, status: enstatus, backend: enbackend, settings: enSettings }, 'zh-CN': { common: zhCN, status: zhstatus, backend: zhbackend, settings: zhSettings } },
   lng: resolveLanguage(initialPreference(), systemLanguages()),
   fallbackLng: 'en', supportedLngs: ['en', 'zh-CN'], load: 'currentOnly',
   defaultNS: 'common', initAsync: false,

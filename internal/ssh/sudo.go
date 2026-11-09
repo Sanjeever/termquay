@@ -6,7 +6,8 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
-	"fmt"
+
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"io"
 	"strings"
 	"sync"
@@ -23,7 +24,7 @@ type sudoPromptWriter struct {
 func (w *sudoPromptWriter) Write(data []byte) (int, error) {
 	n := len(data)
 	if w.buffer.Len()+len(data) > 16<<10 {
-		return 0, errors.New("sudo 错误输出超过限制")
+		return 0, appmessage.New("backend:sudoStderrExceedsTheLimit", "sudo 错误输出超过限制")
 	}
 	w.buffer.Write(data)
 	if bytes.Contains(w.buffer.Bytes(), w.prompt) {
@@ -31,7 +32,7 @@ func (w *sudoPromptWriter) Write(data []byte) (int, error) {
 		w.buffer.Reset()
 		w.buffer.Write(clean)
 		if w.sent {
-			return 0, errors.New("sudo 认证失败，请重新授权")
+			return 0, appmessage.New("backend:sudoAuthenticationFailedAuthorizeAgain", "sudo 认证失败，请重新授权")
 		}
 		w.sent = true
 		_, err := io.WriteString(w.input, w.password+"\n")
@@ -57,7 +58,7 @@ func (w *sudoReadyWriter) Write(data []byte) (int, error) {
 			return n, nil
 		}
 		if !bytes.HasPrefix(w.prefix, w.ready) {
-			return 0, errors.New("sudo 写入通道未就绪")
+			return 0, appmessage.New("backend:sudoWriteChannelIsNotReady", "sudo 写入通道未就绪")
 		}
 		w.started = true
 		data = w.prefix[len(w.ready):]
@@ -74,7 +75,7 @@ func quoteCommandArgument(value string) string {
 
 func (t *Terminal) Sudo(ctx context.Context, script, password string, payload []byte, limit int) ([]byte, error) {
 	if len(password) > 4096 || strings.ContainsAny(password, "\x00\r\n") {
-		return nil, errors.New("sudo 密码格式无效")
+		return nil, appmessage.New("backend:invalidSudoPasswordFormat", "sudo 密码格式无效")
 	}
 	var token [16]byte
 	if _, err := rand.Read(token[:]); err != nil {
@@ -111,11 +112,11 @@ func (t *Terminal) Sudo(ctx context.Context, script, password string, payload []
 		return nil, ctx.Err()
 	}
 	if err != nil {
-		return nil, fmt.Errorf("sudo 操作失败: %w %s", err, strings.TrimSpace(stderr.buffer.String()))
+		return nil, appmessage.Errorf("backend:sudoOperationFailed", "sudo 操作失败: %w %s", err, strings.TrimSpace(stderr.buffer.String()))
 	}
 	if ready != nil {
 		if !ready.started {
-			return nil, errors.New("sudo 未建立写入通道")
+			return nil, appmessage.New("backend:sudoDidNotEstablishAWriteChannel", "sudo 未建立写入通道")
 		}
 		if err := <-written; err != nil {
 			return nil, err
@@ -123,7 +124,7 @@ func (t *Terminal) Sudo(ctx context.Context, script, password string, payload []
 		stdout = &ready.buffer
 	}
 	if stdout.truncated {
-		return nil, errors.New("sudo 文件输出超过限制")
+		return nil, appmessage.New("backend:sudoFileOutputExceedsTheLimit", "sudo 文件输出超过限制")
 	}
 	return stdout.Bytes(), nil
 }

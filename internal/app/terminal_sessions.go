@@ -3,9 +3,10 @@ package app
 import (
 	"context"
 	"encoding/base64"
-	"errors"
+
 	"time"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -15,7 +16,7 @@ func (a *AppService) ResizeTerminal(id string, cols, rows int) error {
 	p := a.terminals[id]
 	a.mu.Unlock()
 	if p == nil {
-		return errors.New("终端已关闭")
+		return appmessage.New("backend:terminalClosed", "终端已关闭")
 	}
 	return p.terminal.Resize(cols, rows)
 }
@@ -37,7 +38,7 @@ func (a *AppService) CreateTerminal(workspace string) (OpenResult, error) {
 
 func (a *AppService) CreateTmuxTerminal(ctx context.Context, workspace, name string) (OpenResult, error) {
 	if !validTmuxName(name) {
-		return OpenResult{}, errors.New("tmux 会话名称无效")
+		return OpenResult{}, appmessage.New("backend:invalidTmuxSessionName", "tmux 会话名称无效")
 	}
 	sessions, err := a.ListTmuxSessions(ctx, workspace)
 	if err != nil {
@@ -51,7 +52,7 @@ func (a *AppService) CreateTmuxTerminal(ctx context.Context, workspace, name str
 			return a.createTerminal(workspace, session.ID)
 		}
 	}
-	return OpenResult{}, errors.New("绑定的 tmux 会话已不存在，请选择已有会话或在普通终端新建")
+	return OpenResult{}, appmessage.New("backend:boundTmuxSessionNoLongerExistsSelectAn", "绑定的 tmux 会话已不存在，请选择已有会话或在普通终端新建")
 }
 
 func (a *AppService) createTerminal(workspace, tmuxSession string) (OpenResult, error) {
@@ -65,7 +66,7 @@ func (a *AppService) createTerminal(workspace, tmuxSession string) (OpenResult, 
 	}
 	if owner == nil || a.closed || count+owner.opening >= 8 || len(a.terminals)+len(a.containerTerminals)+a.opening >= 64 {
 		a.mu.Unlock()
-		return OpenResult{}, errors.New("工作区已关闭或终端达到上限（每工作区 8 个，全局 64 个）")
+		return OpenResult{}, appmessage.New("backend:workspaceClosedOrTerminalLimitReached8Per", "工作区已关闭或终端达到上限（每工作区 8 个，全局 64 个）")
 	}
 	a.opening++
 	owner.opening++
@@ -86,7 +87,7 @@ func (a *AppService) createTerminal(workspace, tmuxSession string) (OpenResult, 
 	defer a.mu.Unlock()
 	if a.workspaces[workspace] != owner {
 		t.Close()
-		return OpenResult{}, errors.New("工作区已关闭")
+		return OpenResult{}, appmessage.New("backend:workspaceClosed", "工作区已关闭")
 	}
 	p := &pendingTerminal{terminal: t, workspace: workspace}
 	a.terminals[id] = p
@@ -142,6 +143,6 @@ func (a *AppService) handleTerminal(c *application.StreamConn) {
 	a.mu.Unlock()
 	defer a.CloseTerminal(id)
 	if err = terminal.Relay(p.terminal, c, a.applicationInputAllowed); err != nil && c.Context().Err() == nil {
-		application.Get().Event.Emit("terminal:error", map[string]string{"id": id, "error": err.Error()})
+		application.Get().Event.Emit("terminal:error", map[string]any{"id": id, "error": err.Error(), "error_message": appmessage.Describe(err)})
 	}
 }

@@ -1,10 +1,10 @@
 package app
 
 import (
-	"errors"
 	"fmt"
 	"os"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"golang.org/x/sys/windows"
 )
 
@@ -19,7 +19,7 @@ func transferFileID(info os.FileInfo, filename string) (string, error) {
 		return "", err
 	}
 	if !os.SameFile(info, current) {
-		return "", errors.New("读取身份期间本地文件已变化")
+		return "", appmessage.New("backend:localFileChangedWhileReadingItsIdentity", "读取身份期间本地文件已变化")
 	}
 	var identity windows.ByHandleFileInformation
 	if err := windows.GetFileInformationByHandle(windows.Handle(file.Fd()), &identity); err != nil {

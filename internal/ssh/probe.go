@@ -3,6 +3,7 @@ package ssh
 import (
 	"context"
 	"errors"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	gossh "golang.org/x/crypto/ssh"
 	"net"
 	"strconv"
@@ -47,7 +48,7 @@ func ProbeChainIdentity(ctx context.Context, request Request, hops []Request) (s
 	defer conn.Close()
 	stop := context.AfterFunc(ctx, func() { conn.Close() })
 	defer stop()
-	sentinel := errors.New("身份探测完成")
+	sentinel := appmessage.New("backend:identityProbeCompleted", "身份探测完成")
 	fingerprint := ""
 	_, _, _, err = gossh.NewClientConn(conn, address, &gossh.ClientConfig{User: "identity-probe", HostKeyAlgorithms: []string{gossh.KeyAlgoED25519, gossh.KeyAlgoECDSA256, gossh.KeyAlgoECDSA384, gossh.KeyAlgoECDSA521, gossh.KeyAlgoRSASHA512, gossh.KeyAlgoRSASHA256}, HostKeyCallback: func(_ string, _ net.Addr, key gossh.PublicKey) error {
 		fingerprint = gossh.FingerprintSHA256(key)

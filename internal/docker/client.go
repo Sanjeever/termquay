@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
-	"errors"
+
 	"fmt"
 	"io"
 	"net"
@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/moby/moby/api/pkg/stdcopy"
 )
 
@@ -40,15 +41,16 @@ type Mount struct {
 	Writable    bool   `json:"writable"`
 }
 type Details struct {
-	Mounts       []Mount `json:"mounts"`
-	TTY          bool    `json:"tty"`
-	Health       string  `json:"health"`
-	HealthLog    string  `json:"health_log"`
-	ExitCode     int     `json:"exit_code"`
-	OOMKilled    bool    `json:"oom_killed"`
-	Error        string  `json:"error"`
-	FinishedAt   string  `json:"finished_at"`
-	RestartCount int     `json:"restart_count"`
+	Mounts       []Mount                `json:"mounts"`
+	TTY          bool                   `json:"tty"`
+	Health       string                 `json:"health"`
+	HealthLog    string                 `json:"health_log"`
+	ExitCode     int                    `json:"exit_code"`
+	OOMKilled    bool                   `json:"oom_killed"`
+	Error        string                 `json:"error"`
+	ErrorMessage *appmessage.Descriptor `json:"error_message,omitempty"`
+	FinishedAt   string                 `json:"finished_at"`
+	RestartCount int                    `json:"restart_count"`
 }
 type Logs struct {
 	Text      string `json:"text"`
@@ -112,7 +114,7 @@ func (c *Client) json(ctx context.Context, method, endpoint string, input, outpu
 		return err
 	}
 	if len(data) > 4<<20 {
-		return errors.New("Docker API 响应超过 4 MiB")
+		return appmessage.New("backend:dockerAPIResponseExceeds4MiB", "Docker API 响应超过 4 MiB")
 	}
 	if output == nil {
 		return nil
@@ -130,13 +132,13 @@ func (c *Client) Negotiate(ctx context.Context) error {
 	}
 	minor, err := strconv.Atoi(strings.TrimPrefix(version.APIVersion, "1."))
 	if err != nil || !strings.HasPrefix(version.APIVersion, "1.") || minor < 41 {
-		return errors.New("Docker API 版本无效或低于 1.41")
+		return appmessage.New("backend:dockerAPIVersionInvalidOrBelow141", "Docker API 版本无效或低于 1.41")
 	}
 	minor = min(minor, 47)
 	if version.MinAPIVersion != "" {
 		minimum, err := strconv.Atoi(strings.TrimPrefix(version.MinAPIVersion, "1."))
 		if err != nil || !strings.HasPrefix(version.MinAPIVersion, "1.") || minor < minimum {
-			return errors.New("Docker 最低 API 版本高于当前客户端支持范围")
+			return appmessage.New("backend:dockerMinimumAPIVersionExceedsThisClientS", "Docker 最低 API 版本高于当前客户端支持范围")
 		}
 	}
 	c.prefix = fmt.Sprintf("/v1.%d", minor)
@@ -159,12 +161,12 @@ func (c *Client) List(ctx context.Context) ([]Container, error) {
 		return nil, err
 	}
 	if len(raw) > 512 {
-		return nil, errors.New("容器列表超过 512 项，请缩小 Docker 实例范围")
+		return nil, appmessage.New("backend:containerCountExceeds512NarrowTheDockerInstance", "容器列表超过 512 项，请缩小 Docker 实例范围")
 	}
 	result := make([]Container, 0, len(raw))
 	for _, item := range raw {
 		if !validID(item.ID) || len(item.Ports) > 256 {
-			return nil, errors.New("容器标识无效或端口过多")
+			return nil, appmessage.New("backend:invalidContainerIdentifierOrTooManyPorts", "容器标识无效或端口过多")
 		}
 		name := item.ID[:12]
 		if len(item.Names) > 0 {
@@ -181,7 +183,7 @@ func (c *Client) List(ctx context.Context) ([]Container, error) {
 func validID(id string) bool { return len(id) == 64 && strings.Trim(id, "0123456789abcdef") == "" }
 func (c *Client) Inspect(ctx context.Context, id string) (Details, error) {
 	if !validID(id) {
-		return Details{}, errors.New("容器 ID 无效")
+		return Details{}, appmessage.New("backend:invalidContainerID", "容器 ID 无效")
 	}
 	var raw struct {
 		Config       struct{ Tty bool }
@@ -204,7 +206,7 @@ func (c *Client) Inspect(ctx context.Context, id string) (Details, error) {
 		return Details{}, err
 	}
 	if len(raw.Mounts) > 256 {
-		return Details{}, errors.New("挂载超过 256 项")
+		return Details{}, appmessage.New("backend:mountCountExceeds256", "挂载超过 256 项")
 	}
 	result := Details{TTY: raw.Config.Tty, Mounts: []Mount{}}
 	result.ExitCode = raw.State.ExitCode
@@ -255,7 +257,7 @@ func (c *Client) Logs(ctx context.Context, id string) (Logs, error) {
 			}
 			size := int(binary.BigEndian.Uint32(data[end+4 : end+8]))
 			if size > limit {
-				return Logs{}, errors.New("Docker 日志单帧超过 256 KiB")
+				return Logs{}, appmessage.New("backend:dockerLogFrameExceeds256KiB", "Docker 日志单帧超过 256 KiB")
 			}
 			if size > len(data)-end-8 {
 				truncated = true
@@ -273,7 +275,7 @@ func (c *Client) Logs(ctx context.Context, id string) (Logs, error) {
 }
 func (c *Client) OpenConsole(ctx context.Context, id, shell string) (string, io.ReadWriteCloser, error) {
 	if !validID(id) || (shell != "/bin/sh" && shell != "/bin/bash") {
-		return "", nil, errors.New("容器或 Shell 无效")
+		return "", nil, appmessage.New("backend:invalidContainerOrShell", "容器或 Shell 无效")
 	}
 	var exec struct{ ID string }
 	options := map[string]any{"AttachStdin": true, "AttachStdout": true, "AttachStderr": true, "Tty": true, "Cmd": []string{shell}, "Env": []string{"TERM=xterm-256color"}}
@@ -281,7 +283,7 @@ func (c *Client) OpenConsole(ctx context.Context, id, shell string) (string, io.
 		return "", nil, err
 	}
 	if !validID(exec.ID) {
-		return "", nil, errors.New("Docker exec ID 无效")
+		return "", nil, appmessage.New("backend:invalidDockerExecID", "Docker exec ID 无效")
 	}
 	r, err := c.request(ctx, "POST", "/exec/"+exec.ID+"/start", map[string]bool{"Detach": false, "Tty": true}, true)
 	if err != nil {
@@ -290,13 +292,13 @@ func (c *Client) OpenConsole(ctx context.Context, id, shell string) (string, io.
 	stream, ok := r.Body.(io.ReadWriteCloser)
 	if r.StatusCode != http.StatusSwitchingProtocols || !ok {
 		r.Body.Close()
-		return "", nil, errors.New("Docker 未升级双向终端通道")
+		return "", nil, appmessage.New("backend:dockerDidNotUpgradeTheBidirectionalTerminalChannel", "Docker 未升级双向终端通道")
 	}
 	return exec.ID, stream, nil
 }
 func (c *Client) Resize(ctx context.Context, execID string, cols, rows int) error {
 	if !validID(execID) || cols < 1 || cols > 1000 || rows < 1 || rows > 1000 {
-		return errors.New("容器终端尺寸无效")
+		return appmessage.New("backend:invalidContainerTerminalDimensions", "容器终端尺寸无效")
 	}
 	query := url.Values{"w": {strconv.Itoa(cols)}, "h": {strconv.Itoa(rows)}}
 	return c.json(ctx, "POST", "/exec/"+execID+"/resize?"+query.Encode(), nil, nil)

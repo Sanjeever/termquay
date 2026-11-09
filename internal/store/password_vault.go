@@ -7,7 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
+
 	"io"
 	"os"
 	"path/filepath"
@@ -15,10 +15,11 @@ import (
 	"unicode/utf8"
 
 	"filippo.io/age"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/zalando/go-keyring"
 )
 
-var ErrPasswordRequired = errors.New("本机数据已使用主密码保护，请先解锁")
+var ErrPasswordRequired = appmessage.New("backend:localDataIsProtectedByAMasterPassword", "本机数据已使用主密码保护，请先解锁")
 
 const passwordKeyFile = "vault-key.age"
 
@@ -36,7 +37,7 @@ func PasswordVaultExists(dir string) (bool, error) {
 		return false, err
 	}
 	if !info.Mode().IsRegular() || info.Size() > 64<<10 {
-		return false, errors.New("主密码密钥文件不是普通文件或超过大小限制")
+		return false, appmessage.New("backend:masterPasswordKeyFileIsNotARegular", "主密码密钥文件不是普通文件或超过大小限制")
 	}
 	return true, nil
 }
@@ -47,7 +48,7 @@ func readPasswordKey(dir, password string) ([]byte, error) {
 		return nil, err
 	}
 	if !exists {
-		return nil, errors.New("主密码密钥文件不存在")
+		return nil, appmessage.New("backend:masterPasswordKeyFileDoesNotExist", "主密码密钥文件不存在")
 	}
 	file, err := os.Open(filepath.Join(dir, passwordKeyFile))
 	if err != nil {
@@ -61,15 +62,15 @@ func readPasswordKey(dir, password string) ([]byte, error) {
 	identity.SetMaxWorkFactor(18)
 	reader, err := age.Decrypt(io.LimitReader(file, (64<<10)+1), identity)
 	if err != nil {
-		return nil, fmt.Errorf("主密码解锁失败: %w", err)
+		return nil, appmessage.Errorf("backend:couldNotUnlockWithMasterPassword", "主密码解锁失败: %w", err)
 	}
 	plain, err := io.ReadAll(io.LimitReader(reader, 1025))
 	if err != nil {
-		return nil, fmt.Errorf("主密钥文件损坏: %w", err)
+		return nil, appmessage.Errorf("backend:masterKeyFileCorrupted", "主密钥文件损坏: %w", err)
 	}
 	defer clear(plain)
 	if len(plain) > 1024 {
-		return nil, errors.New("主密钥正文超过大小限制")
+		return nil, appmessage.New("backend:masterKeyBodyExceedsSizeLimit", "主密钥正文超过大小限制")
 	}
 	var envelope passwordKey
 	if err := json.Unmarshal(plain, &envelope); err != nil {
@@ -77,14 +78,14 @@ func readPasswordKey(dir, password string) ([]byte, error) {
 	}
 	if envelope.Version != 1 || len(envelope.Key) != 32 {
 		clear(envelope.Key)
-		return nil, errors.New("主密钥格式版本或长度不受支持")
+		return nil, appmessage.New("backend:unsupportedMasterKeyFormatVersionOrLength", "主密钥格式版本或长度不受支持")
 	}
 	return envelope.Key, nil
 }
 
 func writePasswordKey(dir, password string, key []byte) (err error) {
 	if !utf8.ValidString(password) || utf8.RuneCountInString(password) < 8 || len(password) > 1024 || strings.TrimSpace(password) == "" {
-		return errors.New("主密码须为至少 8 个字符且不超过 1024 字节")
+		return appmessage.New("backend:masterPasswordRequiresAtLeast8CharactersAnd", "主密码须为至少 8 个字符且不超过 1024 字节")
 	}
 	recipient, err := age.NewScryptRecipient(password)
 	if err != nil {
@@ -134,7 +135,7 @@ func writePasswordKey(dir, password string, key []byte) (err error) {
 func CreatePasswordVault(dir, password string) (*Store, error) {
 	for _, name := range []string{"termquay.db", passwordKeyFile} {
 		if _, err := os.Lstat(filepath.Join(dir, name)); err == nil {
-			return nil, errors.New("已有本机数据，不能创建新主密钥；请先解锁或通过备份恢复")
+			return nil, appmessage.New("backend:localDataAlreadyExistsCannotCreateANew", "已有本机数据，不能创建新主密钥；请先解锁或通过备份恢复")
 		} else if !errors.Is(err, os.ErrNotExist) {
 			return nil, err
 		}
@@ -174,7 +175,7 @@ func (s *Store) verifyVaultKey(key []byte) error {
 	}
 	probe := s.aead.Seal(nil, nonce, []byte("termquay-vault-key"), nil)
 	if _, err = aead.Open(nil, nonce, probe, nil); err != nil {
-		return errors.New("主密钥与当前存储不匹配，未修改保护方式")
+		return appmessage.New("backend:masterKeyDoesNotMatchCurrentStorageProtection", "主密钥与当前存储不匹配，未修改保护方式")
 	}
 	return nil
 }
@@ -203,7 +204,7 @@ func (s *Store) SetVaultPassword(current, password string) error {
 	}
 	defer clear(key)
 	if len(key) != 32 {
-		return errors.New("主密钥长度无效")
+		return appmessage.New("backend:invalidMasterKeyLength", "主密钥长度无效")
 	}
 	if err = s.verifyVaultKey(key); err != nil {
 		return err
@@ -214,7 +215,7 @@ func (s *Store) SetVaultPassword(current, password string) error {
 	if !protected {
 		if err = keyring.Delete("com.termquay.app", account); err != nil && !errors.Is(err, keyring.ErrNotFound) {
 			rollback := os.Remove(filepath.Join(s.directory, passwordKeyFile))
-			return errors.Join(fmt.Errorf("系统密钥库旧副本移除失败: %w", err), rollback)
+			return errors.Join(appmessage.Errorf("backend:couldNotRemoveOldSystemKeychainCopy", "系统密钥库旧副本移除失败: %w", err), rollback)
 		}
 	}
 	return nil
@@ -237,14 +238,14 @@ func (s *Store) UseSystemVault(password string) error {
 		return err
 	}
 	if err = os.Remove(filepath.Join(s.directory, passwordKeyFile)); err != nil {
-		return fmt.Errorf("密钥已写入系统密钥库，但主密码文件移除失败: %w", err)
+		return appmessage.Errorf("backend:keySavedToSystemKeychainButRemovingMaster", "密钥已写入系统密钥库，但主密码文件移除失败: %w", err)
 	}
 	return nil
 }
 
 func (s *Store) VerifyVaultPassword(password string) error {
 	if len(password) == 0 || len(password) > 1024 {
-		return errors.New("主密码长度无效")
+		return appmessage.New("backend:invalidMasterPasswordLength", "主密码长度无效")
 	}
 	key, err := readPasswordKey(s.directory, password)
 	if err != nil {

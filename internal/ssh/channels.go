@@ -8,6 +8,7 @@ import (
 	"net"
 	"sync"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/pkg/sftp"
 	directorysftp "github.com/pkg/sftp/v2"
 	gossh "golang.org/x/crypto/ssh"
@@ -23,7 +24,7 @@ func (t *Terminal) DialSocket(ctx context.Context, socket string) (net.Conn, err
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	default:
-		return nil, errors.New("SSH socket 打开请求达到上限")
+		return nil, appmessage.New("backend:pendingSSHSocketOpenRequestLimitReached", "SSH socket 打开请求达到上限")
 	}
 	type result struct {
 		conn net.Conn
@@ -127,7 +128,7 @@ func (t *Terminal) Exec(ctx context.Context, script string, maxBytes int) ([]byt
 		return nil, err
 	}
 	if len(data) > maxBytes {
-		return nil, errors.New("采集输出超过限制")
+		return nil, appmessage.New("backend:collectionOutputExceedsTheLimit", "采集输出超过限制")
 	}
 	if err = s.Wait(); err != nil {
 		return nil, err

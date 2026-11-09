@@ -2,10 +2,11 @@ package app
 
 import (
 	"context"
-	"errors"
+
 	"time"
 
 	"github.com/Sanjeever/termquay/internal/files"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 )
 
 func (a *AppService) SearchRemoteFiles(ctx context.Context, workspace string, options files.SearchOptions) (files.SearchResult, error) {
@@ -18,7 +19,7 @@ func (a *AppService) SearchRemoteFiles(ctx context.Context, workspace string, op
 	owner := a.workspaces[workspace]
 	if owner == nil || a.closed {
 		a.mu.Unlock()
-		return files.SearchResult{}, errors.New("SSH 工作区已关闭")
+		return files.SearchResult{}, appmessage.New("backend:sSHWorkspaceClosed", "SSH 工作区已关闭")
 	}
 	a.mu.Unlock()
 	stopOwner := context.AfterFunc(owner.ctx, cancel)

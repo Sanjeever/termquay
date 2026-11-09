@@ -3,20 +3,22 @@ package app
 import (
 	"context"
 	"encoding/json"
-	"errors"
+
 	"time"
 
 	"github.com/Sanjeever/termquay/internal/backup"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 )
 
 type AutomaticBackupStatus struct {
-	Enabled     bool   `json:"enabled"`
-	Running     bool   `json:"running"`
-	Pending     bool   `json:"pending"`
-	URL         string `json:"url"`
-	LastSuccess string `json:"last_success"`
-	Error       string `json:"error"`
-	FailureID   uint64 `json:"failure_id"`
+	Enabled      bool                   `json:"enabled"`
+	Running      bool                   `json:"running"`
+	Pending      bool                   `json:"pending"`
+	URL          string                 `json:"url"`
+	LastSuccess  string                 `json:"last_success"`
+	Error        string                 `json:"error"`
+	ErrorMessage *appmessage.Descriptor `json:"error_message,omitempty"`
+	FailureID    uint64                 `json:"failure_id"`
 }
 
 type automaticBackupConfig struct {
@@ -31,6 +33,7 @@ func (a *AppService) startAutomaticBackupLocked(config *automaticBackupConfig) {
 	a.automaticLoaded = true
 	a.automaticStatus.Enabled = config != nil && !config.Paused
 	a.automaticStatus.Error = ""
+	a.automaticStatus.ErrorMessage = nil
 	if a.automaticTaskCancel != nil {
 		a.automaticTaskCancel()
 	}
@@ -107,10 +110,10 @@ func (a *AppService) GetAutomaticBackupStatus() (AutomaticBackupStatus, error) {
 
 func (a *AppService) EnableAutomaticBackup(ctx context.Context, options backup.WebDAVOptions, password string, selection BackupSelection) error {
 	if password == "" {
-		return errors.New("独立备份密码不能为空")
+		return appmessage.New("backend:aSeparateBackupPasswordIsRequired", "独立备份密码不能为空")
 	}
 	if len(selection.ConnectionIDs) > 0 {
-		return errors.New("自动备份覆盖全部连接，请取消连接筛选")
+		return appmessage.New("backend:automaticBackupsCoverAllConnectionsRemoveTheConnection", "自动备份覆盖全部连接，请取消连接筛选")
 	}
 	if err := options.Check(ctx); err != nil {
 		return err
@@ -170,11 +173,13 @@ func (a *AppService) runAutomaticBackup(ctx context.Context) {
 		if a.automaticConfig == config {
 			if err != nil {
 				a.automaticStatus.Error = err.Error()
+				a.automaticStatus.ErrorMessage = appmessage.Describe(err)
 				a.automaticStatus.FailureID++
 			} else {
 				last = time.Now().UTC().Format(time.RFC3339Nano)
 				a.automaticStatus.LastSuccess = last
 				a.automaticStatus.Error = ""
+				a.automaticStatus.ErrorMessage = nil
 			}
 		}
 		a.automaticMu.Unlock()
@@ -185,6 +190,7 @@ func (a *AppService) runAutomaticBackup(ctx context.Context) {
 			if err != nil {
 				a.automaticMu.Lock()
 				a.automaticStatus.Error = "快照已发布，但成功时间保存失败：" + err.Error()
+				a.automaticStatus.ErrorMessage = appmessage.Describe(appmessage.Errorf("backend:backupPublishedStatusFailed", "快照已发布，但成功时间保存失败：%w", err))
 				a.automaticStatus.FailureID++
 				a.automaticMu.Unlock()
 			}

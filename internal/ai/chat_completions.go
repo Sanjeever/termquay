@@ -3,6 +3,7 @@ package ai
 import (
 	"encoding/json"
 	"errors"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 )
 
 func chatRequest(c Config, r Request) any {
@@ -40,7 +41,7 @@ func chatParser(r *Response, delta func(string) error) func(string) (bool, error
 	return func(data string) (bool, error) {
 		if data == "[DONE]" {
 			if !finished {
-				return false, errors.New("模型未提供完成状态")
+				return false, appmessage.New("backend:theModelDidNotProvideACompletionState", "模型未提供完成状态")
 			}
 			return true, nil
 		}
@@ -76,18 +77,18 @@ func chatParser(r *Response, delta func(string) error) func(string) (bool, error
 		r.Usage.InputTokens = max(r.Usage.InputTokens, event.Usage.PromptTokens)
 		r.Usage.OutputTokens = max(r.Usage.OutputTokens, event.Usage.CompletionTokens)
 		if len(event.Choices) > 1 {
-			return false, errors.New("模型返回多个候选回复")
+			return false, appmessage.New("backend:theModelReturnedMultipleResponseCandidates", "模型返回多个候选回复")
 		}
 		for _, choice := range event.Choices {
 			if finished && (choice.Delta.Content != "" || len(choice.Delta.ToolCalls) > 0) {
-				return false, errors.New("模型完成后仍返回内容")
+				return false, appmessage.New("backend:theModelReturnedContentAfterCompletion", "模型完成后仍返回内容")
 			}
 			if err := appendText(r, choice.Delta.Content, delta); err != nil {
 				return false, err
 			}
 			for _, part := range choice.Delta.ToolCalls {
 				if part.Index < 0 || part.Index >= MaxToolCalls {
-					return false, errors.New("模型工具调用数量超过限制")
+					return false, appmessage.New("backend:modelToolCallCountExceedsTheLimit", "模型工具调用数量超过限制")
 				}
 				for len(r.Message.ToolCalls) <= part.Index {
 					r.Message.ToolCalls = append(r.Message.ToolCalls, ToolCall{})
@@ -97,7 +98,7 @@ func chatParser(r *Response, delta func(string) error) func(string) (bool, error
 				call.Name += part.Function.Name
 				call.Arguments += part.Function.Arguments
 				if len(call.Arguments) > MaxArgumentsBytes || len(call.ID) > 256 || len(call.Name) > 128 {
-					return false, errors.New("模型工具参数超过限制")
+					return false, appmessage.New("backend:modelToolArgumentsExceedTheLimit", "模型工具参数超过限制")
 				}
 			}
 			if choice.FinishReason != "" {

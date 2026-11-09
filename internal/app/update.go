@@ -9,23 +9,25 @@ import (
 	"strings"
 	"time"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	updates "github.com/Sanjeever/termquay/internal/update"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/updater"
 )
 
 type UpdateStatus struct {
-	Build      BuildInfo `json:"build"`
-	State      string    `json:"state"`
-	Enabled    bool      `json:"enabled"`
-	Busy       bool      `json:"busy"`
-	Version    string    `json:"version"`
-	Notes      string    `json:"notes"`
-	URL        string    `json:"url"`
-	CheckedAt  string    `json:"checked_at"`
-	Downloaded int64     `json:"downloaded"`
-	Total      int64     `json:"total"`
-	Error      string    `json:"error"`
+	Build        BuildInfo              `json:"build"`
+	State        string                 `json:"state"`
+	Enabled      bool                   `json:"enabled"`
+	Busy         bool                   `json:"busy"`
+	Version      string                 `json:"version"`
+	Notes        string                 `json:"notes"`
+	URL          string                 `json:"url"`
+	CheckedAt    string                 `json:"checked_at"`
+	Downloaded   int64                  `json:"downloaded"`
+	Total        int64                  `json:"total"`
+	Error        string                 `json:"error"`
+	ErrorMessage *appmessage.Descriptor `json:"error_message,omitempty"`
 }
 
 func (a *AppService) initUpdater(app *application.App) error {
@@ -101,7 +103,7 @@ func (a *AppService) SetUpdateCheck(enabled bool) error {
 	a.updateMu.Lock()
 	defer a.updateMu.Unlock()
 	if a.build.Development || a.updateStopped {
-		return errors.New("当前构建不能启用自动更新")
+		return appmessage.New("backend:thisBuildCannotEnableAutomaticUpdates", "当前构建不能启用自动更新")
 	}
 	a.storeMu.Lock()
 	err := a.openStorage()
@@ -148,16 +150,17 @@ func (a *AppService) beginUpdate(ctx context.Context) (context.Context, func(), 
 	a.updateMu.Lock()
 	defer a.updateMu.Unlock()
 	if a.build.Development || a.updateEngine == nil {
-		return nil, nil, errors.New("开发构建不检查或安装更新，请查看 GitHub 发布页面")
+		return nil, nil, appmessage.New("backend:developmentBuildsDoNotCheckForOrInstall", "开发构建不检查或安装更新，请查看 GitHub 发布页面")
 	}
 	if a.updateStopped || a.updateBusy {
-		return nil, nil, errors.New("更新任务正在进行或应用正在退出")
+		return nil, nil, appmessage.New("backend:anUpdateIsInProgressOrTheApplication", "更新任务正在进行或应用正在退出")
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	stop := context.AfterFunc(a.updateContext, cancel)
 	a.updateCancel = cancel
 	a.updateBusy = true
 	a.updateStatus.Error = ""
+	a.updateStatus.ErrorMessage = nil
 	a.updateWorkers.Add(1)
 	return ctx, func() {
 		stop()
@@ -178,7 +181,7 @@ func (a *AppService) CheckUpdate(ctx context.Context) error {
 	}
 	defer finish()
 	if a.updateEngine.State() == updater.StateReady {
-		return errors.New("更新已下载，请先重启应用")
+		return appmessage.New("backend:updateDownloadedRestartTheApplicationFirst", "更新已下载，请先重启应用")
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
@@ -188,6 +191,7 @@ func (a *AppService) CheckUpdate(ctx context.Context) error {
 	a.updateStatus.Version, a.updateStatus.Notes, a.updateStatus.URL = "", "", ""
 	if err != nil {
 		a.updateStatus.Error = err.Error()
+		a.updateStatus.ErrorMessage = appmessage.Describe(err)
 		return err
 	}
 	a.updateStatus.CheckedAt = time.Now().UTC().Format(time.RFC3339)
@@ -209,7 +213,7 @@ func (a *AppService) DownloadUpdate(ctx context.Context) error {
 	defer cancel()
 	status := a.GetUpdateStatus()
 	if status.Version == "" || status.State == string(updater.StateReady) {
-		return errors.New("没有可下载的更新")
+		return appmessage.New("backend:noUpdateAvailableToDownload", "没有可下载的更新")
 	}
 	a.updateMu.Lock()
 	a.updateStatus.Downloaded = 0
@@ -221,6 +225,7 @@ func (a *AppService) DownloadUpdate(ctx context.Context) error {
 	if err != nil {
 		a.updateMu.Lock()
 		a.updateStatus.Error = err.Error()
+		a.updateStatus.ErrorMessage = appmessage.Describe(err)
 		a.updateMu.Unlock()
 	}
 	return err
@@ -238,7 +243,7 @@ func (a *AppService) RestartForUpdate(ctx context.Context) error {
 	a.updateMu.Lock()
 	if a.build.Development || a.updateStopped || a.updateBusy || a.updateEngine == nil || a.updateEngine.State() != updater.StateReady {
 		a.updateMu.Unlock()
-		return errors.New("更新尚未准备好")
+		return appmessage.New("backend:updateIsNotReadyYet", "更新尚未准备好")
 	}
 	a.updateBusy = true
 	a.updateRestarting = true
@@ -274,7 +279,7 @@ func (a *AppService) stopUpdates() error {
 		if path := a.updateEngine.DownloadedPath(); path != "" {
 			directory := filepath.Dir(path)
 			if !strings.HasPrefix(filepath.Base(directory), "wails-update-") {
-				return errors.New("更新暂存目录无效")
+				return appmessage.New("backend:invalidUpdateStagingDirectory", "更新暂存目录无效")
 			}
 			return os.RemoveAll(directory)
 		}

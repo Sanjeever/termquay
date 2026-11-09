@@ -2,12 +2,13 @@ package app
 
 import (
 	"context"
-	"errors"
+
 	"os"
 	"path"
 	"time"
 
 	"github.com/Sanjeever/termquay/internal/files"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 	"github.com/pkg/sftp"
 	directorysftp "github.com/pkg/sftp/v2"
@@ -19,7 +20,7 @@ func (a *AppService) terminal(id string) (*terminal.Terminal, error) {
 	defer a.mu.Unlock()
 	p := a.workspaces[id]
 	if p == nil {
-		return nil, errors.New("SSH 工作区已关闭")
+		return nil, appmessage.New("backend:sSHWorkspaceClosed", "SSH 工作区已关闭")
 	}
 	return p.terminal, nil
 }
@@ -49,7 +50,7 @@ func (a *AppService) SetWorkspaceBrowseOnly(id string, enabled bool) error {
 	defer a.mu.Unlock()
 	owner := a.workspaces[id]
 	if owner == nil {
-		return errors.New("SSH 工作区已关闭")
+		return appmessage.New("backend:sSHWorkspaceClosed", "SSH 工作区已关闭")
 	}
 	owner.browseOnly = enabled
 	return nil
@@ -60,10 +61,10 @@ func (a *AppService) requireFileWrite(id string) error {
 	defer a.mu.Unlock()
 	owner := a.workspaces[id]
 	if owner == nil {
-		return errors.New("SSH 工作区已关闭")
+		return appmessage.New("backend:sSHWorkspaceClosed", "SSH 工作区已关闭")
 	}
 	if owner.browseOnly {
-		return errors.New("当前工作区处于文件浏览模式，请先允许文件写入")
+		return appmessage.New("backend:workspaceIsInFileBrowsingModeAllowWrites", "当前工作区处于文件浏览模式，请先允许文件写入")
 	}
 	return nil
 }
@@ -127,7 +128,7 @@ func (a *AppService) SaveRemoteFile(ctx context.Context, id string, document fil
 			return files.Document{}, err
 		}
 		if previous.Revision != document.Revision {
-			return files.Document{}, errors.New("远端文件已变化，请先对比与合并")
+			return files.Document{}, appmessage.New("backend:remoteFileChangedCompareAndMergeFirst", "远端文件已变化，请先对比与合并")
 		}
 		if err := a.recordFileVersion(id, previous); err != nil {
 			return files.Document{}, err
@@ -208,20 +209,21 @@ func (a *AppService) deleteRemotePath(ctx context.Context, c *directorysftp.Clie
 }
 
 type RemotePathResult struct {
-	Path   string `json:"path"`
-	Target string `json:"target"`
-	State  string `json:"state"`
-	Error  string `json:"error"`
+	Path         string                 `json:"path"`
+	Target       string                 `json:"target"`
+	State        string                 `json:"state"`
+	Error        string                 `json:"error"`
+	ErrorMessage *appmessage.Descriptor `json:"error_message,omitempty"`
 }
 
 func validateRemotePaths(paths []string) error {
 	if len(paths) == 0 || len(paths) > 64 {
-		return errors.New("每批需选择 1 至 64 个路径")
+		return appmessage.New("backend:selectFrom1To64PathsPerBatch", "每批需选择 1 至 64 个路径")
 	}
 	seen := map[string]bool{}
 	for _, remote := range paths {
 		if len(remote) > 4096 || !path.IsAbs(remote) || path.Clean(remote) != remote || remote == "/" || seen[remote] {
-			return errors.New("远端路径无效、重复或指向根目录")
+			return appmessage.New("backend:remotePathIsInvalidDuplicatedOrPointsTo", "远端路径无效、重复或指向根目录")
 		}
 		seen[remote] = true
 	}
@@ -236,7 +238,7 @@ func (a *AppService) MoveRemotePaths(ctx context.Context, id string, paths []str
 		return nil, err
 	}
 	if !path.IsAbs(directory) || path.Clean(directory) != directory || len(directory) > 4096 {
-		return nil, errors.New("目标目录必须是远端绝对路径")
+		return nil, appmessage.New("backend:destinationDirectoryMustBeAnAbsoluteRemotePath", "目标目录必须是远端绝对路径")
 	}
 	c, close, err := a.fileClient(ctx, id)
 	if err != nil {
@@ -248,7 +250,7 @@ func (a *AppService) MoveRemotePaths(ctx context.Context, id string, paths []str
 		return nil, err
 	}
 	if !info.IsDir() {
-		return nil, errors.New("目标必须是目录")
+		return nil, appmessage.New("backend:destinationMustBeADirectory", "目标必须是目录")
 	}
 	results := make([]RemotePathResult, 0, len(paths))
 	for _, remote := range paths {
@@ -256,18 +258,20 @@ func (a *AppService) MoveRemotePaths(ctx context.Context, id string, paths []str
 		if ctx.Err() != nil {
 			result.State = "not_run"
 			result.Error = ctx.Err().Error()
+			result.ErrorMessage = appmessage.Describe(ctx.Err())
 		} else if result.Path == result.Target {
 			result.State = "skipped"
 			result.Error = "源路径与目标相同"
+			result.ErrorMessage = appmessage.Describe(appmessage.New("backend:sameSourceDestination", "源路径与目标相同"))
 		} else {
 			info, err := c.Lstat(remote)
 			if err == nil && !(info.Mode().IsRegular() || info.IsDir() || info.Mode()&os.ModeSymlink != 0) {
-				err = errors.New("不支持移动特殊文件")
+				err = appmessage.New("backend:movingSpecialFilesIsUnsupported", "不支持移动特殊文件")
 			}
 			if err == nil {
 				_, targetErr := c.Lstat(result.Target)
 				if targetErr == nil {
-					err = errors.New("同名目标已存在，未覆盖")
+					err = appmessage.New("backend:destinationAlreadyExistsAndWasNotOverwritten", "同名目标已存在，未覆盖")
 				} else if !os.IsNotExist(targetErr) {
 					err = targetErr
 				}
@@ -278,6 +282,7 @@ func (a *AppService) MoveRemotePaths(ctx context.Context, id string, paths []str
 			if err != nil {
 				result.State = "failed"
 				result.Error = err.Error()
+				result.ErrorMessage = appmessage.Describe(err)
 			}
 		}
 		results = append(results, result)
@@ -303,9 +308,11 @@ func (a *AppService) DeleteRemotePaths(ctx context.Context, id string, paths []s
 		if ctx.Err() != nil {
 			result.State = "not_run"
 			result.Error = ctx.Err().Error()
+			result.ErrorMessage = appmessage.Describe(ctx.Err())
 		} else if err := a.deleteRemotePath(ctx, c, id, remote); err != nil {
 			result.State = "failed"
 			result.Error = err.Error()
+			result.ErrorMessage = appmessage.Describe(err)
 		}
 		results = append(results, result)
 	}

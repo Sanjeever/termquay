@@ -1,9 +1,9 @@
 package app
 
 import (
-	"errors"
 	"os"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -13,7 +13,7 @@ func (a *AppService) terminalInstance(id string) (*terminal.Terminal, error) {
 	defer a.mu.Unlock()
 	entry := a.terminals[id]
 	if entry == nil {
-		return nil, errors.New("终端已断开")
+		return nil, appmessage.New("backend:terminalDisconnected", "终端已断开")
 	}
 	return entry.terminal, nil
 }
@@ -33,7 +33,7 @@ func (a *AppService) StartTerminalLog(id string) (terminal.TerminalLogStatus, er
 	}
 	select {
 	case <-t.Done:
-		return terminal.TerminalLogStatus{}, errors.New("终端已断开")
+		return terminal.TerminalLogStatus{}, appmessage.New("backend:terminalDisconnected", "终端已断开")
 	default:
 	}
 	return t.StartLog(parent)
@@ -62,7 +62,7 @@ func (a *AppService) OpenTerminalLogDirectory(id string) error {
 	}
 	status := t.LogStatus()
 	if status.Directory == "" {
-		return errors.New("本次终端尚未保存录制或日志")
+		return appmessage.New("backend:noRecordingOrLogSavedForThisTerminal", "本次终端尚未保存录制或日志")
 	}
 	return application.Get().Env.OpenFileManager(status.Directory, false)
 }
@@ -77,7 +77,7 @@ func (a *AppService) GetTerminalLogStatus(id string) (terminal.TerminalLogStatus
 
 func (a *AppService) ExportTerminalBuffer(content string) error {
 	if len(content) > 16<<20 {
-		return errors.New("导出终端缓冲区超过 16 MiB")
+		return appmessage.New("backend:terminalBufferExportExceeds16MiB", "导出终端缓冲区超过 16 MiB")
 	}
 	filename, err := application.Get().Dialog.SaveFile().SetMessage(nativeText("Export terminal buffer", "导出终端缓冲区")).SetFilename("terminal.txt").PromptForSingleSelection()
 	if err != nil || filename == "" {

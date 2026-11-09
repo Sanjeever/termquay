@@ -3,7 +3,8 @@ package app
 import (
 	"context"
 	"encoding/base64"
-	"errors"
+
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 	"time"
 )
@@ -34,7 +35,7 @@ func (a *AppService) StartTunnel(ctx context.Context, workspace string, spec ter
 	}
 	if owner == nil || a.closed || count >= 4 || len(a.tunnels) >= 32 {
 		a.mu.Unlock()
-		return Tunnel{}, errors.New("工作区已关闭或转发达到上限（每工作区 4 个，全局 32 个）")
+		return Tunnel{}, appmessage.New("backend:workspaceClosedOrForwardingLimitReached4Per", "工作区已关闭或转发达到上限（每工作区 4 个，全局 32 个）")
 	}
 	start, cancel := context.WithTimeout(ctx, 20*time.Second)
 	id := base64.RawURLEncoding.EncodeToString(randomBytes(16))
@@ -53,7 +54,7 @@ func (a *AppService) StartTunnel(ctx context.Context, workspace string, spec ter
 			forward.Close()
 		}
 		if err == nil {
-			err = errors.New("转发启动已取消")
+			err = appmessage.New("backend:forwardingStartupCanceled", "转发启动已取消")
 		}
 		return Tunnel{}, err
 	}

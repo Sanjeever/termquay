@@ -3,6 +3,7 @@ package ai
 import (
 	"encoding/json"
 	"errors"
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 )
 
 func messagesRequest(c Config, r Request) any {
@@ -94,13 +95,13 @@ func messagesParser(r *Response, delta func(string) error) func(string) (bool, e
 			return false, errors.New("模型流错误: " + e.Error.Message)
 		case "message_start":
 			if started {
-				return false, errors.New("重复的模型消息起点")
+				return false, appmessage.New("backend:duplicateModelMessageStart", "重复的模型消息起点")
 			}
 			started = true
 			r.Usage = e.Message.Usage
 		case "content_block_start":
 			if !started || e.Index != len(blocks) || len(blocks) >= 32 {
-				return false, errors.New("Messages 内容块序号无效")
+				return false, appmessage.New("backend:invalidMessagesContentBlockIndex", "Messages 内容块序号无效")
 			}
 			switch e.ContentBlock.Type {
 			case "text", "tool_use", "thinking", "redacted_thinking":
@@ -116,7 +117,7 @@ func messagesParser(r *Response, delta func(string) error) func(string) (bool, e
 			}
 		case "content_block_delta":
 			if e.Index < 0 || e.Index >= len(blocks) || closed[e.Index] {
-				return false, errors.New("Messages 增量没有对应内容块")
+				return false, appmessage.New("backend:messagesDeltaHasNoCorrespondingContentBlock", "Messages 增量没有对应内容块")
 			}
 			block := &blocks[e.Index]
 			switch {
@@ -128,19 +129,19 @@ func messagesParser(r *Response, delta func(string) error) func(string) (bool, e
 			case e.Delta.Type == "input_json_delta" && block.Type == "tool_use":
 				arguments[e.Index] += e.Delta.PartialJSON
 				if len(arguments[e.Index]) > MaxArgumentsBytes {
-					return false, errors.New("工具参数超过限制")
+					return false, appmessage.New("backend:toolArgumentsExceedTheLimit", "工具参数超过限制")
 				}
 			case e.Delta.Type == "thinking_delta" && block.Type == "thinking":
 				block.Thinking += e.Delta.Thinking
 			case e.Delta.Type == "signature_delta" && block.Type == "thinking":
 				block.Signature += e.Delta.Signature
 			default:
-				return false, errors.New("Messages 内容增量类型无效")
+				return false, appmessage.New("backend:invalidMessagesContentDeltaType", "Messages 内容增量类型无效")
 			}
 			size += len(e.Delta.Text) + len(e.Delta.PartialJSON) + len(e.Delta.Thinking) + len(e.Delta.Signature)
 		case "content_block_stop":
 			if e.Index < 0 || e.Index >= len(blocks) || closed[e.Index] {
-				return false, errors.New("Messages 内容块结束无效")
+				return false, appmessage.New("backend:invalidMessagesContentBlockEnd", "Messages 内容块结束无效")
 			}
 			closed[e.Index] = true
 			if blocks[e.Index].Type == "tool_use" {
@@ -150,7 +151,7 @@ func messagesParser(r *Response, delta func(string) error) func(string) (bool, e
 				b := blocks[e.Index]
 				r.Message.ToolCalls = append(r.Message.ToolCalls, ToolCall{ID: b.ID, Name: b.Name, Arguments: string(b.Input)})
 				if len(r.Message.ToolCalls) > MaxToolCalls {
-					return false, errors.New("模型工具调用数量超过限制")
+					return false, appmessage.New("backend:modelToolCallCountExceedsTheLimit", "模型工具调用数量超过限制")
 				}
 			}
 		case "message_delta":
@@ -187,7 +188,7 @@ func messagesParser(r *Response, delta func(string) error) func(string) (bool, e
 			return true, nil
 		}
 		if size > 256<<10 {
-			return false, errors.New("Messages 内容超过限制")
+			return false, appmessage.New("backend:messagesContentExceedsTheLimit", "Messages 内容超过限制")
 		}
 		return false, nil
 	}

@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
-	"fmt"
+
 	"io"
 	"net"
 	"strconv"
 	"sync"
 	"time"
 
+	appmessage "github.com/Sanjeever/termquay/internal/message"
 	gossh "golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
 )
@@ -63,7 +64,8 @@ type HostKeyError struct {
 	Via         string
 }
 
-func (e *HostKeyError) Error() string { return "SSH 主机身份尚未确认或已变化" }
+func (e *HostKeyError) Error() string          { return "SSH 主机身份尚未确认或已变化" }
+func (e *HostKeyError) DiagnosticCode() string { return "backend:hostIdentityRequired" }
 
 type Terminal struct {
 	client           *gossh.Client
@@ -92,7 +94,7 @@ type Terminal struct {
 
 func Dial(ctx context.Context, r Request) (*Terminal, error) {
 	if r.JumpID != "" {
-		return nil, errors.New("跳板请求必须由工作区解析")
+		return nil, appmessage.New("backend:jumpRequestsMustBeResolvedByTheWorkspace", "跳板请求必须由工作区解析")
 	}
 	client, err := dialClient(ctx, r, func(ctx context.Context, address string) (net.Conn, error) {
 		return connectDirect(ctx, r, address)
@@ -123,7 +125,7 @@ func terminalOn(ctx context.Context, client *gossh.Client, r Request) (result *T
 }
 func dialClient(ctx context.Context, r Request, connect func(context.Context, string) (net.Conn, error)) (result *gossh.Client, failure error) {
 	if r.Host == "" || r.Username == "" || r.Port < 1 || r.Port > 65535 || r.Cols < 1 || r.Rows < 1 {
-		return nil, errors.New("SSH 地址、用户名、端口或终端尺寸无效")
+		return nil, appmessage.New("backend:invalidSSHAddressUsernamePortOrTerminalDimensions", "SSH 地址、用户名、端口或终端尺寸无效")
 	}
 	authTimeout := 20 * time.Second
 	if r.MFA || r.AuthMethod == "keyboard_interactive" {
@@ -149,11 +151,11 @@ func dialClient(ctx context.Context, r Request, connect func(context.Context, st
 	}()
 	if method == "agent" {
 		if r.IdentityAgent == "none" {
-			return nil, errors.New("此连接已禁用 SSH Agent")
+			return nil, appmessage.New("backend:sSHAgentIsDisabledForThisConnection", "此连接已禁用 SSH Agent")
 		}
 		socket, err := dialAgent(ctx, r.IdentityAgent)
 		if err != nil {
-			return nil, fmt.Errorf("SSH Agent 不可用: %w", err)
+			return nil, appmessage.Errorf("backend:sSHAgentUnavailable", "SSH Agent 不可用: %w", err)
 		}
 		defer socket.Close()
 		stopAgent := context.AfterFunc(ctx, func() { socket.Close() })
@@ -161,10 +163,10 @@ func dialClient(ctx context.Context, r Request, connect func(context.Context, st
 		socket.SetDeadline(time.Now().Add(20 * time.Second))
 		signers, err := agent.NewClient(socket).Signers()
 		if err != nil {
-			return nil, fmt.Errorf("读取 Agent 密钥失败: %w", err)
+			return nil, appmessage.Errorf("backend:couldNotReadAgentKeys", "读取 Agent 密钥失败: %w", err)
 		}
 		if len(signers) == 0 || len(signers) > 32 {
-			return nil, errors.New("SSH Agent 密钥为空或超过 32 个")
+			return nil, appmessage.New("backend:sSHAgentKeyListIsEmptyOrExceeds", "SSH Agent 密钥为空或超过 32 个")
 		}
 		auth = append(auth, gossh.PublicKeys(signers...))
 	} else if method == "private_key" {
@@ -176,35 +178,35 @@ func dialClient(ctx context.Context, r Request, connect func(context.Context, st
 			signer, err = gossh.ParsePrivateKey([]byte(r.PrivateKey))
 		}
 		if err != nil {
-			return nil, fmt.Errorf("私钥解析失败: %w", err)
+			return nil, appmessage.Errorf("backend:couldNotParsePrivateKey", "私钥解析失败: %w", err)
 		}
 		if r.Certificate != "" {
 			key, _, _, rest, err := gossh.ParseAuthorizedKey([]byte(r.Certificate))
 			if err != nil || len(rest) != 0 {
-				return nil, errors.New("SSH 用户证书格式无效")
+				return nil, appmessage.New("backend:invalidSSHUserCertificateFormat", "SSH 用户证书格式无效")
 			}
 			certificate, ok := key.(*gossh.Certificate)
 			if !ok || certificate.CertType != gossh.UserCert {
-				return nil, errors.New("需要 SSH 用户证书")
+				return nil, appmessage.New("backend:sSHUserCertificateRequired", "需要 SSH 用户证书")
 			}
 			now := uint64(time.Now().Unix())
 			if now < certificate.ValidAfter || now >= certificate.ValidBefore {
-				return nil, errors.New("SSH 用户证书已过期或尚未生效")
+				return nil, appmessage.New("backend:sSHUserCertificateExpiredOrNotValidYet", "SSH 用户证书已过期或尚未生效")
 			}
 			signer, err = gossh.NewCertSigner(certificate, signer)
 			if err != nil {
-				return nil, fmt.Errorf("SSH 用户证书与私钥不匹配：%w", err)
+				return nil, appmessage.Errorf("backend:sSHUserCertificateDoesNotMatchThePrivate", "SSH 用户证书与私钥不匹配：%w", err)
 			}
 		}
 		auth = append(auth, gossh.PublicKeys(signer))
 	} else if method == "password" {
 		auth = append(auth, gossh.Password(r.Password))
 	} else if method != "keyboard_interactive" {
-		return nil, errors.New("SSH 认证方式无效")
+		return nil, appmessage.New("backend:invalidSSHAuthenticationMethod", "SSH 认证方式无效")
 	}
 	if method == "keyboard_interactive" || r.MFA {
 		if r.challenge == nil {
-			return nil, errors.New("交互认证需要从连接窗口发起")
+			return nil, appmessage.New("backend:interactiveAuthenticationMustStartFromTheConnectionDialog", "交互认证需要从连接窗口发起")
 		}
 		auth = append(auth, gossh.KeyboardInteractive(r.challenge))
 	}
@@ -335,7 +337,7 @@ func newTerminalCommand(client *gossh.Client, cols, rows int, command string) (*
 
 func (t *Terminal) Resize(cols, rows int) error {
 	if cols < 1 || rows < 1 || cols > 1000 || rows > 1000 {
-		return errors.New("终端尺寸无效")
+		return appmessage.New("backend:invalidTerminalDimensions", "终端尺寸无效")
 	}
 	if err := t.session.WindowChange(rows, cols); err != nil {
 		return err
@@ -378,18 +380,18 @@ func (t *Terminal) Disconnect() {
 }
 func (t *Terminal) OpenPTY(cols, rows int) (*Terminal, error) {
 	if cols < 1 || cols > 1000 || rows < 1 || rows > 1000 {
-		return nil, errors.New("终端尺寸无效")
+		return nil, appmessage.New("backend:invalidTerminalDimensions", "终端尺寸无效")
 	}
 	return newTerminal(t.client, cols, rows)
 }
 
 func (t *Terminal) OpenTmuxPTY(sessionID string) (*Terminal, error) {
 	if len(sessionID) < 2 || len(sessionID) > 32 || sessionID[0] != '$' {
-		return nil, errors.New("tmux 会话标识无效")
+		return nil, appmessage.New("backend:invalidTmuxSessionIdentifier", "tmux 会话标识无效")
 	}
 	for _, digit := range sessionID[1:] {
 		if digit < '0' || digit > '9' {
-			return nil, errors.New("tmux 会话标识无效")
+			return nil, appmessage.New("backend:invalidTmuxSessionIdentifier", "tmux 会话标识无效")
 		}
 	}
 	return newTerminalCommand(t.client, 100, 30, "tmux attach-session -t '"+sessionID+"'")
@@ -426,7 +428,7 @@ func RelayIO(input io.Writer, output io.Reader, done <-chan struct{}, closeEndpo
 				return
 			}
 			if len(frame) == 0 || len(frame) > ChunkSize+1 {
-				received <- errors.New("终端输入帧无效")
+				received <- appmessage.New("backend:invalidTerminalInputFrame", "终端输入帧无效")
 				return
 			}
 			switch frame[0] {
@@ -440,7 +442,7 @@ func RelayIO(input io.Writer, output io.Reader, done <-chan struct{}, closeEndpo
 				}
 			case 1:
 				if len(frame) != 5 {
-					received <- errors.New("终端消费确认无效")
+					received <- appmessage.New("backend:invalidTerminalConsumptionAcknowledgment", "终端消费确认无效")
 					return
 				}
 				select {
@@ -448,11 +450,11 @@ func RelayIO(input io.Writer, output io.Reader, done <-chan struct{}, closeEndpo
 				case <-s.Context().Done():
 					return
 				default:
-					received <- errors.New("重复终端消费确认")
+					received <- appmessage.New("backend:duplicateTerminalConsumptionAcknowledgment", "重复终端消费确认")
 					return
 				}
 			default:
-				received <- errors.New("未知终端输入类型")
+				received <- appmessage.New("backend:unknownTerminalInputType", "未知终端输入类型")
 				return
 			}
 		}
@@ -471,7 +473,7 @@ func RelayIO(input io.Writer, output io.Reader, done <-chan struct{}, closeEndpo
 			select {
 			case count := <-acks:
 				if count != uint32(n) {
-					return errors.New("终端消费确认字节数不匹配")
+					return appmessage.New("backend:terminalConsumptionAcknowledgmentByteCountMismatch", "终端消费确认字节数不匹配")
 				}
 			case err := <-received:
 				return err
