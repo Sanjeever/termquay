@@ -1,56 +1,61 @@
-# TermQuay 开发约定
+# TermQuay contributor instructions
 
-## 目标与事实来源
+## Goals and sources of truth
 
-TermQuay 是开源跨平台远程连接工作台。保持单机应用结构，连接数量不设置商业限制，运行时资源边界遵守 [架构约束](docs/architecture.md#产品与技术边界)。仓库文档、界面、必要注释和提交描述使用简体中文；标识符、协议字段和第三方许可证沿用原文。
+TermQuay is an open source, cross-platform remote connection workbench. Keep its single-machine application architecture and unlimited connection catalog. Follow the [architecture constraints](docs/architecture.md#产品与技术边界) for runtime resource limits.
 
-按任务涉及的概念选择上下文，不要求每次通读全部文档：
+English is the primary language for public collaboration. New documentation, code comments, commit descriptions and PR titles should use English. Chinese feedback and contributions are welcome; maintainers can help with English wording and summarize Chinese discussions in English. Keep English and Simplified Chinese user interfaces and documentation entry points. Do not rewrite historical commits, release notes or unrelated comments to change their language.
 
-| 内容 | 事实来源与入口 |
+Choose context relevant to the task:
+
+| Subject | Source of truth |
 | --- | --- |
-| 当前实现、API 行为、配置及默认值 | 实现代码、数据模型、Schema 和有效测试；生成绑定是派生产物 |
-| 工具链、依赖版本和构建参数 | `go.mod`、`frontend/package.json`、锁文件、Taskfile 与 `build/` 中的有效定义 |
-| 架构约束、设计意图和安全契约 | [docs/architecture.md](docs/architecture.md)，其中的代码导航按子系统定位实现 |
-| 用户入口、操作与开发方式 | [README.md](README.md)、[docs/development.md](docs/development.md)，须与实际行为一致 |
-| 分发许可与审计缺口 | [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) 及 `build/licenses/` 原文 |
+| Behavior, APIs, configuration and defaults | Implementation, models, schemas and effective tests; generated bindings are derived artifacts |
+| Toolchains, dependencies and build flags | `go.mod`, `frontend/package.json`, lockfiles, Taskfiles and active definitions in `build/` |
+| Architecture, design intent and security contracts | [docs/architecture.md](docs/architecture.md), including subsystem code navigation |
+| User entry points and development | [README.md](README.md), [docs/development.md](docs/development.md); keep them consistent with actual behavior |
+| Distribution licensing and audit gaps | [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and original texts in `build/licenses/` |
 
-代码与文档冲突时先判断内容性质。过时的实现描述按代码修正；明确设计约束与行为契约不能因实现偏离而被静默改写。分析原因，依据任务授权修正实现或有理由地调整设计；重大分歧保留代码、测试或提交证据并向用户确认，确认前不将偏离写成合法行为。
+When code and documentation disagree, distinguish stale implementation descriptions from explicit design contracts. Correct stale descriptions against code. Do not silently legitimize a contract violation by rewriting documentation. Investigate using code, tests and history; obtain confirmation for substantial design changes.
 
-## 实现边界
+## Implementation boundaries
 
-- 沿用 Go、Wails v3、React、TypeScript、Vite、Tailwind CSS、HeroUI、pnpm 和 Go Modules。依赖升级核对兼容性，工具链配置保持项目作用域。
-- Go 管理网络、认证、会话、传输、采集、存储和备份；React 管理视图、交互和编辑草稿。协议栈、加密和成熟文件格式复用标准库或成熟依赖，避免 CLI 子进程代办业务。
-- 遵守架构文档中的端到端背压、通道隔离、生命周期、身份验证、凭据与恢复契约。新功能不绕过既有约束，明确区分目标能力与当前能力。
-- 先阅读相关代码和直接调用方，采用完整解决当前问题的简单实现。保持局部 diff，不夹带无关重构、依赖升级或格式整理，不预建空壳架构。
-- 保留用户已有修改。参考其他项目须在路径实际可用时按需只读，不继承明文凭据或明文备份设计，不修改参考仓库。
-- 暴露真实错误，不以假数据、静默降级、吞错重试、关闭身份校验或默认假值掩盖未实现行为。
-- 程序版本以 `frontend/package.json` 为源，通过 `scripts/version.mjs` 同步平台资源。bump 前先编写 `docs/releases/<version>.md`，与版本文件一并提交；发布流程和应用更新复用该日志。数据库与备份格式版本独立维护。
+- Keep Go, Wails v3, React, TypeScript, Vite, Tailwind CSS, HeroUI, pnpm and Go Modules. Check compatibility when upgrading dependencies; keep toolchain configuration local to this project.
+- Go owns networking, authentication, sessions, transfers, collection, storage and backups. React owns views, interactions and editing drafts. Use standard libraries or established dependencies for protocols, encryption and mature file formats; do not replace application protocols with CLI subprocesses.
+- Preserve end-to-end backpressure, channel isolation, lifecycle, identity verification, credential and recovery contracts. Distinguish intended capabilities from implemented ones.
+- Read affected code and direct callers before editing. Make focused changes that solve the task completely. Avoid unrelated refactoring, formatting, dependency upgrades and speculative architecture.
+- Preserve existing user changes. Read reference projects only when their paths are available; never modify them or inherit plaintext credential/backup designs.
+- Expose real failures. Do not mask incomplete behavior with fake data, silent fallbacks, swallowed errors, retries, disabled identity verification or invented defaults.
+- The application version comes from `frontend/package.json`; `scripts/version.mjs` synchronizes platform resources. Before an authorized bump, write `docs/releases/<version>.md` and commit it with version files. Publishing and updates reuse that log. Database and backup format versions are independent.
 
-## 文档一致性
+## Documentation consistency
 
-- 修改接口、事件、错误语义、行为、配置或默认值时，按变更概念与旧名称检索 README、docs、AGENTS.md、注释及示例（含 CLI 帮助与对外 skill）；提交前按最终 diff 同步受影响内容，核对示例参数、JSON 字段层级及入口，并按需更新测试、配置与生成绑定。新增能力补充用户入口、必要限制与验证缺口，交付时说明同步范围；纯局部实现调整无需机械修改文档。
-- 版本、限额、默认值和字段定义以代码、Schema 或有效配置为唯一真身，文档用链接引用；操作说明保留必要行为与限制，命令示例避免固定到已发布版本。
-- 移动或删除入口时检查文档链接与章节锚点；变更测试入口时同步验证命令及安全配置说明。已发布版本日志和第三方许可原文保留历史语义，不按当前实现重写。
-- README 维护入口，架构文档保留不变量、决策前提与取舍，开发说明维护操作和验证。删去复述内部调用的段落，小范围理由留在邻近注释。
-- 实现偏离设计契约时，结合测试和变更历史区分有意演进与缺陷；重大分歧保留证据，向用户确认后再调整设计。未修复缺陷在开发说明中保留触发条件、代码或测试证据及验证缺口；验收记录标明提交、环境与覆盖范围，后续验证按场景更新，不重复堆叠“本轮通过/未验证”，不把规划、历史验收或测试替身当作当前实现通过的证据。
+- When changing APIs, events, errors, behavior, configuration or defaults, search affected concepts and old names in README, docs, AGENTS.md, comments and examples, including CLI help and the distributed skill. Update affected documentation, tests, configuration and generated bindings against the final diff. Check command arguments, JSON nesting and entry points. Document new user entry points, necessary limits and verification gaps. Local implementation changes do not automatically require documentation edits.
+- Code, schemas and effective configuration define versions, limits, defaults and fields. Link to them instead of duplicating values. Keep necessary behavior and limitations in operational instructions; avoid pinning command examples to a released application version.
+- Check links and heading anchors when moving or deleting entry points. Synchronize verification commands and security configuration when test entry points change. Preserve historical release notes and third-party license texts.
+- README provides entry points, architecture documents preserve invariants and decision tradeoffs, and development documentation covers operations and verification. Avoid restating internal call chains; keep small implementation rationales near the code.
+- Investigate implementation/design divergence using tests and history. Confirm substantial design changes before editing contracts. Record unresolved defects with triggers, evidence and verification gaps in development documentation. Verification records must identify commit, environment and coverage. Planning, historical acceptance and test doubles do not prove the current implementation works.
+- Future authorized release notes use English first, then Chinese, in the same version file. This convention does not authorize a version bump or release.
 
-## 凭据与远端操作
+## Credentials and remote operations
 
-- 密码、私钥、私钥口令、WebDAV 凭据和测试令牌不得进入 Git、文档、截图、日志或测试快照。示例使用占位值，不读取其他项目配置、Shell 历史或整份环境寻找秘密。
-- 用户授权在需要时使用 SSH MCP 的 `sg1`。优先通过 MCP 只读识别；验证应用链路使用应用自身协议栈，工具不可用时可用安全注入的 `SSH_MCP_SERVER_SG1_*` 配置。缺少凭据再请求安全配置，不猜测或输出值。具体测试入口见开发说明。
-- `sg1` 按真实服务器对待。初始检查只读，文件验证使用本次创建的 `/tmp/termquay-*` 目录并清理。不改系统、SSH、服务、业务文件或密钥，不安装远端依赖；超出范围需单独授权。
-- 真实 WebDAV 测试限定在安全配置的独立测试集合。凭据不保证跨会话继承；缺少资源时继续独立工作，保留真实验证缺口。
+- Never put passwords, private keys, passphrases, WebDAV credentials or test tokens in Git, documentation, screenshots, logs or snapshots. Use placeholders. Do not search other project configurations, shell history or entire environments for secrets.
+- The user authorizes SSH MCP `sg1` when needed. Start with read-only identification through MCP. Verify application flows through the application's own protocol stack. If MCP is unavailable, use securely injected `SSH_MCP_SERVER_SG1_*` settings. Request secure configuration if missing; never guess or print credentials. See development documentation for test entry points.
+- Treat `sg1` as a real server. Initial inspection is read-only. File verification must use and clean up a newly created `/tmp/termquay-*` directory. Do not change system, SSH, services, business files or keys, or install remote dependencies without separate authorization.
+- Real WebDAV tests must use a securely configured, isolated test collection. Credentials may not persist between sessions. Continue independent work when resources are missing and report the real verification gap. Community contributions do not require maintainer-only servers.
 
-## 界面约定
+## Interface conventions
 
-- 外层标签包含连接工作区，以及多主机操作、多来源日志等独立工具标签；工具标签不持有连接或进入连接布局与命名工作集。SSH 内层标签表示终端或远端文件。三栏支持调整和收起，连接中心管理分组与协议筛选，工作区优先保留操作空间。
-- 采用紧凑、克制的专业工具界面，通过布局、对齐和状态表达含义，保留键盘操作与可访问名称。
-- 不添加营销区域、装饰性说明、重复标签或无必要的成功弹窗。重要错误在操作位置展示，未保存草稿和破坏性操作明确处理。
+- Outer tabs contain connection workspaces and independent tools such as multi-host operations and multi-source logs. Tool tabs do not own connections or belong to connection layouts or named working sets. SSH inner tabs represent terminals or remote files. Three columns can resize and collapse. The connection center manages groups and protocol filters; preserve workspace operating space.
+- Keep a compact, restrained professional tool interface. Use layout, alignment and state to convey meaning. Preserve keyboard access and accessible names.
+- Do not add marketing, decorative explanations, duplicate labels or unnecessary success dialogs. Show important errors at the operation site. Handle unsaved drafts and destructive actions explicitly.
+- Bundle English and Simplified Chinese resources for offline use. Translate at display boundaries using stable keys/codes and parameters. Never translate user input, terminal output, remote files/logs, commands, paths, protocol fields, generated model content or third-party license texts.
+- Language changes must preserve live connections, transfers, tasks, drafts, editor selection/history and workspace identity. Do not reload or remount the workbench to switch languages.
 
-## 验收与交付
+## Verification and delivery
 
-- 运行与修改直接相关的最小有效验证，重点关注认证失败、身份变化、生命周期、背压、编辑冲突、传输取消、备份损坏和恢复事务。纯文档修改检查内容、链接和 diff，不运行编译、类型检查或测试。
-- 区分单元测试、本地集成、真实 SSH、真实 RDP 和原生桌面验证。mock、浏览器替身和交叉编译不能证明原生 WebView 或真实远端行为通过；无法验证的平台保留待验证。
-- 性能结论需有环境和负载证据，覆盖整个桌面应用及 WebView 相关进程，关注输入延迟、内存与资源回收，不预先宣称性能数字。
-- 基础分支使用 `main`。每个可审阅的完整改动及时形成小提交，遵循 Conventional Commits，描述使用简体中文。提交前检查最终 diff、文档影响及暂存敏感信息，明确选择本任务文件。
-- 当前授权包含本地小提交；推送、Release、签名分发和修改远端设置需相应授权。汇报实际成果、提交、验证和限制，达到当前阶段验收标准再推进下一阶段。
+- Run the smallest effective checks for affected behavior. Prioritize authentication failure, changed identity, lifecycle, backpressure, editing conflicts, transfer cancellation, backup corruption and recovery transactions. For documentation-only changes, check content, links and diff; do not run builds, type checks or tests.
+- Distinguish unit tests, local integration, real SSH, real RDP and native desktop verification. Mocks, browser substitutes and cross-compilation do not prove native WebView or real remote behavior. Report unverified platforms.
+- Support performance claims with environment and load evidence, covering the desktop application and WebView processes, input latency, memory and resource cleanup. Do not promise unmeasured numbers.
+- Base work on `main`. Make small, reviewable local commits after relevant verification. Use Conventional Commits with English descriptions. Before committing, inspect the final diff, documentation impact and staged content for secrets, and explicitly stage task files. Never stage the local `handoff.md`.
+- Authorization includes local commits. Pushing, releases, signing/distribution and remote settings require corresponding authorization. Report actual changes, commits, verification and limits. Meet the current phase's acceptance criteria before proceeding.
