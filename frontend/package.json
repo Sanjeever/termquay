@@ -9,7 +9,7 @@
     "test": "node ../scripts/test.mjs",
     "test:unit": "vitest run --project unit",
     "test:components": "vitest run --project components",
-    "test:watch": "vitest",
+    "test:watch": "vitest --watch",
     "dev": "vite",
     "check": "tsc --noEmit",
     "build:dev": "tsc && vite build --minify false --mode development",

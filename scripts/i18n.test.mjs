@@ -32,7 +32,7 @@ test('static UI and backend message references exist in bundled English resource
     return values && (Object.hasOwn(values, key) || Object.hasOwn(values, `${key}_one`) && Object.hasOwn(values, `${key}_other`));
   };
   for (const file of [...globSync('frontend/src/**/*.{ts,tsx}', { cwd: root }), ...globSync('internal/**/*.go', { cwd: root })]) {
-    if (/\.test\.ts$|_test\.go$/.test(file)) continue;
+    if (/\.test\.tsx?$|_test\.go$/.test(file)) continue;
     const source = readFileSync(new URL(file.replaceAll('\\', '/'), new URL('../', import.meta.url)), 'utf8');
     const pattern = file.endsWith('.go') ? /appmessage\.(?:New|Errorf)\(\s*"([^"]+)"/g : /\b(?:t|translate|uiMessage|message)\(\s*['"]([^'"]+)['"]/g;
     for (const match of source.matchAll(pattern)) assert.ok(exists(match[1]), `${file}: missing ${match[1]}`);
