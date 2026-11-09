@@ -9,12 +9,13 @@ import (
 	"time"
 
 	"github.com/Sanjeever/termquay/internal/ai"
+	"github.com/Sanjeever/termquay/internal/files"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
 )
 
 var aiTools = []ai.Tool{
-	{Name: "file_list", Description: "列出当前 SSH 主机绝对路径目录，输出可能截断", Parameters: json.RawMessage(`{"type":"object","properties":{"path":{"type":"string"}},"required":["path"],"additionalProperties":false}`)},
-	{Name: "file_read", Description: "读取当前 SSH 主机文本文件；encoding 可省略，默认 UTF-8", Parameters: json.RawMessage(`{"type":"object","properties":{"path":{"type":"string"},"encoding":{"type":"string"}},"required":["path"],"additionalProperties":false}`)},
+	{Name: "file_list", Description: "分页列出当前 SSH 主机绝对路径目录，search 按名称包含匹配；用 next_offset 续读，目录变化时分页可能变化。Windows 支持盘符绝对路径", Parameters: json.RawMessage(`{"type":"object","properties":{"path":{"type":"string"},"search":{"type":"string"},"offset":{"type":"integer","minimum":0},"limit":{"type":"integer","minimum":1,"maximum":64}},"required":["path"],"additionalProperties":false}`)},
+	{Name: "file_read", Description: "分段读取当前 SSH 主机普通文本文件。encoding 默认 UTF-8，可选 GBK、GB18030。offset 是原文件字节位置，limit 是最多读取字节数；续读使用 next_offset 和 revision，不要自行猜测字符边界。文件属性校验不是原子快照", Parameters: json.RawMessage(`{"type":"object","properties":{"path":{"type":"string"},"encoding":{"type":"string"},"offset":{"type":"integer","minimum":0},"limit":{"type":"integer","minimum":1,"maximum":8192},"revision":{"type":"string"}},"required":["path"],"additionalProperties":false}`)},
 	{Name: "service_list", Description: "查询 systemd 服务，可按 search 筛选", Parameters: json.RawMessage(`{"type":"object","properties":{"search":{"type":"string"}},"additionalProperties":false}`)},
 	{Name: "service_inspect", Description: "查询 systemd 服务详情", Parameters: json.RawMessage(`{"type":"object","properties":{"unit":{"type":"string"}},"required":["unit"],"additionalProperties":false}`)},
 	{Name: "service_logs", Description: "读取 systemd 服务近期日志，不提权", Parameters: json.RawMessage(`{"type":"object","properties":{"unit":{"type":"string"}},"required":["unit"],"additionalProperties":false}`)},
@@ -29,6 +30,9 @@ type aiToolArguments struct {
 	Path           string `json:"path"`
 	Encoding       string `json:"encoding"`
 	OutputEncoding string `json:"output_encoding"`
+	Offset         int64  `json:"offset"`
+	Limit          int    `json:"limit"`
+	Revision       string `json:"revision"`
 	Search         string `json:"search"`
 	Unit           string `json:"unit"`
 	Socket         string `json:"socket"`
@@ -91,8 +95,18 @@ func validateAITool(call ai.ToolCall) (aiToolArguments, error) {
 		return args, err
 	}
 	if call.Name == "file_list" || call.Name == "file_read" {
-		if !path.IsAbs(args.Path) || len(args.Path) > 4096 || strings.ContainsRune(args.Path, 0) {
+		if (!path.IsAbs(args.Path) && !windowsAbsolutePath(args.Path)) || len(args.Path) > 4096 || strings.ContainsRune(args.Path, 0) {
 			return args, errors.New("文件工具需要远端绝对路径")
+		}
+		maxLimit := 8192
+		if call.Name == "file_list" {
+			maxLimit = 64
+		}
+		if args.Offset < 0 || args.Offset > files.MaxEditSize || args.Limit < 0 || args.Limit > maxLimit || len(args.Search) > 256 || strings.ContainsAny(args.Search, "\x00\r\n") || len(args.Revision) > 256 {
+			return args, errors.New("文件工具分页或筛选参数无效")
+		}
+		if _, exists := properties["limit"]; exists && args.Limit == 0 {
+			return args, errors.New("分页大小必须大于零")
 		}
 	}
 	if call.Name == "exec" && (len(args.Script) == 0 || len(args.Script) > 32<<10 || strings.ContainsRune(args.Script, 0) || args.TimeoutSeconds < 1 || args.TimeoutSeconds > 600) {
@@ -158,9 +172,9 @@ func (a *AppService) invokeAITool(ctx context.Context, run *aiRun, call ai.ToolC
 	workspace := run.view.Workspace
 	switch call.Name {
 	case "file_list":
-		value, err = a.BrowseTransferDirectory(ctx, workspace, args.Path)
+		value, err = a.listAIFileDirectory(ctx, run, args)
 	case "file_read":
-		value, err = a.ReadRemoteFileEncoded(ctx, workspace, args.Path, args.Encoding)
+		value, err = a.readAIFileRange(ctx, run, args)
 	case "service_list":
 		if run.environment.OS == "windows" {
 			value, err = a.queryWindowsAI(ctx, workspace, call.Name, args, run.environment)
@@ -271,6 +285,10 @@ func boundedAIToolResult(value any, err error) (AIToolResult, string) {
 		var toolErr *aiToolError
 		if errors.As(err, &toolErr) {
 			result.ErrorCode = toolErr.Code
+		}
+		var fileErr *files.ReadError
+		if errors.As(err, &fileErr) {
+			result.ErrorCode = fileErr.Code
 		}
 	}
 	b, marshalErr := json.Marshal(value)

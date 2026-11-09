@@ -27,6 +27,8 @@ SSH 脚本执行器提供 POSIX sh 与 Windows PowerShell 通道，均使用独�
 
 AI 的 Windows 服务与端口查询使用 PowerShell 结构化输出，服务日志明确限定 System/Service Control Manager 事件的扫描范围，不能冒充完整应用日志。Windows 不提供现有 Docker Unix socket 工具，不据此推断 Docker 安装状态。结果区分成功、部分结果、失败及未执行，结构化正文超过预算时明确失败，禁止切断 JSON 后冒充有效结果。实现见 [工具能力](../internal/app/ai_environment.go)、[Windows 查询](../internal/app/ai_windows.go) 和 [工具结果](../internal/app/ai_tools.go)。
 
+AI 文件查询经 SFTP 独立读取，不回落本机。目录按有界扫描结果排序后分页，每页为实时读取，不能拼成原子快照；文件按字节范围读取并保留完整字符，按属性修订检查续读，仍受普通文件、编码和文件大小约束。响应预算在条目或字符边界生效，保留有效 JSON 与续读位置，不通过丢弃结果尾部掩盖未返回数据。实现见 [文件工具](../internal/app/ai_files.go) 与 [文本范围](../internal/files/range.go)。
+
 命令输出分别保留 stdout、stderr、退出码、截断及未知状态，不能因 stdout 超限丢失全部错误输出。同轮执行状态未知的脚本阻止自动重放；恢复历史和摘要都不能代替重新核对远端状态。
 
 每个工作区一个运行轮次，全局并发与单轮调用次数有界。隐藏或收起面板保留运行；停止、关闭 AI、owner 取消或替换、所有应用锁定路径及退出使待批准项失效，后续模型与工具停止。取消不证明远端进程已退出。退出在关闭数据库前等待 AI 保存；新对话与删除先取消并等待旧轮次，删除后后台不能重建历史。恢复历史补记中断工具的未知状态，不自动执行或继承批准。

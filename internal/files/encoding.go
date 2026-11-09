@@ -34,6 +34,10 @@ func textEncoding(name string) (string, encoding.Encoding, error) {
 }
 
 func DecodeText(data []byte, charset string) (content, name string, bom bool, err error) {
+	return decodeText(data, charset, true)
+}
+
+func decodeText(data []byte, charset string, initial bool) (content, name string, bom bool, err error) {
 	if bytes.IndexByte(data, 0) >= 0 {
 		return "", "", false, &ReadError{Code: "file_binary", Message: "文件包含二进制内容，请下载后打开"}
 	}
@@ -42,7 +46,7 @@ func DecodeText(data []byte, charset string) (content, name string, bom bool, er
 		return "", "", false, err
 	}
 	if codec == nil {
-		bom = bytes.HasPrefix(data, []byte{0xef, 0xbb, 0xbf})
+		bom = initial && bytes.HasPrefix(data, []byte{0xef, 0xbb, 0xbf})
 		if bom {
 			data = data[3:]
 		}

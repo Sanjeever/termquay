@@ -18,6 +18,7 @@ import (
 
 	"github.com/Sanjeever/termquay/internal/ai"
 	terminal "github.com/Sanjeever/termquay/internal/ssh"
+	"github.com/pkg/sftp"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	gossh "golang.org/x/crypto/ssh"
 )
@@ -40,6 +41,7 @@ func aiTestSSH(t *testing.T, execute ...func(string, string) (string, string, ui
 	}
 	t.Cleanup(func() { listener.Close() })
 	executed := make(chan string, 32)
+	fileHandlers := sftp.InMemHandler()
 	go func() {
 		raw, err := listener.Accept()
 		if err != nil {
@@ -65,6 +67,17 @@ func aiTestSSH(t *testing.T, execute ...func(string, string) (string, string, ui
 				defer channel.Close()
 				for request := range requests {
 					switch request.Type {
+					case "subsystem":
+						var subsystem struct{ Name string }
+						if gossh.Unmarshal(request.Payload, &subsystem) != nil || subsystem.Name != "sftp" {
+							request.Reply(false, nil)
+							continue
+						}
+						request.Reply(true, nil)
+						server := sftp.NewRequestServer(channel, fileHandlers)
+						defer server.Close()
+						_ = server.Serve()
+						return
 					case "pty-req", "shell":
 						request.Reply(true, nil)
 					case "exec":
