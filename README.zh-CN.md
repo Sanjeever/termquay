@@ -15,7 +15,8 @@ TermQuay 是使用 Go、Wails v3 和 React 构建的开源远程连接工作台�
 - [文件管理与传输](docs/development.zh-CN.md#远端文件与传输)：搜索、批量传输、显式续传、目录同步、文件对比与跨主机复制。
 - [文件编辑](docs/development.zh-CN.md#文件编辑)：多编码、补全、冲突合并、版本历史与配置验证；[文件预览](docs/development.zh-CN.md#文件预览) 支持 Markdown 与常见图片。
 - [终端工具与多主机操作](docs/development.zh-CN.md#终端工具与命令片段)：片段与补全、tmux、录制回放、后台执行、巡检与结果比较。
-- [Linux 监控与日志](docs/development.zh-CN.md#linux-监控与日志查看)：资源趋势、进程与服务、端口、Docker、多来源日志与排障快照。
+- [Linux 监控与日志](docs/development.zh-CN.md#linux-监控与日志查看)：资源趋势、进程与服务、端口、多来源日志与排障快照。
+- [Docker 容器](docs/development.zh-CN.md#docker-containers)：“工具 → Docker”打开独立标签，通过 SSH 查看容器状态、资源、日志、终端、挂载和端口，确认后启动、停止或重启。
 - [内置 AI 助手](docs/development.zh-CN.md#内置-ai-助手)：SSH 工作区对话、终端选文引用、按远端能力查询与执行脚本、命令批准及本机加密历史。
 - [远程桌面](docs/development.zh-CN.md#远程桌面)：内嵌 RDP、SSH 网关与 Windows 系统客户端。
 - [本机工作环境](docs/development.zh-CN.md#本地草稿与布局恢复)：命名工作集、布局与草稿恢复，以及[外观和快捷键](docs/development.zh-CN.md#设置与演示模式)。

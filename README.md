@@ -18,7 +18,8 @@ Choose **Settings → Appearance → Language** to follow the system, use Englis
 - **Files and transfers** — search, batch transfers, explicit resume, directory sync, comparisons and copies between hosts.
 - **Remote editing** — encodings and line endings, completion, conflict merging, encrypted version history and explicit validation/reload commands. Preview Markdown and common image formats.
 - **Terminal tools** — snippets, shell completion, tmux, recording/playback, background multi-host tasks, inspections and result comparisons.
-- **Linux diagnostics** — resource trends, processes, systemd services, ports, Docker, multi-source logs and diagnostic snapshots.
+- **Linux diagnostics** — resource trends, processes, systemd services, ports, multi-source logs and diagnostic snapshots.
+- **Docker containers** — [Tools → Docker](docs/development.md#docker-containers) opens a dedicated tab for container status, resources, logs, terminals, mounts, ports and confirmed start/stop/restart operations over SSH.
 - **AI assistant** — workspace conversations, explicit terminal references, capability-based remote queries, command approval and encrypted local history.
 - **Remote desktop** — embedded RDP, SSH gateways and the Windows system client.
 - **Local workspace** — named working sets, layout and draft recovery, appearance and keyboard shortcuts.

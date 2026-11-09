@@ -105,11 +105,21 @@ Language changes must not alter workspace keys, recreate editors, reconnect sess
 - **Files:** browsing mode blocks remote writes until explicitly allowed. Saving checks the remote baseline and preserves drafts on conflict. Compare/merge or reload explicitly. Encoding, history recovery, sudo authorization, validation and reload are separate decisions.
 - **Transfers:** preview conflicts and selected differences. Resume explicitly after reconnecting to the same verified destination. Directory sync does not delete extra destination files. Cancellation does not prove remote termination.
 - **Terminal tools:** snippets await explicit insertion; completion integration is enabled per shell session. Multi-host steps use separate shells. Review the first-host confirmation before continuing. Saved run results are locally encrypted and excluded from regular backups.
-- **Monitoring/logs:** Linux collection uses existing tools and current-user permissions. Preserve unknown, stale, truncated and partial states. Docker uses its HTTP API over an SSH-forwarded Unix socket.
+- **Monitoring/logs:** Linux collection uses existing tools and current-user permissions. Preserve unknown, stale, truncated and partial states. [Docker containers](#docker-containers) use a dedicated tool tab over an SSH-forwarded Unix socket.
 - **AI:** questions, explicitly attached references and tool-read contents go to the configured model service. Review command approvals. Stopping, locking or disconnecting invalidates pending approvals; operations already sent may still have unknown remote state.
 - **RDP:** embedded RDP currently uses TLS 1.2; TLS 1.3-only targets are unsupported. Clipboard is opt-in per session. The Windows system client owns its authentication/identity UI and does not report remote connection success to the app.
 - **Language/demo:** choose **Settings → Appearance → Language**. Demo mode uses isolated in-memory data while real workspaces remain mounted. Demo results do not prove remote behavior.
 - **Backups:** encryption passwords are separate from WebDAV login passwords. Explicitly include credentials when needed. Full replacement removes the local credential set even when the snapshot has none. Restored tunnel auto-start is paused; reselect local private key files and verify sync paths.
+
+### Docker containers
+
+Open **Tools → Docker**, **SSH session actions → Docker containers**, or the **Docker container workspace** command. The tool selects the current SSH workspace when opened from it and reads containers automatically. Resize the container list, filter by name/image/project or state, and use **Overview**, **Logs**, **Terminal**, and **Mounts and ports**. Compose labels group existing containers; this is not Compose deployment, image management, or Kubernetes support.
+
+The SSH server must allow Unix socket forwarding and the login user must already have socket permissions. **Connection settings** applies a custom/rootless socket explicitly. Saved SSH connections retain it in local [connection preferences](../internal/store/preferences.go); temporary connection changes apply to the current selection. Connection preferences are ordinary local settings, not credential storage. No Docker TCP listener, remote dependency installation, or automatic elevation is needed.
+
+Logs load when their page opens and share the bounded log viewer, filtering Worker, copy and scroll controls. **Follow** rereads a recent window and does not guarantee a complete archive. **Add to multi-source logs** keeps the actual SSH instance, socket and container ID. Hidden/minimized/locked pages stop log reads and resource sampling. Switching tool tabs preserves selection and read content; disconnect preserves cached content without automatically binding to a new SSH instance.
+
+Container terminals remain mounted when selecting other containers or hosts and can be reached from the open-terminal menu. Closing a terminal, the Docker tab, or its SSH workspace releases its channel; it does not prove the container process terminated. Confirm the SSH target, container name, full ID and action before start/stop/restart. A completed operation followed by a failed state refresh is reported separately. Mount actions open host directories; port actions create SSH-workspace-owned local tunnels, which remain manageable after closing Docker. Runtime limits remain in the [Docker client](../internal/docker/client.go) and [workspace service](../internal/app/docker.go).
 
 The English guide covers core usage and contribution paths. The long-form [Chinese operational manual](development.zh-CN.md#使用说明) has not yet been fully translated.
 
@@ -169,6 +179,14 @@ Use `-race` where supported. The [saved-connection file test](../internal/app/fi
 Report unit tests, local protocol integration, browser substitutes, native desktop, real SSH, real RDP and real WebDAV separately. A browser substitute, local SSH fixture or cross-build cannot establish native/real-remote acceptance.
 
 Historical evidence and unresolved gaps remain in the [Chinese acceptance ledger](development.zh-CN.md#已有验收记录与缺口), including [AI acceptance](development.zh-CN.md#内置-ai-验收2026-11-06) and [Windows SSH AI adaptation](development.zh-CN.md#windows-ssh-ai-适配验收2026-11-09). Platform input/IME, RDP clipboard/concurrency, native menus/dialogs, real multi-hop reconnect, provider behavior and sustained application-wide resource measurements need environment-specific evidence. Do not present historical results as current checks.
+
+### Docker workspace verification (2026-11-09)
+
+Docker runtime changes through `0d0dac4` were checked on Windows 11 build 26100 / amd64, Go 1.26.10, Node 22.17.0 and local pnpm 12.16.1. The declared toolchain and lockfile were unchanged. `pnpm --dir frontend test` passed all 72 tests, the TypeScript check and production build passed, and `go test ./internal/docker ./internal/store ./internal/app` passed. Bindings were regenerated for the socket preference API. Preference regression coverage checks connection isolation, preservation across unrelated preference writes, reset and invalid/non-SSH targets.
+
+Browser substitutes exercised automatic container reads, filtering and empty results, socket save arguments, container switching, filtered logs and forwarding a log source, confirmation before mutation with exact host/socket/container arguments, successful mutation followed by refresh failure, stale detail response rejection, stopping hidden-page polling, disconnect cache retention and disabled actions, terminal DOM retention across selection/language changes, and a 760×650 layout without horizontal overflow. The actual workbench tools menu, tool tab selection/keyboard navigation and closing were also exercised. The settings update at `d91510c` passed a TypeScript check and browser inspection confirming all 11 navigation icons have distinct SVG paths.
+
+Wails responses and container terminal creation were synthetic in the browser. No real Docker/SSH connection, native WebView, native terminal stream, macOS/Linux UI, or sustained resource measurement was verified for this change. Backend package tests and browser state checks do not establish those scenarios.
 
 ### Localization verification (2026-11-09)
 
