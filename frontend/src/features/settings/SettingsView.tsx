@@ -13,7 +13,7 @@ import type useUpdates from './useUpdates';
 import type { Connection } from '../../../bindings/github.com/Sanjeever/termquay/internal/store/models';
 import Icon from '../../components/Icon';
 
-const getSections = () => [['appearance',translate('settings:appearance'),'settings'],['terminal',translate('settings:terminalAndEditor'),'terminal'],['keyboard',translate('settings:keyboardShortcuts'),'list'],['snippets',translate('settings:commandSnippets'),'terminal'],['credentials',translate('settings:credentials2'),'eyeOff'],['recovery',translate('settings:localDraftRecovery'),'undo'],['trust',translate('settings:identityTrust'),'connections'],['ai',translate('settings:aIAssistant'),'terminal'],['cli',translate('settings:localCLI'),'terminal'],['backup',translate('settings:backupAndRestore'),'transfer'],['about',translate('settings:about'),'desktop']] as const;
+const getSections = () => [['appearance',translate('settings:appearance'),'settings'],['terminal',translate('settings:terminalAndEditor'),'terminal'],['keyboard',translate('settings:keyboardShortcuts'),'list'],['snippets',translate('settings:commandSnippets'),'code'],['credentials',translate('settings:credentials2'),'eyeOff'],['recovery',translate('settings:localDraftRecovery'),'undo'],['trust',translate('settings:identityTrust'),'connections'],['ai',translate('settings:aIAssistant'),'sparkles'],['cli',translate('settings:localCLI'),'console'],['backup',translate('settings:backupAndRestore'),'transfer'],['about',translate('settings:about'),'desktop']] as const;
 const CLISettings = lazy(() => import('./CLISettings'));
 const AISettings = lazy(() => import('./AISettings'));
 const BackupSettings = lazy(() => import('./BackupSettings'));
