@@ -2,7 +2,7 @@ import { t as translate } from '../../i18n/index.ts';
 import { message as uiMessage } from '../../i18n/messages.ts';
 import { useMessageState } from '../../i18n/useMessageState.ts';
 import { useTranslation } from 'react-i18next';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@heroui/react';
 import { Events } from '@wailsio/runtime';
 import { ListContainers, ListLogViewPresets } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
@@ -18,9 +18,10 @@ import '../../styles/log-workspace.css';
 type Target = { id: string; name: string; address: string };
 const sourceLimit = 4;
 
-export default function LogWorkspace({ open, targets, initial }: { open: boolean; targets: Target[]; initial?: string }) {
+export default function LogWorkspace({ open, targets, initial, request }: { open: boolean; targets: Target[]; initial?: string; request?: LogSource }) {
   useTranslation();
   const [sources, setSources] = useState<LogSource[]>([]);
+  const lastRequest = useRef<string>();
   const [adding, setAdding] = useState(true);
   const [workspace, setWorkspace] = useState(initial || targets[0]?.id || '');
   const [kind, setKind] = useState<LogSource['kind']>('file');
@@ -39,6 +40,13 @@ export default function LogWorkspace({ open, targets, initial }: { open: boolean
   const [minimised, setMinimised] = useState(false);
   const active = open && visible && !minimised;
   const live = targets.some(item => item.id === workspace);
+  useEffect(() => {
+    if (!request || lastRequest.current === request.id) return;
+    lastRequest.current = request.id;
+    if (sources.some(item => item.workspace === request.workspace && item.kind === request.kind && item.target === request.target && item.socket === request.socket)) { setAdding(false); return; }
+    if (sources.length >= sourceLimit) { setError(uiMessage('docker:logSourceLimit')); setAdding(true); return; }
+    setSources(previous => [...previous, request]); setAdding(false); setError('');
+  }, [request]);
   useEffect(() => { const update = () => setVisible(document.visibilityState === 'visible'); document.addEventListener('visibilitychange', update); return () => document.removeEventListener('visibilitychange', update); }, []);
   useEffect(() => { const off = [Events.On(Events.Types.Common.WindowMinimise, () => setMinimised(true)), Events.On(Events.Types.Common.WindowUnMinimise, () => setMinimised(false)), Events.On(Events.Types.Common.WindowRestore, () => setMinimised(false))]; return () => off.forEach(dispose => dispose()); }, []);
   useEffect(() => {

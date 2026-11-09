@@ -12,8 +12,8 @@ import { retainLogTail, type LogViewOptions, type LogViewResult } from '../files
 
 export type LogSource = { id: string; workspace: string; host: string; kind: 'file' | 'service' | 'container'; target: string; name: string; socket: string };
 
-export default function LogSourcePane({ source, active, live, follow, refresh, options, onRemove }: {
-  source: LogSource; active: boolean; live: boolean; follow: boolean; refresh: number; options: LogViewOptions; onRemove(): void;
+export default function LogSourcePane({ source, active, live, follow, refresh, options, onRemove, compact = false }: {
+  source: LogSource; active: boolean; live: boolean; follow: boolean; refresh: number; options: LogViewOptions; onRemove?(): void; compact?: boolean;
 }) {
   useTranslation();
   const [content, setContent] = useState('');
@@ -119,12 +119,12 @@ export default function LogSourcePane({ source, active, live, follow, refresh, o
     return <div key={index}>{row.gap && <div className="remote-log-gap">···</div>}{parts}{row.text.slice(position) || (row.text ? '' : '\n')}</div>;
   }), [view]);
   return <section className="log-source-pane" aria-label={`${source.host} · ${source.name}`}>
-    <header><div><strong>{source.name}</strong><span className="file-path">{source.host}</span></div><button className="icon-button" aria-label={translate('logs:removeLogSource', { value1: source.name })} onClick={onRemove}><Icon name="close" width="14" /></button></header>
-    <div className="log-source-path file-path">{source.kind === 'container' ? `${source.socket} · ${source.target}` : source.target}</div>
+    {!compact && <header><div><strong>{source.name}</strong><span className="file-path">{source.host}</span></div>{onRemove && <button className="icon-button" aria-label={translate('logs:removeLogSource', { value1: source.name })} onClick={onRemove}><Icon name="close" width="14" /></button>}</header>}
+    {!compact && <div className="log-source-path file-path">{source.kind === 'container' ? `${source.socket} · ${source.target}` : source.target}</div>}
     {!live && <p className="error" role="status">{translate('logs:theOriginalSSHWorkspaceDisconnectedPreviouslyReadContent')}</p>}
     <ErrorNotice message={error} /><ErrorNotice message={filterError} />
     {warning && <p className="error" role="status">{warning}</p>}
     <div className="log-source-content remote-log-content" ref={host} tabIndex={0} role="region" aria-label={translate('logs:logsReadFrom', { value1: source.name })} aria-busy={filtering} onScroll={event => { const node = event.currentTarget; if (node.scrollHeight - node.scrollTop - node.clientHeight > 12) setAutoScroll(false); }}>{rows}</div>
-    <footer className="session-status"><span>{busy ? translate('logs:reading') : time ? translate('logs:readAt', { value1: new Date(time).toLocaleTimeString(currentLocale()) }) : translate('logs:notReadYet')}{filtering ? translate('logs:filtering') : view && translate('logs:matchedLines', { value1: view.matched, value2: view.scanned })}{trimmed && translate('logs:earlierContentEvictedFromCache')}{view?.truncated && translate('logs:displayTruncated')}{view?.highlightLimited && translate('logs:highlightLimitReached')}{!!view?.unformatted && translate('logs:linesRetainOriginalJSON', { value1: view.unformatted })}</span>{!autoScroll && <button className="session-tool" onClick={() => setAutoScroll(true)}>{translate('logs:scrollToLatest')}</button>}</footer>
+    <footer className="session-status"><span>{busy ? translate('logs:reading') : time ? translate('logs:readAt', { value1: new Date(time).toLocaleTimeString(currentLocale()) }) : translate('logs:notReadYet')}{filtering ? translate('logs:filtering') : view && translate('logs:matchedLines', { value1: view.matched, value2: view.scanned })}{trimmed && translate('logs:earlierContentEvictedFromCache')}{view?.truncated && translate('logs:displayTruncated')}{view?.highlightLimited && translate('logs:highlightLimitReached')}{!!view?.unformatted && translate('logs:linesRetainOriginalJSON', { value1: view.unformatted })}</span>{compact && <button className="session-tool" disabled={!content} onClick={() => { navigator.clipboard.writeText(content).catch(error => setError(error)); }}>{translate('docker:copyLogs')}</button>}{!autoScroll && <button className="session-tool" onClick={() => setAutoScroll(true)}>{translate('logs:scrollToLatest')}</button>}</footer>
   </section>;
 }
