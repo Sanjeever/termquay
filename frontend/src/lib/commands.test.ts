@@ -15,3 +15,9 @@ test('检索多字段且可限制到工作区', () => {
   assert.equal(commandResults(items, 'admin 2222 研发', 'all').length, 1);
   assert.equal(commandResults(items, '开发', 'workspace')[0].kind, 'workspace');
 });
+
+test('the workspace switcher includes every open workspace', () => {
+  const items = Array.from({ length: 75 }, (_, index) => ({ label: `Workspace ${index}`, kind: 'workspace' as const }));
+  assert.equal(commandResults(items, '', 'workspace').length, 75);
+  assert.equal(commandResults(items, '74', 'workspace')[0].label, 'Workspace 74');
+});
