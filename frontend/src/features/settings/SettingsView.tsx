@@ -1,3 +1,5 @@
+import { t } from '../../i18n/index.ts';
+import { useTranslation } from 'react-i18next';
 import { lazy, Suspense, useEffect, useRef } from 'react';
 import { Button } from '@heroui/react';
 import Tooltip from '../../components/Tooltip';
@@ -11,7 +13,7 @@ import type useUpdates from './useUpdates';
 import type { Connection } from '../../../bindings/github.com/Sanjeever/termquay/internal/store/models';
 import Icon from '../../components/Icon';
 
-const sections = [['appearance','外观','settings'],['terminal','终端与编辑器','terminal'],['keyboard','快捷键','list'],['snippets','命令片段','terminal'],['credentials','凭据','eyeOff'],['recovery','本地草稿恢复','undo'],['trust','身份信任','connections'],['ai','AI 助手','terminal'],['cli','本机 CLI','terminal'],['backup','备份恢复','transfer'],['about','关于','desktop']] as const;
+const getSections = () => [['appearance',t('settings:appearance'),'settings'],['terminal',t('settings:terminalAndEditor'),'terminal'],['keyboard',t('settings:keyboardShortcuts'),'list'],['snippets',t('settings:commandSnippets'),'terminal'],['credentials',t('settings:credentials2'),'eyeOff'],['recovery',t('settings:localDraftRecovery'),'undo'],['trust',t('settings:identityTrust'),'connections'],['ai',t('settings:aIAssistant'),'terminal'],['cli',t('settings:localCLI'),'terminal'],['backup',t('settings:backupAndRestore'),'transfer'],['about',t('settings:about'),'desktop']] as const;
 const CLISettings = lazy(() => import('./CLISettings'));
 const AISettings = lazy(() => import('./AISettings'));
 const BackupSettings = lazy(() => import('./BackupSettings'));
@@ -22,11 +24,12 @@ const AboutSettings = lazy(() => import('./AboutSettings'));
 const StorageSettings = lazy(() => import('./StorageSettings'));
 
 export default function SettingsView({ fontSize, onFontSize, onRestore, onClose, shortcuts, onShortcuts, shortcutError, recovery, automaticBackup, updates, onRestart, activeWorkspaces, activeTransfers, section, onSectionChange: setSection, onDemo, demoDisabled, connections, onEditConnection }: { fontSize: number; onFontSize(value: number): void; onRestore(): void; onClose(): void; shortcuts: Shortcuts; onShortcuts(value: Shortcuts): void; shortcutError: string; recovery:ReturnType<typeof useDraftRecovery>; automaticBackup: ReturnType<typeof useAutomaticBackup>; updates:ReturnType<typeof useUpdates>; onRestart():void; activeWorkspaces:number; activeTransfers:number; section:string; onSectionChange(section:string):void; onDemo():void; demoDisabled:boolean; connections:Connection[]; onEditConnection(id:string):void }) {
+  useTranslation();
   const content = useRef<HTMLDivElement>(null);
   useEffect(()=>{if(content.current)content.current.scrollTop=0;},[section]);
-  return <section className="settings-view" aria-label="设置">
-    <div className="settings-layout"><aside className="settings-sidebar"><div className="settings-header"><Tooltip content="返回工作区"><Button isIconOnly size="sm" variant="light" aria-label="返回工作区" onPress={onClose}><Icon name="back" width="16" /></Button></Tooltip><h1>设置</h1></div><nav className="settings-navigation" aria-label="设置分类" onKeyDown={event=>{if(!['ArrowDown','ArrowUp','Home','End'].includes(event.key))return;event.preventDefault();const buttons=Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('button'));const index=buttons.indexOf(event.target as HTMLButtonElement);const next=event.key==='Home'?0:event.key==='End'?buttons.length-1:(index+(event.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length;buttons[next]?.focus();buttons[next]?.click();}}>{sections.map(([id, label, icon]) => <button key={id} className={section === id ? 'selected' : ''} aria-current={section === id ? 'page' : undefined} onClick={() => setSection(id)}><Icon name={icon} width="16" /><span>{label}</span></button>)}</nav></aside>
-      <div className="settings-content" ref={content}><Suspense fallback={<div className="view-loading" role="status">正在载入…</div>}>
+  return <section className="settings-view" aria-label={t('settings:settings')}>
+    <div className="settings-layout"><aside className="settings-sidebar"><div className="settings-header"><Tooltip content={t('settings:backToWorkspace')}><Button isIconOnly size="sm" variant="light" aria-label={t('settings:backToWorkspace')} onPress={onClose}><Icon name="back" width="16" /></Button></Tooltip><h1>{t('settings:settings')}</h1></div><nav className="settings-navigation" aria-label={t('settings:settingsCategories')} onKeyDown={event=>{if(!['ArrowDown','ArrowUp','Home','End'].includes(event.key))return;event.preventDefault();const buttons=Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('button'));const index=buttons.indexOf(event.target as HTMLButtonElement);const next=event.key==='Home'?0:event.key==='End'?buttons.length-1:(index+(event.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length;buttons[next]?.focus();buttons[next]?.click();}}>{getSections().map(([id, label, icon]) => <button key={id} className={section === id ? 'selected' : ''} aria-current={section === id ? 'page' : undefined} onClick={() => setSection(id)}><Icon name={icon} width="16" /><span>{label}</span></button>)}</nav></aside>
+      <div className="settings-content" ref={content}><Suspense fallback={<div className="view-loading" role="status">{t('settings:loading')}</div>}>
         {(section === 'appearance' || section === 'terminal') && <AppearanceSettings key={section} section={section} fontSize={fontSize} onFontSize={onFontSize} onDemo={onDemo} demoDisabled={demoDisabled} />}
         {section === 'backup' && <BackupSettings onRestore={onRestore} automaticBackup={automaticBackup} connections={connections} onEditConnection={onEditConnection} />}
         {section === 'keyboard' && <KeyboardSettings values={shortcuts} onChange={onShortcuts} error={shortcutError} />}

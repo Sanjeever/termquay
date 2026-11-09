@@ -1,3 +1,6 @@
+import { t } from '../../i18n/index.ts';
+import { useMessageState } from '../../i18n/useMessageState.ts';
+import { useTranslation } from 'react-i18next';
 import { errorMessage } from "../../lib/errors";
 import { useEffect, useRef, useState } from 'react';
 import { Button, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
@@ -10,6 +13,7 @@ import SelectControl from '../../components/SelectControl';
 export default function RestoreBackupDialog({ path, hasConnections, recoverySaved, onRestored, onClose, onError }: {
   path: string; hasConnections: boolean; recoverySaved: boolean; onRestored(): void; onClose(): void; onError(message: string): void;
 }) {
+  useTranslation();
   const [preview, setPreview] = useState<RestorePreview>();
   const previewID = useRef('');
   const [mode, setMode] = useState<'import' | 'replace'>(hasConnections ? 'import' : 'replace');
@@ -18,7 +22,7 @@ export default function RestoreBackupDialog({ path, hasConnections, recoverySave
   const [search, setSearch] = useState('');
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useMessageState('');
   const [completed, setCompleted] = useState(false);
   const [showPassword, setShowPassword] = useState(!recoverySaved);
   const [unlockMode,setUnlockMode]=useState<'password'|'key'>('password');
@@ -37,7 +41,7 @@ export default function RestoreBackupDialog({ path, hasConnections, recoverySave
       setSelected((value.connections || []).length <= 256 ? (value.connections || []).map(connection => connection.id) : []);
       setSettings(mode === 'replace' ? (value.settings || []).filter(key => key === 'snippets') : []);
     } catch (error) {
-      if (mounted.current) { setError(errorMessage(error)); setShowPassword(true); }
+      if (mounted.current) { setError(error); setShowPassword(true); }
     } finally { if (mounted.current) setBusy(false); }
   }
   useEffect(() => {
@@ -69,33 +73,33 @@ export default function RestoreBackupDialog({ path, hasConnections, recoverySave
       onRestored();
       if (settings.includes('appearance') || settings.includes('shortcuts')) applyPortableUI(await GetPortableUI());
       onClose();
-    } catch (error) { setError(errorMessage(error)); }
+    } catch (error) { setError(error); }
     finally { setBusy(false); }
   }
   return <Modal isOpen onClose={() => { if (!busy) onClose(); }} isDismissable={!busy} isKeyboardDismissDisabled={busy} size="2xl" scrollBehavior="inside" className="app-dialog restore-backup-dialog"><ModalContent>
-    <ModalHeader>{completed ? '数据已恢复' : '恢复备份'}</ModalHeader>
+    <ModalHeader>{completed ? t('settings:dataRestored') : t('settings:restoreBackup')}</ModalHeader>
     <ModalBody>
-      {busy && !preview && <p role="status" className="muted">正在读取并解锁备份…</p>}
-      {showPassword && !preview && <><SelectControl aria-label="备份解锁方式" value={unlockMode} disabled={busy} onChange={event=>{setUnlockMode(event.target.value as 'password'|'key');setError('');}}><option value="password">备份密码</option><option value="key">恢复密钥</option></SelectControl><form id="unlock-backup" onSubmit={event => { event.preventDefault(); const form = event.currentTarget; const password = form.elements.namedItem('password') as HTMLInputElement; const value = password.value; password.value = ''; void unlock(value); }}><Input key={unlockMode} name="password" label={unlockMode==='key'?'恢复密钥':'这份备份的加密密码'} labelPlacement="outside" type="password" autoComplete="off" maxLength={4096} size="sm" isRequired isDisabled={busy} autoFocus/></form>{unlockMode==='key'&&<Button size="sm" variant="bordered" isDisabled={busy} onPress={()=>void unlock('',true)}>选择恢复密钥文件</Button>}</>}
+      {busy && !preview && <p role="status" className="muted">{t('settings:readingAndUnlockingBackup')}</p>}
+      {showPassword && !preview && <><SelectControl aria-label={t('settings:backupUnlockMethod')} value={unlockMode} disabled={busy} onChange={event=>{setUnlockMode(event.target.value as 'password'|'key');setError('');}}><option value="password">{t('settings:backupPassword')}</option><option value="key">{t('settings:recoveryKey')}</option></SelectControl><form id="unlock-backup" onSubmit={event => { event.preventDefault(); const form = event.currentTarget; const password = form.elements.namedItem('password') as HTMLInputElement; const value = password.value; password.value = ''; void unlock(value); }}><Input key={unlockMode} name="password" label={unlockMode==='key'?t('settings:recoveryKey'):t('settings:thisBackupSEncryptionPassword')} labelPlacement="outside" type="password" autoComplete="off" maxLength={4096} size="sm" isRequired isDisabled={busy} autoFocus/></form>{unlockMode==='key'&&<Button size="sm" variant="bordered" isDisabled={busy} onPress={()=>void unlock('',true)}>{t('settings:selectRecoveryKeyFile')}</Button>}</>}
       {preview && <>
-        <div className="backup-restore-source"><strong>{preview.device_name || `设备 ${preview.device_id.slice(0, 8)}`}</strong><time dateTime={preview.created_at}>{new Date(preview.created_at).toLocaleString()}</time><span className="muted">{connections.length} 个连接 · {preview.credentials} 项凭据{preview.credentials_included == null ? ' · 携带范围未知' : ''}</span></div>
-        <fieldset className="backup-restore-modes" disabled={busy || completed}><legend>恢复方式</legend><label><input type="radio" name="restore-mode" checked={mode === 'import'} onChange={() => chooseMode('import')}/>导入连接副本</label><label><input type="radio" name="restore-mode" checked={mode === 'replace'} onChange={() => chooseMode('replace')}/>替换本机连接</label></fieldset>
+        <div className="backup-restore-source"><strong>{preview.device_name || t('settings:device', { value1: preview.device_id.slice(0, 8) })}</strong><time dateTime={preview.created_at}>{new Date(preview.created_at).toLocaleString()}</time><span className="muted">{connections.length} {t('settings:connections')}{preview.credentials} {t('settings:credentials3')}{preview.credentials_included == null ? t('settings:credentialScopeUnknown') : ''}</span></div>
+        <fieldset className="backup-restore-modes" disabled={busy || completed}><legend>{t('settings:restoreMethod')}</legend><label><input type="radio" name="restore-mode" checked={mode === 'import'} onChange={() => chooseMode('import')}/>{t('settings:importConnectionCopies')}</label><label><input type="radio" name="restore-mode" checked={mode === 'replace'} onChange={() => chooseMode('replace')}/>{t('settings:replaceLocalConnections')}</label></fieldset>
         {mode === 'import' ? <>
-          <div className="backup-import-toolbar"><Input aria-label="筛选恢复连接" placeholder="搜索连接" size="sm" value={search} onValueChange={setSearch} isDisabled={busy || completed}/><label className="checkbox-label"><input type="checkbox" checked={!!connections.length && selected.length === connections.length} disabled={busy || completed || connections.length > 256} onChange={event => setSelected(event.target.checked ? connections.map(connection => connection.id) : [])}/>全选</label><span className="muted">已选 {selected.length}/256</span></div>
+          <div className="backup-import-toolbar"><Input aria-label={t('settings:filterRestoredConnections')} placeholder={t('settings:searchConnections')} size="sm" value={search} onValueChange={setSearch} isDisabled={busy || completed}/><label className="checkbox-label"><input type="checkbox" checked={!!connections.length && selected.length === connections.length} disabled={busy || completed || connections.length > 256} onChange={event => setSelected(event.target.checked ? connections.map(connection => connection.id) : [])}/>{t('settings:selectAll')}</label><span className="muted">{t('settings:selected')}{selected.length}/256</span></div>
           <div className="backup-connection-list">{connections.filter(connection => `${connection.name} ${connection.host}`.toLowerCase().includes(search.toLowerCase())).map(connection => <label className="checkbox-label" key={connection.id}><input type="checkbox" checked={selected.includes(connection.id)} disabled={busy || completed || (!selected.includes(connection.id) && selected.length >= 256)} onChange={event => setSelected(previous => event.target.checked ? [...previous, connection.id] : previous.filter(id => id !== connection.id))}/><span>{connection.name}<small className="muted">{connection.host}</small></span></label>)}</div>
-          <p className="muted">将新增 {imported.length} 个连接副本、{credentialCount} 项凭据，包含依赖跳板。重复导入会产生新副本。</p>
+          <p className="muted">{t('settings:thisWillAdd')}{imported.length} {t('settings:connectionCopiesAnd')}{credentialCount} {t('settings:credentialsIncludingRequiredJumpHostsImportingAgainCreates')}</p>
         </> : <>
-          <div className="backup-restore-diff">{([['新增', preview.added], ['配置更新', preview.updated], ['凭据更新', preview.credential_updated], ['删除', preview.removed]] as const).map(([name, values]) => <details key={name}><summary>{name} {values?.length || 0}</summary><ul>{values?.map((value, index) => <li key={index}>{value}</li>)}</ul></details>)}</div>
-          {(preview.credentials_included === false || !preview.credentials) && <p role="alert" className="error">这份备份没有已保存的连接密码或私钥。替换会移除本机现有凭据。</p>}
-          <p className="muted">替换前将保存本机加密保护副本，保存失败会停止替换。</p>
+          <div className="backup-restore-diff">{([[t('settings:new'), preview.added], [t('settings:configurationUpdates'), preview.updated], [t('settings:credentialUpdates'), preview.credential_updated], [t('settings:delete'), preview.removed]] as const).map(([name, values]) => <details key={name}><summary>{name} {values?.length || 0}</summary><ul>{values?.map((value, index) => <li key={index}>{value}</li>)}</ul></details>)}</div>
+          {(preview.credentials_included === false || !preview.credentials) && <p role="alert" className="error">{t('settings:thisBackupContainsNoSavedConnectionPasswordsOr')}</p>}
+          <p className="muted">{t('settings:anEncryptedSafetyCopyIsSavedLocallyBefore')}</p>
         </>}
-        {!!preview.settings?.length && <fieldset className="backup-restore-settings" disabled={busy || completed}><legend>同时恢复</legend>{preview.settings.map(key => <label className="checkbox-label" key={key}><input type="checkbox" checked={settings.includes(key)} onChange={event => setSettings(previous => event.target.checked ? [...previous, key] : previous.filter(item => item !== key))}/>{backupSettingNames[key] || key}{preview.setting_counts?.[key] !== undefined && ` · ${preview.setting_counts[key]} 项`}{key === 'snippets' ? '（替换本机片段）' : workflowBackupOptions.some(option => option.key === key) ? mode === 'import' ? '（追加）' : '（替换本机同类配置）' : ''}</label>)}</fieldset>}
-        {settings.includes('tunnel_presets') && <p className="muted">恢复的隧道预设暂停自动启动，需重新启用。</p>}
-        {!!preview.path_hints?.filter(hint => settings.includes(hint.setting)).length && <details><summary>目标设备需要核对的本地路径</summary><ul>{preview.path_hints.filter(hint => settings.includes(hint.setting)).map((hint, index) => <li key={index}>{hint.name}<span className="file-path">{hint.path}</span><span className="muted">{hint.setting === 'connection_preferences' ? '私钥文件需重新选择，原路径不启用' : '目录同步前需核对本地目录'}</span></li>)}</ul></details>}
-        {mode === 'replace' && !completed && <label className="checkbox-label backup-replace-confirm"><input type="checkbox" checked={confirmed} disabled={busy} onChange={event => setConfirmed(event.target.checked)}/>确认替换本机连接、分组和凭据</label>}
+        {!!preview.settings?.length && <fieldset className="backup-restore-settings" disabled={busy || completed}><legend>{t('settings:alsoRestore')}</legend>{preview.settings.map(key => <label className="checkbox-label" key={key}><input type="checkbox" checked={settings.includes(key)} onChange={event => setSettings(previous => event.target.checked ? [...previous, key] : previous.filter(item => item !== key))}/>{backupSettingNames()[key] || key}{preview.setting_counts?.[key] !== undefined && t('settings:items', { value1: preview.setting_counts[key] })}{key === 'snippets' ? t('settings:replaceLocalSnippets') : workflowBackupOptions.some(option => option.key === key) ? mode === 'import' ? t('settings:append') : t('settings:replaceLocalSettingsOfThisType') : ''}</label>)}</fieldset>}
+        {settings.includes('tunnel_presets') && <p className="muted">{t('settings:restoredTunnelPresetsHaveAutomaticStartupPausedUntil')}</p>}
+        {!!preview.path_hints?.filter(hint => settings.includes(hint.setting)).length && <details><summary>{t('settings:localPathsToVerifyOnTheDestinationDevice')}</summary><ul>{preview.path_hints.filter(hint => settings.includes(hint.setting)).map((hint, index) => <li key={index}>{hint.name}<span className="file-path">{hint.path}</span><span className="muted">{hint.setting === 'connection_preferences' ? t('settings:reselectPrivateKeyFilesOriginalPathsStayDisabled') : t('settings:verifyLocalDirectoriesBeforeDirectorySync')}</span></li>)}</ul></details>}
+        {mode === 'replace' && !completed && <label className="checkbox-label backup-replace-confirm"><input type="checkbox" checked={confirmed} disabled={busy} onChange={event => setConfirmed(event.target.checked)}/>{t('settings:confirmReplacingLocalConnectionsGroupsAndCredentials')}</label>}
       </>}
       {error && <p role="alert" className="error">{error}</p>}
     </ModalBody>
-    <ModalFooter><Button size="sm" variant="light" isDisabled={busy} onPress={onClose}>{completed ? '关闭' : '取消'}</Button>{!preview && showPassword && <Button size="sm" color="primary" type="submit" form="unlock-backup" isLoading={busy}>解锁</Button>}{preview && !completed && <Button size="sm" color={mode === 'replace' ? 'danger' : 'primary'} isLoading={busy} isDisabled={mode === 'replace' ? !confirmed : !selected.length} onPress={() => void restore()}>{mode === 'replace' ? '替换本机连接' : '导入连接副本'}</Button>}</ModalFooter>
+    <ModalFooter><Button size="sm" variant="light" isDisabled={busy} onPress={onClose}>{completed ? t('settings:off') : t('settings:cancel')}</Button>{!preview && showPassword && <Button size="sm" color="primary" type="submit" form="unlock-backup" isLoading={busy}>{t('settings:unlock')}</Button>}{preview && !completed && <Button size="sm" color={mode === 'replace' ? 'danger' : 'primary'} isLoading={busy} isDisabled={mode === 'replace' ? !confirmed : !selected.length} onPress={() => void restore()}>{mode === 'replace' ? t('settings:replaceLocalConnections') : t('settings:importConnectionCopies')}</Button>}</ModalFooter>
   </ModalContent></Modal>;
 }

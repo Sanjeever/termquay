@@ -1,6 +1,8 @@
+import { t } from '../../i18n/index.ts';
+import { message } from '../../i18n/messages.ts';
 import type { LanguagePreference } from '../../i18n/language';
 export const appearanceKey = 'termquay.appearance';
-export const terminalPalettes = { theme: '跟随主题', dark: '经典深色', light: '浅色纸张', 'one-dark': 'One Dark', 'tokyo-night': 'Tokyo Night' };
+export const terminalPalettes = { get theme() { return t('settings:followTheme'); }, get dark() { return t('settings:classicDark'); }, get light() { return t('settings:lightPaper'); }, 'one-dark': 'One Dark', 'tokyo-night': 'Tokyo Night' };
 export const uiZoomLevels = [1, 1.1, 1.25, 1.5, 1.75, 2];
 export type Appearance = { language: LanguagePreference; theme: 'dark' | 'light' | 'system'; uiFont: 'system' | 'yahei' | 'pingfang'; uiZoom: number; monoFont: 'system' | 'cascadia' | 'consolas' | 'jetbrains'; terminalPalette: keyof typeof terminalPalettes; terminalLogHighlight: boolean; terminalRenderer: 'dom'|'webgl' };
 export const defaultAppearance: Appearance = { language: 'auto', theme: 'system', uiFont: 'system', uiZoom: 1, monoFont: 'system', terminalPalette: 'theme', terminalLogHighlight: true, terminalRenderer: 'dom' };
@@ -19,10 +21,10 @@ export const monoFonts = {
 export function parseAppearance(value: string | null): Appearance {
   if (!value) return { ...defaultAppearance };
   const settings = JSON.parse(value);
-  if (!settings || !['dark', 'light', 'system'].includes(settings.theme) || !Object.prototype.hasOwnProperty.call(uiFonts, settings.uiFont) || !Object.prototype.hasOwnProperty.call(monoFonts, settings.monoFont) || !Object.prototype.hasOwnProperty.call(terminalPalettes, settings.terminalPalette) || (settings.terminalLogHighlight !== undefined && typeof settings.terminalLogHighlight !== 'boolean')) throw new Error('外观设置无效，请复位');
-  if (settings.uiZoom !== undefined && !uiZoomLevels.includes(settings.uiZoom)) throw new Error('界面缩放设置无效');
-  if (settings.terminalRenderer !== undefined && !['dom','webgl'].includes(settings.terminalRenderer)) throw new Error('终端渲染设置无效');
-  if (settings.language !== undefined && !['auto', 'zh-CN', 'en'].includes(settings.language)) throw new Error('Invalid language preference');
+  if (!settings || !['dark', 'light', 'system'].includes(settings.theme) || !Object.prototype.hasOwnProperty.call(uiFonts, settings.uiFont) || !Object.prototype.hasOwnProperty.call(monoFonts, settings.monoFont) || !Object.prototype.hasOwnProperty.call(terminalPalettes, settings.terminalPalette) || (settings.terminalLogHighlight !== undefined && typeof settings.terminalLogHighlight !== 'boolean')) throw message('settings:invalidAppearanceSettingsResetThem');
+  if (settings.uiZoom !== undefined && !uiZoomLevels.includes(settings.uiZoom)) throw message('settings:invalidInterfaceZoomSettings');
+  if (settings.terminalRenderer !== undefined && !['dom','webgl'].includes(settings.terminalRenderer)) throw message('settings:invalidTerminalRendererSettings');
+  if (settings.language !== undefined && !['auto', 'zh-CN', 'en'].includes(settings.language)) throw message('invalidLanguage');
   return { language: settings.language ?? 'auto', theme: settings.theme, uiFont: settings.uiFont, uiZoom: settings.uiZoom ?? defaultAppearance.uiZoom, monoFont: settings.monoFont, terminalPalette: settings.terminalPalette, terminalLogHighlight: settings.terminalLogHighlight ?? defaultAppearance.terminalLogHighlight, terminalRenderer: settings.terminalRenderer ?? defaultAppearance.terminalRenderer };
 }
 

@@ -1,8 +1,10 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import en from './locales/en/common.json';
-import zhCN from './locales/zh-CN/common.json';
-import { resolveLanguage, type LanguagePreference } from './language';
+import en from './locales/en/common.json' with { type: 'json' };
+import zhCN from './locales/zh-CN/common.json' with { type: 'json' };
+import enSettings from './locales/en/settings.json' with { type: 'json' };
+import zhSettings from './locales/zh-CN/settings.json' with { type: 'json' };
+import { resolveLanguage, type LanguagePreference } from './language.ts';
 
 function initialPreference(): LanguagePreference {
   if (typeof localStorage === 'undefined') return 'auto';
@@ -20,7 +22,7 @@ export function systemLanguages(): readonly string[] {
 }
 
 void i18n.use(initReactI18next).init({
-  resources: { en: { common: en }, 'zh-CN': { common: zhCN } },
+  resources: { en: { common: en, settings: enSettings }, 'zh-CN': { common: zhCN, settings: zhSettings } },
   lng: resolveLanguage(initialPreference(), systemLanguages()),
   fallbackLng: 'en', supportedLngs: ['en', 'zh-CN'], load: 'currentOnly',
   defaultNS: 'common', initAsync: false,
@@ -28,4 +30,5 @@ void i18n.use(initReactI18next).init({
 });
 
 export function currentLocale() { return i18n.resolvedLanguage === 'zh-CN' ? 'zh-CN' : 'en'; }
+export const t = i18n.t.bind(i18n);
 export default i18n;

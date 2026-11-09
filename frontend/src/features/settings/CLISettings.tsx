@@ -1,26 +1,30 @@
+import { t } from '../../i18n/index.ts';
+import { useMessageState } from '../../i18n/useMessageState.ts';
+import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { GetCLIAccess, SaveCLIAccess } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
-import { errorMessage } from '../../lib/errors';
+
 
 export default function CLISettings() {
+  useTranslation();
   const [enabled, setEnabled] = useState<boolean>();
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useMessageState('');
   useEffect(() => {
     let active = true;
-    GetCLIAccess().then(value => { if (active) setEnabled(value); }).catch(e => { if (active) setError(errorMessage(e)); });
+    GetCLIAccess().then(value => { if (active) setEnabled(value); }).catch(e => { if (active) setError(e); });
     return () => { active = false; };
   }, []);
   return <div className="settings-section">
-    <h2>本机 CLI</h2>
+    <h2>{t('settings:localCLI')}</h2>
     <div className="settings-row"><label><input type="checkbox" checked={enabled ?? false} disabled={enabled === undefined || busy} onChange={async event => {
       const next = event.target.checked;
       setBusy(true);
       try { await SaveCLIAccess(next); setEnabled(next); setError(''); }
-      catch (e) { setError(errorMessage(e)); }
+      catch (e) { setError(e); }
       finally { setBusy(false); }
-    }} />允许本机 CLI 访问</label></div>
-    <p className="muted">允许同一系统用户的本机进程读取连接、远端文件、诊断、任务及执行结果，并在已连接 SSH 工作区执行命令。命令可修改远端；应用锁定或关闭此开关后阻止新请求。</p>
+    }} />{t('settings:allowLocalCLIAccess')}</label></div>
+    <p className="muted">{t('settings:allowLocalProcessesRunningAsTheSameOS')}</p>
     {error && <p className="error" role="alert">{error}</p>}
   </div>;
 }
