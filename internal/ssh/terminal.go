@@ -72,6 +72,8 @@ type Terminal struct {
 	forwardRequests  chan struct{}
 	probeSlots       chan struct{}
 	commandRequests  chan struct{}
+	environmentReady chan struct{}
+	environment      RemoteEnvironment
 	session          *gossh.Session
 	Input            io.WriteCloser
 	Output           *io.PipeReader

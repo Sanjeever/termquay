@@ -3,20 +3,25 @@ package ssh
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	gossh "golang.org/x/crypto/ssh"
+	"golang.org/x/text/encoding/simplifiedchinese"
 )
 
 type CommandResult struct {
-	Stdout     string `json:"stdout"`
-	Stderr     string `json:"stderr"`
-	ExitCode   int    `json:"exit_code"`
-	DurationMS int64  `json:"duration_ms"`
-	Truncated  bool   `json:"truncated"`
-	Error      string `json:"error"`
+	Stdout       string `json:"stdout"`
+	Stderr       string `json:"stderr"`
+	ExitCode     int    `json:"exit_code"`
+	DurationMS   int64  `json:"duration_ms"`
+	Truncated    bool   `json:"truncated"`
+	Error        string `json:"error"`
+	StdoutBase64 string `json:"stdout_base64,omitempty"`
+	StderrBase64 string `json:"stderr_base64,omitempty"`
 }
 
 type commandOutput struct {
@@ -40,6 +45,25 @@ func (w *commandOutput) Write(data []byte) (int, error) {
 }
 
 func (t *Terminal) RunCommand(ctx context.Context, script string) CommandResult {
+	return t.runCommandRequest(ctx, "sh -s", script, "UTF-8")
+}
+
+func (t *Terminal) RunScript(ctx context.Context, script, shell, encoding string) CommandResult {
+	command := "sh -s"
+	switch shell {
+	case "sh":
+	case "powershell":
+		command = powerShellCommand()
+	default:
+		return CommandResult{ExitCode: -1, Error: "不支持的脚本解释器"}
+	}
+	if encoding != "UTF-8" && encoding != "GBK" && encoding != "GB18030" {
+		return CommandResult{ExitCode: -1, Error: "不支持的命令输出编码"}
+	}
+	return t.runCommandRequest(ctx, command, script, encoding)
+}
+
+func (t *Terminal) runCommandRequest(ctx context.Context, command, input, encoding string) CommandResult {
 	started := time.Now()
 	if err := ctx.Err(); err != nil {
 		return CommandResult{ExitCode: -1, Error: err.Error()}
@@ -58,7 +82,7 @@ func (t *Terminal) RunCommand(ctx context.Context, script string) CommandResult 
 	ready := make(chan CommandResult, 1)
 	go func() {
 		defer func() { <-slots }()
-		ready <- t.runCommand(ctx, script)
+		ready <- t.runCommand(ctx, command, input, encoding)
 	}()
 	select {
 	case result := <-ready:
@@ -68,7 +92,7 @@ func (t *Terminal) RunCommand(ctx context.Context, script string) CommandResult 
 	}
 }
 
-func (t *Terminal) runCommand(ctx context.Context, script string) CommandResult {
+func (t *Terminal) runCommand(ctx context.Context, command, input, encoding string) CommandResult {
 	started := time.Now()
 	result := CommandResult{ExitCode: -1}
 	session, err := t.client.NewSession()
@@ -85,10 +109,12 @@ func (t *Terminal) runCommand(ctx context.Context, script string) CommandResult 
 	defer stop()
 	stdout := &commandOutput{limit: 64 << 10}
 	stderr := &commandOutput{limit: 16 << 10}
-	session.Stdin = strings.NewReader(script)
+	session.Stdin = strings.NewReader(input)
 	session.Stdout, session.Stderr = stdout, stderr
-	err = session.Run("sh -s")
-	result.Stdout, result.Stderr = strings.ToValidUTF8(stdout.String(), "�"), strings.ToValidUTF8(stderr.String(), "�")
+	err = session.Run(command)
+	var stdoutErr, stderrErr error
+	result.Stdout, result.StdoutBase64, stdoutErr = decodeCommandOutput(stdout.Bytes(), encoding, stdout.truncated)
+	result.Stderr, result.StderrBase64, stderrErr = decodeCommandOutput(stderr.Bytes(), encoding, stderr.truncated)
 	result.Truncated = stdout.truncated || stderr.truncated
 	result.DurationMS = time.Since(started).Milliseconds()
 	if ctx.Err() != nil {
@@ -105,5 +131,35 @@ func (t *Terminal) runCommand(ctx context.Context, script string) CommandResult 
 			result.Error = err.Error()
 		}
 	}
+	if decodeErr := errors.Join(stdoutErr, stderrErr); decodeErr != nil {
+		result.Error = strings.TrimSpace(result.Error + "\n" + errors.Join(errors.New("命令输出解码失败，原始字节保存在 base64 字段；请核对输出编码"), decodeErr).Error())
+	}
 	return result
+}
+
+func decodeCommandOutput(data []byte, encoding string, truncated bool) (string, string, error) {
+	raw := data
+	if encoding == "GBK" || encoding == "GB18030" {
+		codec := simplifiedchinese.GBK
+		if encoding == "GB18030" {
+			codec = simplifiedchinese.GB18030
+		}
+		decoded, err := codec.NewDecoder().Bytes(data)
+		if err == nil {
+			encoded, encodeErr := codec.NewEncoder().Bytes(decoded)
+			if encodeErr == nil && bytes.Equal(encoded, data) {
+				return string(decoded), "", nil
+			}
+		}
+		return "", base64.StdEncoding.EncodeToString(raw), errors.New("输出含无效的 " + encoding + " 字节")
+	}
+	if truncated {
+		for len(data) > 0 && !utf8.Valid(data) && len(raw)-len(data) < utf8.UTFMax-1 {
+			data = data[:len(data)-1]
+		}
+	}
+	if !utf8.Valid(data) {
+		return "", base64.StdEncoding.EncodeToString(raw), errors.New("输出不是 UTF-8")
+	}
+	return string(data), "", nil
 }

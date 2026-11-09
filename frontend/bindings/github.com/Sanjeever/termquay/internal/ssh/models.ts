@@ -8,6 +8,8 @@ export interface CommandResult {
     "duration_ms": number;
     "truncated": boolean;
     "error": string;
+    "stdout_base64"?: string;
+    "stderr_base64"?: string;
 }
 
 export interface ConnectionStep {
