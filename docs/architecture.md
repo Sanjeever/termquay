@@ -119,7 +119,7 @@ Automatic backup serializes/coalesces bounded pending work. Monitoring/progress/
 
 Encrypted model configuration is independent of CLI authorization. Do not echo saved API keys; distinguish keep/replace/clear. Users provide complete URL/protocol. Do not retry/follow redirects automatically. Bound connection/header waits, total request time, SSE bytes/events, text, arguments, history and concurrent runs.
 
-Preserve protocol continuation, tool/result associations, thinking signatures and encrypted reasoning. Responses requests are stateless. Provider tools do not become app tools; execute only after complete valid protocol state. Invalid/truncated arguments block execution.
+Preserve protocol continuation, tool/result associations, thinking signatures and encrypted reasoning. Responses requests are stateless. Provider tools do not become app tools; execute only after complete valid protocol state. Invalid/truncated arguments block execution. Per-response call/block limits in [protocol bounds](../internal/ai/types.go) protect parsing and allocation; they are separate from turn execution budgets. Context pagination and recovery must retain complete batches.
 
 The Go agent binds to a real SSH owner; tool arguments cannot select another workspace or fall back locally. Probe capabilities rather than assuming Linux. AI supports independent POSIX sh/Windows PowerShell; CLI/multi-host retain `sh -s`. Preserve stdout/stderr, exit status, truncation and bounded raw bytes on decoding failure. Unknown execution blocks replay.
 

@@ -175,7 +175,7 @@ func (a *AppService) executeAIRun(ctx context.Context, run *aiRun) {
 
 func (a *AppService) repairAITail(run *aiRun) error {
 	a.storeMu.Lock()
-	stored, err := a.store.AIMessages(run.ctx, run.view.ConversationID, 0, 24)
+	stored, err := a.store.AIMessages(run.ctx, run.view.ConversationID, 0, ai.MaxToolCalls+8)
 	a.storeMu.Unlock()
 	if err != nil {
 		return err
@@ -208,6 +208,7 @@ func (a *AppService) repairAITail(run *aiRun) error {
 }
 
 func (a *AppService) aiRunContext(ctx context.Context, run *aiRun, client *ai.Client) ([]ai.Message, string, error) {
+	const pageSize = ai.MaxToolCalls + 16
 	for {
 		a.storeMu.Lock()
 		c, err := a.store.AIConversation(ctx, run.view.ConversationID)
@@ -216,7 +217,7 @@ func (a *AppService) aiRunContext(ctx context.Context, run *aiRun, client *ai.Cl
 			message AIMessage
 		}
 		if err == nil {
-			stored, readErr := a.store.AIMessagesAfter(ctx, c.ID, c.SummaryThrough, 64)
+			stored, readErr := a.store.AIMessagesAfter(ctx, c.ID, c.SummaryThrough, pageSize)
 			err = readErr
 			for _, item := range stored {
 				var m AIMessage
@@ -243,7 +244,7 @@ func (a *AppService) aiRunContext(ctx context.Context, run *aiRun, client *ai.Cl
 		if err != nil {
 			return nil, "", err
 		}
-		if len(storedMessages) < 64 && len(encoded)+len(c.Summary) < ai.MaxContextBytes {
+		if len(storedMessages) < pageSize && len(encoded)+len(c.Summary) < ai.MaxContextBytes {
 			return messages, c.Summary, nil
 		}
 		// 压缩边界必须包含完整工具往返，近期消息继续使用实际结果。
@@ -251,7 +252,7 @@ func (a *AppService) aiRunContext(ctx context.Context, run *aiRun, client *ai.Cl
 		pending := map[string]bool{}
 		parts := []string{}
 		for i, item := range storedMessages {
-			if i >= len(storedMessages)-8 {
+			if i >= len(storedMessages)-8 && len(pending) == 0 {
 				break
 			}
 			m := item.message.Message

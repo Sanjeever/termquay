@@ -87,8 +87,11 @@ func chatParser(r *Response, delta func(string) error) func(string) (bool, error
 				return false, err
 			}
 			for _, part := range choice.Delta.ToolCalls {
-				if part.Index < 0 || part.Index >= MaxToolCalls {
-					return false, appmessage.New("backend:modelToolCallCountExceedsTheLimit", "模型工具调用数量超过限制")
+				if part.Index < 0 {
+					return false, appmessage.New("backend:invalidModelToolCallIndex", "模型工具调用序号无效")
+				}
+				if part.Index >= MaxToolCalls {
+					return false, appmessage.New("backend:modelToolCallCountExceedsTheLimit", "模型单批工具调用超过协议保护上限")
 				}
 				for len(r.Message.ToolCalls) <= part.Index {
 					r.Message.ToolCalls = append(r.Message.ToolCalls, ToolCall{})

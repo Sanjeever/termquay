@@ -75,7 +75,7 @@ func responsesParser(r *Response, delta func(string) error) func(string) (bool, 
 		case "response.refusal.delta":
 			return false, errors.New("模型拒绝回复: " + e.Delta)
 		case "response.function_call_arguments.delta":
-			if e.OutputIndex < 0 || e.OutputIndex >= 32 {
+			if e.OutputIndex < 0 || e.OutputIndex >= MaxResponseBlocks {
 				return false, appmessage.New("backend:invalidResponsesOutputIndex", "Responses 输出序号无效")
 			}
 			arguments[e.OutputIndex] += e.Delta
@@ -85,6 +85,9 @@ func responsesParser(r *Response, delta func(string) error) func(string) (bool, 
 		case "response.completed":
 			if e.Response.Status != "completed" || e.Response.Output == nil {
 				return false, appmessage.New("backend:invalidResponsesCompletionState", "Responses 回复状态无效")
+			}
+			if len(e.Response.Output) > MaxResponseBlocks {
+				return false, appmessage.New("backend:invalidResponsesOutputIndex", "Responses 输出序号无效")
 			}
 			text := ""
 			for i, raw := range e.Response.Output {
@@ -115,7 +118,7 @@ func responsesParser(r *Response, delta func(string) error) func(string) (bool, 
 					}
 					r.Message.ToolCalls = append(r.Message.ToolCalls, ToolCall{ID: item.CallID, Name: item.Name, Arguments: item.Arguments})
 					if len(r.Message.ToolCalls) > MaxToolCalls {
-						return false, appmessage.New("backend:modelToolCallCountExceedsTheLimit", "模型工具调用数量超过限制")
+						return false, appmessage.New("backend:modelToolCallCountExceedsTheLimit", "模型单批工具调用超过协议保护上限")
 					}
 				case "reasoning":
 				default:

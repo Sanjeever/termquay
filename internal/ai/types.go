@@ -7,7 +7,8 @@ const (
 	MaxReferenceBytes = 16 << 10
 	MaxResponseBytes  = 128 << 10
 	MaxArgumentsBytes = 32 << 10
-	MaxToolCalls      = 8
+	MaxToolCalls      = 64
+	MaxResponseBlocks = 2 * MaxToolCalls
 	MaxContextBytes   = 192 << 10
 	MaxWireBytes      = 8 << 20
 )

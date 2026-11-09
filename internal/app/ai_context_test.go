@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -121,6 +122,37 @@ func TestAICompactionPreservesLocalHistoryAndCompleteToolPairs(t *testing.T) {
 	}
 	if page.Conversation.SummaryThrough == 0 || !page.HasMore {
 		t.Fatal("压缩状态或分页丢失")
+	}
+}
+
+func TestAIContextRetainsLargeToolBatch(t *testing.T) {
+	a, _ := aiTestSSH(t)
+	aiTestConfigure(t, a, "http://127.0.0.1:1", false)
+	c, err := a.CreateAIConversation(t.Context(), "workspace")
+	if err != nil {
+		t.Fatal(err)
+	}
+	run := &aiRun{ctx: t.Context(), view: AIRunView{ID: "batch", Workspace: "workspace", ConversationID: c.ID}}
+	calls := make([]ai.ToolCall, ai.MaxToolCalls)
+	for i := range calls {
+		calls[i] = ai.ToolCall{ID: fmt.Sprint(i), Name: "port_list", Arguments: "{}"}
+	}
+	if _, err := a.persistAIMessage(run, ai.Message{Role: "assistant", ToolCalls: calls}, "complete"); err != nil {
+		t.Fatal(err)
+	}
+	for _, call := range calls {
+		if _, err := a.persistAIMessage(run, ai.Message{Role: "tool", ToolCallID: call.ID, Content: `{}`}, "complete"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := a.repairAITail(run); err != nil {
+		t.Fatal(err)
+	}
+	client := ai.NewClient(ai.DefaultConfig())
+	defer client.Close()
+	messages, _, err := a.aiRunContext(t.Context(), run, client)
+	if err != nil || len(messages) != len(calls)+1 {
+		t.Fatalf("incomplete batch: messages=%d, err=%v", len(messages), err)
 	}
 }
 

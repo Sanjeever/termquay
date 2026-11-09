@@ -247,7 +247,7 @@ func (s *Store) DeleteAIConversation(ctx context.Context, id string) error {
 }
 
 func (s *Store) AIMessagesAfter(ctx context.Context, id string, after, limit int) ([]AIStoredMessage, error) {
-	if after < 0 || limit < 1 || limit > 64 {
+	if after < 0 || limit < 1 || limit > 100 {
 		return nil, appmessage.New("backend:invalidAIContextPagination", "AI 上下文分页无效")
 	}
 	rows, err := s.db.QueryContext(ctx, "SELECT seq,ciphertext FROM ai_messages WHERE conversation_id=? AND seq>? ORDER BY seq LIMIT ?", id, after, limit)

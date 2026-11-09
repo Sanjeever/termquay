@@ -64,7 +64,8 @@ func TestChatErrorsLimitsAndCancellation(t *testing.T) {
 		{"incomplete", []string{`{"choices":[{"delta":{"content":"partial"}}]}`}},
 		{"invalid_arguments", []string{`{"choices":[{"delta":{"tool_calls":[{"index":0,"id":"x","function":{"name":"exec","arguments":"{"}}]},"finish_reason":"tool_calls"}]}`, `[DONE]`}},
 		{"truncated", []string{`{"choices":[{"delta":{},"finish_reason":"length"}]}`, `[DONE]`}},
-		{"too_many_calls", []string{`{"choices":[{"delta":{"tool_calls":[{"index":8,"id":"x"}]}}]}`}},
+		{"too_many_calls", []string{fmt.Sprintf(`{"choices":[{"delta":{"tool_calls":[{"index":%d,"id":"x"}]}}]}`, MaxToolCalls)}},
+		{"negative_index", []string{`{"choices":[{"delta":{"tool_calls":[{"index":-1,"id":"x"}]}}]}`}},
 		{"provider_error", []string{`{"error":{"message":"synthetic-key"}}`}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

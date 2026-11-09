@@ -100,7 +100,7 @@ func messagesParser(r *Response, delta func(string) error) func(string) (bool, e
 			started = true
 			r.Usage = e.Message.Usage
 		case "content_block_start":
-			if !started || e.Index != len(blocks) || len(blocks) >= 32 {
+			if !started || e.Index != len(blocks) || len(blocks) >= MaxResponseBlocks {
 				return false, appmessage.New("backend:invalidMessagesContentBlockIndex", "Messages 内容块序号无效")
 			}
 			switch e.ContentBlock.Type {
@@ -151,7 +151,7 @@ func messagesParser(r *Response, delta func(string) error) func(string) (bool, e
 				b := blocks[e.Index]
 				r.Message.ToolCalls = append(r.Message.ToolCalls, ToolCall{ID: b.ID, Name: b.Name, Arguments: string(b.Input)})
 				if len(r.Message.ToolCalls) > MaxToolCalls {
-					return false, appmessage.New("backend:modelToolCallCountExceedsTheLimit", "模型工具调用数量超过限制")
+					return false, appmessage.New("backend:modelToolCallCountExceedsTheLimit", "模型单批工具调用超过协议保护上限")
 				}
 			}
 		case "message_delta":
