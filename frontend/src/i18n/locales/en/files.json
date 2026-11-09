@@ -654,5 +654,7 @@
   "draftDownloadFailed": "Could not download the current content.",
   "technicalDetails": "Technical details",
   "retrySave": "Retry save",
-  "useUTF8": "Use UTF-8"
+  "useUTF8": "Use UTF-8",
+  "parentDirectories": "Parent directories",
+  "selectedFileActions": "Selected file actions"
 }
