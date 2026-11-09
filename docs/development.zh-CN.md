@@ -47,34 +47,17 @@ Taskfile 保留 Wails 模板任务。出现 server、Docker 或 iOS 任务不表
 
 ### 真实 SSH 与 WebDAV
 
-测试配置通过当前进程环境安全注入，不写入仓库或提交真实样例。以下是变量名，不是应用运行所必需的生产配置：
+测试配置变量和执行命令统一维护在 [Optional real services](development.md#optional-real-services)。通过当前进程环境安全注入，不写入仓库或提交真实样例。配置齐备时，普通 Go 包测试也会执行这些入口；缺少配置时跳过，不计通过。
 
-| 测试 | 必要变量 | 范围 |
-| --- | --- | --- |
-| 既有 `TestSG1*` 密码入口 | `SSH_MCP_SERVER_SG1_HOST`、`SSH_MCP_SERVER_SG1_PORT`、`SSH_MCP_SERVER_SG1_USERNAME`、`SSH_MCP_SERVER_SG1_PASSWORD`、`TERMQUAY_TEST_HOST_FINGERPRINT` | PTY、SFTP 文件操作、Linux 采集、批量传输、移动与非递归删除、端口转发，以及 [跳板](../internal/app/jump_test.go) 和 [目录同步](../internal/app/sync_test.go) |
-| `TestSG1Workflow*` | 上述主机、端口、用户名、指纹，以及 `TERMQUAY_TEST_PRIVATE_KEY_PATH`；无需密码变量 | 私钥与加密私钥、独立 Agent、命令边界、文件历史、搜索、sudo、续传记录恢复、远端复制、录制、tmux、任务首台确认、断线重连、SOCKS5 和工作区资源释放 |
-| `TestRealWebDAV` | `TERMQUAY_WEBDAV_URL`、`TERMQUAY_WEBDAV_USERNAME`、`TERMQUAY_WEBDAV_PASSWORD`、`TERMQUAY_WEBDAV_DIRECTORY` | 真实服务的密文往返、列表、解密和同名拒绝 |
+`TestSG1*` 密码入口覆盖 PTY、SFTP、Linux 采集、传输、端口转发，以及 [跳板](../internal/app/jump_test.go) 和 [目录同步](../internal/app/sync_test.go)。`TestSG1Workflow*` 使用私钥，扩展认证、命令边界、编辑、sudo、续传、复制、录制、tmux、任务确认、重连、代理和资源释放场景。`TestRealWebDAV` 验证密文往返、列表、解密和同名拒绝。场景与断言以对应测试为准。
 
 SSH 指纹须来自已核对的测试目标，不能为跑通测试关闭身份校验。文件和同步测试创建并清理本次 `/tmp/termquay-*` 目录；监控运行只读 Linux 采集。跳板测试要求目标允许 TCP 转发，并能经自身回环地址访问配置的 SSH 端口。WebDAV 目录指定已有可写测试集合，测试在其中创建唯一子目录并清理。遵守 [远端操作边界](../AGENTS.md#credentials-and-remote-operations)，MCP 连通不能替代应用自身链路验证。
 
-```sh
-go test -race -count=1 -v ./internal/app ./internal/ssh ./internal/files ./internal/monitor -run '^TestSG1'
-go test -race -v ./internal/backup -run '^TestRealWebDAV$'
-```
-
-私钥工作流测试使用临时数据库和本次远端测试目录，不读取本机已保存连接；仅按显式提供的路径读取私钥，不输出内容。测试私钥须为未加密私钥；加密私钥与错误口令场景由 [测试](../internal/app/ssh_terminal_integration_test.go) 临时生成。测试目标须已有 sudo、tmux、Docker Unix socket 与相应权限，独立 Agent 场景使用本机 Unix socket；root 账户下 sudo 验证限免密路径。续传测试从相同加密存储创建新的服务实例，不等于原生进程退出再启动。单独运行：
-
-```sh
-go test -race -count=1 -v -timeout=10m ./internal/app -run '^TestSG1Workflow'
-```
+私钥工作流测试使用临时数据库和本次远端测试目录，不读取本机已保存连接；仅按显式提供的路径读取私钥，不输出内容。加密私钥与错误口令场景由 [测试](../internal/app/ssh_terminal_integration_test.go) 临时生成。测试目标须已有 sudo、tmux、Docker Unix socket 与相应权限，独立 Agent 场景使用本机 Unix socket；root 账户下 sudo 验证限免密路径。续传测试从相同加密存储创建新的服务实例，不等于原生进程退出再启动。
 
 RDP 自动化使用隔离 TLS 目标验证桥接、TLS 1.2 与身份策略，没有真实 Windows 桌面自动测试入口。真实画面、输入、剪贴板、多会话和各原生 WebView 必须另外验收。当前 TLS 版本边界及原因见 [内嵌 RDP](architecture.zh-CN.md#内嵌-rdp)。
 
-[保存连接文件测试](../internal/app/files_integration_test.go) 通过 `TERMQUAY_TEST_SAVED_CONNECTION` 选择本机已保存的 SSH 连接，必须通过 `TERMQUAY_TEST_HOST_FINGERPRINT` 提供已核对指纹。该入口经 [OpenVault](../internal/store/vault.go) 使用系统密钥库打开本机存储，未接入主密码解锁流程；密码无需放入命令行。测试在独立 `/tmp/termquay-editor-*` 目录验证多编码、CRLF、BOM、保存冲突与目录链接，并清理目录：
-
-```sh
-go test -race -v ./internal/app -run '^TestSavedConnectionFileEditing$'
-```
+[保存连接文件测试](../internal/app/files_integration_test.go) 按显式配置读取本机已保存 SSH 连接，经 [OpenVault](../internal/store/vault.go) 使用系统密钥库打开本机存储，未接入主密码解锁流程。测试在独立 `/tmp/termquay-editor-*` 目录验证多编码、CRLF、BOM、保存冲突与目录链接，并清理目录。
 
 ## 使用说明
 
@@ -82,7 +65,7 @@ go test -race -v ./internal/app -run '^TestSavedConnectionFileEditing$'
 
 连接菜单、已打开连接的标题栏及命令搜索提供“操作手册”。每个保存连接可填写加密备注，SSH 连接可关联配置文件、目录、日志、systemd 服务、Docker 容器、命令片段、多主机任务和命名远端服务。文件与服务资源沿现有认证、主机身份确认与工作区生命周期打开；片段等待用户插入，任务等待重新选择目标和执行，不自动运行命令。引用被删除后须重新选择。操作手册保存在本机加密设置，当前不进入常规备份；资源数量和正文上限见 [操作手册实现](../internal/app/connection_playbooks.go)。
 
-顶部标题栏包含固定“连接中心”、连接工作区与独立工具标签，跟随应用主题。连接中心管理分组与连接，多主机操作和多来源日志从“工具”打开；SSH 内层标签表示独立终端或文件。全局命令搜索和设置保持固定入口。
+顶部标题栏包含固定“连接中心”、连接工作区与独立工具标签，跟随应用主题。连接中心管理分组与连接，多主机操作、多来源日志和 Docker 从“工具”打开；SSH 内层标签表示独立终端或文件。全局命令搜索和设置保持固定入口。
 
 标题栏背景、标签间及标签旁留白可拖动窗口，标签溢出时保留拖动区域；Windows、Linux 提供窗口按钮，双击留白最大化或还原。macOS 保留原生窗口按钮，双击留白遵循系统设置。Windows 当前未接入最大化按钮的原生悬停分屏菜单。关闭窗口经过本地状态写入与未保存文件处理；窗口边缘缩放及系统菜单仍需按平台验收。
 
@@ -473,20 +456,7 @@ CLI 与桌面共用程序，支持命令以所用程序的帮助为准。无参�
 
 先运行桌面并初始化或解锁存储，在“设置 → 本机 CLI”打开默认关闭的“允许本机 CLI 访问”。授权同一操作系统用户的本机进程查看保存连接、远端文件和诊断、本机任务与执行结果，并在已连接 SSH 工作区执行命令，无法区分同用户下不同 Agent。授权保存在本机设置，不随备份迁移；会话存储按会话语义处理。CLI 不打开数据库、不解锁、不建立 SSH 连接、不确认身份。未运行、授权关闭、应用锁定和协议不兼容均有明确结果，存储未就绪返回 `storage_unavailable`。锁定时最小状态不披露开关值，`enabled` 返回 false。新增结构化查询沿用同一开关，既有 `exec` 仍可修改远端，开关不表示读取专用权限。
 
-```sh
-termquay status --json --no-input
-termquay connection list --protocol ssh --json --no-input
-termquay workspace list --json --no-input
-termquay file list --workspace '<精确工作区ID>' --path /etc --json --no-input
-termquay file read --workspace '<精确工作区ID>' --path '<文本文件绝对路径>' --json --no-input
-termquay service inspect --workspace '<精确工作区ID>' --unit '<完整服务名.service>' --json --no-input
-termquay port list --workspace '<精确工作区ID>' --json --no-input
-termquay container list --workspace '<精确工作区ID>' --json --no-input
-termquay task list --json --no-input
-termquay run list --json --no-input
-termquay run show --id '<精确执行记录ID>' --offset 0 --limit 8 --json --no-input
-termquay exec --workspace '<精确工作区ID>' --script-file ./inspect.sh --timeout 30s --json --no-input
-```
+命令示例统一见 [Local CLI](development.md#local-cli)，占位符需替换为实际 ID、路径和服务名。执行业务命令前检查 `status` 没有响应级错误，且 `data.running`、`data.compatible`、`data.enabled` 为 true，`data.locked` 为 false；禁用或锁定时 `status` 仍可返回退出码 0，不能据此判断已获授权。
 
 详细参数和实现限额以所用程序的 `termquay <命令> --help` 为准，源码入口为 [help.go](../internal/cli/help.go)。保存连接列表只返回安全元数据，不探测主机；分组按精确 ID 筛选。工作区列表覆盖 Go 持有的 SSH 工作区，含实际连接目标、保存连接 ID 与连接状态，不等于全部前端标签；临时连接没有保存连接 ID。执行需要仍有效的 SSH 实例，RDP、本地终端及前端断开标签不提供执行入口。容器、WSL 和远程开发环境到宿主机的跨环境访问不支持。
 
@@ -504,12 +474,7 @@ termquay exec --workspace '<精确工作区ID>' --script-file ./inspect.sh --tim
 
 ## 构建与本地打包
 
-```sh
-pnpm build
-pnpm package
-```
-
-`pnpm build` 调用 `wails3 build`，将可执行文件写入 `bin/`，Windows 文件带 `.exe`；`pnpm package` 调用 `wails3 task package`，生成平台包。参数可直接追加，例如 `pnpm build ARCH=arm64`；其他平台任务通过 `pnpm task <任务>` 调用。macOS 打包生成 `.app` 并作本机 ad-hoc 签名；Windows 默认 NSIS 打包需要 `makensis`，MSIX 使用相应 Windows 工具；Linux 包格式及工具按平台 Taskfile 选择。完整构建任务可能执行 `go mod tidy` 并更新绑定，完成后检查实际 diff。
+构建与打包命令、产物目录及平台工具要求统一见 [Build and local packaging](development.md#build-and-local-packaging)，参数与其他任务入口见 [Development commands](development.md#development-commands)。下文维护产品资源生成步骤。
 
 `build/config.yml` 是产品元数据与资源生成入口，平台产物仍由 `build/` 中模板和任务决定。版本使用下方版本工具同步；修改其他 `info` 或文件关联时按配置文件说明更新资源，再检查生成 diff，避免覆盖已有打包定制。
 
@@ -546,7 +511,7 @@ node scripts/version.mjs check "v$next_version"
 获发布授权、完成验收并解决第三方声明的“发行前待办”后，在已检查且已进入 `main` 的提交创建版本标签，再推送：
 
 ```sh
-git tag -a "v$next_version" -m "发布 v$next_version"
+git tag -a "v$next_version" -m "Release v$next_version"
 git push origin main
 git push origin "v$next_version"
 ```

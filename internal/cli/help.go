@@ -33,7 +33,7 @@ Protocol and application versions are independent; use the same distribution if 
 Examples: termquay workspace list --json --no-input
           termquay exec --workspace <exact-id> --command 'uname -a' --json --no-input`)
 	case "status":
-		fmt.Fprintln(out, "Usage: termquay status [--json] [--no-input]\nWithout a desktop, returns running=false and unavailable with exit code 1. Minimal status is readable when disabled/locked. Locked status does not disclose enabled authorization and returns false.")
+		fmt.Fprintln(out, "Usage: termquay status [--json] [--no-input]\nWithout a desktop, returns running=false and unavailable with exit code 1. Minimal status is readable with exit code 0 when disabled/locked; check data.enabled and data.locked before business commands. Locked status does not disclose enabled authorization and returns enabled=false.")
 	case "connection", "connection.list":
 		fmt.Fprintln(out, "Usage: termquay connection list [--protocol ssh] [--group <exact-id>] [--search <text>] [--json] [--no-input]\nLists saved connection metadata without network probes or credentials. Group matching is exact, without recursion.")
 	case "workspace", "workspace.list":

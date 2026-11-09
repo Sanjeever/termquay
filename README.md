@@ -56,7 +56,7 @@ These existing screenshots show the Chinese interface in macOS native demo mode.
 
 Start with [CONTRIBUTING.md](CONTRIBUTING.md). English and Chinese contributions are welcome; imperfect English is fine.
 
-Toolchain versions come from [go.mod](go.mod), [frontend/package.json](frontend/package.json) and the lockfile. Follow [first run](docs/development.md#first-run) to prepare dependencies, then run from the repository root:
+Follow [environment and first run](docs/development.md#environment) for toolchain definitions and dependency setup, then run from the repository root:
 
 ```sh
 pnpm dev

@@ -354,7 +354,7 @@ func negotiate(ctx context.Context, target Target, request []byte) (*tls.Conn, [
 	if confirm.Type != x224.TypeRDPNegRsp || (confirm.SelectedProto != x224.ProtocolHybrid && confirm.SelectedProto != x224.ProtocolHybridEx) {
 		return nil, nil, appmessage.New("backend:rDPDestinationDidNotNegotiateTLSNLASecurity", "RDP 目标未协商 TLS/NLA，已阻止安全协议降级")
 	}
-	// 固定 TLS 1.2 的互操作证据与重新评估条件见 docs/architecture.md 的“内嵌 RDP”。
+	// TLS 1.2 interoperability evidence and reevaluation criteria: docs/architecture.md#embedded-rdp.
 	config := &tls.Config{ServerName: target.Host, MinVersion: tls.VersionTLS12, MaxVersion: tls.VersionTLS12}
 	if target.Fingerprint != "" {
 		// 已固定指纹时校验精确身份与有效期，也支持用户确认的自签名证书。

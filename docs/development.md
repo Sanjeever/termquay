@@ -8,7 +8,7 @@ This guide covers an independent contribution from checkout to verification. The
 ## Environment
 
 - Use the Go language/toolchain in [go.mod](../go.mod). Keep the Wails CLI aligned with its module version.
-- Use the pnpm version in [frontend/package.json](../frontend/package.json), the checked-in [lockfile](../frontend/pnpm-lock.yaml), and a Node version compatible with pnpm/Vite. [CI](../.github/workflows/ci.yml) is the tested toolchain reference.
+- Use the matching pnpm declarations in [package.json](../package.json) and [frontend/package.json](../frontend/package.json), the checked-in [frontend lockfile](../frontend/pnpm-lock.yaml), and a Node version compatible with pnpm/Vite. [CI](../.github/workflows/ci.yml) defines the build matrix; actual verification environments are recorded in the [verification ledger](#verification-and-known-gaps).
 - Native prerequisites differ by platform: macOS Command Line Tools, Windows WebView2, and a C compiler plus the appropriate GTK/WebKit development libraries on Linux. CI lists Ubuntu packages. Cross-compilation does not verify a native WebView.
 - Keep toolchain changes project-local. Do not change global package manager configuration, dependency mirrors or another project's tools.
 
@@ -106,10 +106,10 @@ Language changes must not alter workspace keys, recreate editors, reconnect sess
 <a id="内置-ai-助手"></a>
 ## Using the workbench
 
-- **Connections:** the fixed connection center manages groups, filters and saved metadata. Outer tabs hold connection workspaces or independent multi-host/log tools; SSH inner tabs hold terminals/files. Quick connect parses supported addresses/options for review and does not execute the entered text.
+- **Connections:** the fixed connection center manages groups, filters and saved metadata. Outer tabs hold connection workspaces or independent multi-host/log/Docker tools; SSH inner tabs hold terminals/files. Quick connect parses supported addresses/options for review and does not execute the entered text.
 - **Identity and credentials:** verify new fingerprints/certificates against a trusted source. Changed identities block connection. Review legitimate changes in identity settings. Shared credential updates require reviewing the affected connection set.
 - **Storage and lock:** explicitly choose master password/session storage if the system keychain is unavailable. Connection metadata is not whole-database encrypted. Application lock blocks new interaction while existing sessions/tasks can continue. Forgotten passwords require an independent backup.
-- **Files:** browsing mode blocks remote writes until explicitly allowed. Saving checks the remote baseline and preserves drafts on conflict. Compare/merge or reload explicitly. Encoding, history recovery, sudo authorization, validation and reload are separate decisions.
+- **Files:** enable file browsing mode to block new file writes in that SSH workspace. It does not restrict terminal/task commands or cancel operations already started. Saving checks the remote baseline and preserves drafts on conflict. Compare/merge or reload explicitly. Encoding, history recovery, sudo authorization, validation and reload are separate decisions.
 - **Transfers:** preview conflicts and selected differences. Resume explicitly after reconnecting to the same verified destination. Directory sync does not delete extra destination files. Cancellation does not prove remote termination.
 - **Terminal tools:** snippets await explicit insertion; completion integration is enabled per shell session. Multi-host steps use separate shells. Review the first-host confirmation before continuing. Saved run results are locally encrypted and excluded from regular backups.
 - **Monitoring/logs:** Linux collection uses existing tools and current-user permissions. Preserve unknown, stale, truncated and partial states. [Docker containers](#docker-containers) use a dedicated tool tab over an SSH-forwarded Unix socket.
@@ -142,12 +142,19 @@ termquay status --json --no-input
 termquay connection list --json --no-input
 termquay workspace list --json --no-input
 termquay file list --workspace '<exact-workspace-id>' --path /tmp --json --no-input
+termquay file read --workspace '<exact-workspace-id>' --path '<absolute-text-file-path>' --json --no-input
+termquay service inspect --workspace '<exact-workspace-id>' --unit '<full-name.service>' --json --no-input
+termquay port list --workspace '<exact-workspace-id>' --json --no-input
+termquay container list --workspace '<exact-workspace-id>' --json --no-input
 termquay task list --json --no-input
 termquay run list --json --no-input
-termquay exec --workspace '<exact-workspace-id>' --script-file ./inspect.sh --timeout 30s --json --no-input
+termquay run show --id '<exact-run-id>' --json --no-input
+termquay exec --workspace '<exact-workspace-id>' --script-file '<local-script-path>' --timeout 30s --json --no-input
 ```
 
 Use the installed program's help as the command contract; repository definitions are in [CLI help](../internal/cli/help.go) and the [IPC protocol](../internal/localapi/protocol.go). On macOS it is inside `.app/Contents/MacOS/termquay`; Windows retains `.exe` and callers must wait and collect its exit code. IPC supports the same OS user/environment, not a container/WSL/remote-development proxy.
+
+Before business commands, check the status response has no `error`, `data.running=true`, `data.compatible=true`, `data.enabled=true` and `data.locked=false`. Status remains readable with exit code zero when CLI access is disabled or the application is locked; process success alone does not establish authorization. Handle setup/unlock in the desktop.
 
 Saved connections are metadata, not evidence that a host is online. Workspaces identify backend SSH owners, not every frontend tab. Match `id`, `connection_id`, `target` and `state`; never execute against a fuzzy name.
 
@@ -167,17 +174,19 @@ Real tests opt in through securely injected process settings. Never put real val
 | Suite | Configuration |
 | --- | --- |
 | `TestSG1*` password entry | `SSH_MCP_SERVER_SG1_HOST`, `SSH_MCP_SERVER_SG1_PORT`, `SSH_MCP_SERVER_SG1_USERNAME`, `SSH_MCP_SERVER_SG1_PASSWORD`, `TERMQUAY_TEST_HOST_FINGERPRINT` |
-| `TestSG1Workflow*` | Host, port, username and verified fingerprint above, plus `TERMQUAY_TEST_PRIVATE_KEY_PATH`; no password required |
-| `TestRealWebDAV` | `TERMQUAY_WEBDAV_URL`, `TERMQUAY_WEBDAV_USERNAME`, `TERMQUAY_WEBDAV_PASSWORD`, `TERMQUAY_WEBDAV_DIRECTORY` for an isolated writable collection |
+| [`TestSG1Workflow*`](../internal/app/ssh_workflow_integration_test.go) | Host, port, username and verified fingerprint above, plus `TERMQUAY_TEST_PRIVATE_KEY_PATH` pointing to an unencrypted test private key; no password required |
+| [`TestRealWebDAV`](../internal/backup/webdav_test.go) | `TERMQUAY_WEBDAV_URL`, `TERMQUAY_WEBDAV_USERNAME`, `TERMQUAY_WEBDAV_PASSWORD`, `TERMQUAY_WEBDAV_DIRECTORY` for an existing isolated writable collection; creates and cleans a unique child collection |
 
 Independently verify the target fingerprint. File tests create and clean their own `/tmp/termquay-*` directories. Do not change system/SSH/services/business files or install remote tools. Some workflow cases require existing sudo/tmux/Docker permissions. Follow [remote-operation boundaries](../AGENTS.md#credentials-and-remote-operations).
 
 ```sh
 go test -count=1 -v ./internal/app ./internal/ssh ./internal/files ./internal/monitor -run '^TestSG1'
+go test -count=1 -v -timeout=10m ./internal/app -run '^TestSG1Workflow'
 go test -v ./internal/backup -run '^TestRealWebDAV$'
+go test -v ./internal/app -run '^TestSavedConnectionFileEditing$'
 ```
 
-Use `-race` where supported. The [saved-connection file test](../internal/app/files_integration_test.go) uses `TERMQUAY_TEST_SAVED_CONNECTION`, a verified fingerprint and the system vault; it does not implement master-password unlock. Read the test before using it.
+The workflow-only command is an alternative to the full SSH selection. Use `-race` where supported. The [saved-connection file test](../internal/app/files_integration_test.go) uses `TERMQUAY_TEST_SAVED_CONNECTION`, `TERMQUAY_TEST_HOST_FINGERPRINT` and the system vault; it does not implement master-password unlock. Read the test before using it. Configured real-service tests also run under ordinary `go test` package selections; missing settings cause skips, which must be reported separately from passes.
 
 <a id="已有验收记录与缺口"></a>
 <a id="重连修复与验证缺口"></a>
