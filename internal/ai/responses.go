@@ -27,7 +27,7 @@ func responsesRequest(c Config, r Request) any {
 			}
 		}
 	}
-	payload := map[string]any{"model": c.Model, "stream": true, "instructions": r.System, "input": input, "store": false, "include": []string{"reasoning.encrypted_content"}, "max_output_tokens": 8192, "truncation": "disabled"}
+	payload := map[string]any{"model": c.Model, "stream": true, "instructions": r.System, "input": input, "store": false, "include": []string{"reasoning.encrypted_content"}, "truncation": "disabled"}
 	if len(r.Tools) > 0 {
 		tools := []any{}
 		for _, t := range r.Tools {

@@ -22,7 +22,7 @@ func chatRequest(c Config, r Request) any {
 		}
 		messages = append(messages, item)
 	}
-	payload := map[string]any{"model": c.Model, "stream": true, "messages": messages, "max_completion_tokens": 8192}
+	payload := map[string]any{"model": c.Model, "stream": true, "messages": messages}
 	if len(r.Tools) > 0 {
 		tools := []any{}
 		for _, t := range r.Tools {

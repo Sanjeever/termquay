@@ -35,7 +35,7 @@ func messagesRequest(c Config, r Request) any {
 		}
 		messages = append(messages, map[string]any{"role": role, "content": content})
 	}
-	payload := map[string]any{"model": c.Model, "stream": true, "system": r.System, "messages": messages, "max_tokens": 8192}
+	payload := map[string]any{"model": c.Model, "stream": true, "system": r.System, "messages": messages, "max_tokens": 32000}
 	if len(r.Tools) > 0 {
 		tools := []any{}
 		for _, t := range r.Tools {
