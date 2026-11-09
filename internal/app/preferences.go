@@ -43,6 +43,31 @@ func (a *AppService) GetConnectionPreferences() (map[string]store.ConnectionPref
 	return a.connectionPreferences()
 }
 
+func (a *AppService) SetDockerSocket(id, socket string) error {
+	if socket != "" && (!path.IsAbs(socket) || path.Clean(socket) != socket || len(socket) > 4096 || strings.ContainsAny(socket, "\x00\r\n")) {
+		return appmessage.New("backend:dockerSocketMustBeAnAbsoluteRemoteUnix", "Docker socket 必须是远端 Unix 绝对路径")
+	}
+	a.storeMu.Lock()
+	defer a.storeMu.Unlock()
+	preferences, err := a.connectionPreferences()
+	if err != nil {
+		return err
+	}
+	data, err := a.store.Read()
+	if err != nil {
+		return err
+	}
+	for _, connection := range data.Connections {
+		if connection.ID == id && connection.Protocol == "ssh" {
+			value := preferences[id]
+			value.DockerSocket = socket
+			preferences[id] = value
+			return a.store.SetConnectionPreferences(preferences)
+		}
+	}
+	return appmessage.New("backend:connectionDoesNotExist", "连接不存在")
+}
+
 func (a *AppService) SetConnectionPreference(id string, favorite bool, environment string) error {
 	if environment != "" && environment != "production" && environment != "staging" && environment != "development" {
 		return appmessage.New("backend:invalidEnvironmentIdentifier", "环境标识无效")

@@ -1028,6 +1028,10 @@ export function SetDirectoryBookmarks(id: string, bookmarks: string[] | null): $
     return $Call.ByID(3671936398, id, bookmarks);
 }
 
+export function SetDockerSocket(id: string, socket: string): $CancellablePromise<void> {
+    return $Call.ByID(272812819, id, socket);
+}
+
 export function SetDraftRecoveryEnabled(enabled: boolean): $CancellablePromise<void> {
     return $Call.ByID(342898779, enabled);
 }

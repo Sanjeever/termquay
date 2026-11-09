@@ -39,6 +39,7 @@ export interface ConnectionPreference {
     "rdp_client"?: string;
     "bookmarks"?: string[] | null;
     "private_key_path"?: string;
+    "docker_socket"?: string;
     "last_connected"?: string | null;
 }
 

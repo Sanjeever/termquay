@@ -2,10 +2,50 @@ package app
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/Sanjeever/termquay/internal/store"
 )
+
+func TestDockerSocketPreferenceIsolation(t *testing.T) {
+	a := testAppStore(t)
+	if err := a.store.Replace(store.Data{Connections: []store.Connection{
+		{ID: "one", Name: "One", Protocol: "ssh", Host: "example.invalid", Port: 22},
+		{ID: "two", Name: "Two", Protocol: "ssh", Host: "example.invalid", Port: 22},
+		{ID: "rdp", Name: "Desktop", Protocol: "rdp", Host: "example.invalid", Port: 3389},
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	const socket = "/run/user/1000/docker.sock"
+	if err := a.SetDockerSocket("one", socket); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.SetConnectionPreference("one", true, "production"); err != nil {
+		t.Fatal(err)
+	}
+	values, err := a.GetConnectionPreferences()
+	if err != nil || values["one"].DockerSocket != socket || !values["one"].Favorite || values["two"].DockerSocket != "" {
+		t.Fatalf("socket preference was lost or crossed connection boundaries: %v", err)
+	}
+	for _, invalid := range []string{"docker.sock", "/run/../docker.sock", "/run/docker.sock\n", "/run/\x00socket", "/" + strings.Repeat("a", 4096)} {
+		if err := a.SetDockerSocket("one", invalid); err == nil {
+			t.Errorf("accepted invalid socket path %q", invalid)
+		}
+	}
+	for _, id := range []string{"missing", "rdp"} {
+		if err := a.SetDockerSocket(id, socket); err == nil {
+			t.Errorf("accepted non-SSH connection %q", id)
+		}
+	}
+	if err := a.SetDockerSocket("one", ""); err != nil {
+		t.Fatal(err)
+	}
+	values, err = a.GetConnectionPreferences()
+	if err != nil || values["one"].DockerSocket != "" || !values["one"].Favorite {
+		t.Fatalf("resetting socket changed unrelated preferences: %v", err)
+	}
+}
 
 func TestConnectionPreferencesBoundRecentAndPreserveLocalState(t *testing.T) {
 	a := testAppStore(t)

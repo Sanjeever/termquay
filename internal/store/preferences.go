@@ -16,6 +16,7 @@ type ConnectionPreference struct {
 	RDPClient      string     `json:"rdp_client,omitempty"`
 	Bookmarks      []string   `json:"bookmarks,omitempty"`
 	PrivateKeyPath string     `json:"private_key_path,omitempty"`
+	DockerSocket   string     `json:"docker_socket,omitempty"`
 	LastConnected  *time.Time `json:"last_connected,omitempty"`
 }
 
