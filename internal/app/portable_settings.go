@@ -22,9 +22,15 @@ func validatePortableUI(values map[string]string) error {
 			if err := json.Unmarshal([]byte(value), &settings); err != nil || settings == nil {
 				return appmessage.New("backend:invalidAppearanceSettings", "外观设置无效")
 			}
-			for field, options := range map[string]string{"theme": "dark|light|system", "uiFont": "system|yahei|pingfang", "monoFont": "system|cascadia|consolas|jetbrains", "terminalPalette": "theme|dark|light|one-dark|tokyo-night"} {
+			for field, options := range map[string]string{"theme": "dark|light|system", "uiFont": "system|yahei|pingfang", "monoFont": "system|cascadia|consolas|jetbrains|custom", "terminalPalette": "theme|dark|light|one-dark|tokyo-night"} {
 				var selected string
 				if err := json.Unmarshal(settings[field], &selected); err != nil || !slices.Contains(strings.Split(options, "|"), selected) {
+					return appmessage.New("backend:invalidAppearanceSettingsField", "外观设置字段无效")
+				}
+			}
+			if raw, ok := settings["customMonoFont"]; ok {
+				var family *string
+				if err := json.Unmarshal(raw, &family); err != nil || family == nil {
 					return appmessage.New("backend:invalidAppearanceSettingsField", "外观设置字段无效")
 				}
 			}
