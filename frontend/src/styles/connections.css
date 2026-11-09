@@ -4,7 +4,7 @@
 .connection-groups nav { padding-top: 14px; }
 .connection-groups .sidebar-heading { height: 42px; margin: 14px 0 0; padding-left: 8px; }
 .connection-groups .sidebar-heading h2 { font-size: 11px; font-weight: 600; color: var(--color-muted); }
-.connection-catalog { --catalog-grid: 18px minmax(130px,1.4fr) minmax(120px,1fr) minmax(64px,.55fr) 44px; container-type: inline-size; flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; padding: 18px 24px 12px; position: relative; }
+.connection-catalog { --catalog-grid: 18px minmax(130px,1.4fr) minmax(120px,1fr) minmax(64px,.55fr) 44px; container-type: inline-size; flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; padding: 18px 24px 12px; }
 .catalog-toolbar { display: flex; align-items: center; gap: 8px; flex-shrink: 0; min-height: 36px; }
 .catalog-toolbar button { font-size: 12px; }
 .catalog-toolbar h1 { font-size: 17px; letter-spacing: -.02em; font-weight: 600; min-width: 80px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -17,6 +17,7 @@
 .catalog-filter-panel .select-control { width: 100%; }
 .catalog-actions { order: 1; display: flex; align-items: center; justify-content: flex-end; gap: 4px; min-height: 40px; flex-shrink: 0; border-top: 1px solid var(--color-border); overflow-x: auto; }
 .catalog-actions > * { flex-shrink: 0; }
+.catalog-actions button, .catalog-toolbar button { white-space: nowrap; }
 .catalog-active-filters { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding-bottom: 8px; flex-shrink: 0; }
 .filter-chip { display: inline-flex; align-items: center; gap: 6px; max-width: 220px; min-height: 26px; padding: 3px 8px; border: 1px solid var(--color-border-strong); border-radius: 5px; font-size: 12px; }
 .filter-chip > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

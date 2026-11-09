@@ -657,5 +657,6 @@
   "useUTF8": "改用 UTF-8",
   "parentDirectories": "上级目录",
   "selectedFileActions": "所选文件操作",
-  "toggleTransferBatch": "展开或收起已结束传输：{{value1}} · {{value2}}"
+  "toggleTransferBatch": "展开或收起已结束传输：{{value1}} · {{value2}}",
+  "auxiliaryPanels": "辅助面板"
 }

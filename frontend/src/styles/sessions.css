@@ -3,8 +3,12 @@
 .session-target { min-width: 80px; max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 12px var(--font-mono); margin-right: auto; }
 .session-state { font-size: 11px; color: var(--color-muted); white-space: nowrap; }
 .workspace-toolbar > button, .workspace-toolbar > span:not(.session-target) { flex-shrink: 0; }
-.session-tool { display: flex; gap: 6px; align-items: center; padding: 5px 9px; border-radius: 6px; color: var(--color-muted); font-size: 12px; }
-.session-tool:hover, .session-tool[aria-pressed=true] { color: var(--color-text); background: var(--color-hover); }
+.session-tool { display: flex; gap: 6px; align-items: center; min-height: 28px; padding: 5px 9px; border-radius: 6px; color: var(--color-muted); font-size: 12px; white-space: nowrap; }
+.session-tool:enabled:hover { color: var(--color-text); background: var(--color-hover); }
+.session-tool[aria-pressed=true] { color: var(--color-primary); background: var(--color-selected); }
+.workspace-auxiliary { display: flex; align-items: center; flex-shrink: 0; padding: 2px; border: 1px solid var(--color-border); border-radius: var(--radius); gap: 2px; }
+.workspace-auxiliary .session-tool { border-radius: 4px; }
+.workspace-toolbar .focus-toggle { margin-left: 0; }
 .focus-toggle { margin-left: auto; }
 .ssh-panels { flex: 1; min-height: 0; min-width: 0; display: flex; position: relative; }
 .panel-scrim { position: absolute; inset: 0; z-index: 4; background: #00000018; cursor: default; animation: selection-in var(--motion-normal) ease; }
