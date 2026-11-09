@@ -25,7 +25,7 @@ Choose **Settings → Appearance → Language** to follow the system, use Englis
 - **Local workspace** — named working sets, layout and draft recovery, appearance and keyboard shortcuts.
 - **Encrypted backups** — local files and WebDAV snapshots with previewed recovery and selective configuration migration.
 
-See [usage and boundaries](docs/development.md#using-the-workbench). Embedded RDP currently uses TLS 1.2; TLS 1.3-only targets are unsupported. Native WebView behavior and real remote connectivity require their own verification; see the [RDP contract](docs/architecture.md#embedded-rdp).
+See [usage and boundaries](docs/development.md#using-the-workbench), including the [RDP TLS compatibility boundary](docs/architecture.md#embedded-rdp). Recorded native WebView and real remote coverage is in the [verification ledger](docs/development.md#verification-and-known-gaps).
 
 <a id="cli-与-agent-skill"></a>
 ## CLI and Agent skill

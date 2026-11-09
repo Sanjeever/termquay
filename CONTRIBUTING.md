@@ -18,15 +18,7 @@ Go owns network/authentication/session/transfer/storage logic; React owns views 
 
 ## Verify affected behavior
 
-Typical frontend checks:
-
-```sh
-pnpm --dir frontend test
-pnpm --dir frontend check
-pnpm --dir frontend build
-```
-
-After Go service/model/event changes, run `wails3 generate bindings -ts -i` and inspect the generated diff. Never patch bindings manually. Run relevant Go tests, broadening to `go test ./internal/...` or `go test ./...` as appropriate. Build frontend assets before root-package tests. Use race checks when platform/CGO/C compiler support them.
+Follow [changes and checks](docs/development.md#changes-and-checks) for frontend commands, binding generation and backend/race checks. Choose checks for the affected behavior and inspect generated diffs. Never patch bindings manually.
 
 Documentation-only changes need content/link/diff checks. Every PR need not test every platform or real service. Unit/local integration works without maintainer servers. Real SSH/WebDAV tests are optional, require authorization/secure settings and use isolated test directories or collections.
 

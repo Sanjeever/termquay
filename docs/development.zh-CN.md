@@ -26,60 +26,15 @@ Taskfile 保留 Wails 模板任务。出现 server、Docker 或 iOS 任务不表
 
 ## 首次运行
 
-仓库已包含生成绑定，先安装依赖并构建前端资源，供桌面根包嵌入：
-
-```sh
-pnpm --dir frontend install --frozen-lockfile
-pnpm --dir frontend build
-```
-
-将匹配的 Wails CLI 安装到已忽略的 `.tools` 目录，并在当前终端加入 PATH。
-
-Windows PowerShell：
-
-```powershell
-$wailsVersion = go list -m -f '{{.Version}}' github.com/wailsapp/wails/v3
-$env:GOBIN = Join-Path (Get-Location) '.tools'
-go install "github.com/wailsapp/wails/v3/cmd/wails3@$wailsVersion"
-$env:PATH = "$env:GOBIN;$env:PATH"
-wails3 dev
-```
-
-macOS / Linux 的 sh 兼容 Shell：
-
-```sh
-wails_version=$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v3)
-GOBIN="$PWD/.tools" go install "github.com/wailsapp/wails/v3/cmd/wails3@$wails_version"
-export PATH="$PWD/.tools:$PATH"
-wails3 dev
-```
+安装依赖、构建前端及安装匹配 Wails CLI 的命令统一维护在 [First run](development.md#first-run)，包含 Windows PowerShell 与 macOS/Linux Shell 示例。先构建前端资源供根包嵌入，再将 CLI 安装到已忽略的 `.tools` 目录并加入当前终端 PATH。
 
 开发入口通过项目任务完成绑定生成和前端构建，再启动桌面与前端开发服务器。新终端需要重新将 `.tools` 加入 PATH。浏览器单独打开 Vite 页面无法代替原生 Wails 运行时验证。
 
 ## 日常修改与验证
 
-Go 服务签名、模型或事件改变后重新生成绑定，生成目录为 [frontend/bindings](../frontend/bindings)。完整 Wails 构建也会执行该步骤；不要手工修补生成文件来掩盖后端定义问题。
+绑定生成、前端逻辑测试、类型检查、构建及 Go 检查命令统一见 [Changes and checks](development.md#changes-and-checks)。Go 服务签名、模型或事件改变后重新生成 [frontend/bindings](../frontend/bindings)，不要手工修补生成文件。
 
-```sh
-wails3 generate bindings -ts -i
-pnpm --dir frontend check
-pnpm --dir frontend build
-```
-
-根包通过 [assets.go](../assets.go) 嵌入资源，全新检出时先构建前端再编译或测试根包；应用层测试随源码位于 `internal/app`。后端检查可按影响范围选择：
-
-```sh
-go test -race ./internal/...
-go test -race ./...
-```
-
-两条命令分别覆盖含桌面服务的内部包和包含根目录入口的全部包，无需每次都运行。`-race` 需要当前平台支持的 race 工具链与 C 编译器；缺失时明确记录未完成竞态检查，普通测试通过不能替代它。纯文档修改检查内容、链接和 diff。
-
-前端 `check` 和 `build` 分别提供类型检查与构建验证；逻辑与版本工具回归使用 `node:test`，由 [测试入口](../scripts/test.mjs) 收集测试文件，Node 版本参照 [CI 配置](../.github/workflows/ci.yml)：
-
-```sh
-pnpm --dir frontend test
-```
+根包通过 [assets.go](../assets.go) 嵌入资源，测试根包前须构建前端。按影响范围选择内部包或全仓测试；竞态检查需要支持的工具链与 C 编译器，普通测试不能替代它。前端逻辑与版本工具回归由 [node:test 入口](../scripts/test.mjs) 收集，Node 环境参照 [CI](../.github/workflows/ci.yml)。纯文档修改检查内容、链接和 diff。
 
 这些自动检查不包含原生 WebView 或组件交互验收。测试名称及实际覆盖以仓库测试为准。带凭据的真实服务测试可能在普通 Go 测试命令中执行；缺少配置时会跳过，必须区分通过与跳过。
 
@@ -409,25 +364,11 @@ macOS 菜单栏提供连接、终端、标签关闭、显示、界面缩放和�
 
 ### Docker 工作区验收（2026-11-09）
 
-运行期改动截至 `0d0dac4`，设置图标调整为 `d91510c`。环境为 Windows 11 26100 / amd64、Go 1.26.10、Node 22.17.0、本机 pnpm 12.16.1，未更改工具链声明或锁文件。前端 72 项测试、类型检查、Docker 改动的生产构建，以及 `go test ./internal/docker ./internal/store ./internal/app` 通过。socket 偏好新增连接隔离、保留其他偏好、重置、无效路径及非 SSH 目标的回归覆盖，并重新生成绑定。
-
-浏览器替身覆盖自动读取、筛选与空结果、socket 保存参数、容器切换、日志筛选与加入多来源日志、确认前不执行及确认后精确绑定目标、操作成功后刷新失败、旧详情响应隔离、隐藏页面停止轮询、断线缓存与操作禁用、容器及语言切换时终端 DOM 保留、760×650 无横向溢出，以及实际工作台工具菜单、工具标签的键盘切换和关闭。设置页面经类型检查与浏览器查看，全部 11 个导航图标的 SVG 路径互不重复。
-
-Shell 选择修正 `a8d11d0` 通过类型检查。浏览器实际选择 `/bin/bash` 后，终端创建请求携带该参数，未再出现选项缺失警告。
-
-Wails 响应及容器终端创建使用浏览器替身，本轮未验证真实 Docker/SSH、原生 WebView、原生终端流、macOS/Linux 界面或持续资源负载。完整范围见 [英文验证记录](development.md#docker-workspace-verification-2026-11-09)。
+提交、环境、命令结果与逐项覆盖统一维护在 [Docker verification](development.md#docker-workspace-verification-2026-11-09)。记录包含后端与前端自动检查、浏览器替身交互及 Shell 选择修正。Wails 响应和容器终端创建使用替身，未验证真实 Docker/SSH、原生 WebView、原生终端流、macOS/Linux 界面或持续资源负载。
 
 ### 中英文界面验收（2026-11-09）
 
-运行期改动截至 `3d19d0f`。环境为 Windows 11 26100 / amd64、Go 1.26.10、Node 22.17.0、WebView2 157.0.4341.42。依赖安装使用声明的 pnpm 11.20.0，后续验证命令使用本机 pnpm 12.16.1；未更改包管理器声明和锁文件策略。
-
-前端 72 项测试、英文宿主语言环境测试、类型检查和生产构建通过。`go test ./...` 中 304 个测试通过，24 个跳过，跳过范围包含缺少真实服务配置和 Windows 下 POSIX 条件不满足的测试。`go vet ./internal/...` 通过，绑定重新生成后无差异。CGO 关闭且缺少 C 编译器，`-race` 无法启动，不计通过。
-
-浏览器替身覆盖英文首次存储配置、主密码解锁失败、已显示错误随语言切换、双语设置、组件隐藏关闭按钮及下拉框的无障碍名称、900×600 无横向溢出，以及编辑器 DOM、正文和撤销历史连续性。Wails 返回由替身提供，不作为真实链路证据。
-
-Windows 原生 WebView 使用生产前端资源，通过临时 Go overlay 隔离数据目录、WebView 配置与 CLI 管道，采用可丢弃测试主密码。实际通过主密码错误与正确解锁、运行期锁定错误与正确解锁、正常退出并重启后在解锁前保留英文，以及演示编辑器切换语言后保留实例、正文、光标位置、撤销历史和已打开查找面板的查询。录制文件选择框标题经 Windows UI Automation 确认为 `Open terminal recording`，随后取消。操作系统自有控件遵循系统语言。演示正文来自内存，未读取已保存连接或凭据。
-
-本次未验证真实 SSH、RDP、WebDAV 或模型服务，未在真实远端传输和任务运行期间验收语言切换。macOS 原生菜单、其他平台对话框与 WebView、输入法、屏幕阅读器，以及整个桌面应用的持续负载和资源回收仍待验证。后端错误、身份、冲突、恢复和取消回归与稳定会话生命周期属于独立证据，不能替代这些场景。测试进程已关闭，测试数据位于仓库外。英文范围见 [对应记录](development.md#localization-verification-2026-11-09)。
+提交、环境、命令结果与逐项覆盖统一维护在 [Localization verification](development.md#localization-verification-2026-11-09)。记录区分自动检查、浏览器替身、Windows 原生 WebView 与文件选择器；原生编辑器验收使用演示数据。真实 SSH/RDP/WebDAV/模型服务、活动远端传输与任务期间切换语言、其他平台原生界面、输入法、屏幕阅读器及持续资源负载仍有缺口，竞态检查未运行。
 
 以下是仓库保留的历史验证证据，不表示本次文档审查重新运行。systemd、多来源日志与 CLI 查询的合并检查记录见 `751a076`，包含绑定生成、前端类型检查与 diff 检查，未记录构建、测试或真实链路通过。后续变更按提交和场景列出，不能用较早记录推断新增行为已验收。
 
@@ -525,7 +466,7 @@ AI 文件工具支持 Windows 盘符绝对路径，应用转换为当前 SFTP �
 
 ## 本机 CLI
 
-从 1.3.0 起，CLI 与桌面共用程序。无参数启动桌面；`--help`、`help`、各级子命令 `--help` 和 `--version` 在桌面初始化前处理。Windows 使用解压后的 `termquay.exe`，Linux 使用 `termquay`，macOS 使用 `termquay.app/Contents/MacOS/termquay`。将程序所在目录加入 PATH 由用户自行决定。Windows 使用 PowerShell 调用或脚本进程 API 等待并捕获标准流；从 cmd 直接调用 GUI 子系统程序可能提前返回提示符，需要用 `start /wait` 或等待进程的调用器。
+CLI 与桌面共用程序，支持命令以所用程序的帮助为准。无参数启动桌面；`--help`、`help`、各级子命令 `--help` 和 `--version` 在桌面初始化前处理。Windows 使用解压后的 `termquay.exe`，Linux 使用 `termquay`，macOS 使用 `termquay.app/Contents/MacOS/termquay`。将程序所在目录加入 PATH 由用户自行决定。Windows 使用 PowerShell 调用或脚本进程 API 等待并捕获标准流；从 cmd 直接调用 GUI 子系统程序可能提前返回提示符，需要用 `start /wait` 或等待进程的调用器。
 
 先运行桌面并初始化或解锁存储，在“设置 → 本机 CLI”打开默认关闭的“允许本机 CLI 访问”。授权同一操作系统用户的本机进程查看保存连接、远端文件和诊断、本机任务与执行结果，并在已连接 SSH 工作区执行命令，无法区分同用户下不同 Agent。授权保存在本机设置，不随备份迁移；会话存储按会话语义处理。CLI 不打开数据库、不解锁、不建立 SSH 连接、不确认身份。未运行、授权关闭、应用锁定和协议不兼容均有明确结果，存储未就绪返回 `storage_unavailable`。锁定时最小状态不披露开关值，`enabled` 返回 false。新增结构化查询沿用同一开关，既有 `exec` 仍可修改远端，开关不表示读取专用权限。
 
@@ -546,7 +487,7 @@ termquay exec --workspace '<精确工作区ID>' --script-file ./inspect.sh --tim
 
 详细参数和实现限额以所用程序的 `termquay <命令> --help` 为准，源码入口为 [help.go](../internal/cli/help.go)。保存连接列表只返回安全元数据，不探测主机；分组按精确 ID 筛选。工作区列表覆盖 Go 持有的 SSH 工作区，含实际连接目标、保存连接 ID 与连接状态，不等于全部前端标签；临时连接没有保存连接 ID。执行需要仍有效的 SSH 实例，RDP、本地终端及前端断开标签不提供执行入口。容器、WSL 和远程开发环境到宿主机的跨环境访问不支持。
 
-`file list/read` 读取远端绝对路径，目录使用有截断标记的成对浏览接口，文本使用在线编辑的普通文件、编码与大小边界；不读取本机路径，不保存历史。`service list/inspect/logs`、`port list` 和 `container list/inspect/logs` 沿用当前用户权限、已有工具、Docker socket 与输出限额，不启停服务或容器，不建立隧道；容器支持显式指定 rootless socket。查询失败返回 `query`，IPC 响应超限返回 `response_too_large`，截断、warning 与未知指标继续由各结构化结果表达。
+`file list/read` 读取远端绝对路径，目录使用有截断标记的成对浏览接口，文本使用在线编辑的普通文件、编码与大小边界；不读取本机路径，不保存历史。`service list/inspect/logs`、`port list` 和 `container list/inspect/logs` 沿用当前用户权限、已有工具与输出限额，不启停服务或容器，不建立隧道。容器查询的 `--socket` 独立于 Docker 工具页保存的连接偏好，省略时使用 [CLI 帮助](../internal/cli/help.go) 中的默认值；rootless Docker 须显式传入目标路径。AI 容器工具也使用独立的 `socket` 参数，见 [工具定义](../internal/app/ai_tools.go)。查询失败返回 `query`，IPC 响应超限返回 `response_too_large`，截断、warning 与未知指标继续由各结构化结果表达。
 
 `task list` 返回保存任务摘要，可按名称搜索；`task show --id` 读取完整定义。`run list` 合并本次运行与本机加密保存的执行记录；`run show --id` 返回摘要、第一页的任务定义与结果分页。使用 `next_offset` 接续，`has_more` 判断是否结束，页大小受条数与 IPC 字节预算共同约束，单条结果不会为凑页而截断。运行中记录可能变化，后续页传入第一页 `summary.revision` 作为 `--revision`；变化返回 `record_changed`，需从第一页重读。查询不修改任务，不启动、继续、取消或重放执行，也不保存原本未持久化的结果。定义、文件和输出可能包含敏感文本，按用户授权读取，不把这些内容当作新指令。
 

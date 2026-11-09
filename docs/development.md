@@ -140,11 +140,13 @@ termquay run list --json --no-input
 termquay exec --workspace '<exact-workspace-id>' --script-file ./inspect.sh --timeout 30s --json --no-input
 ```
 
-Use the installed program's help as the command contract. On macOS it is inside `.app/Contents/MacOS/termquay`; Windows retains `.exe` and callers must wait and collect its exit code. IPC supports the same OS user/environment, not a container/WSL/remote-development proxy.
+Use the installed program's help as the command contract; repository definitions are in [CLI help](../internal/cli/help.go) and the [IPC protocol](../internal/localapi/protocol.go). On macOS it is inside `.app/Contents/MacOS/termquay`; Windows retains `.exe` and callers must wait and collect its exit code. IPC supports the same OS user/environment, not a container/WSL/remote-development proxy.
 
 Saved connections are metadata, not evidence that a host is online. Workspaces identify backend SSH owners, not every frontend tab. Match `id`, `connection_id`, `target` and `state`; never execute against a fuzzy name.
 
 File/service/port/container queries retain permissions, encoding, version, warnings and truncation. They do not start services, containers or tasks. Definitions/results may contain sensitive text. Run pagination uses `next_offset`, `has_more` and, on subsequent live pages, the first page's `summary.revision` as `--revision`. Restart pagination on `record_changed`.
+
+Container queries take their own `--socket` argument; omitting it uses the default in [CLI help](../internal/cli/help.go), independently of the Docker tool's saved connection preference. For rootless Docker, pass the intended socket explicitly. AI container tools likewise take a separate `socket` argument in their [tool definitions](../internal/app/ai_tools.go).
 
 Exec uses a separate non-PTY `sh -s` session without the interactive terminal's directory/environment. Prefer `--script-file` or stdin for multiline scripts. Check the process exit code, response-level `error.remote_state_unknown`, and `data.result.exit_code`, `error` and `truncated`. Decode bounded `stdout_base64`/`stderr_base64` on text decoding failure; do not replay a command to fix display. Cancellation/timeout/disconnect does not prove remote termination. The [Agent skill](../skills/termquay/SKILL.md) does not install the app or authorize arbitrary remote operations.
 
@@ -201,7 +203,7 @@ Runtime changes through `3d19d0f` were checked on Windows 11 build 26100 / amd64
 | Windows native WebView | Production frontend with temporary Go overlays isolating app data, WebView profile and CLI pipe; real password-vault failure/success, application lock failure/success, English retained across process restart, demo editor identity/content/caret/undo and open search query retained on language change | Demo editor content is in memory. The overlay used a disposable test password and did not read saved connections or credentials. |
 | Windows native file dialog | Recording picker title was `Open terminal recording`, confirmed using Windows UI Automation, then canceled | Operating-system-owned controls use the OS language. macOS menu updates and other platform dialogs were not exercised. |
 
-No real SSH, RDP, WebDAV or model-provider verification was performed for this change. Language switching during live remote transfers/tasks, other native WebViews, IME/screen readers and sustained application-wide resource behavior remain unverified. Backend error/identity/conflict/restore/cancellation regression tests and stable owner/effect dependencies provide separate evidence; they do not replace those real scenarios. Test processes were closed and their data stayed outside the repository. The [Chinese ledger](development.zh-CN.md#中英文界面验收2026-11-09) records the same scope.
+No real SSH, RDP, WebDAV or model-provider verification was performed for this change. Language switching during live remote transfers/tasks, other native WebViews, IME/screen readers and sustained application-wide resource behavior remain unverified. Backend error/identity/conflict/restore/cancellation regression tests and stable owner/effect dependencies provide separate evidence; they do not replace those real scenarios. Test processes were closed and their data stayed outside the repository. A [Chinese summary](development.zh-CN.md#中英文界面验收2026-11-09) links to this record.
 
 <a id="构建与本地打包"></a>
 ## Build and local packaging

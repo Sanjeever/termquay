@@ -38,7 +38,7 @@ dev_mode:
       type: blocking
     - cmd: wails3 task common:dev:frontend
       type: background
-      # 标准前端任务等待 FRONTEND_DEVSERVER_URL 就绪后再启动桌面，端口由项目任务传入。
+      # Frontend tasks receive VITE_PORT; keep the RDP origin aligned (docs/development.md#environment).
     - cmd: wails3 task run
       type: primary
       exit_policy: shutdown
