@@ -1,4 +1,4 @@
-import { test } from 'node:test';
+import { test } from 'vitest';
 import { strict as assert } from 'node:assert';
 import { commandContext, pathCandidates } from './terminalCompletion.ts';
 import { detailedCommandCount, posixCommands } from './posixCommands.ts';

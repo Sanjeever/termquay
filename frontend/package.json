@@ -7,6 +7,9 @@
   "scripts": {
     "bump": "node ../scripts/version.mjs bump",
     "test": "node ../scripts/test.mjs",
+    "test:unit": "vitest run --project unit",
+    "test:components": "vitest run --project components",
+    "test:watch": "vitest",
     "dev": "vite",
     "check": "tsc --noEmit",
     "build:dev": "tsc && vite build --minify false --mode development",
@@ -64,13 +67,18 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.3",
+    "@testing-library/dom": "10.4.2",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.8",
     "@types/node": "24.10.0",
     "@types/react": "18.3.26",
     "@types/react-dom": "18.3.7",
     "@vitejs/plugin-react": "6.0.0",
     "fast-xml-parser": "5.11.2",
+    "jsdom": "31.0.0",
     "tailwindcss": "4.3.3",
     "typescript": "5.9.3",
-    "vite": "8.2.4"
+    "vite": "8.2.4",
+    "vitest": "5.1.0"
   }
 }

@@ -1,4 +1,4 @@
-import { test } from 'node:test';
+import { test } from 'vitest';
 import { strict as assert } from 'node:assert';
 import { isDirty, savedEncoding, withSavedDocument, fileErrorAction, type Draft } from './fileDrafts.ts';
 import { formatKey } from './editorFormat.ts';

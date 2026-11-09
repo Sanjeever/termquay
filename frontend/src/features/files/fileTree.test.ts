@@ -1,6 +1,6 @@
 import i18n from '../../i18n/index.ts';
 await i18n.changeLanguage('zh-CN');
-import { test } from 'node:test';
+import { test } from 'vitest';
 import { strict as assert } from 'node:assert';
 import type { Entry } from '../../../bindings/github.com/Sanjeever/termquay/internal/files/models';
 import { directoryAncestors, fileTreeRows, inDirectory, entryMetadata, uploadRefreshPaths } from './fileTree.ts';

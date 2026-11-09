@@ -77,7 +77,7 @@ go test ./...
 
 The second command includes the root entry point and needs built frontend assets. On a supported platform with CGO and a C compiler, run the relevant race checks, for example `go test -race ./internal/...`. Ordinary tests do not substitute for race detection. Documentation-only changes need content/link/diff checks, not builds.
 
-Frontend tests use [node:test](../scripts/test.mjs). CI also builds on three platforms, checks binding consistency and runs the [CLI smoke check](../scripts/cli-smoke.mjs). A workflow definition is not evidence that a check ran for your change.
+Frontend tests use [Vitest](../frontend/vitest.config.ts). Pure logic runs in Node; React component tests run in jsdom with React Testing Library and user-event. [Script tests](../scripts/test.mjs) retain Node's built-in `node:test`. Both `pnpm test` and `pnpm --dir frontend test` run the script and frontend suites and fail if either fails. CI uses the same entry point, also builds on three platforms, checks binding consistency and runs the [CLI smoke check](../scripts/cli-smoke.mjs). A workflow definition is not evidence that a check ran for your change.
 
 ## Interface localization
 

@@ -1,4 +1,4 @@
-import { test } from 'node:test';
+import { test } from 'vitest';
 import { strict as assert } from 'node:assert';
 import { demoConnections, demoDirectories, demoFiles, demoGroups, demoLatency, demoPreferences, demoSamples, demoTime } from './data.ts';
 import { createHistory, historyPoints, recordSample, trendSegments } from '../monitor/history.ts';

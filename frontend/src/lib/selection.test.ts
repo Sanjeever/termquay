@@ -1,4 +1,4 @@
-import { test } from 'node:test';
+import { test } from 'vitest';
 import { strict as assert } from 'node:assert';
 import { selectItems } from './selection.ts';
 test('多选、取消和跨方向范围选择遵循当前可见顺序', () => {

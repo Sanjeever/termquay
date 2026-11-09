@@ -1,4 +1,4 @@
-import { test } from 'node:test';
+import { test } from 'vitest';
 import { strict as assert } from 'node:assert';
 import type { Sample } from '../../../bindings/github.com/Sanjeever/termquay/internal/monitor/models.ts';
 import { createHistory, historyLimit, historyPoints, historyWindow, recordSample, trendSegments } from './history.ts';
