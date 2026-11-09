@@ -33,3 +33,19 @@ export function transferSummary(items: Pick<Transfer, 'state'>[]) {
   };
   return (Object.keys(labels) as (keyof typeof labels)[]).filter(state => counts.has(state)).map(state => labels[state](counts.get(state)!)).join(' · ');
 }
+
+export function groupTransfers<T extends Pick<Transfer, 'id' | 'batch_id' | 'target' | 'direction' | 'destination_path' | 'directory'>>(items: T[]) {
+  const groups = new Map<string, { id: string; items: T[]; directory: string }>();
+  for (const item of items) {
+    const id = JSON.stringify([item.batch_id || item.id, item.target, item.direction]);
+    const directory = item.directory ? item.destination_path : item.destination_path.slice(0, item.destination_path.lastIndexOf('/')) || '/';
+    const group = groups.get(id);
+    if (!group) { groups.set(id, { id, items: [item], directory }); continue; }
+    group.items.push(item);
+    const parts = group.directory.split('/'), other = directory.split('/');
+    let shared = 0;
+    while (shared < parts.length && shared < other.length && parts[shared] === other[shared]) shared++;
+    group.directory = parts.slice(0, shared).join('/') || '/';
+  }
+  return [...groups.values()];
+}

@@ -76,6 +76,12 @@
 .transfer-batch-summary { margin: 2px 12px 8px; color: var(--color-muted); font-size: 12px; }
 .transfer-reason { margin-top: 5px; font-size: 11px; overflow-wrap: anywhere; }
 .transfer-revealed { background: color-mix(in srgb, var(--color-selected) 45%, transparent); }
+.transfer-group { background: var(--color-selection-muted); }
+.transfer-group-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 16px; }
+.transfer-group-heading > button { display: flex; align-items: center; gap: 8px; min-width: 0; text-align: left; white-space: normal !important; }
+.transfer-group-heading strong { font-weight: 500; overflow-wrap: anywhere; }
+.transfer-group-heading .file-path { color: var(--color-muted); font: 11px var(--font-mono); overflow-wrap: anywhere; }
+.transfer-group-heading > span { color: var(--color-muted); font-size: 11px; }
 @media (max-width: 1000px) {
   .transfer-panel .transfer-target { display: none; }
   .transfer-compact-target { display: block; margin-top: 4px; color: var(--color-muted); font: 11px var(--font-mono); }

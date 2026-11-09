@@ -656,5 +656,6 @@
   "retrySave": "Retry save",
   "useUTF8": "Use UTF-8",
   "parentDirectories": "Parent directories",
-  "selectedFileActions": "Selected file actions"
+  "selectedFileActions": "Selected file actions",
+  "toggleTransferBatch": "Show or hide finished transfers: {{value1}} · {{value2}}"
 }
