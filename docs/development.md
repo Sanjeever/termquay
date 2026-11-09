@@ -186,6 +186,8 @@ Docker runtime changes through `0d0dac4` were checked on Windows 11 build 26100 
 
 Browser substitutes exercised automatic container reads, filtering and empty results, socket save arguments, container switching, filtered logs and forwarding a log source, confirmation before mutation with exact host/socket/container arguments, successful mutation followed by refresh failure, stale detail response rejection, stopping hidden-page polling, disconnect cache retention and disabled actions, terminal DOM retention across selection/language changes, and a 760×650 layout without horizontal overflow. The actual workbench tools menu, tool tab selection/keyboard navigation and closing were also exercised. The settings update at `d91510c` passed a TypeScript check and browser inspection confirming all 11 navigation icons have distinct SVG paths.
 
+The shell selector follow-up at `a8d11d0` passed the TypeScript check and a browser check selecting `/bin/bash`, verifying that exact argument in the terminal creation request and observing no missing-option warnings.
+
 Wails responses and container terminal creation were synthetic in the browser. No real Docker/SSH connection, native WebView, native terminal stream, macOS/Linux UI, or sustained resource measurement was verified for this change. Backend package tests and browser state checks do not establish those scenarios.
 
 ### Localization verification (2026-11-09)
