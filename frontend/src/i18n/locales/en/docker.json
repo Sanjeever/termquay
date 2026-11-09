@@ -1,4 +1,5 @@
 {
+  "searchKeywords": "Docker containers Compose logs terminal",
   "confirmContainerAction": "Execute {{action}} on container {{container}} on {{host}}?",
   "containerResources": "Container resources",
   "resources": "Resources",

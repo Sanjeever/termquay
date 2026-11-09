@@ -1,4 +1,5 @@
 {
+  "searchKeywords": "Docker 容器 Compose 日志 终端",
   "confirmContainerAction": "确认在 {{host}} 对容器 {{container}} 执行 {{action}}？",
   "containerResources": "容器资源",
   "resources": "资源",
