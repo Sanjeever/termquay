@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,6 +20,34 @@ type AIChanged struct {
 	Revision  uint64 `json:"revision"`
 }
 
+const aiFailureRepetitions = 3
+const aiFailureCycleLength = 4
+
+var errAIRepeatedFailure = appmessage.New("backend:aiRepeatedFailure", "工具重复返回相同失败结果，已停止重复尝试并转入结果总结；请核对结果后再继续")
+
+type aiToolFailure struct {
+	name   string
+	args   aiToolArguments
+	result [sha256.Size]byte
+}
+
+func repeatedAIFailures(history []aiToolFailure) bool {
+	for size := 1; size <= aiFailureCycleLength && size*aiFailureRepetitions <= len(history); size++ {
+		tail := history[len(history)-size*aiFailureRepetitions:]
+		matched := true
+		for i := size; i < len(tail); i++ {
+			if tail[i] != tail[i%size] {
+				matched = false
+				break
+			}
+		}
+		if matched {
+			return true
+		}
+	}
+	return false
+}
+
 func init() { application.RegisterEvent[AIChanged]("ai:changed") }
 
 func (a *AppService) emitAIChanged(run *aiRun) {
@@ -31,6 +60,7 @@ func (a *AppService) emitAIChanged(run *aiRun) {
 func (a *AppService) executeAIRun(ctx context.Context, run *aiRun) {
 	var runErr error
 	var stopReason error
+	var failures []aiToolFailure
 	defer close(run.done)
 	defer run.cancel()
 	defer func() {
@@ -182,6 +212,9 @@ func (a *AppService) executeAIRun(ctx context.Context, run *aiRun) {
 				result.ErrorMessage = appmessage.Describe(err)
 			} else if stopReason != nil {
 				result.ErrorCode = "budget_exhausted"
+				if stopReason == errAIRepeatedFailure {
+					result.ErrorCode = "loop_detected"
+				}
 				result.Error = stopReason.Error()
 				result.ErrorMessage = appmessage.Describe(stopReason)
 			} else {
@@ -196,6 +229,19 @@ func (a *AppService) executeAIRun(ctx context.Context, run *aiRun) {
 			if _, err := a.persistAIMessage(run, message, state); err != nil {
 				runErr = err
 				return
+			}
+			if stopReason == nil {
+				if state == "complete" || result.StatusUnknown {
+					failures = nil
+				} else {
+					failures = append(failures, aiToolFailure{name: call.Name, args: args, result: sha256.Sum256(b)})
+					if len(failures) > aiFailureCycleLength*aiFailureRepetitions {
+						failures = failures[1:]
+					}
+					if repeatedAIFailures(failures) {
+						stopReason = errAIRepeatedFailure
+					}
+				}
 			}
 			a.emitAIChanged(run)
 		}

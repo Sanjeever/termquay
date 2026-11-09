@@ -107,6 +107,7 @@
   "invalidModelToolCallIndex": "Invalid model tool call index",
   "modelCalledToolsDuringSummary": "The model requested tools during text-only summarization; no tools were executed",
   "aiBudgetSummary": "This turn is nearing its runtime budget; tools have stopped and results are being summarized",
+  "aiRepeatedFailure": "Tools repeatedly returned identical failures; repeated attempts have stopped and results are being summarized. Review the results before continuing.",
   "modelToolArgumentsExceedTheLimit": "Model tool arguments exceed the limit",
   "aIRequestsCannotRedirectEnterTheFinalRequest": "AI requests cannot redirect. Enter the final request URL.",
   "modelWaitTimeExceededMinutes": "Model wait time exceeded {{value1}} minutes: {{value2}}",

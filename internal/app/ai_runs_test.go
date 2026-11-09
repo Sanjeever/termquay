@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -580,5 +581,80 @@ func TestAIRunBudgetEndsWithTextOnlySummary(t *testing.T) {
 				t.Fatal("summary missing from history")
 			}
 		})
+	}
+}
+
+func TestAIRepeatedFailureCycles(t *testing.T) {
+	a := aiToolFailure{name: "file_read", args: aiToolArguments{Path: "/missing"}, result: sha256.Sum256([]byte("missing"))}
+	b := aiToolFailure{name: "file_read", args: aiToolArguments{Path: "/other"}, result: a.result}
+	changed := a
+	changed.result = sha256.Sum256([]byte("changed result"))
+	for _, tt := range []struct {
+		name    string
+		history []aiToolFailure
+		loop    bool
+	}{
+		{"one_failure", []aiToolFailure{a}, false},
+		{"two_failures", []aiToolFailure{a, a}, false},
+		{"same_failure", []aiToolFailure{a, a, a}, true},
+		{"alternating_failures", []aiToolFailure{a, b, a, b, a, b}, true},
+		{"different_arguments", []aiToolFailure{a, a, b}, false},
+		{"different_result", []aiToolFailure{a, a, changed}, false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if repeatedAIFailures(tt.history) != tt.loop {
+				t.Fatal("unexpected loop classification")
+			}
+		})
+	}
+}
+
+func TestAIRepeatedFailuresStopRemainingBatchAndSummarize(t *testing.T) {
+	a, executed := aiTestSSH(t)
+	var requests atomic.Int32
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if requests.Add(1) == 1 {
+			calls := []any{}
+			for i := range 5 {
+				calls = append(calls, map[string]any{"index": i, "id": fmt.Sprint(i), "function": map[string]any{"name": "file_read", "arguments": `{"path":"/missing"}`}})
+			}
+			aiTestEvents(w, map[string]any{"choices": []any{map[string]any{"delta": map[string]any{"tool_calls": calls}, "finish_reason": "tool_calls"}}})
+			return
+		}
+		var body struct {
+			Tools      []any  `json:"tools"`
+			ToolChoice string `json:"tool_choice"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Error(err)
+		}
+		if len(body.Tools) != 0 || body.ToolChoice != "none" {
+			t.Error("loop summary permits tools")
+		}
+		aiTestReply(w)
+	}))
+	defer s.Close()
+	aiTestConfigure(t, a, s.URL, false)
+	aiTestStart(t, a)
+	v := waitAI(t, a, func(v AIRunView) bool { return v.State == "stopped" || v.State == "failed" })
+	if v.State != "stopped" || requests.Load() != 2 || len(executed) != 0 {
+		t.Fatalf("loop did not stop: %+v", v)
+	}
+	page, err := a.GetAIConversation(t.Context(), "workspace", v.ConversationID, 0, 24)
+	if err != nil {
+		t.Fatal(err)
+	}
+	failed, skipped := 0, 0
+	for _, item := range page.Messages {
+		if item.Result != nil {
+			if item.Result.ErrorCode == "loop_detected" && item.State == "not_executed" {
+				skipped++
+			} else if item.State == "failed" {
+				failed++
+			}
+		}
+	}
+	if failed != aiFailureRepetitions || skipped != 5-aiFailureRepetitions || page.Messages[len(page.Messages)-2].Message.Content != "完成" {
+		t.Fatalf("failed=%d skipped=%d: incomplete summary", failed, skipped)
 	}
 }

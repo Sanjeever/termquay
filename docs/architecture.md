@@ -127,6 +127,8 @@ Backend approvals are one-use and bound to full arguments, timeout, turn and ses
 
 Turns have no fixed cumulative tool-call cap. Runtime budgets cover model/compaction/tools and pause only during explicit approval waiting, then resume their remaining allowance. Reserve part of that same budget for one text-only final summary: stop starting tools, record unexecuted calls, disable model tool choice and reject unexpected calls during summarization. The reserve does not extend the hard runtime limit or bypass stop, lock, disconnect or exit. Request/network/protocol/storage failures remain failures, without automatic retry. Budget definitions live in [the agent](../internal/app/ai.go).
 
+Detect repeated failed tools using a bounded recent history of tool names, normalized arguments and result fingerprints. Repeated identical failure cycles stop further tools and enter text-only summarization. Successful calls and unknown remote execution reset this history; successful polling and advancing pagination are not failures. This guard does not prove semantic progress or detect every loop. Thresholds live in [the run loop](../internal/app/ai_runs.go).
+
 Hiding preserves a running turn. Exit waits for encrypted persistence; deleting/new conversation cancels and waits so background work cannot recreate history. Encrypt history/target snapshots/summaries with session/message-bound AAD. Separate complete local records from model context and compact only whole tool-round-trip boundaries. Configuration/history stay outside regular backups.
 
 <a id="本机-cli-访问"></a>
