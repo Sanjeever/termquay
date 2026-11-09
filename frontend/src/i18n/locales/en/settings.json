@@ -1,4 +1,6 @@
 {
+  "restartImpact": "Restarting will close {{workspaces}} and stop {{transfers}}.",
+  "importImpact": "This will add {{connections}} and {{credentials}}, including required jump hosts. Repeating the import creates additional copies.",
   "aIAssistant": "AI assistant",
   "enableAIAssistant": "Enable AI assistant",
   "aPIType": "API type",

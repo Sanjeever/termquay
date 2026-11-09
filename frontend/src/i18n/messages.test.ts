@@ -27,3 +27,13 @@ test('event diagnostics translate nested causes without changing raw protocol fi
   assert.equal(errorMessage({ causes: [retained, { message: 'remote output' }] }), '主密码解锁失败: authentication failed\nremote output');
   await i18n.changeLanguage('en');
 });
+
+test('English counts use singular/plural while Chinese keeps its own wording', async () => {
+  await i18n.changeLanguage('en');
+  assert.equal(i18n.t('workspaceCount', { count: 1 }), '1 workspace');
+  assert.equal(i18n.t('workspaceCount', { count: 2 }), '2 workspaces');
+  await i18n.changeLanguage('zh-CN');
+  assert.equal(i18n.t('workspaceCount', { count: 1 }), '1 个工作区');
+  assert.equal(i18n.t('workspaceCount', { count: 2 }), '2 个工作区');
+  await i18n.changeLanguage('en');
+});

@@ -1,4 +1,6 @@
 {
+  "restartImpact": "重启将关闭 {{workspaces}} 并停止 {{transfers}}。",
+  "importImpact": "将新增 {{connections}} 和 {{credentials}}，包含依赖跳板。重复导入会产生新副本。",
   "aIAssistant": "AI 助手",
   "enableAIAssistant": "启用 AI 助手",
   "aPIType": "接口类型",
