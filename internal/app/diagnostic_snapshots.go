@@ -358,7 +358,7 @@ func (a *AppService) ExportDiagnosticSnapshot(snapshot DiagnosticSnapshot, selec
 	if err != nil {
 		return err
 	}
-	filename, err := application.Get().Dialog.SaveFile().SetMessage("导出已预览的排障内容（可能包含日志和进程参数）").SetFilename("termquay-diagnostic-snapshot.json").PromptForSingleSelection()
+	filename, err := application.Get().Dialog.SaveFile().SetMessage(nativeText("Export reviewed diagnostics (may include logs and process arguments)", "导出已预览的排障内容（可能包含日志和进程参数）")).SetFilename("termquay-diagnostic-snapshot.json").PromptForSingleSelection()
 	if err != nil || filename == "" {
 		return err
 	}

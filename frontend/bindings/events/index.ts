@@ -19,6 +19,11 @@ export const AiChanged = "ai:changed";
 export const AiSettingsChanged = "ai:settings-changed";
 
 /**
+ * Name of the custom event "app:language".
+ */
+export const AppLanguage = "app:language";
+
+/**
  * Name of the custom event "app:lock-changed".
  */
 export const AppLockChanged = "app:lock-changed";

@@ -101,7 +101,7 @@ func (a *AppService) DownloadFileDraft(document files.Document) error {
 	if err != nil {
 		return err
 	}
-	filename, err := application.Get().Dialog.SaveFile().SetMessage("下载当前文件草稿").SetFilename(path.Base(document.Path)).PromptForSingleSelection()
+	filename, err := application.Get().Dialog.SaveFile().SetMessage(nativeText("Download current file draft", "下载当前文件草稿")).SetFilename(path.Base(document.Path)).PromptForSingleSelection()
 	if err != nil || filename == "" {
 		return err
 	}

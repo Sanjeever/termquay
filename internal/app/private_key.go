@@ -22,7 +22,7 @@ type stagedPrivateKey struct {
 }
 
 func (a *AppService) SelectPrivateKey() (PrivateKeySelection, error) {
-	name, err := application.Get().Dialog.OpenFile().SetTitle("选择 SSH 私钥").PromptForSingleSelection()
+	name, err := application.Get().Dialog.OpenFile().SetTitle(nativeText("Select SSH private key", "选择 SSH 私钥")).PromptForSingleSelection()
 	if err != nil || name == "" {
 		return PrivateKeySelection{}, err
 	}

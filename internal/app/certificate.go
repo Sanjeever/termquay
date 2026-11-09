@@ -11,7 +11,7 @@ import (
 )
 
 func (a *AppService) SelectSSHCertificate() (string, error) {
-	filename, err := application.Get().Dialog.OpenFile().SetTitle("选择 SSH 用户证书").PromptForSingleSelection()
+	filename, err := application.Get().Dialog.OpenFile().SetTitle(nativeText("Select SSH user certificate", "选择 SSH 用户证书")).PromptForSingleSelection()
 	if err != nil || filename == "" {
 		return "", err
 	}

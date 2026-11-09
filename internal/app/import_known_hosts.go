@@ -46,7 +46,7 @@ type KnownHostsPreview struct {
 }
 
 func (a *AppService) SelectKnownHostsImport() (KnownHostsPreview, error) {
-	dialog := application.Get().Dialog.OpenFile().SetTitle("选择 OpenSSH known_hosts")
+	dialog := application.Get().Dialog.OpenFile().SetTitle(nativeText("Select OpenSSH known_hosts", "选择 OpenSSH known_hosts"))
 	if home, err := os.UserHomeDir(); err == nil {
 		dialog.SetDirectory(filepath.Join(home, ".ssh"))
 	}

@@ -27,7 +27,7 @@ func (a *AppService) SelectSessionImport(source string, directory bool) (SSHImpo
 	if !validSessionSource(source) {
 		return SSHImportPreview{}, errors.New("导入来源无效")
 	}
-	dialog := application.Get().Dialog.OpenFile().SetTitle("选择 " + source + " 会话配置")
+	dialog := application.Get().Dialog.OpenFile().SetTitle(fmt.Sprintf(nativeText("Select %s session configuration", "选择 %s 会话配置"), source))
 	if directory {
 		name, err := dialog.CanChooseFiles(false).CanChooseDirectories(true).PromptForSingleSelection()
 		if err != nil {

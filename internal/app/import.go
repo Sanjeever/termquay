@@ -42,7 +42,7 @@ type SSHImportChoice struct {
 }
 
 func (a *AppService) SelectSSHImport() (SSHImportPreview, error) {
-	names, err := application.Get().Dialog.OpenFile().SetTitle("选择 OpenSSH 配置及明确授权的 Include 文件").PromptForMultipleSelection()
+	names, err := application.Get().Dialog.OpenFile().SetTitle(nativeText("Select OpenSSH configuration and explicitly authorized Include files", "选择 OpenSSH 配置及明确授权的 Include 文件")).PromptForMultipleSelection()
 	if err != nil {
 		return SSHImportPreview{}, err
 	}

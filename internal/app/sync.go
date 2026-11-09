@@ -36,7 +36,7 @@ type directorySyncPlan struct {
 func (a *AppService) PreviewDirectorySync(ctx context.Context, workspace, direction, local, remote string) (DirectorySyncPreview, error) {
 	if local == "" {
 		var err error
-		local, err = application.Get().Dialog.OpenFile().SetTitle("选择本地同步目录").CanChooseFiles(false).CanChooseDirectories(true).PromptForSingleSelection()
+		local, err = application.Get().Dialog.OpenFile().SetTitle(nativeText("Select local sync directory", "选择本地同步目录")).CanChooseFiles(false).CanChooseDirectories(true).PromptForSingleSelection()
 		if err != nil || local == "" {
 			return DirectorySyncPreview{}, err
 		}

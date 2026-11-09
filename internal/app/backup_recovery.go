@@ -52,7 +52,7 @@ func (a *AppService) ExportBackupRecoveryKey() (BackupRecoveryKeyExport, error) 
 	if err != nil {
 		return BackupRecoveryKeyExport{}, err
 	}
-	filename, err := application.Get().Dialog.SaveFile().SetMessage("离线保存备份恢复密钥，持有此文件可解密对应备份").SetFilename("termquay-recovery-" + time.Now().UTC().Format("20060102T150405.000000000Z") + ".agekey").PromptForSingleSelection()
+	filename, err := application.Get().Dialog.SaveFile().SetMessage(nativeText("Save backup recovery key offline. This file decrypts corresponding backups.", "离线保存备份恢复密钥，持有此文件可解密对应备份")).SetFilename("termquay-recovery-" + time.Now().UTC().Format("20060102T150405.000000000Z") + ".agekey").PromptForSingleSelection()
 	if err != nil || filename == "" {
 		return BackupRecoveryKeyExport{}, err
 	}
@@ -84,7 +84,7 @@ func writeRecoveryKey(filename string, secret []byte) error {
 }
 
 func selectBackupRecoveryKey() (string, error) {
-	filename, err := application.Get().Dialog.OpenFile().SetTitle("选择备份恢复密钥文件").PromptForSingleSelection()
+	filename, err := application.Get().Dialog.OpenFile().SetTitle(nativeText("Select backup recovery key file", "选择备份恢复密钥文件")).PromptForSingleSelection()
 	if err != nil || filename == "" {
 		return "", err
 	}

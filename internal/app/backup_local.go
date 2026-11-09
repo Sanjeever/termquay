@@ -28,7 +28,7 @@ func (a *AppService) ExportLocalSnapshot(password string, selection BackupSelect
 	if recipient != "" {
 		defaultName = "termquay.tqbackup"
 	}
-	filename, err := application.Get().Dialog.SaveFile().SetMessage("导出加密快照").SetFilename(defaultName).PromptForSingleSelection()
+	filename, err := application.Get().Dialog.SaveFile().SetMessage(nativeText("Export encrypted snapshot", "导出加密快照")).SetFilename(defaultName).PromptForSingleSelection()
 	if err != nil || filename == "" {
 		return "", err
 	}
@@ -78,7 +78,7 @@ func (a *AppService) previewLocalRestore(password, recovery string) (RestorePrev
 	if err != nil {
 		return RestorePreview{}, err
 	}
-	filename, err := application.Get().Dialog.OpenFile().SetTitle("选择加密快照").PromptForSingleSelection()
+	filename, err := application.Get().Dialog.OpenFile().SetTitle(nativeText("Select encrypted snapshot", "选择加密快照")).PromptForSingleSelection()
 	if err != nil || filename == "" {
 		return RestorePreview{}, err
 	}

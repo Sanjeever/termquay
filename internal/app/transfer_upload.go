@@ -15,14 +15,14 @@ import (
 )
 
 func (a *AppService) StartUpload(id, directory string) (Transfer, error) {
-	local, err := application.Get().Dialog.OpenFile().SetTitle("选择上传文件").PromptForSingleSelection()
+	local, err := application.Get().Dialog.OpenFile().SetTitle(nativeText("Select upload files", "选择上传文件")).PromptForSingleSelection()
 	if err != nil || local == "" {
 		return Transfer{}, err
 	}
 	return a.uploadPath(id, local, path.Join(directory, filepath.Base(local)), false)
 }
 func (a *AppService) StartUploads(id, directory string, overwrite bool) (TransferBatch, error) {
-	paths, err := application.Get().Dialog.OpenFile().SetTitle("选择上传文件").PromptForMultipleSelection()
+	paths, err := application.Get().Dialog.OpenFile().SetTitle(nativeText("Select upload files", "选择上传文件")).PromptForMultipleSelection()
 	if err != nil {
 		return TransferBatch{}, err
 	}

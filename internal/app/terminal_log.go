@@ -26,7 +26,7 @@ func (a *AppService) StartTerminalLog(id string) (terminal.TerminalLogStatus, er
 	status := t.LogStatus()
 	parent := status.Directory
 	if parent == "" || status.Format == "asciicast" || status.Finished {
-		parent, err = application.Get().Dialog.OpenFile().SetTitle("选择终端日志目录").CanChooseFiles(false).CanChooseDirectories(true).PromptForSingleSelection()
+		parent, err = application.Get().Dialog.OpenFile().SetTitle(nativeText("Select terminal log directory", "选择终端日志目录")).CanChooseFiles(false).CanChooseDirectories(true).PromptForSingleSelection()
 		if err != nil || parent == "" {
 			return terminal.TerminalLogStatus{}, err
 		}
@@ -79,7 +79,7 @@ func (a *AppService) ExportTerminalBuffer(content string) error {
 	if len(content) > 16<<20 {
 		return errors.New("导出终端缓冲区超过 16 MiB")
 	}
-	filename, err := application.Get().Dialog.SaveFile().SetMessage("导出终端缓冲区").SetFilename("terminal.txt").PromptForSingleSelection()
+	filename, err := application.Get().Dialog.SaveFile().SetMessage(nativeText("Export terminal buffer", "导出终端缓冲区")).SetFilename("terminal.txt").PromptForSingleSelection()
 	if err != nil || filename == "" {
 		return err
 	}

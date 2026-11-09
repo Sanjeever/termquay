@@ -23,7 +23,7 @@ func (a *AppService) ExportDiagnostics() error {
 	if err != nil {
 		return err
 	}
-	filename, err := application.Get().Dialog.SaveFile().SetMessage("导出脱敏诊断信息").SetFilename("termquay-diagnostics.json").PromptForSingleSelection()
+	filename, err := application.Get().Dialog.SaveFile().SetMessage(nativeText("Export redacted diagnostics", "导出脱敏诊断信息")).SetFilename("termquay-diagnostics.json").PromptForSingleSelection()
 	if err != nil || filename == "" {
 		return err
 	}

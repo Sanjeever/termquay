@@ -10,7 +10,7 @@ import (
 )
 
 func (a *AppService) ChooseComparisonFile(charset string) (*files.Document, error) {
-	filename, err := application.Get().Dialog.OpenFile().SetMessage("选择对比文件").PromptForSingleSelection()
+	filename, err := application.Get().Dialog.OpenFile().SetMessage(nativeText("Select comparison file", "选择对比文件")).PromptForSingleSelection()
 	if err != nil || filename == "" {
 		return nil, err
 	}

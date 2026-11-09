@@ -14,6 +14,7 @@ declare module "@wailsio/runtime" {
         interface CustomEvents {
             "ai:changed": app$0.AIChanged;
             "ai:settings-changed": app$0.AISettings;
+            "app:language": string;
             "app:lock-changed": app$0.ApplicationLockStatus;
             "app:menu-command": string;
             "app:menu-state": { [_ in string]?: string } | null;

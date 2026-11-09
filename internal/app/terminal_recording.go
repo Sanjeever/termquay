@@ -24,7 +24,7 @@ func (a *AppService) StartTerminalRecording(id string) (terminal.TerminalLogStat
 	status := t.LogStatus()
 	parent := filepath.Dir(status.Directory)
 	if status.Directory == "" || status.Format != "asciicast" || status.Finished {
-		parent, err = application.Get().Dialog.OpenFile().SetTitle("选择终端录制的保存位置").CanChooseFiles(false).CanChooseDirectories(true).PromptForSingleSelection()
+		parent, err = application.Get().Dialog.OpenFile().SetTitle(nativeText("Select terminal recording location", "选择终端录制的保存位置")).CanChooseFiles(false).CanChooseDirectories(true).PromptForSingleSelection()
 		if err != nil || parent == "" {
 			return terminal.TerminalLogStatus{}, err
 		}
@@ -43,7 +43,7 @@ type TerminalRecording struct {
 }
 
 func (a *AppService) ChooseTerminalRecording() (TerminalRecording, error) {
-	filename, err := application.Get().Dialog.OpenFile().SetTitle("打开终端录制").AddFilter("终端录制 (*.cast)", "*.cast").PromptForSingleSelection()
+	filename, err := application.Get().Dialog.OpenFile().SetTitle(nativeText("Open terminal recording", "打开终端录制")).AddFilter(nativeText("Terminal recordings (*.cast)", "终端录制 (*.cast)"), "*.cast").PromptForSingleSelection()
 	if err != nil || filename == "" {
 		return TerminalRecording{}, err
 	}

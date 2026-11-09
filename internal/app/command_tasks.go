@@ -137,7 +137,7 @@ func (a *AppService) ExportCommandResults(results []CommandExportResult) error {
 	if len(data) > 16<<20 {
 		return errors.New("导出结果超过 16 MiB，请减少结果数量")
 	}
-	filename, err := application.Get().Dialog.SaveFile().SetMessage("导出所选执行结果（包含命令输出）").SetFilename("termquay-command-results.json").PromptForSingleSelection()
+	filename, err := application.Get().Dialog.SaveFile().SetMessage(nativeText("Export selected execution results (including command output)", "导出所选执行结果（包含命令输出）")).SetFilename("termquay-command-results.json").PromptForSingleSelection()
 	if err != nil || filename == "" {
 		return err
 	}

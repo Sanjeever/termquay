@@ -49,7 +49,7 @@ type pendingUpload struct {
 }
 
 func (a *AppService) ChooseUploadFiles(id, directory string) (UploadPreview, error) {
-	paths, err := application.Get().Dialog.OpenFile().SetTitle("选择上传文件").PromptForMultipleSelection()
+	paths, err := application.Get().Dialog.OpenFile().SetTitle(nativeText("Select upload files", "选择上传文件")).PromptForMultipleSelection()
 	if err != nil || len(paths) == 0 {
 		return UploadPreview{}, err
 	}

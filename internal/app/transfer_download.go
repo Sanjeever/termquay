@@ -13,7 +13,7 @@ import (
 )
 
 func (a *AppService) StartDownload(id, remote string) (Transfer, error) {
-	local, err := application.Get().Dialog.SaveFile().SetMessage("保存下载文件").SetFilename(path.Base(remote)).PromptForSingleSelection()
+	local, err := application.Get().Dialog.SaveFile().SetMessage(nativeText("Save downloaded file", "保存下载文件")).SetFilename(path.Base(remote)).PromptForSingleSelection()
 	if err != nil || local == "" {
 		return Transfer{}, err
 	}
@@ -27,7 +27,7 @@ func (a *AppService) StartDownloads(id string, remotes []string, overwrite bool)
 	if _, err := a.terminal(id); err != nil {
 		return TransferBatch{}, err
 	}
-	directory, err := application.Get().Dialog.OpenFile().SetTitle("选择下载目录").CanChooseFiles(false).CanChooseDirectories(true).PromptForSingleSelection()
+	directory, err := application.Get().Dialog.OpenFile().SetTitle(nativeText("Select download directory", "选择下载目录")).CanChooseFiles(false).CanChooseDirectories(true).PromptForSingleSelection()
 	if err != nil || directory == "" {
 		return TransferBatch{}, err
 	}
