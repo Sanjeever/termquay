@@ -648,5 +648,11 @@
   "couldNotReadImageContentHTTP": "图片内容读取失败：HTTP {{value1}}",
   "couldNotDecodeImageReloadOrDownloadThe": "图片解码失败，请重新读取或下载原文件",
   "noUnsavedChanges": "无未保存修改",
-  "lineEndings": "换行符"
+  "lineEndings": "换行符",
+  "fileSaveFailed": "远端文件保存失败，草稿已保留",
+  "fileReloadFailed": "远端文件重新加载失败，草稿已保留",
+  "draftDownloadFailed": "下载当前内容失败",
+  "technicalDetails": "技术详情",
+  "retrySave": "重试保存",
+  "useUTF8": "改用 UTF-8"
 }

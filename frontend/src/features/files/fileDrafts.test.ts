@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
-import { isDirty, savedEncoding, withSavedDocument, type Draft } from './fileDrafts.ts';
+import { isDirty, savedEncoding, withSavedDocument, fileErrorAction, type Draft } from './fileDrafts.ts';
 import { formatKey } from './editorFormat.ts';
 
 const draft = (): Draft => ({ path: '/tmp/test-config', content: 'original', revision: 'before', encoding: 'UTF-8', line_ending: 'LF', bom: false, saved: 'original', error: '', saving: false });
@@ -25,4 +25,16 @@ test('正文相同但格式改变或带恢复标记的草稿仍需保存', () =>
   assert.equal(isDirty({ ...original, encoding: 'GBK' }), true);
   assert.equal(isDirty({ ...original, bom: true }), true);
   assert.equal(isDirty({ ...original, recovery: true }), true);
+});
+
+test('file recovery actions follow the failed operation and structured remote error', () => {
+  const conflict = { cause: { causes: [{ messageCode: 'backend:remoteFileChangedReadItAgainAndCompare' }, { message: 'cleanup failure' }] } };
+  assert.equal(fileErrorAction({ error: conflict, errorOperation: 'save' }, true), 'compare');
+  assert.equal(fileErrorAction({ error: conflict, errorOperation: 'download' }, true), 'download');
+  assert.equal(fileErrorAction({ error: conflict, errorOperation: 'download' }, false), 'download');
+  assert.equal(fileErrorAction({ error: conflict }, false), 'reconnect');
+  assert.equal(fileErrorAction({ error: '', needsReview: true }, true), 'compare');
+  assert.equal(fileErrorAction({ error: { cause: { messageCode: 'backend:cannotRepresentTheCurrentContentUseUTF8' } } }, true), 'encoding');
+  assert.equal(fileErrorAction({ error: 'Permission denied', errorOperation: 'save' }, true), 'save');
+  assert.equal(fileErrorAction({ error: 'Permission denied', errorOperation: 'read' }, true), 'reload');
 });

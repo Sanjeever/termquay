@@ -33,7 +33,7 @@ import { ReadSudoFile } from '../../../bindings/github.com/Sanjeever/termquay/in
 import SudoAuthorizationDialog, { type SudoAuthorization } from './SudoAuthorizationDialog';
 import useFileDrafts from './useFileDrafts';
 import { CreateTmuxTerminal } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
-import { isDirty, savedEncoding } from './fileDrafts';
+import { isDirty, savedEncoding, fileErrorAction } from './fileDrafts';
 import type { CommandAttention } from '../terminal/commandAttention';
 import { SetWorkspaceBrowseOnly } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import useAISettings from '../ai/useAISettings';
@@ -63,6 +63,16 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
   const [changingMode, setChangingMode] = useState(false);
   const { drafts, draftsRef, updateDrafts, reads, saves, save: saveFile, rereading, setRereading, requestReload, reread } = useFileDrafts({ sessionID, disposed, instance, authorizeSudo, setError });
   async function save(path: string) { if (browseOnly) { setError(uiMessage('files:theWorkspaceIsInFileBrowsingModeAllow')); return false; } return saveFile(path); }
+  async function downloadDraft(path: string) {
+    const draft = draftsRef.current.find(item => item.path === path);
+    if (!draft) return;
+    try {
+      await DownloadFileDraft({ ...draft, ...documentFormat(draft) });
+      if (!disposed.current && instance.current === sessionID) updateDrafts(previous => previous.map(item => item.path === path && item.errorOperation === 'download' ? { ...item, error: '', errorOperation: undefined } : item));
+    } catch (error) {
+      if (!disposed.current && instance.current === sessionID) updateDrafts(previous => previous.map(item => item.path === path ? { ...item, error, errorOperation: 'download' } : item));
+    }
+  }
   async function toggleBrowseOnly() {
     setChangingMode(true); setError('');
     try { await SetWorkspaceBrowseOnly(sessionID, !browseOnly); setBrowseOnly(!browseOnly); }
@@ -362,10 +372,19 @@ const SSHWorkspace = forwardRef<SSHWorkspaceHandle, {
         </div>;
       })}
       {fileOrder.filter(imageFile).map(path=><div key={`image:${path}`} className="editor-tab" data-tab-id={path} hidden={!shown(path)} style={{gridColumn:maximized?1:paneFor(path)===0?1:3,gridRow:2}} onFocusCapture={()=>setActivePane(paneFor(path))}><Suspense fallback={<div className="view-loading" role="status">{translate('files:loadingImagePreview')}</div>}><ImagePreview workspace={sessionID} path={path} visible={visible&&shown(path)} onDownload={()=>{void StartDownload(sessionID,path).catch(e=>setError(e));}} onText={()=>{void openPath(path,'UTF-8','text').catch(e=>setError(e));}}/></Suspense></div>)}
-      {drafts.map(d => <div key={d.path} className={`editor-tab ${activePane===paneFor(d.path)?'focused-pane':''}`} data-tab-id={d.path} hidden={!shown(d.path)||imageFile(d.path)} style={{gridColumn:maximized?1:paneFor(d.path)===0?1:3,gridRow:2}} onFocusCapture={()=>setActivePane(paneFor(d.path))}>
-        {errorMessage(eventError(d)) && <div className="file-save-error"><p role="alert" className="error">{errorMessage(eventError(d))}</p><div className="button-row"><Button size="sm" variant="light" isDisabled={d.saving} onPress={()=>setConflict(d.path)}>{translate('files:compareAndMerge')}</Button><Button size="sm" variant="light" onPress={() => setRereading(d.path)}>{translate('files:reload')}</Button><Button size="sm" variant="light" onPress={() => { navigator.clipboard.writeText(d.content).catch(e => setError(e)); }}>{translate('files:copyDraft')}</Button></div></div>}
-        <Suspense fallback={<div className="view-loading" role="status">{translate('files:loadingEditor')}</div>}><TextDocument workspace={sessionID} onHistory={() => setHistoryPath(d.path)} anchor={markdownAnchor?.path===d.path?markdownAnchor:undefined} onNavigate={(path,hash)=>{setMarkdownAnchor(previous=>({path,hash,sequence:(previous?.sequence||0)+1}));void openPath(path).catch(error=>setError(error));}} completionShortcut={shortcuts.completion} path={d.path} jumpTo={fileJump?.path === d.path ? fileJump : undefined} content={d.content} format={documentFormat(d)} saving={d.saving} dirty={isDirty(d)} reloadEpoch={d.reloadEpoch} visible={visible && shown(d.path) && !imageFile(d.path)} focusOnShow={activePane===paneFor(d.path)} onChange={(value,format) => updateDrafts(prev => prev.map(item => item.path === d.path ? { ...item, ...format, content: value } : item))} onSave={() => void save(d.path)} onReload={encoding=>requestReload(d.path,encoding)} onDownload={()=>void DownloadFileDraft({...d,...documentFormat(d)}).catch(e=>updateDrafts(prev=>prev.map(item=>item.path===d.path?{...item,error:e}:item)))} /></Suspense>
-      </div>)}
+      {drafts.map(d => { const recovery = fileErrorAction(d, state === 'connected'); return <div key={d.path} className={`editor-tab ${activePane===paneFor(d.path)?'focused-pane':''}`} data-tab-id={d.path} hidden={!shown(d.path)||imageFile(d.path)} style={{gridColumn:maximized?1:paneFor(d.path)===0?1:3,gridRow:2}} onFocusCapture={()=>setActivePane(paneFor(d.path))}>
+        {errorMessage(eventError(d)) && <div className="file-save-error"><p role="alert" className="error">{d.errorOperation === 'download' ? translate('files:draftDownloadFailed') : d.errorOperation === 'read' ? translate('files:fileReloadFailed') : translate('files:fileSaveFailed')}</p><details><summary>{translate('files:technicalDetails')}</summary><p>{errorMessage(eventError(d))}</p></details><div className="button-row">
+          {recovery === 'compare' && <Button size="sm" variant="light" isDisabled={d.saving} onPress={()=>setConflict(d.path)}>{translate('files:compareAndMerge')}</Button>}
+          {recovery === 'reconnect' && <Button size="sm" variant="light" isDisabled={busy||preparing} onPress={onReconnect}>{translate('files:reconnect')}</Button>}
+          {recovery === 'download' && <Button size="sm" variant="light" onPress={()=>void downloadDraft(d.path)}>{translate('files:downloadCurrentContent')}</Button>}
+          {recovery === 'encoding' && <Button size="sm" variant="light" isDisabled={d.saving} onPress={()=>updateDrafts(previous=>previous.map(item=>item.path===d.path?{...item,encoding:'UTF-8',error:'',errorOperation:undefined}:item))}>{translate('files:useUTF8')}</Button>}
+          {recovery === 'save' && <Button size="sm" variant="light" isDisabled={d.saving} onPress={()=>void save(d.path)}>{translate('files:retrySave')}</Button>}
+          {recovery === 'save' && !d.sudo && <Button size="sm" variant="light" isDisabled={d.saving} onPress={()=>void openSudo(d.path)}>{translate('files:openWithSudo')}</Button>}
+          {recovery !== 'download' && state === 'connected' && <Button size="sm" variant="light" isDisabled={d.saving} onPress={()=>requestReload(d.path,savedEncoding(d))}>{translate('files:reload')}</Button>}
+          <Button size="sm" variant="light" onPress={()=>{navigator.clipboard.writeText(d.content).catch(e=>setError(e));}}>{translate('files:copyDraft')}</Button>
+        </div></div>}
+        <Suspense fallback={<div className="view-loading" role="status">{translate('files:loadingEditor')}</div>}><TextDocument workspace={sessionID} onHistory={() => setHistoryPath(d.path)} anchor={markdownAnchor?.path===d.path?markdownAnchor:undefined} onNavigate={(path,hash)=>{setMarkdownAnchor(previous=>({path,hash,sequence:(previous?.sequence||0)+1}));void openPath(path).catch(error=>setError(error));}} completionShortcut={shortcuts.completion} path={d.path} jumpTo={fileJump?.path === d.path ? fileJump : undefined} content={d.content} format={documentFormat(d)} saving={d.saving} dirty={isDirty(d)} reloadEpoch={d.reloadEpoch} visible={visible && shown(d.path) && !imageFile(d.path)} focusOnShow={activePane===paneFor(d.path)} onChange={(value,format) => updateDrafts(prev => prev.map(item => item.path === d.path ? { ...item, ...format, content: value } : item))} onSave={() => void save(d.path)} onReload={encoding=>requestReload(d.path,encoding)} onDownload={()=>void downloadDraft(d.path)} /></Suspense>
+      </div>; })}
       </WorkspacePanes>
       {historyPath && drafts.filter(d => d.path === historyPath).map(d => <Suspense key={`history:${sessionID}:${d.path}`} fallback={<div role="status">{translate('files:loadingConfigurationHistory')}</div>}><FileHistoryDialog workspace={sessionID} target={target} document={d} dirty={isDirty(d)} onSave={() => save(d.path)} onClose={() => setHistoryPath('')} onRestore={version => updateDrafts(previous => previous.map(item => item.path === d.path ? { ...item, content: version.content, ...documentFormat(version), reloadEpoch: (item.reloadEpoch || 0) + 1 } : item))} /></Suspense>)}
     </div>

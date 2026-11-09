@@ -648,5 +648,11 @@
   "couldNotReadImageContentHTTP": "Could not read image content: HTTP {{value1}}",
   "couldNotDecodeImageReloadOrDownloadThe": "Could not decode image. Reload or download the original file.",
   "noUnsavedChanges": "No unsaved changes",
-  "lineEndings": "Line endings"
+  "lineEndings": "Line endings",
+  "fileSaveFailed": "Could not save the remote file. Draft retained.",
+  "fileReloadFailed": "Could not reload the remote file. Draft retained.",
+  "draftDownloadFailed": "Could not download the current content.",
+  "technicalDetails": "Technical details",
+  "retrySave": "Retry save",
+  "useUTF8": "Use UTF-8"
 }

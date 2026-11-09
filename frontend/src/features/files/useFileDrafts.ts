@@ -53,7 +53,7 @@ export default function useFileDrafts({ sessionID, disposed, instance, authorize
         const current = draftsRef.current.find(draft => draft.path === path);
         return !!current && !isDirty(current);
       } catch (error) {
-        if (!disposed.current) updateDrafts(previous => previous.map(draft => draft.path === path ? { ...draft, saving: false, error } : draft));
+        if (!disposed.current) updateDrafts(previous => previous.map(draft => draft.path === path ? { ...draft, saving: false, error, errorOperation: 'save' } : draft));
         return false;
       } finally {
         saves.current.delete(path);
@@ -87,7 +87,7 @@ export default function useFileDrafts({ sessionID, disposed, instance, authorize
       }
     } catch (error) {
       if (!disposed.current && instance.current === sessionID && reads.current.get(path) === request) {
-        updateDrafts(previous => previous.map(draft => draft.path === path ? { ...draft, error } : draft));
+        updateDrafts(previous => previous.map(draft => draft.path === path ? { ...draft, error, errorOperation: 'read' } : draft));
         setRereading('');
       }
     } finally {
