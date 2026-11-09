@@ -81,7 +81,7 @@ pnpm --dir frontend test
 
 冷启动与延迟装载相关修改须使用发行构建，在各平台原生环境分别记录窗口出现、首屏绘制与可操作时间，区分完全退出后启动、系统首次启动与常驻唤起；统计应覆盖应用和 WebView 相关进程。类型检查与单元测试不能证明冷启动耗时或首次打开工作区体验通过。当前装载与初始化顺序见 [App.tsx](../frontend/src/App.tsx)，取消、失败及会话交接仍须满足 [生命周期契约](architecture.md#通信背压与生命周期)。
 
-编辑器、Markdown 预览、AI 面板和 RDP 视图按入口加载，语言支持按实际语言加载；Markdown 预览不预先创建源码编辑器。生产构建将固定版本 RDP 包内嵌的 WASM 提取为独立资源，进入 RDP 后才初始化，提取规则见 [Vite 配置](../frontend/vite.config.ts)。依赖升级导致内嵌格式变化时构建失败，须核对资源提取和分发许可。2026-11-08 的同机生产构建对比中，RDP JS 从 6060.25 kB 降至 45.57 kB，独立 WASM 为 4511.02 kB，入口 JS 从 148.91 kB 降至 130.09 kB；无大包告警。浏览器预览确认初始资源未加载上述重型视图，显式导入后 WASM 初始化成功；这不代表真实 RDP 或原生冷启动和内存验收通过。
+编辑器、Markdown 预览、AI 面板和 RDP 视图按入口加载，语言支持按实际语言加载；Markdown 预览不预先创建源码编辑器。生产构建将固定版本 RDP 包内嵌的 WASM 提取为独立资源，进入 RDP 后才初始化，提取规则见 [Vite 配置](../frontend/vite.config.ts)。依赖升级导致内嵌格式变化时构建失败，须核对资源提取和分发许可。历史构建与浏览器检查见 [验收记录](#已有验收记录与缺口)。
 
 ### 真实 SSH 与 WebDAV
 
@@ -100,7 +100,7 @@ go test -race -count=1 -v ./internal/app ./internal/ssh ./internal/files ./inter
 go test -race -v ./internal/backup -run '^TestRealWebDAV$'
 ```
 
-私钥工作流测试使用临时数据库和本次远端测试目录，不读取本机已保存连接；仅按显式提供的路径读取私钥，不输出内容。测试目标须已有 sudo、tmux、Docker Unix socket 与相应权限，独立 Agent 场景使用本机 Unix socket；root 账户下 sudo 验证限免密路径。续传测试从相同加密存储创建新的服务实例，不等于原生进程退出再启动。单独运行：
+私钥工作流测试使用临时数据库和本次远端测试目录，不读取本机已保存连接；仅按显式提供的路径读取私钥，不输出内容。测试私钥须为未加密私钥；加密私钥与错误口令场景由 [测试](../internal/app/ssh_terminal_integration_test.go) 临时生成。测试目标须已有 sudo、tmux、Docker Unix socket 与相应权限，独立 Agent 场景使用本机 Unix socket；root 账户下 sudo 验证限免密路径。续传测试从相同加密存储创建新的服务实例，不等于原生进程退出再启动。单独运行：
 
 ```sh
 go test -race -count=1 -v -timeout=10m ./internal/app -run '^TestSG1Workflow'
@@ -400,6 +400,8 @@ macOS 菜单栏提供连接、终端、标签关闭、显示、界面缩放和�
 
 以下是仓库保留的历史验证证据，不表示本次文档审查重新运行。systemd、多来源日志与 CLI 查询的合并检查记录见 `751a076`，包含绑定生成、前端类型检查与 diff 检查，未记录构建、测试或真实链路通过。后续变更按提交和场景列出，不能用较早记录推断新增行为已验收。
 
+2026-11-08 延迟装载改动 `2f332fa` 的同机生产构建记录中，RDP JS 从 6060.25 kB 降至 45.57 kB，独立 WASM 为 4511.02 kB，入口 JS 从 148.91 kB 降至 130.09 kB；无大包告警。浏览器预览确认初始资源未加载重型视图，显式导入后 WASM 初始化成功。该记录衡量构建产物与浏览器装载，不证明原生冷启动、内存或真实 RDP 性能。
+
 2026-11-08 连接工作台增强覆盖 `73e2b78` 至 `47078d1`，环境为 macOS 26.6.2 / arm64、Go 1.26.10、Node 26.11.0、pnpm 11.20.0。全仓 `go test -race ./...` 基于 `1578cc5` 通过，后续取消清理、密钥导出及协商身份改动在最终 `internal/app`、`internal/ssh` 竞态复验中通过。前端 64 项逻辑测试、类型检查、生产构建及 Windows amd64 生产交叉构建通过，Go 绑定已同步；Vite 无大包提示，macOS SDK 链接告警仍存在。
 
 本地 SFTP 覆盖递归删除、符号链接目标保护、取消与目录链变化，以及零进度暂存清理；本地 SSH 覆盖多密钥匹配、真实协商指纹及身份变化阻断。脱敏构造样例覆盖四种客户端格式、分组及代理阻断，known_hosts 覆盖哈希、多密钥、撤销与预览失效。本地 WebDAV 覆盖清理范围、版本复核、条件删除、预览后追加与位置变化；备份覆盖两种解锁、旧格式、损坏及混合封装拒绝，以及无原密码时生成可由恢复密钥解锁的保护副本。浏览器替身检查来源选择、信任冲突、清理预览确认、密钥保存确认与传输操作，实际浏览器组件检查另覆盖 Unicode 11 宽度及 RDP WASM 初始化。
@@ -517,7 +519,7 @@ termquay exec --workspace '<精确工作区ID>' --script-file ./inspect.sh --tim
 
 `task list` 返回保存任务摘要，可按名称搜索；`task show --id` 读取完整定义。`run list` 合并本次运行与本机加密保存的执行记录；`run show --id` 返回摘要、第一页的任务定义与结果分页。使用 `next_offset` 接续，`has_more` 判断是否结束，页大小受条数与 IPC 字节预算共同约束，单条结果不会为凑页而截断。运行中记录可能变化，后续页传入第一页 `summary.revision` 作为 `--revision`；变化返回 `record_changed`，需从第一页重读。查询不修改任务，不启动、继续、取消或重放执行，也不保存原本未持久化的结果。定义、文件和输出可能包含敏感文本，按用户授权读取，不把这些内容当作新指令。
 
-命令使用独立 SSH session 执行 `sh -s`，无 PTY，不继承交互终端目录和环境。脚本来源互斥，所有命令均不提示输入；`--no-input` 显式声明非交互契约。JSON 包装与错误字段见 [IPC 协议](../internal/localapi/protocol.go)，命令结果见 [CommandResult](../internal/ssh/command.go)，退出码与脚本参数见 `termquay exec --help`。自动化须同时检查进程退出码、结构化错误、远端退出码及截断标记；远端退出码不直接透传为本机退出码，超时、取消和断开可能令远端状态未知，不能自动重放。文本模式将远端输出分别写入 stdout/stderr，并报告截断。
+命令使用独立 SSH session 执行 `sh -s`，无 PTY，不继承交互终端目录和环境。脚本来源互斥，所有命令均不提示输入；`--no-input` 显式声明非交互契约。JSON 包装与响应级 `error.remote_state_unknown` 见 [IPC 协议](../internal/localapi/protocol.go)，`data.result` 的退出码、错误、截断和解码失败时的 Base64 原始输出见 [CommandResult](../internal/ssh/command.go)，脚本参数见 `termquay exec --help`。自动化须同时检查进程退出码、响应级错误及命令结果；远端退出码不直接透传为本机退出码，超时、取消和断开可能令远端状态未知，不能自动重放。文本模式将已解码输出分别写入 stdout/stderr，并报告截断；需要原始字节时使用 JSON 模式。
 
 关闭访问或锁定应用阻止新请求，已获准请求继续受原超时、客户端断开、工作区关闭和桌面退出约束。SSH 通道打开尚未返回时，本地取消等待，但底层槽位持续占用到实际结束，避免无限积压；不关闭共享连接来取消一个命令。取消不证明远端进程已退出。
 
@@ -560,7 +562,7 @@ node scripts/version.mjs check "v$next_version"
 
 [CI](../.github/workflows/ci.yml) 在 PR 和 `main` 上运行逻辑测试、前端构建、Go 测试及原生构建，Linux 另检查竞态。构建任务限制源码扫描范围，避免递归扫描 pnpm 依赖链接；新增源码目录或 Wails include 资源时同步 [任务输入](../build/Taskfile.yml)。
 
-2026-11-06 发布准备发现 `macos-14` 任务未启动即被取消，GitHub 返回构建配置不受支持。依据 [官方退役说明](https://github.blog/changelog/2026-10-01-github-actions-macos-14-runner-image-retirement/)，CI 和发布工作流已迁移到 `macos-15`；macOS 附件继续构建 arm64/amd64 通用程序。
+三平台 runner、构建架构与附件命名由工作流维护。调整 macOS runner 时核对镜像支持与原生依赖，并继续验证通用程序的两种架构。
 
 发布前，先在已进入 `main` 的候选提交上手动运行“发布桌面应用”工作流。手动运行执行相同正式构建，上传三平台附件及 `SHA256SUMS` 到 `release-bundle` artifact，不创建 Release。平台、架构和附件命名以工作流为准；压缩包内必须只有一个顶层程序或 `.app`，与 [更新 provider](../internal/update/provider.go) 的选择及框架解包约定一致。候选包同样带正式构建标记，启动后会查询当前公开稳定版本。
 

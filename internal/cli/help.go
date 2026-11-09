@@ -83,6 +83,8 @@ offset 为 0 至 1024，limit 为 1 至 64，默认 8；响应预算可能使实
 示例：termquay exec --workspace <精确ID> --script-file ./inspect.sh --timeout 60s --json --no-input
 复用已连接 SSH，通过独立 session 执行 sh -s，无 PTY，不继承交互 Shell 目录与环境。
 命令可能修改远端。结果 data={workspace,result:{stdout,stderr,exit_code,duration_ms,truncated,error}}。
+输出按 UTF-8 解码；解码失败时 result.error 报错，stdout_base64/stderr_base64 保留对应原始字节。
+响应级错误位于 error，检查 error.remote_state_unknown；结果级错误位于 data.result.error。
 stdout 上限 64 KiB，stderr 16 KiB；exit_code=-1 表示未知，非零退出以 remote_exit 区分。
 Ctrl-C、客户端断开、工作区关闭和桌面退出取消请求。取消或超时不证明远端进程退出。
 关闭授权或应用锁定阻止新请求，已获准请求继续受原超时约束。状态未知时不自动重试。`)

@@ -10,12 +10,9 @@ AI 使用一份本机加密模型配置，与外部 CLI 授权独立。配置接
 
 网络建立与等待响应头分别设限，模型思考与流式输出由单次请求上下文的可配置总时限约束，不以没有正文判定失败。聊天、摘要压缩及连接测试沿用同一配置，旧配置未设置等待时间时采用 [默认模型配置](../internal/ai/config.go)。连接失败、等待超时、断流与调用者取消分别报告，超时不自动重试。
 
-请求开始时间与最近网络数据时间进入后端快照，SSE 心跳、注释、思考与工具片段均计作网络活动，更新合并发送。没有正文或长时间静默时显示等待耗时，不推断模型正在思考，也不按静默时长提前取消；面板隐藏后停止前端计时，重新展开按后端时间接续。
-
 模型客户端拥有独立且有界的 HTTP 连接池，轮次或连接测试结束时释放空闲连接，不保留常驻模型连接，也不关闭其他应用功能的共享连接池。
 
-Messages 续接保留原始内容块、thinking 签名及工具结果关联，同批工具结果合并到同一 user 消息；服务商内置远端工具不进入应用工具集。
-Responses 使用无状态请求，保留完成项的顺序、call ID 和加密 reasoning 内容；收到完整完成状态后才允许执行工具。协议依据 [OpenAI 工具调用](https://developers.openai.com/api/docs/guides/function-calling)、[Responses 流事件](https://developers.openai.com/api/reference/resources/responses/streaming-events) 与 [Messages 流事件](https://platform.claude.com/docs/en/build-with-claude/streaming) 核对，本机协议测试不代表真实模型接入验收。
+协议续接必须保留工具调用与结果关联，以及协议要求的原始内容、thinking 签名和加密 reasoning，避免丢失模型续接所需状态。Responses 使用无状态请求；服务商内置远端工具不进入应用工具集，完整完成状态之前不得执行工具。具体适配见 [模型客户端](../internal/ai/client.go) 及同包协议文件，本机协议测试不代表真实模型接入验收。
 
 AI 历史采用独立会话与分条消息表，数据库事务迁移保留既有目录与凭据。标题、目标快照、摘要和消息正文复用本机 AEAD，AAD 绑定会话及消息序号；分页读取、增量追加，删除后更新或追加不能重建会话。历史与配置排除常规备份，会话存储沿用临时数据库生命周期。边界与存储入口见 [AI 存储](../internal/store/ai.go)。
 
@@ -25,7 +22,7 @@ Agent 由 Go 持有，固定绑定真实 SSH owner，工具参数不能选择工
 
 SSH 脚本执行器提供 POSIX sh 与 Windows PowerShell 通道，均使用独立无 PTY session。PowerShell 用固定短引导命令从标准输入读取 UTF-8 脚本，避免默认 cmd 的命令行长度限制；不修改远端默认 Shell、不安装工具。连接级环境探测有界并随 SSH 实例缓存，未知环境不能推定为 Linux。命令输出按明确编码解码，解码失败返回错误及有界原始字节的 Base64，不能先以替换字符丢弃字节。既有 CLI 与多主机任务保持 `sh -s` 语义。实现见 [执行器](../internal/ssh/command.go) 和 [环境探测](../internal/ssh/environment.go)。
 
-AI 的 Windows 服务与端口查询使用 PowerShell 结构化输出，服务日志明确限定 System/Service Control Manager 事件的扫描范围，不能冒充完整应用日志。Windows 不提供现有 Docker Unix socket 工具，不据此推断 Docker 安装状态。结果区分成功、部分结果、失败及未执行，结构化正文超过预算时明确失败，禁止切断 JSON 后冒充有效结果。实现见 [工具能力](../internal/app/ai_environment.go)、[Windows 查询](../internal/app/ai_windows.go) 和 [工具结果](../internal/app/ai_tools.go)。
+查询结果必须保留权限、扫描范围和工具能力限制，区分成功、部分结果、失败及未执行；缺少查询通道不能推断目标未安装相应软件。结构化正文超过预算时明确失败，禁止切断 JSON 后冒充有效结果。平台操作与限制见 [AI 使用说明](development.md#内置-ai-助手)，实现见 [工具能力](../internal/app/ai_environment.go)、[Windows 查询](../internal/app/ai_windows.go) 和 [工具结果](../internal/app/ai_tools.go)。
 
 AI 文件查询经 SFTP 独立读取，不回落本机。目录按有界扫描结果排序后分页，每页为实时读取，不能拼成原子快照；文件按字节范围读取并保留完整字符，按属性修订检查续读，仍受普通文件、编码和文件大小约束。响应预算在条目或字符边界生效，保留有效 JSON 与续读位置，不通过丢弃结果尾部掩盖未返回数据。实现见 [文件工具](../internal/app/ai_files.go) 与 [文本范围](../internal/files/range.go)。
 
@@ -137,7 +134,7 @@ SSH 允许用户预览并确认导入 OpenSSH `known_hosts`。信任仍按目标
 
 SSH 工作区的普通目录树保留完整目录展示与排序，允许单目录条目数和总字节数不设硬上限，作为资源有界要求的显式例外；读取并发与展开目录数量仍有界。代价是目录元数据内存随条目数量和名称长度增长，不承诺大目录的固定内存上界。此例外不扩展到成对文件浏览、同步扫描、传输或任务排队；大目录出现明显内存或交互延迟问题时，按实际负载测量并重新评估分页或限额。实现见 [目录读取](../internal/files/service.go)、[目录树](../frontend/src/features/files/useFileTree.ts) 与 [成对浏览](../internal/app/transfer_browser.go)。
 
-远端路径使用 POSIX 语义，文件名不得直接拼接进 Shell 命令。文件草稿由前端持有，后台刷新、状态事件和保存失败不能覆盖草稿；关闭文件、工作区或应用前明确处理未保存内容。
+SFTP 路径使用 POSIX 语义；AI 文件入口接受已识别 Windows 主机的盘符绝对路径，并在 [路径转换](../internal/app/ai_files.go) 后交给 SFTP。文件名不得直接拼接进 Shell 命令。文件草稿由前端持有，后台刷新、状态事件和保存失败不能覆盖草稿；关闭文件、工作区或应用前明确处理未保存内容。
 
 sudo 文件编辑使用独立、有限时与输出边界的 SSH exec 通道，逐次显式授权 root 读取或保存，不借用交互终端，也不持久化 sudo 密码。认证提示与写入就绪分开处理，免密 sudo 不发送密码。路径和预期版本均按单个 Shell 参数转义；保存沿用版本复核、私有暂存与同目录替换，不承诺与外部写入者原子 CAS。目标限 Linux 普通文件，拒绝经过符号链接的路径、特殊权限位和其他用户可写的父目录。远端需已有 sudo 和 GNU coreutils，不以提升整个 SFTP 会话权限实现，不自动修改 sudo 策略。代码入口为 [sudo 文件服务](../internal/app/sudo_files.go) 和 [授权通道](../internal/ssh/sudo.go)。
 
@@ -213,6 +210,7 @@ WebDAV 使用追加式快照，不覆盖或自动清理历史。备份目录由�
 | 版本发布与应用更新 | [assets.go](../assets.go)、[version.go](../internal/app/version.go)、[update.go](../internal/app/update.go)、[internal/update](../internal/update)、[发布工作流](../.github/workflows/release.yml)、[版本工具](../scripts/version.mjs) | `internal/update/provider_test.go`、`scripts/version.test.mjs`、原生替换与重启验收 |
 | SSH、PTY 与消费确认 | [internal/ssh](../internal/ssh)、[ssh_connect.go](../internal/app/ssh_connect.go)、[terminal_sessions.go](../internal/app/terminal_sessions.go)、[TerminalView](../frontend/src/features/terminal/TerminalView.tsx) | [terminal_test.go](../internal/ssh/terminal_test.go)、[重连修复与验证缺口](development.md#重连修复与验证缺口) |
 | 本机 CLI 与 IPC | [internal/cli](../internal/cli)、[internal/localapi](../internal/localapi)、[cli.go](../internal/app/cli.go)、[cli_queries.go](../internal/app/cli_queries.go) | `internal/cli/cli_test.go`、`internal/localapi/server_test.go`、`internal/app/cli_test.go`、[原生程序检查](../scripts/cli-smoke.mjs) |
+| 内置 AI、工具与历史 | [internal/ai](../internal/ai)、[ai.go](../internal/app/ai.go)、[工具](../internal/app/ai_tools.go)、[历史存储](../internal/store/ai.go) | `internal/ai/*_test.go`、`internal/app/ai*_test.go`、[AI 验收范围](development.md#内置-ai-验收2026-11-06) 与 [Windows SSH 适配验收](development.md#windows-ssh-ai-适配验收2026-11-09) |
 | 本地 Shell 与 PTY | [local_terminal.go](../internal/app/local_terminal.go)、[TerminalView](../frontend/src/features/terminal/TerminalView.tsx) | 各平台原生进程、输入与关闭验证 |
 | 目录延迟探测 | [latency.go](../internal/app/latency.go)、[internal/ssh/latency.go](../internal/ssh/latency.go)、[前端调度](../frontend/src/features/connections/useConnectionLatency.ts) | `latency_test.go` 验证本地 TCP、代理请求合并、取消与并发边界；真实代理、跳板路径与前端可见性调度仍需验证 |
 | 文件、草稿与传输 | [internal/files](../internal/files)、[files.go](../internal/app/files.go)、[transfer.go](../internal/app/transfer.go)、[前端文件工作区](../frontend/src/features/files) | `internal/files/service_test.go`、`transfer_test.go`、原生传输流程 |
