@@ -33,6 +33,9 @@ func chatRequest(c Config, r Request) any {
 	if r.ForceTool != "" {
 		payload["tool_choice"] = map[string]any{"type": "function", "function": map[string]any{"name": r.ForceTool}}
 	}
+	if r.TextOnly {
+		payload["tool_choice"] = "none"
+	}
 	return payload
 }
 

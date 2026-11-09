@@ -16,11 +16,12 @@ import (
 )
 
 const maxAIRuns = 2
-const maxAIToolSteps = 32
 const maxAIToolResultBytes = 16 << 10
 const maxAIRunDuration = 30 * time.Minute
+const aiSummaryReserve = 2 * time.Minute
 
 var errAIRunTimeout = appmessage.New("backend:aITurnExceededItsRuntimeBudgetFurtherModel", "AI 轮次已达到运行时限，后续模型请求与工具已停止；已发出的远端操作需核对实际状态")
+var errAIBudgetSummary = appmessage.New("backend:aiBudgetSummary", "本轮运行预算即将用尽，工具已停止，已转入结果总结")
 
 type AIMessage struct {
 	Result    *AIToolResult `json:"result,omitempty"`
@@ -348,6 +349,16 @@ func (run *aiRun) pauseBudgetLocked() {
 	if run.budgetRemaining <= 0 {
 		run.cancelCause(errAIRunTimeout)
 	}
+}
+
+func (run *aiRun) remainingBudget() time.Duration {
+	run.mu.Lock()
+	defer run.mu.Unlock()
+	remaining := run.budgetRemaining
+	if !run.budgetStartedAt.IsZero() {
+		remaining -= time.Since(run.budgetStartedAt)
+	}
+	return remaining
 }
 
 func (a *AppService) persistAIMessage(run *aiRun, message ai.Message, state string) (AIMessage, error) {

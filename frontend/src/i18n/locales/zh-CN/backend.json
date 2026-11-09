@@ -105,6 +105,8 @@
   "theModelReturnedContentAfterCompletion": "模型完成后仍返回内容",
   "modelToolCallCountExceedsTheLimit": "模型单批工具调用超过协议保护上限",
   "invalidModelToolCallIndex": "模型工具调用序号无效",
+  "modelCalledToolsDuringSummary": "模型在文字总结阶段返回工具调用，未执行",
+  "aiBudgetSummary": "本轮运行预算即将用尽，工具已停止，已转入结果总结",
   "modelToolArgumentsExceedTheLimit": "模型工具参数超过限制",
   "aIRequestsCannotRedirectEnterTheFinalRequest": "AI 请求不允许重定向，请填写最终请求 URL",
   "modelWaitTimeExceededMinutes": "等待模型超过设定时间（{{value1}} 分钟）: {{value2}}",

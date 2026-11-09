@@ -82,7 +82,7 @@ func TestAIWindowsApprovalUsesDetectedInterpreter(t *testing.T) {
 func TestAIEncodingFailureIsNotReplayed(t *testing.T) {
 	var executed atomic.Int32
 	a, _ := aiTestSSH(t, func(string, string) (string, string, uint32) { executed.Add(1); return string([]byte{0xff}), "", 0 })
-	run := &aiRun{owner: a.workspaces["workspace"], view: AIRunView{Workspace: "workspace"}, ctx: t.Context(), environment: terminal.RemoteEnvironment{OS: "linux", Shell: "sh"}, unknownScripts: map[string]bool{}, rejected: map[string]bool{}}
+	run := &aiRun{owner: a.workspaces["workspace"], view: AIRunView{Workspace: "workspace"}, ctx: t.Context(), budgetRemaining: maxAIRunDuration, environment: terminal.RemoteEnvironment{OS: "linux", Shell: "sh"}, unknownScripts: map[string]bool{}, rejected: map[string]bool{}}
 	args := aiToolArguments{Script: "native_command", TimeoutSeconds: 10, OutputEncoding: "UTF-8"}
 	result, state := a.invokeAITool(t.Context(), run, ai.ToolCall{Name: "exec"}, args)
 	if state != "failed" || result.ErrorCode != "output_encoding" || result.StdoutBase64 == "" || result.StatusUnknown {

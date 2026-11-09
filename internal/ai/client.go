@@ -161,6 +161,9 @@ func (c *Client) Stream(parent context.Context, input Request, delta func(string
 		return r, appmessage.New("backend:modelResponseExceedsTheLimit", "模型响应超过限制")
 	}
 	seen := map[string]bool{}
+	if input.TextOnly && len(r.Message.ToolCalls) > 0 {
+		return r, appmessage.New("backend:modelCalledToolsDuringSummary", "模型在文字总结阶段返回工具调用，未执行")
+	}
 	for _, call := range r.Message.ToolCalls {
 		var args map[string]json.RawMessage
 		if call.ID == "" || len(call.ID) > 256 || call.Name == "" || seen[call.ID] || len(call.Arguments) > MaxArgumentsBytes || json.Unmarshal([]byte(call.Arguments), &args) != nil || args == nil {

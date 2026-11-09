@@ -105,6 +105,8 @@
   "theModelReturnedContentAfterCompletion": "The model returned content after completion",
   "modelToolCallCountExceedsTheLimit": "Model tool batch exceeds the protocol safety limit",
   "invalidModelToolCallIndex": "Invalid model tool call index",
+  "modelCalledToolsDuringSummary": "The model requested tools during text-only summarization; no tools were executed",
+  "aiBudgetSummary": "This turn is nearing its runtime budget; tools have stopped and results are being summarized",
   "modelToolArgumentsExceedTheLimit": "Model tool arguments exceed the limit",
   "aIRequestsCannotRedirectEnterTheFinalRequest": "AI requests cannot redirect. Enter the final request URL.",
   "modelWaitTimeExceededMinutes": "Model wait time exceeded {{value1}} minutes: {{value2}}",

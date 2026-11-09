@@ -459,3 +459,126 @@ func TestAIRunBudgetPausesForApproval(t *testing.T) {
 		t.Fatal("批准后没有恢复剩余运行预算")
 	}
 }
+
+func TestAIRunContinuesBeyond32Tools(t *testing.T) {
+	a, _ := aiTestSSH(t)
+	var calls atomic.Int32
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Tools []any `json:"tools"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Error(err)
+			return
+		}
+		if len(body.Tools) == 0 || calls.Add(1) > 40 {
+			aiTestReply(w)
+			return
+		}
+		aiTestEvents(w, map[string]any{"choices": []any{map[string]any{"delta": map[string]any{"tool_calls": []any{map[string]any{"index": 0, "id": fmt.Sprint(calls.Load()), "function": map[string]any{"name": "file_list", "arguments": `{"path":"/"}`}}}}, "finish_reason": "tool_calls"}}})
+	}))
+	defer s.Close()
+	aiTestConfigure(t, a, s.URL, false)
+	aiTestStart(t, a)
+	v := waitAI(t, a, func(v AIRunView) bool { return v.State == "complete" || v.State == "failed" })
+	if v.State != "complete" || calls.Load() != 41 {
+		t.Fatalf("calls=%d: %+v", calls.Load(), v)
+	}
+	page, err := a.GetAIConversation(t.Context(), "workspace", v.ConversationID, 0, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	results := 0
+	for _, m := range page.Messages {
+		if m.Result != nil {
+			results++
+			if m.Result.Status != "ok" {
+				t.Fatalf("query failed: %+v", m.Result)
+			}
+		}
+	}
+	if results != 40 {
+		t.Fatalf("lost tool results: %d", results)
+	}
+}
+
+func TestAIRunBudgetEndsWithTextOnlySummary(t *testing.T) {
+	for _, cancelSummary := range []bool{false, true} {
+		t.Run(fmt.Sprintf("cancel=%t", cancelSummary), func(t *testing.T) {
+			a, executed := aiTestSSH(t)
+			firstRequest := make(chan struct{})
+			release := make(chan struct{})
+			summaryStarted := make(chan struct{})
+			var requests atomic.Int32
+			s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if requests.Add(1) == 1 {
+					close(firstRequest)
+					select {
+					case <-release:
+					case <-time.After(5 * time.Second):
+						return
+					}
+					aiTestCall(w, "unexecuted", "printf forbidden")
+					return
+				}
+				var body struct {
+					Tools      []any  `json:"tools"`
+					ToolChoice string `json:"tool_choice"`
+				}
+				if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+					t.Error(err)
+				}
+				if len(body.Tools) != 0 || body.ToolChoice != "none" {
+					t.Error("summary still permits tools")
+				}
+				close(summaryStarted)
+				if cancelSummary {
+					w.Header().Set("Content-Type", "text/event-stream")
+					w.(http.Flusher).Flush()
+					<-r.Context().Done()
+					return
+				}
+				aiTestReply(w)
+			}))
+			defer s.Close()
+			aiTestConfigure(t, a, s.URL, false)
+			start := aiTestStart(t, a)
+			select {
+			case <-firstRequest:
+			case <-time.After(5 * time.Second):
+				t.Fatal("model request did not start")
+			}
+			a.aiMu.Lock()
+			run := a.aiRuns["workspace"]
+			a.aiMu.Unlock()
+			defer run.cancel()
+			run.mu.Lock()
+			run.pauseBudgetLocked()
+			run.budgetRemaining = aiSummaryReserve
+			run.resumeBudgetLocked()
+			run.mu.Unlock()
+			close(release)
+			select {
+			case <-summaryStarted:
+			case <-time.After(5 * time.Second):
+				t.Fatal("summary did not start")
+			}
+			if cancelSummary {
+				if err := a.StopAIRun("workspace", start.ID); err != nil {
+					t.Fatal(err)
+				}
+			}
+			v := waitAI(t, a, func(v AIRunView) bool { return v.State == "stopped" || v.State == "failed" })
+			if v.State != "stopped" || requests.Load() != 2 || len(executed) != 0 {
+				t.Fatalf("unexpected execution: requests=%d, run=%+v", requests.Load(), v)
+			}
+			page, err := a.GetAIConversation(t.Context(), "workspace", v.ConversationID, 0, 24)
+			if err != nil || page.Messages[2].Result == nil || page.Messages[2].Result.ErrorCode != "budget_exhausted" {
+				t.Fatalf("unexecuted result lost: %+v, %v", page, err)
+			}
+			if !cancelSummary && page.Messages[len(page.Messages)-2].Message.Content != "完成" {
+				t.Fatal("summary missing from history")
+			}
+		})
+	}
+}

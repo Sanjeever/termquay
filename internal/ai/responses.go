@@ -38,6 +38,9 @@ func responsesRequest(c Config, r Request) any {
 	if r.ForceTool != "" {
 		payload["tool_choice"] = map[string]any{"type": "function", "name": r.ForceTool}
 	}
+	if r.TextOnly {
+		payload["tool_choice"] = "none"
+	}
 	return payload
 }
 

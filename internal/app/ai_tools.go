@@ -163,11 +163,15 @@ func (a *AppService) invokeAITool(ctx context.Context, run *aiRun, call ai.ToolC
 	if _, err := a.aiOwner(run.view.Workspace, run.owner); err != nil {
 		return AIToolResult{Status: "not_executed", ErrorCode: "workspace_unavailable", Error: err.Error(), ErrorMessage: appmessage.Describe(err)}, "not_executed"
 	}
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	timeout := 30 * time.Second
 	if call.Name == "exec" {
-		cancel()
-		ctx, cancel = context.WithTimeout(run.ctx, time.Duration(args.TimeoutSeconds)*time.Second)
+		timeout = time.Duration(args.TimeoutSeconds) * time.Second
 	}
+	remaining := run.remainingBudget() - aiSummaryReserve
+	if remaining <= 0 {
+		return AIToolResult{Status: "not_executed", ErrorCode: "budget_exhausted", Error: errAIBudgetSummary.Error(), ErrorMessage: appmessage.Describe(errAIBudgetSummary)}, "not_executed"
+	}
+	ctx, cancel := context.WithTimeout(ctx, min(timeout, remaining))
 	defer cancel()
 	var value any
 	var err error

@@ -38,7 +38,7 @@ func TestWindowsAIQueriesThroughLocalSSHAndNativePowerShell(t *testing.T) {
 		}
 		return out.String(), stderr.String(), code
 	})
-	run := &aiRun{owner: a.workspaces["workspace"], view: AIRunView{Workspace: "workspace"}, ctx: t.Context(), rejected: map[string]bool{}, unknownScripts: map[string]bool{}}
+	run := &aiRun{owner: a.workspaces["workspace"], view: AIRunView{Workspace: "workspace"}, ctx: t.Context(), budgetRemaining: maxAIRunDuration, rejected: map[string]bool{}, unknownScripts: map[string]bool{}}
 	run.environment = a.aiEnvironment(t.Context(), run)
 	if run.environment.OS != "windows" || run.environment.Shell != "powershell" || !strings.HasPrefix(run.environment.Version, "5.1") {
 		t.Fatal(run.environment)

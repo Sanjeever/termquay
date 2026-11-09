@@ -125,7 +125,9 @@ The Go agent binds to a real SSH owner; tool arguments cannot select another wor
 
 Backend approvals are one-use and bound to full arguments, timeout, turn and session; show the actual interpreter. Rejection, stopping, disabling AI, locking, owner replacement/disconnect and exit invalidate pending approval. Output instructions, history or summaries cannot grant permission. In-flight turns retain their configuration snapshot.
 
-Turn budgets cover model/compaction/tools and pause only during explicit approval waiting, then resume their remaining allowance. Hiding preserves a running turn. Exit waits for encrypted persistence; deleting/new conversation cancels and waits so background work cannot recreate history. Encrypt history/target snapshots/summaries with session/message-bound AAD. Separate complete local records from model context and compact only whole tool-round-trip boundaries. Configuration/history stay outside regular backups.
+Turns have no fixed cumulative tool-call cap. Runtime budgets cover model/compaction/tools and pause only during explicit approval waiting, then resume their remaining allowance. Reserve part of that same budget for one text-only final summary: stop starting tools, record unexecuted calls, disable model tool choice and reject unexpected calls during summarization. The reserve does not extend the hard runtime limit or bypass stop, lock, disconnect or exit. Request/network/protocol/storage failures remain failures, without automatic retry. Budget definitions live in [the agent](../internal/app/ai.go).
+
+Hiding preserves a running turn. Exit waits for encrypted persistence; deleting/new conversation cancels and waits so background work cannot recreate history. Encrypt history/target snapshots/summaries with session/message-bound AAD. Separate complete local records from model context and compact only whole tool-round-trip boundaries. Configuration/history stay outside regular backups.
 
 <a id="本机-cli-访问"></a>
 ## Local CLI boundary

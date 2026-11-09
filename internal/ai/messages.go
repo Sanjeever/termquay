@@ -46,6 +46,9 @@ func messagesRequest(c Config, r Request) any {
 	if r.ForceTool != "" {
 		payload["tool_choice"] = map[string]any{"type": "tool", "name": r.ForceTool}
 	}
+	if r.TextOnly {
+		payload["tool_choice"] = map[string]any{"type": "none"}
+	}
 	return payload
 }
 

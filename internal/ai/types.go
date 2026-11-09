@@ -58,6 +58,7 @@ type Request struct {
 	Messages   []Message
 	Tools      []Tool
 	ForceTool  string
+	TextOnly   bool
 }
 
 type Usage struct {
