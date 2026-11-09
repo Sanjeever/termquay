@@ -1,4 +1,4 @@
-import { t } from '../../i18n/index.ts';
+import { t as translate } from '../../i18n/index.ts';
 import { useTranslation } from 'react-i18next';
 import { lazy, Suspense, useEffect, useRef } from 'react';
 import { Button } from '@heroui/react';
@@ -13,7 +13,7 @@ import type useUpdates from './useUpdates';
 import type { Connection } from '../../../bindings/github.com/Sanjeever/termquay/internal/store/models';
 import Icon from '../../components/Icon';
 
-const getSections = () => [['appearance',t('settings:appearance'),'settings'],['terminal',t('settings:terminalAndEditor'),'terminal'],['keyboard',t('settings:keyboardShortcuts'),'list'],['snippets',t('settings:commandSnippets'),'terminal'],['credentials',t('settings:credentials2'),'eyeOff'],['recovery',t('settings:localDraftRecovery'),'undo'],['trust',t('settings:identityTrust'),'connections'],['ai',t('settings:aIAssistant'),'terminal'],['cli',t('settings:localCLI'),'terminal'],['backup',t('settings:backupAndRestore'),'transfer'],['about',t('settings:about'),'desktop']] as const;
+const getSections = () => [['appearance',translate('settings:appearance'),'settings'],['terminal',translate('settings:terminalAndEditor'),'terminal'],['keyboard',translate('settings:keyboardShortcuts'),'list'],['snippets',translate('settings:commandSnippets'),'terminal'],['credentials',translate('settings:credentials2'),'eyeOff'],['recovery',translate('settings:localDraftRecovery'),'undo'],['trust',translate('settings:identityTrust'),'connections'],['ai',translate('settings:aIAssistant'),'terminal'],['cli',translate('settings:localCLI'),'terminal'],['backup',translate('settings:backupAndRestore'),'transfer'],['about',translate('settings:about'),'desktop']] as const;
 const CLISettings = lazy(() => import('./CLISettings'));
 const AISettings = lazy(() => import('./AISettings'));
 const BackupSettings = lazy(() => import('./BackupSettings'));
@@ -27,9 +27,9 @@ export default function SettingsView({ fontSize, onFontSize, onRestore, onClose,
   useTranslation();
   const content = useRef<HTMLDivElement>(null);
   useEffect(()=>{if(content.current)content.current.scrollTop=0;},[section]);
-  return <section className="settings-view" aria-label={t('settings:settings')}>
-    <div className="settings-layout"><aside className="settings-sidebar"><div className="settings-header"><Tooltip content={t('settings:backToWorkspace')}><Button isIconOnly size="sm" variant="light" aria-label={t('settings:backToWorkspace')} onPress={onClose}><Icon name="back" width="16" /></Button></Tooltip><h1>{t('settings:settings')}</h1></div><nav className="settings-navigation" aria-label={t('settings:settingsCategories')} onKeyDown={event=>{if(!['ArrowDown','ArrowUp','Home','End'].includes(event.key))return;event.preventDefault();const buttons=Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('button'));const index=buttons.indexOf(event.target as HTMLButtonElement);const next=event.key==='Home'?0:event.key==='End'?buttons.length-1:(index+(event.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length;buttons[next]?.focus();buttons[next]?.click();}}>{getSections().map(([id, label, icon]) => <button key={id} className={section === id ? 'selected' : ''} aria-current={section === id ? 'page' : undefined} onClick={() => setSection(id)}><Icon name={icon} width="16" /><span>{label}</span></button>)}</nav></aside>
-      <div className="settings-content" ref={content}><Suspense fallback={<div className="view-loading" role="status">{t('settings:loading')}</div>}>
+  return <section className="settings-view" aria-label={translate('settings:settings')}>
+    <div className="settings-layout"><aside className="settings-sidebar"><div className="settings-header"><Tooltip content={translate('settings:backToWorkspace')}><Button isIconOnly size="sm" variant="light" aria-label={translate('settings:backToWorkspace')} onPress={onClose}><Icon name="back" width="16" /></Button></Tooltip><h1>{translate('settings:settings')}</h1></div><nav className="settings-navigation" aria-label={translate('settings:settingsCategories')} onKeyDown={event=>{if(!['ArrowDown','ArrowUp','Home','End'].includes(event.key))return;event.preventDefault();const buttons=Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('button'));const index=buttons.indexOf(event.target as HTMLButtonElement);const next=event.key==='Home'?0:event.key==='End'?buttons.length-1:(index+(event.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length;buttons[next]?.focus();buttons[next]?.click();}}>{getSections().map(([id, label, icon]) => <button key={id} className={section === id ? 'selected' : ''} aria-current={section === id ? 'page' : undefined} onClick={() => setSection(id)}><Icon name={icon} width="16" /><span>{label}</span></button>)}</nav></aside>
+      <div className="settings-content" ref={content}><Suspense fallback={<div className="view-loading" role="status">{translate('settings:loading')}</div>}>
         {(section === 'appearance' || section === 'terminal') && <AppearanceSettings key={section} section={section} fontSize={fontSize} onFontSize={onFontSize} onDemo={onDemo} demoDisabled={demoDisabled} />}
         {section === 'backup' && <BackupSettings onRestore={onRestore} automaticBackup={automaticBackup} connections={connections} onEditConnection={onEditConnection} />}
         {section === 'keyboard' && <KeyboardSettings values={shortcuts} onChange={onShortcuts} error={shortcutError} />}

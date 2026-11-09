@@ -1,8 +1,8 @@
-import { message } from '../../i18n/messages.ts';
+import { message as uiMessage } from '../../i18n/messages.ts';
 import { useMessageState } from '../../i18n/useMessageState.ts';
 import { useTranslation } from 'react-i18next';
 
-import { createContext, useContext, useEffect, useLayoutEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { appearanceKey, defaultAppearance, monoFonts, parseAppearance, uiFonts, type Appearance } from './appearance';
 import { Window } from '@wailsio/runtime';
 import i18n, { systemLanguages } from '../../i18n';
@@ -22,12 +22,15 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
   const current = preview ?? appearance;
   const [error, setError] = useMessageState(initial.error);
   const [systemDark, setSystemDark] = useState(() => matchMedia('(prefers-color-scheme: dark)').matches);
+  const nativeLanguage = useRef(Promise.resolve());
   useLayoutEffect(() => {
     const changed = () => {
       const language = resolveLanguage(current.language, systemLanguages());
       void i18n.changeLanguage(language);
       document.documentElement.lang = language;
-      SetLanguage(language).catch(error => setError(message('syncLanguageFailed', { error })));
+      const synchronize = () => SetLanguage(language).then(() => undefined);
+      nativeLanguage.current = nativeLanguage.current.then(synchronize, synchronize);
+      nativeLanguage.current.catch(error => setError(uiMessage('syncLanguageFailed', { error })));
     };
     changed();
     window.addEventListener('languagechange', changed);
@@ -35,7 +38,7 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
   }, [current.language]);
   useEffect(() => { const restore = () => { try { setAppearance(parseAppearance(localStorage.getItem(appearanceKey))); setError(''); } catch (e) { setError(e); } }; window.addEventListener('termquay:portable-restored', restore); return () => window.removeEventListener('termquay:portable-restored', restore); }, []);
   const dark = current.theme === 'system' ? systemDark : current.theme === 'dark';
-  useEffect(() => { Window.SetZoom(current.uiZoom).catch(error => setError(message('settings:couldNotZoomTheInterface', { value1: error }))); }, [current.uiZoom]);
+  useEffect(() => { Window.SetZoom(current.uiZoom).catch(error => setError(uiMessage('settings:couldNotZoomTheInterface', { value1: error }))); }, [current.uiZoom]);
   useEffect(() => {
     const media = matchMedia('(prefers-color-scheme: dark)');
     const changed = () => setSystemDark(media.matches);
@@ -59,6 +62,6 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
 export function useAppearance() {
   useTranslation();
   const value = useContext(AppearanceContext);
-  if (!value) throw message('settings:appearanceContextIsNotInitialized');
+  if (!value) throw uiMessage('settings:appearanceContextIsNotInitialized');
   return value;
 }

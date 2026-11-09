@@ -1,4 +1,4 @@
-import { t } from '../../i18n/index.ts';
+import { t as translate } from '../../i18n/index.ts';
 import { useMessageState } from '../../i18n/useMessageState.ts';
 import { useTranslation } from 'react-i18next';
 import { useLayoutEffect, useRef, useState } from 'react';
@@ -30,5 +30,5 @@ export default function ApplicationLockScreen({ onUnlock }: { onUnlock(status: A
     catch (e) { setError(e); requestAnimationFrame(() => input.current?.focus()); }
     finally { setBusy(false); }
   }
-  return createPortal(<div className="application-lock" ref={root} role="dialog" aria-modal="true" aria-labelledby="application-lock-title"><form onSubmit={event => { event.preventDefault(); void unlock(); }}><h1 id="application-lock-title">{t('settings:termQuayIsLocked')}</h1><label className="form-field">{t('settings:masterPassword')}<input ref={input} type="password" autoComplete="current-password" value={password} maxLength={1024} disabled={busy} onChange={event => setPassword(event.target.value)} /></label>{error && <p className="error" role="alert">{error}</p>}<Button type="submit" color="primary" isDisabled={!password} isLoading={busy}>{t('settings:unlock')}</Button></form></div>, document.body);
+  return createPortal(<div className="application-lock" ref={root} role="dialog" aria-modal="true" aria-labelledby="application-lock-title"><form onSubmit={event => { event.preventDefault(); void unlock(); }}><h1 id="application-lock-title">{translate('settings:termQuayIsLocked')}</h1><label className="form-field">{translate('settings:masterPassword')}<input ref={input} type="password" autoComplete="current-password" value={password} maxLength={1024} disabled={busy} onChange={event => setPassword(event.target.value)} /></label>{error && <p className="error" role="alert">{error}</p>}<Button type="submit" color="primary" isDisabled={!password} isLoading={busy}>{translate('settings:unlock')}</Button></form></div>, document.body);
 }

@@ -1,4 +1,4 @@
-import { t } from '../../i18n/index.ts';
+import { t as translate } from '../../i18n/index.ts';
 import { useMessageState } from '../../i18n/useMessageState.ts';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
@@ -16,15 +16,15 @@ export default function CLISettings() {
     return () => { active = false; };
   }, []);
   return <div className="settings-section">
-    <h2>{t('settings:localCLI')}</h2>
+    <h2>{translate('settings:localCLI')}</h2>
     <div className="settings-row"><label><input type="checkbox" checked={enabled ?? false} disabled={enabled === undefined || busy} onChange={async event => {
       const next = event.target.checked;
       setBusy(true);
       try { await SaveCLIAccess(next); setEnabled(next); setError(''); }
       catch (e) { setError(e); }
       finally { setBusy(false); }
-    }} />{t('settings:allowLocalCLIAccess')}</label></div>
-    <p className="muted">{t('settings:allowLocalProcessesRunningAsTheSameOS')}</p>
+    }} />{translate('settings:allowLocalCLIAccess')}</label></div>
+    <p className="muted">{translate('settings:allowLocalProcessesRunningAsTheSameOS')}</p>
     {error && <p className="error" role="alert">{error}</p>}
   </div>;
 }

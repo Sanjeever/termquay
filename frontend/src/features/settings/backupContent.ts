@@ -1,15 +1,15 @@
-import { t } from '../../i18n/index.ts';
+import { t as translate } from '../../i18n/index.ts';
 export const workflowBackupOptions = [
-  { field: 'tasks', key: 'command_tasks', get label() { return t('settings:multiHostTasks'); } },
-  { field: 'workspaces', key: 'workspace_sets', get label() { return t('settings:namedWorkingSets'); } },
-  { field: 'tunnels', key: 'tunnel_presets', get label() { return t('settings:tunnelPresets'); } },
-  { field: 'sync', key: 'sync_presets', get label() { return t('settings:directorySyncPresets'); } },
-  { field: 'preferences', key: 'connection_preferences', get label() { return t('settings:bookmarksAndConnectionPreferences'); } },
-  { field: 'log_rules', key: 'log_view_presets', get label() { return t('settings:logFiltersAndHighlightingRules'); } },
+  { field: 'tasks', key: 'command_tasks', get label() { return translate('settings:multiHostTasks'); } },
+  { field: 'workspaces', key: 'workspace_sets', get label() { return translate('settings:namedWorkingSets'); } },
+  { field: 'tunnels', key: 'tunnel_presets', get label() { return translate('settings:tunnelPresets'); } },
+  { field: 'sync', key: 'sync_presets', get label() { return translate('settings:directorySyncPresets'); } },
+  { field: 'preferences', key: 'connection_preferences', get label() { return translate('settings:bookmarksAndConnectionPreferences'); } },
+  { field: 'log_rules', key: 'log_view_presets', get label() { return translate('settings:logFiltersAndHighlightingRules'); } },
 ] as const;
 
 export function backupSettingNames(): Record<string, string> { return {
-  get snippets() { return t('settings:commandSnippets'); }, get appearance() { return t('settings:appearance'); }, get shortcuts() { return t('settings:keyboardShortcuts'); },
+  get snippets() { return translate('settings:commandSnippets'); }, get appearance() { return translate('settings:appearance'); }, get shortcuts() { return translate('settings:keyboardShortcuts'); },
   ...Object.fromEntries(workflowBackupOptions.map(option => [option.key, option.label])),
 }; }
 
