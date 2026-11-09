@@ -504,8 +504,8 @@ func TestAIRunContinuesBeyond32Tools(t *testing.T) {
 }
 
 func TestAIRunBudgetEndsWithTextOnlySummary(t *testing.T) {
-	for _, cancelSummary := range []bool{false, true} {
-		t.Run(fmt.Sprintf("cancel=%t", cancelSummary), func(t *testing.T) {
+	for _, mode := range []string{"complete", "stop", "timeout"} {
+		t.Run(mode, func(t *testing.T) {
 			a, executed := aiTestSSH(t)
 			firstRequest := make(chan struct{})
 			release := make(chan struct{})
@@ -533,7 +533,7 @@ func TestAIRunBudgetEndsWithTextOnlySummary(t *testing.T) {
 					t.Error("summary still permits tools")
 				}
 				close(summaryStarted)
-				if cancelSummary {
+				if mode != "complete" {
 					w.Header().Set("Content-Type", "text/event-stream")
 					w.(http.Flusher).Flush()
 					<-r.Context().Done()
@@ -564,23 +564,87 @@ func TestAIRunBudgetEndsWithTextOnlySummary(t *testing.T) {
 			case <-time.After(5 * time.Second):
 				t.Fatal("summary did not start")
 			}
-			if cancelSummary {
+			if mode == "stop" {
 				if err := a.StopAIRun("workspace", start.ID); err != nil {
 					t.Fatal(err)
 				}
 			}
+			if mode == "timeout" {
+				run.mu.Lock()
+				run.pauseBudgetLocked()
+				run.budgetRemaining = 80 * time.Millisecond
+				run.resumeBudgetLocked()
+				run.mu.Unlock()
+			}
 			v := waitAI(t, a, func(v AIRunView) bool { return v.State == "stopped" || v.State == "failed" })
-			if v.State != "stopped" || requests.Load() != 2 || len(executed) != 0 {
+			want := "stopped"
+			if mode == "timeout" {
+				want = "failed"
+			}
+			if v.State != want || requests.Load() != 2 || len(executed) != 0 {
 				t.Fatalf("unexpected execution: requests=%d, run=%+v", requests.Load(), v)
 			}
 			page, err := a.GetAIConversation(t.Context(), "workspace", v.ConversationID, 0, 24)
 			if err != nil || page.Messages[2].Result == nil || page.Messages[2].Result.ErrorCode != "budget_exhausted" {
 				t.Fatalf("unexecuted result lost: %+v, %v", page, err)
 			}
-			if !cancelSummary && page.Messages[len(page.Messages)-2].Message.Content != "完成" {
+			if mode == "complete" && page.Messages[len(page.Messages)-2].Message.Content != "完成" {
 				t.Fatal("summary missing from history")
 			}
 		})
+	}
+}
+
+func TestAIRunModelWaitLeavesBudgetForSummary(t *testing.T) {
+	a, _ := aiTestSSH(t)
+	firstRequest := make(chan struct{})
+	release := make(chan struct{})
+	var requests atomic.Int32
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch requests.Add(1) {
+		case 1:
+			close(firstRequest)
+			select {
+			case <-release:
+			case <-time.After(5 * time.Second):
+				return
+			}
+			aiTestEvents(w, map[string]any{"choices": []any{map[string]any{"delta": map[string]any{"tool_calls": []any{map[string]any{"index": 0, "id": "query", "function": map[string]any{"name": "file_list", "arguments": `{"path":"/"}`}}}}, "finish_reason": "tool_calls"}}})
+		case 2:
+			w.Header().Set("Content-Type", "text/event-stream")
+			w.(http.Flusher).Flush()
+			<-r.Context().Done()
+		case 3:
+			var body struct {
+				ToolChoice string `json:"tool_choice"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.ToolChoice != "none" {
+				t.Errorf("summary did not disable tools: %v", err)
+			}
+			aiTestReply(w)
+		}
+	}))
+	defer s.Close()
+	aiTestConfigure(t, a, s.URL, false)
+	aiTestStart(t, a)
+	select {
+	case <-firstRequest:
+	case <-time.After(5 * time.Second):
+		t.Fatal("model request did not start")
+	}
+	a.aiMu.Lock()
+	run := a.aiRuns["workspace"]
+	a.aiMu.Unlock()
+	defer run.cancel()
+	run.mu.Lock()
+	run.pauseBudgetLocked()
+	run.budgetRemaining = aiSummaryReserve + 400*time.Millisecond
+	run.resumeBudgetLocked()
+	run.mu.Unlock()
+	close(release)
+	v := waitAI(t, a, func(v AIRunView) bool { return v.State == "stopped" || v.State == "failed" })
+	if v.State != "stopped" || requests.Load() != 3 {
+		t.Fatalf("work timeout canceled summary: requests=%d, run=%+v", requests.Load(), v)
 	}
 }
 
