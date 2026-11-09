@@ -71,6 +71,7 @@
 .transfer-destination { display: block; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-muted); font: 11px var(--font-mono); margin-top: 4px; }
 .transfer-progress { min-width: 200px; font-variant-numeric: tabular-nums; }
 .transfer-state { white-space: nowrap; }
+.transfer-direction { white-space: nowrap; }
 .transfer-compact-target { display: none; }
 .transfer-metrics { display: flex; justify-content: space-between; gap: 12px; margin-top: 5px; color: var(--color-muted); font-size: 11px; }
 .transfer-batch-summary { margin: 2px 12px 8px; color: var(--color-muted); font-size: 12px; }
@@ -84,7 +85,7 @@
 .transfer-group-heading > span { color: var(--color-muted); font-size: 11px; }
 @media (max-width: 1000px) {
   .transfer-panel .transfer-target { display: none; }
-  .transfer-compact-target { display: block; margin-top: 4px; color: var(--color-muted); font: 11px var(--font-mono); }
+  .transfer-compact-target { display: block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 4px; color: var(--color-muted); font: 11px var(--font-mono); }
   .transfer-heading { flex-wrap: wrap; gap: 8px; }
   .transfer-panel td, .transfer-panel th { padding-inline: 8px; }
 }

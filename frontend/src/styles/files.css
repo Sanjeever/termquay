@@ -49,7 +49,7 @@
 .inline-rename { display: flex; align-items: center; gap: 4px; width: 100%; }
 .inline-rename input { min-width: 0; }
 .file-path, .file-save-error { overflow-wrap: anywhere; }
-.file-save-error { padding: 8px 12px; background: var(--color-surface); }
+.file-save-error { padding: 8px 12px; max-height: min(200px, 30vh); overflow: auto; flex-shrink: 0; background: var(--color-surface); }
 .native-input { background: var(--color-background); border: 1px solid var(--color-border); border-radius: 6px; min-height: 36px; padding: 8px; }
 .inner-tabs [role=tab] { display: flex; gap: 6px; align-items: center; }
 .file-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 0; padding-bottom: 4px; font-size: 11px; color: var(--color-muted); }
