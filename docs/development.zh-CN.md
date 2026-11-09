@@ -346,6 +346,10 @@ macOS 菜单栏提供连接、终端、标签关闭、显示、界面缩放和�
 
 ## 已有验收记录与缺口
 
+### 文档审查与 1.4.1 候选验证（2026-11-09）
+
+审查范围、候选提交、环境、自动检查及附件核对统一见 [Documentation audit and candidate verification](development.md#documentation-audit-and-141-candidate-verification-2026-11-09)。记录区分本机检查、三平台 CI、候选包和标签发布；本轮未补做原生桌面交互、真实远端、升级链路或持续资源验收。
+
 ### 工作台 UI 验收（2026-11-09）
 
 本轮提交、环境、检查结果与交互覆盖统一维护在 [Workbench UI verification](development.md#workbench-ui-verification-2026-11-09)。浏览器使用实际 React 视图及临时 Wails 请求、流替身；原生 WebView、系统缩放、文件对话框、剪贴板和真实远端交互仍需独立验收。
