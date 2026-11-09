@@ -88,10 +88,13 @@
 .file-list summary { list-style: none; padding: 0 4px; }
 .file-menu { position: absolute; right: 0; top: 100%; background: var(--color-elevated); padding: 8px; display: flex; flex-direction: column; gap: 10px; width: 90px; z-index: 5; border: 1px solid var(--color-border); border-radius: 4px; }
 .file-action { display: flex; flex-direction: column; gap: 8px; border: 1px solid var(--color-border); border-radius: 4px; padding: 8px; margin: 8px 0; font-size: 12px; }
-.editor-toolbar { display: flex; flex-shrink: 0; align-items: center; min-height: 36px; padding: 3px 6px; gap: 2px; overflow-x: auto; border-bottom: 1px solid var(--color-border); font-size: 12px; color: var(--color-muted); }
+.editor-toolbar { display: flex; flex-shrink: 0; align-items: center; min-height: 36px; padding: 3px 6px; gap: 2px; flex-wrap: wrap; border-bottom: 1px solid var(--color-border); font-size: 12px; color: var(--color-muted); }
 .editor-toolbar > * { flex-shrink: 0; }
 .editor-toolbar .icon-button { width: 28px; height: 28px; }
 .editor-toolbar-divider { width: 1px; height: 16px; margin: 0 5px; background: var(--color-border); }
+.editor-save { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 9px; border-radius: 5px; color: var(--color-primary); }
+.editor-save:enabled:hover { background: var(--color-selected); }
+.editor-save-state { margin: 0 auto 0 6px; font-size: 11px; }
 .editor-format-button { height: 28px; padding: 0 7px; border-radius: 4px; font: 11px var(--font-mono); }
 .editor-format-button:hover, .editor-encoding:hover { color: var(--color-text); background: var(--color-hover); }
 .editor-format-button[aria-pressed=true] { color: var(--color-primary); background: var(--color-selected); }
@@ -102,8 +105,10 @@
 .pending-file { align-items: flex-start; gap: 12px; padding: 16px; }
 .pending-file > .select-control { min-width: 180px; }
 .code-editor { flex: 1; min-height: 0; overflow: hidden; }
-.editor-status { display: flex; justify-content: space-between; align-items: center; gap: 8px; height: 26px; flex-shrink: 0; padding: 0 10px; color: var(--color-muted); border-top: 1px solid var(--color-border); font-size: 11px; }
-.editor-status > .select-control { width: 150px; flex-shrink: 0; }
+.editor-status { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 6px; min-height: 28px; flex-shrink: 0; padding: 0 8px; color: var(--color-muted); border-top: 1px solid var(--color-border); font-size: 11px; }
+.editor-status > .select-control { width: 110px; flex-shrink: 0; }
+.editor-status .editor-encoding { min-width: 64px; margin: 0; border: 0; }
+.editor-status .editor-path { min-width: 70px; }
 .editor-status .select-trigger { min-height: 22px; height: 22px; border: 0; background: transparent; box-shadow: none; padding: 0 4px; }
 .editor-status .select-value { font-size: 11px; }
 .text-document, .image-preview { display: flex; flex: 1; flex-direction: column; height: 100%; min-width: 0; min-height: 0; container-type: inline-size; }

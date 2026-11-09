@@ -646,5 +646,7 @@
   "expandedDirectoryLimitReachedCollapseOtherDirectoriesFirst": "Expanded directory limit reached ({{value1}}). Collapse other directories first.",
   "couldNotReleaseImagePreview": "Could not release image preview",
   "couldNotReadImageContentHTTP": "Could not read image content: HTTP {{value1}}",
-  "couldNotDecodeImageReloadOrDownloadThe": "Could not decode image. Reload or download the original file."
+  "couldNotDecodeImageReloadOrDownloadThe": "Could not decode image. Reload or download the original file.",
+  "noUnsavedChanges": "No unsaved changes",
+  "lineEndings": "Line endings"
 }

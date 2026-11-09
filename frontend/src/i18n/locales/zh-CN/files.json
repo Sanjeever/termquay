@@ -646,5 +646,7 @@
   "expandedDirectoryLimitReachedCollapseOtherDirectoriesFirst": "已展开目录达到上限（{{value1}} 个），请先收起其他目录",
   "couldNotReleaseImagePreview": "释放图片预览失败",
   "couldNotReadImageContentHTTP": "图片内容读取失败：HTTP {{value1}}",
-  "couldNotDecodeImageReloadOrDownloadThe": "图片解码失败，请重新读取或下载原文件"
+  "couldNotDecodeImageReloadOrDownloadThe": "图片解码失败，请重新读取或下载原文件",
+  "noUnsavedChanges": "无未保存修改",
+  "lineEndings": "换行符"
 }
