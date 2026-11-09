@@ -2,6 +2,9 @@ import { errorMessage } from "../../lib/errors";
 import { createContext, useContext, useEffect, useLayoutEffect, useState, type ReactNode } from 'react';
 import { appearanceKey, defaultAppearance, monoFonts, parseAppearance, uiFonts, type Appearance } from './appearance';
 import { Window } from '@wailsio/runtime';
+import i18n, { systemLanguages } from '../../i18n';
+import { resolveLanguage } from '../../i18n/language';
+import { SetLanguage } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 
 const AppearanceContext = createContext<{ appearance: Appearance; dark: boolean; error: string; update(value: Appearance): void; beginPreview(): void; endPreview(): void } | undefined>(undefined);
 
@@ -15,6 +18,17 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
   const current = preview ?? appearance;
   const [error, setError] = useState(initial.error);
   const [systemDark, setSystemDark] = useState(() => matchMedia('(prefers-color-scheme: dark)').matches);
+  useLayoutEffect(() => {
+    const changed = () => {
+      const language = resolveLanguage(current.language, systemLanguages());
+      void i18n.changeLanguage(language);
+      document.documentElement.lang = language;
+      SetLanguage(language).catch(error => setError(i18n.t('syncLanguageFailed', { error: errorMessage(error) })));
+    };
+    changed();
+    window.addEventListener('languagechange', changed);
+    return () => window.removeEventListener('languagechange', changed);
+  }, [current.language]);
   useEffect(() => { const restore = () => { try { setAppearance(parseAppearance(localStorage.getItem(appearanceKey))); setError(''); } catch (e) { setError(errorMessage(e)); } }; window.addEventListener('termquay:portable-restored', restore); return () => window.removeEventListener('termquay:portable-restored', restore); }, []);
   const dark = current.theme === 'system' ? systemDark : current.theme === 'dark';
   useEffect(() => { Window.SetZoom(current.uiZoom).catch(error => setError(`界面缩放失败：${errorMessage(error)}`)); }, [current.uiZoom]);

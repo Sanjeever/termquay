@@ -6,6 +6,7 @@ TermQuay 采用 Apache-2.0。各依赖保留其原有许可证、版权与声明
 - Go 工具链原始许可证保存在 `build/licenses/go/Go/LICENSE`。
 - [前端锁文件](frontend/pnpm-lock.yaml) 固定前端依赖。[前端收集清单](build/licenses/frontend/packages.json) 记录收集时的生产依赖元数据，目录内保存包附带的许可文件。以下按用途说明许可，具体版本以锁文件和收集清单分别核对。
 - Wails 与前端运行时采用 MIT；React、HeroUI、xterm.js、CodeMirror 及大部分前端依赖采用 MIT。具体条款以各依赖原文为准。
+- Offline interface localization uses `i18next` and `react-i18next` (MIT), including `html-parse-stringify` (MIT). Their original licenses are collected under `build/licenses/frontend/`.
 - 终端搜索与链接使用 `@xterm/addon-search`、`@xterm/addon-web-links`，均采用 MIT；许可原文随包保存在前端许可目录。
 - 终端 Unicode 11 宽度与可选 WebGL 渲染使用 `@xterm/addon-unicode11`、`@xterm/addon-webgl`，采用 MIT；许可原文随包保存在前端许可目录。
 - 带时间轴终端录制使用 `maze.io/x/asciicast`（MIT），离线回放使用 `asciinema-player`（Apache-2.0）；录制编码与播放器均在本机运行。Go 与 npm 包附带的许可原文已收集。[播放器 WASM 材料](build/licenses/asciinema-player/3.17.0/) 保存锁定源码的 normal/build 依赖清单及许可原文、npm 来源证明与签名验证结果、构建配置和内嵌制品摘要；清单可能包含未链接的依赖，未执行可复现重建。

@@ -1,13 +1,16 @@
 import SelectControl from '../../components/SelectControl';
+import { useTranslation } from 'react-i18next';
 import { Button, Switch } from '@heroui/react';
 import { useAppearance } from './AppearanceProvider';
 import { defaultAppearance, monoFonts, terminalPalettes, terminalTheme, uiZoomLevels, type Appearance } from './appearance';
 
 export default function AppearanceSettings({ fontSize, onFontSize, section = 'appearance', demo = false, onDemo, demoDisabled = false }: { fontSize: number; onFontSize(value: number): void; section?: 'appearance' | 'terminal'; demo?: boolean; onDemo?(): void; demoDisabled?: boolean }) {
   const { appearance, dark, error, update } = useAppearance();
+  const { t } = useTranslation();
   const colors = terminalTheme(appearance.terminalPalette, dark);
   return <div className="settings-section"><h2>{section === 'appearance' ? '外观' : '终端与编辑器'}</h2>
     {error && <p className="error" role="alert">{error}</p>}
+    {section === 'appearance' && <div className="settings-row"><label htmlFor="appearance-language">{t('language')}</label><SelectControl id="appearance-language" value={appearance.language} onChange={event => update({ ...appearance, language: event.target.value as Appearance['language'] })}><option value="auto">{t('system')}</option><option value="zh-CN">简体中文</option><option value="en">English</option></SelectControl></div>}
     {section === 'appearance' ? <div className="settings-group"><div className="settings-row"><label htmlFor="appearance-theme">主题</label><SelectControl id="appearance-theme" value={appearance.theme} onChange={e => update({ ...appearance, theme: e.target.value as Appearance['theme'] })}><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></SelectControl></div>
     <div className="settings-row"><label htmlFor="appearance-ui-font">界面字体</label><SelectControl id="appearance-ui-font" value={appearance.uiFont} onChange={e => update({ ...appearance, uiFont: e.target.value as Appearance['uiFont'] })}><option value="system">系统默认</option><option value="yahei">微软雅黑</option><option value="pingfang">苹方</option></SelectControl></div>
     <div className="settings-row"><label htmlFor="appearance-ui-zoom">界面缩放</label><SelectControl id="appearance-ui-zoom" value={String(appearance.uiZoom)} onChange={event=>update({...appearance,uiZoom:Number(event.target.value)})}>{uiZoomLevels.map(zoom=><option key={zoom} value={String(zoom)}>{`${Math.round(zoom*100)}%`}</option>)}</SelectControl></div>

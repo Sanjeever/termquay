@@ -1,0 +1,6 @@
+{
+  "language": "Language",
+  "system": "Follow system",
+  "invalidLanguage": "Invalid language preference",
+  "syncLanguageFailed": "Could not update the native language: {{error}}"
+}

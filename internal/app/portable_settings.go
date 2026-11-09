@@ -33,6 +33,12 @@ func validatePortableUI(values map[string]string) error {
 					return errors.New("日志高亮设置无效")
 				}
 			}
+			if raw, ok := settings["language"]; ok {
+				var language string
+				if err := json.Unmarshal(raw, &language); err != nil || !slices.Contains([]string{"auto", "zh-CN", "en"}, language) {
+					return errors.New("Invalid language preference")
+				}
+			}
 			if raw, ok := settings["terminalRenderer"]; ok {
 				var renderer string
 				if err := json.Unmarshal(raw, &renderer); err != nil || !slices.Contains([]string{"dom", "webgl"}, renderer) {

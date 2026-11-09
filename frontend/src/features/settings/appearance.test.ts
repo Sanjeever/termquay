@@ -16,6 +16,13 @@ test('外观设置缺省跟随系统，非法值明确拒绝', () => {
   assert.deepEqual(parseAppearance(JSON.stringify(settings)), settings);
 });
 
+test('legacy appearance defaults to auto and explicit language survives portable serialization', () => {
+  const { language, ...legacy } = defaultAppearance;
+  assert.equal(parseAppearance(JSON.stringify(legacy)).language, 'auto');
+  for (const language of ['auto', 'en', 'zh-CN'] as const) assert.equal(parseAppearance(JSON.stringify({ ...legacy, language })).language, language);
+  for (const language of ['zh-TW', '', null, 42]) assert.throws(() => parseAppearance(JSON.stringify({ ...legacy, language })));
+});
+
 test('旧外观设置补全日志高亮偏好，关闭后保留选择', () => {
   const { terminalLogHighlight, uiZoom, terminalRenderer, ...legacy } = defaultAppearance;
   assert.deepEqual(parseAppearance(JSON.stringify(legacy)), defaultAppearance);

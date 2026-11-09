@@ -1,0 +1,6 @@
+{
+  "language": "语言",
+  "system": "跟随系统",
+  "invalidLanguage": "语言设置无效",
+  "syncLanguageFailed": "更新原生界面语言失败：{{error}}"
+}

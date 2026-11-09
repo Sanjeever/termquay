@@ -3655,5 +3655,41 @@
     "license": "MIT",
     "homepage": "https://github.com/xtermjs/xterm.js/tree/master#readme",
     "author": "The xterm.js authors"
+  },
+  {
+    "name": "html-parse-stringify",
+    "versions": [
+      "4.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/i18next/html-parse-stringify",
+    "author": "Henrik Joreteg"
+  },
+  {
+    "name": "i18next",
+    "versions": [
+      "27.0.1"
+    ],
+    "license": "MIT",
+    "homepage": "https://www.i18next.com",
+    "author": "Jan Mühlemann"
+  },
+  {
+    "name": "react-i18next",
+    "versions": [
+      "18.0.0"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/i18next/react-i18next",
+    "author": "Jan Mühlemann"
+  },
+  {
+    "name": "typescript",
+    "versions": [
+      "5.9.3"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://www.typescriptlang.org/",
+    "author": "Microsoft Corp."
   }
 ]

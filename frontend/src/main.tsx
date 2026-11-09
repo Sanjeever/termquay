@@ -6,6 +6,8 @@ import { AppearanceProvider } from './features/settings/AppearanceProvider';
 import './style.css';
 import appIcon from '../../build/appicon.svg';
 import { System } from '@wailsio/runtime';
+import './i18n';
+import { useTranslation } from 'react-i18next';
 
 const favicon = document.createElement('link');
 favicon.rel = 'icon'; favicon.type = 'image/svg+xml'; favicon.href = appIcon;
@@ -14,7 +16,8 @@ document.documentElement.dataset.platform = System.IsMac() ? 'mac' : 'other';
 
 function WorkbenchApp() {
   const reducedMotion = useReducedMotion();
-  return <MotionConfig reducedMotion="user" transition={{ duration: .16, ease: [.2, .8, .2, 1] }}><AppearanceProvider><HeroUIProvider locale="zh-CN" disableAnimation={!!reducedMotion} disableRipple><App /></HeroUIProvider></AppearanceProvider></MotionConfig>;
+  const { i18n } = useTranslation();
+  return <MotionConfig reducedMotion="user" transition={{ duration: .16, ease: [.2, .8, .2, 1] }}><AppearanceProvider><HeroUIProvider locale={i18n.resolvedLanguage} disableAnimation={!!reducedMotion} disableRipple><App /></HeroUIProvider></AppearanceProvider></MotionConfig>;
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(<WorkbenchApp />);

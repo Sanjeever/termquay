@@ -1040,6 +1040,10 @@ export function SetFrontendReady(): $CancellablePromise<void> {
     return $Call.ByID(1262353885);
 }
 
+export function SetLanguage(language: string): $CancellablePromise<void> {
+    return $Call.ByID(3614322636, language);
+}
+
 export function SetRDPClient(id: string, client: string): $CancellablePromise<void> {
     return $Call.ByID(2025160079, id, client);
 }
