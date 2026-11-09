@@ -1,3 +1,6 @@
+import { eventError, errorMessage } from '../../lib/errors.ts';
+import { t as translate } from '../../i18n/index.ts';
+import { useTranslation } from 'react-i18next';
 import { useEffect, useRef, useState } from 'react';
 import Icon from '../../components/Icon';
 import useAIConversation, { aiRunning } from './useAIConversation';
@@ -7,9 +10,10 @@ import AIToolCall from './AIToolCall';
 import type { Reference } from '../../../bindings/github.com/Sanjeever/termquay/internal/ai/models';
 import type { AIRunView } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 
-const states: Record<string, string> = { running: '正在处理', awaiting_approval: '等待命令批准', compressing: '正在压缩较早上下文' };
+const states: Record<string, string> = { get running() { return translate('ai:processing'); }, get awaiting_approval() { return translate('ai:awaitingCommandApproval'); }, get compressing() { return translate('ai:compactingEarlierContext'); } };
 
 function AIRequestStatus({run,visible}:{run?:AIRunView;visible:boolean}) {
+  useTranslation();
   const [now,setNow]=useState(Date.now);
   const started=run?.model_started_at||0;
   useEffect(()=>{
@@ -21,13 +25,14 @@ function AIRequestStatus({run,visible}:{run?:AIRunView;visible:boolean}) {
   let label=states[run?.state||'']||'';
   if(started&&run?.state==='running') {
     const idle=now-(run.model_last_activity_at||started);
-    label=!run.live_text?'等待模型响应':idle>=30000?'等待模型继续响应':'正在回复';
+    label=!run.live_text?translate('ai:waitingForModelResponse'):idle>=30000?translate('ai:waitingForModelToContinue'):translate('ai:responding');
   }
   const seconds=started?Math.max(0,Math.floor((now-started)/1000)):0;
-  return <div className="ai-status" role="status">{label}{started?<span aria-live="off"> · {run?.live_text?'已用时':'已等待'} {Math.floor(seconds/60)}:{String(seconds%60).padStart(2,'0')}</span>:null}</div>;
+  return <div className="ai-status" role="status">{label}{started?<span aria-live="off"> · {run?.live_text?translate('ai:elapsed'):translate('ai:waiting')} {Math.floor(seconds/60)}:{String(seconds%60).padStart(2,'0')}</span>:null}</div>;
 }
 
 export default function AIPanel({ workspace, visible, configRevision, references, onRemoveReference, onReferencesSent, onClose }: { workspace: string; visible: boolean; configRevision: number; references: Reference[]; onRemoveReference(index: number): void; onReferencesSent(sent: Reference[]): void; onClose(): void }) {
+  useTranslation();
   const ai = useAIConversation(workspace, visible, configRevision);
   const [text, setText] = useState('');
   const [history, setHistory] = useState(false);
@@ -49,24 +54,24 @@ export default function AIPanel({ workspace, visible, configRevision, references
   }
   const pending = ai.run?.pending;
   const pendingInPage = pending && messages.some(item => item.run_id === ai.run?.id && item.message.tool_calls?.some(call => call.id === pending.call.id));
-  return <section className="ai-panel" aria-label="AI 助手">
-    <header className="ai-panel-header"><strong>AI 助手</strong><div><button className="icon-button" aria-label="新对话" disabled={ai.busy || ai.loading} onClick={async () => { if (await ai.newConversation()) { setHistory(false); pinned.current = true; } }}><Icon name="plus" width="15" /></button><button className="icon-button" aria-label="对话历史" aria-pressed={history} onClick={() => setHistory(value => !value)}><Icon name="list" width="15" /></button><button className="icon-button" aria-label="收起 AI 助手" onClick={onClose}><Icon name="close" width="15" /></button></div></header>
-    {history ? <AIHistory workspace={workspace} current={ai.run?.conversation_id} busy={ai.busy} operationError={ai.error} onOpen={async id => { const ok = await ai.openConversation(id); if (ok) { setHistory(false); pinned.current = true; } return ok; }} onDelete={ai.deleteConversation} /> : <>
-      {ai.page?.conversation.summary_through ? <details className="ai-context-summary"><summary>较早上下文已压缩</summary><p>{ai.page.conversation.summary}</p></details> : null}
-      {targetChanged && <div className="ai-target-change"><div>原目标 {ai.page!.conversation.target}</div><div>当前目标 {ai.page!.current_target}</div><label><input type="checkbox" checked={acceptTarget} onChange={event => setAcceptTarget(event.target.checked)} />在当前目标继续</label></div>}
-      <div ref={transcript} className="ai-transcript" aria-label="AI 对话记录" onScroll={event => { const host = event.currentTarget; pinned.current = host.scrollHeight - host.scrollTop - host.clientHeight < 48; }}>
-        {ai.page?.has_more && <button className="session-tool" disabled={ai.busy} onClick={() => void ai.loadPage(true)}>较早消息</button>}
-        {ai.browsing && <button className="session-tool" disabled={ai.busy} onClick={() => { pinned.current = true; void ai.loadPage(false); }}>最近消息</button>}
-        {ai.loading && <p className="muted" role="status">正在载入…</p>}
+  return <section className="ai-panel" aria-label={translate('ai:aIAssistant')}>
+    <header className="ai-panel-header"><strong>{translate('ai:aIAssistant')}</strong><div><button className="icon-button" aria-label={translate('ai:newConversation')} disabled={ai.busy || ai.loading} onClick={async () => { if (await ai.newConversation()) { setHistory(false); pinned.current = true; } }}><Icon name="plus" width="15" /></button><button className="icon-button" aria-label={translate('ai:conversationHistory')} aria-pressed={history} onClick={() => setHistory(value => !value)}><Icon name="list" width="15" /></button><button className="icon-button" aria-label={translate('ai:collapseAIAssistant')} onClick={onClose}><Icon name="close" width="15" /></button></div></header>
+    {history ? <AIHistory workspace={workspace} current={ai.run?.conversation_id} busy={ai.busy} operationError={errorMessage(eventError(ai))} onOpen={async id => { const ok = await ai.openConversation(id); if (ok) { setHistory(false); pinned.current = true; } return ok; }} onDelete={ai.deleteConversation} /> : <>
+      {ai.page?.conversation.summary_through ? <details className="ai-context-summary"><summary>{translate('ai:earlierContextCompacted')}</summary><p>{ai.page.conversation.summary}</p></details> : null}
+      {targetChanged && <div className="ai-target-change"><div>{translate('ai:originalDestination')}{ai.page!.conversation.target}</div><div>{translate('ai:currentDestination')}{ai.page!.current_target}</div><label><input type="checkbox" checked={acceptTarget} onChange={event => setAcceptTarget(event.target.checked)} />{translate('ai:continueOnCurrentDestination')}</label></div>}
+      <div ref={transcript} className="ai-transcript" aria-label={translate('ai:aIConversationHistory')} onScroll={event => { const host = event.currentTarget; pinned.current = host.scrollHeight - host.scrollTop - host.clientHeight < 48; }}>
+        {ai.page?.has_more && <button className="session-tool" disabled={ai.busy} onClick={() => void ai.loadPage(true)}>{translate('ai:earlierMessages')}</button>}
+        {ai.browsing && <button className="session-tool" disabled={ai.busy} onClick={() => { pinned.current = true; void ai.loadPage(false); }}>{translate('ai:recentMessages')}</button>}
+        {ai.loading && <p className="muted" role="status">{translate('ai:loading')}</p>}
         <AIConversation messages={messages} run={ai.run} busy={ai.busy} onDecide={approved => void ai.decide(approved)} onError={ai.setError} />
-        {!ai.browsing && ai.run?.live_text && <article className="ai-message assistant"><div className="ai-message-role">助手</div><div className="ai-stream-text">{ai.run.live_text}</div></article>}
+        {!ai.browsing && ai.run?.live_text && <article className="ai-message assistant"><div className="ai-message-role">{translate('ai:assistant')}</div><div className="ai-stream-text">{ai.run.live_text}</div></article>}
       </div>
       {pending && !pendingInPage && <AIToolCall call={pending.call} shell={pending.shell} pending active busy={ai.busy} onDecide={approved => void ai.decide(approved)} />}
       <AIRequestStatus run={ai.run} visible={visible}/>
       <form className="ai-composer" onSubmit={event => { event.preventDefault(); void send(); }}>
-        {!!references.length && <div className="ai-pending-references" aria-label="待发送终端引用">{references.map((reference,index)=><div className="ai-pending-reference" key={index}><details><summary>{reference.label || `终端 ${reference.terminal.slice(0,8)}`}</summary><pre>{reference.text}</pre></details><button type="button" className="icon-button" aria-label={`移除引用 ${index+1}`} onClick={()=>onRemoveReference(index)}><Icon name="close" width="12"/></button></div>)}</div>}
-        <textarea ref={input} disabled={ai.busy || !visible} aria-label="发送给 AI 的问题" placeholder="询问当前主机…" rows={3} maxLength={32768} value={text} onChange={event => setText(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void send(); } }} /><div className="ai-composer-actions">{running ? <button type="button" className="session-tool" disabled={ai.busy} onClick={() => void ai.stop()}>停止</button> : <button type="submit" className="session-tool ai-send" disabled={!visible || ai.busy || ai.loading || !text.trim() && !references.length || targetChanged && !acceptTarget}>发送</button>}</div></form>
+        {!!references.length && <div className="ai-pending-references" aria-label={translate('ai:pendingTerminalReferences')}>{references.map((reference,index)=><div className="ai-pending-reference" key={index}><details><summary>{reference.label || translate('ai:terminal', { value1: reference.terminal.slice(0,8) })}</summary><pre>{reference.text}</pre></details><button type="button" className="icon-button" aria-label={translate('ai:removeReference', { value1: index+1 })} onClick={()=>onRemoveReference(index)}><Icon name="close" width="12"/></button></div>)}</div>}
+        <textarea ref={input} disabled={ai.busy || !visible} aria-label={translate('ai:questionToSendToAI')} placeholder={translate('ai:askAboutThisHost')} rows={3} maxLength={32768} value={text} onChange={event => setText(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void send(); } }} /><div className="ai-composer-actions">{running ? <button type="button" className="session-tool" disabled={ai.busy} onClick={() => void ai.stop()}>{translate('ai:stop')}</button> : <button type="submit" className="session-tool ai-send" disabled={!visible || ai.busy || ai.loading || !text.trim() && !references.length || targetChanged && !acceptTarget}>{translate('ai:send')}</button>}</div></form>
     </>}
-    {(ai.error || ai.run?.error) && <div className="ai-error" role="alert">{ai.error || ai.run?.error}{ai.error && <button className="session-tool" onClick={ai.retry}>重新载入</button>}</div>}
+    {(errorMessage(eventError(ai)) || errorMessage(eventError(ai.run))) && <div className="ai-error" role="alert">{errorMessage(eventError(ai)) || errorMessage(eventError(ai.run))}{errorMessage(eventError(ai)) && <button className="session-tool" onClick={ai.retry}>{translate('ai:reload')}</button>}</div>}
   </section>;
 }

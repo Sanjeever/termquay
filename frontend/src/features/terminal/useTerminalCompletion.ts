@@ -1,3 +1,5 @@
+import { message as uiMessage } from '../../i18n/messages.ts';
+import { t as translate } from '../../i18n/index.ts';
 import { useEffect, useRef, useState, type MutableRefObject } from 'react';
 import type { Terminal } from '@xterm/xterm';
 import { CompleteTerminalPath } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
@@ -6,7 +8,7 @@ import { commandContext, pathCandidates, type CommandCandidate, type CompletionC
 import { completionEdit, completionRequest, parseCompletionMessage, type ShellSnapshot } from './shellCompletionProtocol';
 
 export type CompletionView = { snapshot: ShellSnapshot; context: CompletionContext; candidates: CommandCandidate[]; selected: number; loading: boolean; truncated: boolean; error: string };
-type Options = { id: string; workspace: string; visible: boolean; terminal: MutableRefObject<Terminal | undefined>; send(frame: string): boolean; fail(message: string): void; help(): void };
+type Options = { id: string; workspace: string; visible: boolean; terminal: MutableRefObject<Terminal | undefined>; send(frame: string): boolean; fail(message: unknown): void; help(): void };
 
 export default function useTerminalCompletion(options: Options) {
   const latest = useRef(options); latest.current = options;
@@ -42,10 +44,10 @@ export default function useTerminalCompletion(options: Options) {
   function request() {
     const { terminal, send, fail, help } = latest.current;
     if (!configuration.current) { help(); return; }
-    if (!editing.current || terminal.current?.buffer.active.type !== 'normal') { fail('请在 Shell 命令提示符触发补全'); return; }
+    if (!editing.current || terminal.current?.buffer.active.type !== 'normal') { fail(uiMessage('terminal:triggerCompletionAtTheShellCommandPrompt')); return; }
     dismiss(); requested.current = true;
     if (!send(completionRequest)) { dismiss(); return; }
-    timer.current = setTimeout(() => { reset(); fail('Shell 未返回补全状态，请检查当前会话集成'); }, 1500);
+    timer.current = setTimeout(() => { reset(); fail(uiMessage('terminal:shellDidNotReturnCompletionStateCheckThis')); }, 1500);
   }
   function receive(data: string) {
     const config = configuration.current;
@@ -53,7 +55,7 @@ export default function useTerminalCompletion(options: Options) {
     const message = parseCompletionMessage(data, config.token);
     if (!message) return;
     if (message.kind === 'prompt') { reset(); prompt.current = true; editing.current = false; return; }
-    if (message.kind === 'error') { const wasApplying=applying.current!==undefined;reset();if(wasApplying)editing.current=true;latest.current.fail(message.message); return; }
+    if (message.kind === 'error') { const wasApplying=applying.current!==undefined;reset();if(wasApplying)editing.current=true;latest.current.fail(message.messageCode ? uiMessage(message.messageCode) : message.message); return; }
     if (message.kind === 'applied') {
       if (applying.current === message.sequence) { reset(); editing.current = true; }
       return;
@@ -62,7 +64,7 @@ export default function useTerminalCompletion(options: Options) {
     clearTimeout(timer.current); timer.current = undefined; requested.current = false;
     const snapshot = message.snapshot, context = commandContext(snapshot), current = ++version.current;
     const initial: CompletionView = { snapshot, context, candidates: context.candidates, selected: 0, loading: !!context.path && config.paths, truncated: false, error: context.unsupported || '' };
-    if (context.path && !config.paths) initial.error = '路径补全尚未确认文件系统，可在当前 Shell 集成中开启';
+    if (context.path && !config.paths) initial.error = translate('terminal:filesystemNotConfirmedForPathCompletionEnableIt');
     publish(initial);
     if (!context.path || !config.paths) return;
     const path = context.path;
@@ -90,8 +92,8 @@ export default function useTerminalCompletion(options: Options) {
       const frame = completionEdit(config.token,current.snapshot,current.context.from,current.context.to,candidate.text);
       reset(); editing.current = false; applying.current = current.snapshot.sequence;
       if (!latest.current.send(frame)) { applying.current=undefined;editing.current=true;return; }
-      timer.current=setTimeout(()=>{reset();latest.current.fail('Shell 未确认补全回写，请重新启用当前会话集成');},1500);
-    } catch(error) { reset(); latest.current.fail(errorMessage(error)); }
+      timer.current=setTimeout(()=>{reset();latest.current.fail(uiMessage('terminal:shellDidNotConfirmCompletionWritebackReenableIntegration'));},1500);
+    } catch(error) { reset(); latest.current.fail(error); }
   }
   function key(event: KeyboardEvent) {
     if (event.type !== 'keydown') return true;

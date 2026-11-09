@@ -1,3 +1,4 @@
+import { t as translate } from '../../i18n/index.ts';
 import { commandByName, posixCommands, type CommandArgument, type PosixCommand } from './posixCommands.ts';
 import type { ShellSnapshot } from './shellCompletionProtocol.ts';
 
@@ -45,7 +46,7 @@ function segment(line: string, cursor: number) {
 export function commandContext(snapshot: ShellSnapshot): CompletionContext {
   const { line, cursor, directory, home } = snapshot;
   const part = segment(line,cursor);
-  if (!part) return { from:cursor,to:cursor,prefix:'',candidates:[],unsupported:'此处请使用 Shell 原生补全' };
+  if (!part) return { from:cursor,to:cursor,prefix:'',candidates:[],unsupported:translate('terminal:useTheShellSNativeCompletionHere') };
   const {current,previous,prefix}=part;
   const from=current?.from??cursor, to=current?.to??cursor;
   const space = /\s/.test(line[to] || '') ? '' : ' ';
@@ -59,7 +60,7 @@ export function commandContext(snapshot: ShellSnapshot): CompletionContext {
   const used = new Set<string>();
   for (const word of previous.slice(1)) {
     if (argument) {argument=undefined;continue;}
-    if (word.operator && /[<>]/.test(word.value)) {argument={name:'文件',kind:'file'};continue;}
+    if (word.operator && /[<>]/.test(word.value)) {argument={name:translate('terminal:file'),kind:'file'};continue;}
     if (word.value==='--') {endOptions=true;continue;}
     if (!endOptions && word.value.startsWith('-') && word.value!=='-') {
       const exact=command?.options.find(option=>option.name===word.value);

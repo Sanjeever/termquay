@@ -1,8 +1,12 @@
+import { eventError, errorMessage } from '../../lib/errors.ts';
+import { t as translate } from '../../i18n/index.ts';
+import { useTranslation } from 'react-i18next';
 import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import type useTerminalCompletion from './useTerminalCompletion';
 
-const kinds={command:'命令',option:'选项',value:'参数',file:'文件',directory:'目录'};
+const kinds={get command() { return translate('terminal:command'); },get option() { return translate('terminal:options'); },get value() { return translate('terminal:parameter'); },get file() { return translate('terminal:file'); },get directory() { return translate('terminal:directory'); }};
 export default function TerminalCompletion({completion,onHelp}:{completion:ReturnType<typeof useTerminalCompletion>;onHelp(command?:string):void}) {
+  useTranslation();
   const {view}=completion;
   const id=useId();
   const list=useRef<HTMLUListElement>(null);
@@ -27,15 +31,15 @@ export default function TerminalCompletion({completion,onHelp}:{completion:Retur
   useEffect(()=>{list.current?.querySelector('[aria-selected=true]')?.scrollIntoView({block:'nearest'});},[view?.selected,view?.snapshot.sequence]);
   if(!view)return null;
   const selected=view.candidates[view.selected];
-  return <section ref={panel} style={position} className="terminal-completion" aria-label="终端补全" onPointerDown={event=>event.preventDefault()}>
-    <div className="terminal-completion-heading"><span>{view.context.command?.name||'命令补全'}</span><button className="session-tool" onClick={()=>onHelp(view.context.command?.name)}>帮助</button><button className="session-tool" aria-label="关闭终端补全" onClick={completion.dismiss}>关闭</button></div>
+  return <section ref={panel} style={position} className="terminal-completion" aria-label={translate('terminal:terminalCompletion')} onPointerDown={event=>event.preventDefault()}>
+    <div className="terminal-completion-heading"><span>{view.context.command?.name||translate('terminal:commandCompletion')}</span><button className="session-tool" onClick={()=>onHelp(view.context.command?.name)}>{translate('terminal:help')}</button><button className="session-tool" aria-label={translate('terminal:closeTerminalCompletion')} onClick={completion.dismiss}>{translate('terminal:close')}</button></div>
     <div className="terminal-completion-body">
-      <ul ref={list} id={id} role="listbox" aria-label="补全候选">{view.candidates.map((item,index)=><li id={`${id}-${index}`} key={`${item.kind}:${item.text}`} role="option" aria-selected={index===view.selected} onPointerEnter={()=>completion.select(index)} onClick={()=>completion.accept(index)}><code>{item.label}</code><span>{item.description}</span><small>{kinds[item.kind]}</small></li>)}</ul>
+      <ul ref={list} id={id} role="listbox" aria-label={translate('terminal:completionCandidates')}>{view.candidates.map((item,index)=><li id={`${id}-${index}`} key={`${item.kind}:${item.text}`} role="option" aria-selected={index===view.selected} onPointerEnter={()=>completion.select(index)} onClick={()=>completion.accept(index)}><code>{item.label}</code><span>{item.description}</span><small>{kinds[item.kind]}</small></li>)}</ul>
       {selected&&<div className="terminal-completion-detail"><strong>{selected.label}</strong>{selected.description&&<p>{selected.description}</p>}{view.context.command&&<code>{view.context.command.synopsis}</code>}</div>}
     </div>
-    {view.loading&&<p className="terminal-completion-status" role="status">正在读取目录…</p>}
-    {view.error&&<p className="terminal-completion-status error" role="status">{view.error}</p>}
-    {!view.loading&&!view.error&&!view.candidates.length&&<p className="terminal-completion-status" role="status">无匹配候选</p>}
-    {view.truncated&&<p className="terminal-completion-status" role="status">已达到目录扫描或候选上限</p>}
+    {view.loading&&<p className="terminal-completion-status" role="status">{translate('terminal:readingDirectory')}</p>}
+    {errorMessage(eventError(view))&&<p className="terminal-completion-status error" role="status">{errorMessage(eventError(view))}</p>}
+    {!view.loading&&!errorMessage(eventError(view))&&!view.candidates.length&&<p className="terminal-completion-status" role="status">{translate('terminal:noMatchingCandidates')}</p>}
+    {view.truncated&&<p className="terminal-completion-status" role="status">{translate('terminal:directoryScanOrCandidateLimitReached')}</p>}
   </section>;
 }

@@ -1,12 +1,13 @@
+import { useMessageState } from '../../i18n/useMessageState.ts';
 import { useEffect, useState } from 'react';
 import { Events } from '@wailsio/runtime';
 import { ListCommandRuns } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { CommandRunSummary } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
-import { errorMessage } from '../../lib/errors';
+
 
 export default function useCommandRuns(enabled: boolean) {
   const [items, setItems] = useState<CommandRunSummary[]>([]);
-  const [error, setError] = useState('');
+  const [error, setError] = useMessageState('');
   const [revision, setRevision] = useState(0);
   function update(value: CommandRunSummary) {
     setItems(previous => {
@@ -32,8 +33,8 @@ export default function useCommandRuns(enabled: boolean) {
         return [...merged.values()].sort((a, b) => b.started_at - a.started_at);
       });
       setError('');
-    }).catch(e => { if (!ended) setError(errorMessage(e)); });
+    }).catch(e => { if (!ended) setError(e); });
     return () => { ended = true; request.cancel(); off.forEach(dispose => dispose()); };
   }, [enabled, revision]);
-  return { items, error, update, refresh: () => setRevision(value => value + 1), active: items.filter(item => !item.finished_at).length, waiting: items.filter(item => item.state === '等待确认').length };
+  return { items, error, update, refresh: () => setRevision(value => value + 1), active: items.filter(item => !item.finished_at).length, waiting: items.filter(item => item.state_code === 'awaiting_confirmation').length };
 }

@@ -4,6 +4,13 @@ import { completionEdit, parseCompletionMessage, shellPoint } from './shellCompl
 
 const token = 'a'.repeat(64);
 const hex = (value: string) => Buffer.from(value).toString('hex');
+
+test('completion error metadata accepts known codes while retaining legacy diagnostics', () => {
+  assert.deepEqual(parseCompletionMessage(`termquay;${token};E;original diagnostic`, token), { kind: 'error', message: 'original diagnostic' });
+  assert.deepEqual(parseCompletionMessage(`termquay;${token};E;original diagnostic;terminal:completionCommandChanged`, token), { kind: 'error', message: 'original diagnostic', messageCode: 'terminal:completionCommandChanged' });
+  assert.equal(parseCompletionMessage(`termquay;${token};E;diagnostic;unknown:code`, token), null);
+  assert.equal(parseCompletionMessage(`termquay;${token};E;invalid\ntext;terminal:completionCommandChanged`, token), null);
+});
 test('Shell 补全只接受当前会话且编码完整的快照', () => {
   const packet = `termquay;${token};S;1;bash;3;${hex('ls ')};${hex('/tmp')};${hex('/home/user')}`;
   assert.equal(parseCompletionMessage(packet, 'b'.repeat(64)), null);

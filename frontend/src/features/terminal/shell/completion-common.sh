@@ -47,7 +47,7 @@ __termquay_record() {
 __termquay_snapshot() {
   local LC_ALL=C line="$1" point="$2" directory home
   if [ ${#line} -gt 8192 ] || [ ${#PWD} -gt 4096 ] || [ ${#HOME} -gt 4096 ]; then
-    __termquay_emit 'E;输入或路径超过补全上限'; return
+    __termquay_emit 'E;输入或路径超过补全上限;terminal:completionInputLimit'; return
   fi
   __termquay_saved_line=$line; __termquay_saved_point=$point
   __termquay_sequence=$((__termquay_sequence + 1))

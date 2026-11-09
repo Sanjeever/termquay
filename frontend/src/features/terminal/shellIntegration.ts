@@ -1,3 +1,4 @@
+import { message as uiMessage } from '../../i18n/messages.ts';
 import type { IMarker, Terminal } from '@xterm/xterm';
 
 export type CommandIndexEntry = { id: number; command?: string; directory: string; startedAt: number; duration?: number; exitCode?: string; canLocate?: boolean; canCopyOutput?: boolean };
@@ -78,9 +79,9 @@ export function addShellIntegration(term: Terminal, onDirectory: (path: string, 
     goTo(id: number) { const entry = entries.find(entry => entry.view.id === id); if (!entry || entry.start.isDisposed) return false; term.scrollToLine(entry.start.line); return true; },
     outputText(id: number) {
       const entry = entries.find(entry => entry.view.id === id);
-      if (!entry || entry.start.isDisposed || !entry.end || entry.end.isDisposed) throw new Error('输出尚未结束或已移出终端缓冲区');
+      if (!entry || entry.start.isDisposed || !entry.end || entry.end.isDisposed) throw uiMessage('terminal:commandOutputUnavailable');
       const lines: string[] = []; let size = 0;
-      for (let y = entry.start.line; y < entry.end.line; y++) { const line = term.buffer.normal.getLine(y)?.translateToString(true) || ''; size += new TextEncoder().encode(line).length + 1; if (size > 256 * 1024) throw new Error('输出超过 256 KiB 复制限制'); lines.push(line); }
+      for (let y = entry.start.line; y < entry.end.line; y++) { const line = term.buffer.normal.getLine(y)?.translateToString(true) || ''; size += new TextEncoder().encode(line).length + 1; if (size > 256 * 1024) throw uiMessage('terminal:commandOutputCopyLimit'); lines.push(line); }
       return lines.join('\n');
     },
     previous() { const before = term.buffer.active.viewportY; const mark = marks.filter(m => !m.isDisposed && m.line < before).slice(-1)[0]; if (mark) term.scrollToLine(mark.line); },

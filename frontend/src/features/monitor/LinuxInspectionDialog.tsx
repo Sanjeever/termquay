@@ -1,80 +1,89 @@
+import Modal from '../../components/Modal';
+import { eventError } from '../../lib/errors.ts';
+import { t as translate, currentLocale } from '../../i18n/index.ts';
+import { message as uiMessage } from '../../i18n/messages.ts';
+import { useMessageState } from '../../i18n/useMessageState.ts';
+import { useTranslation } from 'react-i18next';
 import { useEffect, useRef, useState } from 'react';
-import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
+import { Button, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
 import { ChangeLinuxServiceState, ListLinuxProcesses, ListLinuxServices, ReadLinuxProcessDetails, ReadLinuxServiceDetails, ReadLinuxServiceLog } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { LinuxProcess, LinuxProcessDetails, LinuxProcessList, LinuxServiceDetails, LinuxServiceList } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import type { CommandResult } from '../../../bindings/github.com/Sanjeever/termquay/internal/ssh/models';
 import ErrorNotice from '../../components/ErrorNotice';
 import SelectControl from '../../components/SelectControl';
 import Tooltip from '../../components/Tooltip';
-import { errorMessage } from '../../lib/errors';
+
 import { bytes } from '../files/transferFormat';
 import PortInspection from './PortInspection';
 
 type Navigation = { onDirectory?(path: string): void; onFile?(path: string): Promise<void>; onService(unit: string): void };
 
 function ProcessDetails({ workspace, process, onDirectory, onService }: { workspace: string; process: LinuxProcess } & Navigation) {
+  useTranslation();
   const [details, setDetails] = useState<LinuxProcessDetails>();
-  const [error, setError] = useState('');
+  const [error, setError] = useMessageState('');
   useEffect(() => {
     let ended = false;
     const request = ReadLinuxProcessDetails(workspace, process.pid);
-    request.then(value => { if (!ended) setDetails(value); }).catch(e => { if (!ended) setError(errorMessage(e)); });
+    request.then(value => { if (!ended) setDetails(value); }).catch(e => { if (!ended) setError(e); });
     return () => { ended = true; request.cancel(); };
   }, [workspace, process.pid]);
-  return <section className="inspection-detail" aria-label={`进程 ${process.pid} 详情`}>
-    <div className="session-status">PID {process.pid} · 父进程 {process.parent} · {process.user} · 已运行 {process.elapsed}</div>
+  return <section className="inspection-detail" aria-label={translate('monitor:processDetails', { value1: process.pid })}>
+    <div className="session-status">PID {process.pid} {translate('monitor:parentProcess')}{process.parent} · {process.user} {translate('monitor:runningFor')}{process.elapsed}</div>
     <pre className="inspection-command">{process.command}</pre>
     <ErrorNotice message={error} />
-    {!details && !error && <p role="status" className="muted">正在读取进程详情…</p>}
+    {!details && !error && <p role="status" className="muted">{translate('monitor:readingProcessDetails')}</p>}
     {details && <>
-      {details.executable && <p className="file-path">可执行文件 · {details.executable}</p>}
-      {details.directory && <div className="inspection-path"><span className="file-path">工作目录 · {details.directory}</span>{onDirectory && details.directory.startsWith('/') && <Button size="sm" variant="light" onPress={() => onDirectory(details.directory)}>打开目录</Button>}</div>}
-      {details.service && <Button size="sm" variant="light" onPress={() => onService(details.service)}>查看服务 {details.service}</Button>}
+      {details.executable && <p className="file-path">{translate('monitor:executable')}{details.executable}</p>}
+      {details.directory && <div className="inspection-path"><span className="file-path">{translate('monitor:workingDirectory')}{details.directory}</span>{onDirectory && details.directory.startsWith('/') && <Button size="sm" variant="light" onPress={() => onDirectory(details.directory)}>{translate('monitor:openDirectory')}</Button>}</div>}
+      {details.service && <Button size="sm" variant="light" onPress={() => onService(details.service)}>{translate('monitor:viewService')}{details.service}</Button>}
       {(details.errors || []).map((message, index) => <p key={index} role="status" className="error">{message}</p>)}
     </>}
   </section>;
 }
 
 function ProcessInspection({ workspace, initialOrder, ...navigation }: { workspace: string; initialOrder: 'cpu' | 'memory' } & Navigation) {
+  useTranslation();
   const [order, setOrder] = useState(initialOrder);
   const [filter, setFilter] = useState('');
   const [revision, setRevision] = useState(0);
   const [list, setList] = useState<LinuxProcessList>();
   const [selected, setSelected] = useState<LinuxProcess>();
-  const [error, setError] = useState('');
+  const [error, setError] = useMessageState('');
   const [busy, setBusy] = useState(true);
   useEffect(() => {
     let ended = false;
     setBusy(true); setError(''); setList(undefined); setSelected(undefined);
     const request = ListLinuxProcesses(workspace, order);
-    request.then(value => { if (!ended) setList(value); }).catch(e => { if (!ended) setError(errorMessage(e)); }).finally(() => { if (!ended) setBusy(false); });
+    request.then(value => { if (!ended) setList(value); }).catch(e => { if (!ended) setError(e); }).finally(() => { if (!ended) setBusy(false); });
     return () => { ended = true; request.cancel(); };
   }, [workspace, order, revision]);
   const query = filter.toLowerCase();
   const items = (list?.items || []).filter(process => `${process.pid} ${process.user} ${process.command}`.toLowerCase().includes(query));
   return <>
-    <div className="inspection-toolbar"><SelectControl aria-label="进程排序" value={order} onChange={event => setOrder(event.target.value as 'cpu' | 'memory')}><option value="cpu">按 CPU 排序</option><option value="memory">按内存排序</option></SelectControl><input aria-label="过滤已读取进程" placeholder="过滤已读取进程" value={filter} onChange={event => setFilter(event.target.value)} maxLength={256} /><Button size="sm" variant="light" isLoading={busy} onPress={() => setRevision(value => value + 1)}>刷新</Button></div>
+    <div className="inspection-toolbar"><SelectControl aria-label={translate('monitor:processSorting')} value={order} onChange={event => setOrder(event.target.value as 'cpu' | 'memory')}><option value="cpu">{translate('monitor:sortByCPU')}</option><option value="memory">{translate('monitor:sortByMemory')}</option></SelectControl><input aria-label={translate('monitor:filterProcessesAlreadyRead')} placeholder={translate('monitor:filterProcessesAlreadyRead')} value={filter} onChange={event => setFilter(event.target.value)} maxLength={256} /><Button size="sm" variant="light" isLoading={busy} onPress={() => setRevision(value => value + 1)}>{translate('monitor:refresh')}</Button></div>
     <ErrorNotice message={error} />
     {list?.warning && <p role="status" className="error">{list.warning}</p>}
-    {list && <div className="session-status" role="status">{items.length} / {list.items?.length || 0} 个进程 · {new Date(list.time).toLocaleTimeString()}{list.truncated && ' · 结果已截断，可切换排序查看其他高占用进程'}</div>}
-    <div className="inspection-table-scroll"><table className="inspection-table inspection-processes"><thead><tr><th>PID</th><th>用户</th><th><Tooltip content="进程存活期间的平均 CPU 使用率，来自 ps；与监控的采样区间使用率不同"><span>CPU %</span></Tooltip></th><th>内存</th><th>命令行</th></tr></thead><tbody>{items.map(process => <tr key={process.pid} className={selected?.pid === process.pid ? 'selected' : ''}><td><button className="inspection-pick" aria-label={`查看进程 ${process.pid}`} aria-pressed={selected?.pid === process.pid} onClick={() => setSelected(process)}>{process.pid}</button></td><td>{process.user}</td><td>{process.cpu.toFixed(1)}</td><td><Tooltip content={`物理内存占比 ${process.memory.toFixed(1)}%`}><span>{bytes(process.rss)}</span></Tooltip></td><td><button className="inspection-process-command" aria-label={`查看进程 ${process.pid} 详情`} onClick={() => setSelected(process)}>{process.command}</button></td></tr>)}</tbody></table></div>
-    {list && !items.length && <p className="sidebar-empty">没有匹配进程</p>}
+    {list && <div className="session-status" role="status">{items.length} / {list.items?.length || 0} {translate('monitor:processes')}{new Date(list.time).toLocaleTimeString(currentLocale())}{list.truncated && translate('monitor:resultsTruncatedChangeSortingToViewOtherHigh')}</div>}
+    <div className="inspection-table-scroll"><table className="inspection-table inspection-processes"><thead><tr><th>PID</th><th>{translate('monitor:user')}</th><th><Tooltip content={translate('monitor:averageCPUUsageOverTheProcessLifetimeFrom')}><span>CPU %</span></Tooltip></th><th>{translate('monitor:memory')}</th><th>{translate('monitor:commandLine')}</th></tr></thead><tbody>{items.map(process => <tr key={process.pid} className={selected?.pid === process.pid ? 'selected' : ''}><td><button className="inspection-pick" aria-label={translate('monitor:viewProcess', { value1: process.pid })} aria-pressed={selected?.pid === process.pid} onClick={() => setSelected(process)}>{process.pid}</button></td><td>{process.user}</td><td>{process.cpu.toFixed(1)}</td><td><Tooltip content={translate('monitor:physicalMemoryUsage', { value1: process.memory.toFixed(1) })}><span>{bytes(process.rss)}</span></Tooltip></td><td><button className="inspection-process-command" aria-label={translate('monitor:viewProcessDetails', { value1: process.pid })} onClick={() => setSelected(process)}>{process.command}</button></td></tr>)}</tbody></table></div>
+    {list && !items.length && <p className="sidebar-empty">{translate('monitor:noMatchingProcesses')}</p>}
     {selected && <ProcessDetails key={`${workspace}:${revision}:${selected.pid}`} workspace={workspace} process={selected} {...navigation} />}
   </>;
 }
 
-const serviceProperties = [['Description', '描述'], ['LoadState', '加载状态'], ['ActiveState', '活动状态'], ['SubState', '子状态'], ['UnitFileState', '开机启动'], ['Result', '运行结果'], ['MainPID', '主进程'], ['ExecMainStatus', '退出状态'], ['ExecMainStartTimestamp', '启动时间'], ['User', '运行用户']] as const;
-const serviceActions = { start: '启动', stop: '停止', restart: '重启', reload: '重新加载', enable: '启用开机启动', disable: '禁用开机启动' } as const;
+const serviceProperties = () => [['Description', translate('monitor:description')], ['LoadState', translate('monitor:loadState')], ['ActiveState', translate('monitor:activeState')], ['SubState', translate('monitor:substate')], ['UnitFileState', translate('monitor:startOnBoot')], ['Result', translate('monitor:result')], ['MainPID', translate('monitor:mainProcess')], ['ExecMainStatus', translate('monitor:exitStatus')], ['ExecMainStartTimestamp', translate('monitor:startedAt')], ['User', translate('monitor:runAsUser')]] as const;
+const serviceActions = { get start() { return translate('monitor:start'); }, get stop() { return translate('monitor:stop'); }, get restart() { return translate('monitor:restart'); }, get reload() { return translate('monitor:reload'); }, get enable() { return translate('monitor:enableOnBoot'); }, get disable() { return translate('monitor:disableOnBoot'); } } as const;
 
 function ServiceDetails({ workspace, unit, onDirectory, onFile, onChanged }: { workspace: string; unit: string; onChanged(): void } & Navigation) {
+  useTranslation();
   const [details, setDetails] = useState<LinuxServiceDetails>();
   const [log, setLog] = useState<CommandResult>();
-  const [error, setError] = useState('');
-  const [logError, setLogError] = useState('');
+  const [error, setError] = useMessageState('');
+  const [logError, setLogError] = useMessageState('');
   const [revision, setRevision] = useState(0);
   const [action, setAction] = useState<keyof typeof serviceActions>();
   const [changing, setChanging] = useState(false);
-  const [actionError, setActionError] = useState('');
+  const [actionError, setActionError] = useMessageState('');
   const mutation = useRef<ReturnType<typeof ChangeLinuxServiceState>>();
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; mutation.current?.cancel(); }; }, []);
@@ -83,8 +92,8 @@ function ServiceDetails({ workspace, unit, onDirectory, onFile, onChanged }: { w
     setDetails(undefined); setLog(undefined); setError(''); setLogError('');
     const request = ReadLinuxServiceDetails(workspace, unit);
     const logs = ReadLinuxServiceLog(workspace, unit);
-    request.then(value => { if (!ended) setDetails(value); }).catch(e => { if (!ended) setError(errorMessage(e)); });
-    logs.then(value => { if (!ended) setLog(value); }).catch(e => { if (!ended) setLogError(errorMessage(e)); });
+    request.then(value => { if (!ended) setDetails(value); }).catch(e => { if (!ended) setError(e); });
+    logs.then(value => { if (!ended) setLog(value); }).catch(e => { if (!ended) setLogError(e); });
     return () => { ended = true; request.cancel(); logs.cancel(); };
   }, [workspace, unit, revision]);
   async function changeState() {
@@ -96,69 +105,71 @@ function ServiceDetails({ workspace, unit, onDirectory, onFile, onChanged }: { w
       const result = await request;
       if (!mounted.current) return;
       setAction(undefined);
-      if (result.error || result.exit_code !== 0) setActionError(`${result.error || result.stderr.trim() || `服务操作失败（退出码 ${result.exit_code}）`}${result.exit_code < 0 ? '；远端状态未知，请核对服务状态，不要自动重试' : ''}${result.truncated ? '；输出已截断' : ''}`);
+      if (result.error || result.exit_code !== 0) setActionError(`${eventError(result) || result.stderr.trim() || uiMessage('monitor:serviceOperationFailedExitCode', { value1: result.exit_code })}${result.exit_code < 0 ? uiMessage('monitor:remoteStateUnknownVerifyServiceStateDoNot') : ''}${result.truncated ? uiMessage('monitor:outputTruncated') : ''}`);
       else if (result.stderr.trim()) setActionError(result.stderr.trim());
     } catch (e) {
-      if (mounted.current) { setAction(undefined); setActionError(`${errorMessage(e)}；请刷新核对服务状态`); }
+      if (mounted.current) { setAction(undefined); setActionError(uiMessage('monitor:refreshToVerifyServiceState', { value1: e })); }
     } finally {
       mutation.current = undefined;
       if (mounted.current) { setChanging(false); setRevision(value => value + 1); onChanged(); }
     }
   }
   const properties = details?.properties || {};
-  return <section className="inspection-detail" aria-label={`${unit} 详情`}>
-    <div className="inspection-toolbar"><strong>{unit}</strong><Button size="sm" variant="light" isDisabled={changing} onPress={() => setRevision(value => value + 1)}>刷新详情与日志</Button></div>
+  return <section className="inspection-detail" aria-label={translate('monitor:details', { value1: unit })}>
+    <div className="inspection-toolbar"><strong>{unit}</strong><Button size="sm" variant="light" isDisabled={changing} onPress={() => setRevision(value => value + 1)}>{translate('monitor:refreshDetailsAndLogs')}</Button></div>
     {details && <div className="button-row">{(Object.keys(serviceActions) as (keyof typeof serviceActions)[]).map(value => <Button key={value} size="sm" variant="light" isDisabled={changing || (value === 'reload' && properties.CanReload !== 'yes')} onPress={() => { setAction(value); setActionError(''); }}>{serviceActions[value]}</Button>)}</div>}
-    {action && details && <section className="inspection-detail" aria-label="确认服务操作"><p>{details.target} · {unit} · {serviceActions[action]}</p><code>systemctl {action} -- '{unit}'</code><div className="button-row"><Button size="sm" variant="light" isDisabled={changing} onPress={() => setAction(undefined)}>取消</Button><Button size="sm" color="danger" isLoading={changing} onPress={() => void changeState()}>确认执行</Button></div></section>}
+    {action && details && <section className="inspection-detail" aria-label={translate('monitor:confirmServiceOperation')}><p>{details.target} · {unit} · {serviceActions[action]}</p><code>systemctl {action} -- '{unit}'</code><div className="button-row"><Button size="sm" variant="light" isDisabled={changing} onPress={() => setAction(undefined)}>{translate('monitor:cancel')}</Button><Button size="sm" color="danger" isLoading={changing} onPress={() => void changeState()}>{translate('monitor:confirmExecution')}</Button></div></section>}
     <ErrorNotice message={actionError} />
     <ErrorNotice message={error} />
     {details?.warning && <p className="error" role="status">{details.warning}</p>}
-    {!details && !error && <p role="status" className="muted">正在读取服务详情…</p>}
-    {details && <><dl className="inspection-properties">{serviceProperties.filter(([key]) => properties[key] !== '').map(([key, label]) => <div key={key}><dt>{label}</dt><dd>{properties[key] || '—'}</dd></div>)}</dl>
-      {properties.FragmentPath && <div className="inspection-path"><span className="file-path">{properties.FragmentPath}</span>{onFile && properties.FragmentPath.startsWith('/') && <Button size="sm" variant="light" onPress={() => { void onFile(properties.FragmentPath!).catch(e => setError(errorMessage(e))); }}>打开服务文件</Button>}</div>}
-      {properties.WorkingDirectory && <div className="inspection-path"><span className="file-path">{properties.WorkingDirectory}</span>{onDirectory && properties.WorkingDirectory.startsWith('/') && <Button size="sm" variant="light" onPress={() => onDirectory(properties.WorkingDirectory!)}>打开工作目录</Button>}</div>}
+    {!details && !error && <p role="status" className="muted">{translate('monitor:readingServiceDetails')}</p>}
+    {details && <><dl className="inspection-properties">{serviceProperties().filter(([key]) => properties[key] !== '').map(([key, label]) => <div key={key}><dt>{label}</dt><dd>{properties[key] || '—'}</dd></div>)}</dl>
+      {properties.FragmentPath && <div className="inspection-path"><span className="file-path">{properties.FragmentPath}</span>{onFile && properties.FragmentPath.startsWith('/') && <Button size="sm" variant="light" onPress={() => { void onFile(properties.FragmentPath!).catch(e => setError(e)); }}>{translate('monitor:openServiceFile')}</Button>}</div>}
+      {properties.WorkingDirectory && <div className="inspection-path"><span className="file-path">{properties.WorkingDirectory}</span>{onDirectory && properties.WorkingDirectory.startsWith('/') && <Button size="sm" variant="light" onPress={() => onDirectory(properties.WorkingDirectory!)}>{translate('monitor:openWorkingDirectory')}</Button>}</div>}
     </>}
-    <details className="inspection-journal" open><summary>近期日志</summary><ErrorNotice message={logError} />{!log && !logError && <p role="status" className="muted">正在读取日志…</p>}{log?.stderr && <p className="error" role="status">{log.stderr}</p>}{log && <pre className="remote-log-content">{log.stdout}</pre>}{log?.truncated && <p className="error" role="status">日志输出已截断</p>}</details>
+    <details className="inspection-journal" open><summary>{translate('monitor:recentLogs')}</summary><ErrorNotice message={logError} />{!log && !logError && <p role="status" className="muted">{translate('monitor:readingLogs')}</p>}{log?.stderr && <p className="error" role="status">{log.stderr}</p>}{log && <pre className="remote-log-content">{log.stdout}</pre>}{log?.truncated && <p className="error" role="status">{translate('monitor:logOutputTruncated')}</p>}</details>
   </section>;
 }
 
 function ServiceInspection({ workspace, initialUnit, ...navigation }: { workspace: string; initialUnit: string } & Navigation) {
+  useTranslation();
   const [filter, setFilter] = useState(initialUnit);
   const [query, setQuery] = useState(initialUnit);
   const [revision, setRevision] = useState(0);
   const [list, setList] = useState<LinuxServiceList>();
   const [selected, setSelected] = useState(initialUnit);
-  const [error, setError] = useState('');
+  const [error, setError] = useMessageState('');
   const [busy, setBusy] = useState(true);
   useEffect(() => {
     let ended = false;
     setBusy(true); setError(''); setList(undefined);
     const request = ListLinuxServices(workspace, query);
-    request.then(value => { if (!ended) setList(value); }).catch(e => { if (!ended) setError(errorMessage(e)); }).finally(() => { if (!ended) setBusy(false); });
+    request.then(value => { if (!ended) setList(value); }).catch(e => { if (!ended) setError(e); }).finally(() => { if (!ended) setBusy(false); });
     return () => { ended = true; request.cancel(); };
   }, [workspace, query, revision]);
   return <>
-    <form className="inspection-toolbar" onSubmit={event => { event.preventDefault(); setSelected(''); setQuery(filter); setRevision(value => value + 1); }}><input aria-label="按服务名筛选，支持通配符" placeholder="服务名，支持通配符" value={filter} onChange={event => setFilter(event.target.value)} maxLength={256} /><Button size="sm" type="submit" variant="light" isLoading={busy}>刷新</Button></form>
+    <form className="inspection-toolbar" onSubmit={event => { event.preventDefault(); setSelected(''); setQuery(filter); setRevision(value => value + 1); }}><input aria-label={translate('monitor:filterByServiceNameWildcardsSupported')} placeholder={translate('monitor:serviceNameWildcardsSupported')} value={filter} onChange={event => setFilter(event.target.value)} maxLength={256} /><Button size="sm" type="submit" variant="light" isLoading={busy}>{translate('monitor:refresh')}</Button></form>
     <ErrorNotice message={error} />
     {list?.warning && <p className="error" role="status">{list.warning}</p>}
-    {list && <div className="session-status" role="status">{list.items?.length || 0} 个已加载服务 · {new Date(list.time).toLocaleTimeString()}{list.truncated && ' · 结果已截断，请缩小筛选范围'}</div>}
-    <div className="inspection-table-scroll"><table className="inspection-table inspection-services"><thead><tr><th>服务</th><th>活动状态</th><th>描述</th></tr></thead><tbody>{(list?.items || []).map(service => <tr key={service.unit} className={selected === service.unit ? 'selected' : ''}><td><Tooltip content={service.unit}><button className="inspection-pick" aria-label={`查看服务 ${service.unit}`} aria-pressed={selected === service.unit} onClick={() => setSelected(service.unit)}>{service.unit}</button></Tooltip></td><td className={service.active === 'failed' ? 'error' : ''}>{service.active}</td><td><span className="inspection-description">{service.description}</span></td></tr>)}</tbody></table></div>
-    {list && !list.items?.length && <p className="sidebar-empty">没有匹配的已加载服务</p>}
+    {list && <div className="session-status" role="status">{list.items?.length || 0} {translate('monitor:loadedServices')}{new Date(list.time).toLocaleTimeString(currentLocale())}{list.truncated && translate('monitor:resultsTruncatedNarrowTheFilter')}</div>}
+    <div className="inspection-table-scroll"><table className="inspection-table inspection-services"><thead><tr><th>{translate('monitor:service')}</th><th>{translate('monitor:activeState')}</th><th>{translate('monitor:description')}</th></tr></thead><tbody>{(list?.items || []).map(service => <tr key={service.unit} className={selected === service.unit ? 'selected' : ''}><td><Tooltip content={service.unit}><button className="inspection-pick" aria-label={translate('monitor:viewService2', { value1: service.unit })} aria-pressed={selected === service.unit} onClick={() => setSelected(service.unit)}>{service.unit}</button></Tooltip></td><td className={service.active === 'failed' ? 'error' : ''}>{service.active}</td><td><span className="inspection-description">{service.description}</span></td></tr>)}</tbody></table></div>
+    {list && !list.items?.length && <p className="sidebar-empty">{translate('monitor:noMatchingLoadedServices')}</p>}
     {selected && <ServiceDetails key={`${workspace}:${selected}`} workspace={workspace} unit={selected} onChanged={() => setRevision(value => value + 1)} {...navigation} />}
   </>;
 }
 
 export default function LinuxInspectionDialog({ workspace, initialOrder, initialUnit = '', onDirectory, onFile, onClose }: { workspace: string; initialOrder: 'cpu' | 'memory' | 'services'; initialUnit?: string; onDirectory?(path: string): void; onFile?(path: string): Promise<void>; onClose(): void }) {
+  useTranslation();
   const [tab, setTab] = useState(initialOrder === 'services' ? 'services' : 'processes');
   const [service, setService] = useState(initialUnit);
   function openDirectory(path: string) { onDirectory?.(path); onClose(); }
   async function openFile(path: string) { await onFile?.(path); onClose(); }
   function openService(unit: string) { setService(unit); setTab('services'); }
-  return <Modal isOpen onClose={onClose} size="5xl" scrollBehavior="inside" className="app-dialog linux-inspection-dialog"><ModalContent><ModalHeader>进程、服务与端口</ModalHeader><ModalBody className="inspection-body">
-    <div className="protocol-filters" role="group" aria-label="诊断类型"><button aria-pressed={tab === 'processes'} onClick={() => setTab('processes')}>进程</button><button aria-pressed={tab === 'services'} onClick={() => { setService(''); setTab('services'); }}>服务</button><button aria-pressed={tab === 'ports'} onClick={() => setTab('ports')}>端口</button></div>
+  return <Modal isOpen onClose={onClose} size="5xl" scrollBehavior="inside" className="app-dialog linux-inspection-dialog"><ModalContent><ModalHeader>{translate('monitor:processesServicesAndPorts')}</ModalHeader><ModalBody className="inspection-body">
+    <div className="protocol-filters" role="group" aria-label={translate('monitor:diagnosticType')}><button aria-pressed={tab === 'processes'} onClick={() => setTab('processes')}>{translate('monitor:processes2')}</button><button aria-pressed={tab === 'services'} onClick={() => { setService(''); setTab('services'); }}>{translate('monitor:service')}</button><button aria-pressed={tab === 'ports'} onClick={() => setTab('ports')}>{translate('monitor:ports')}</button></div>
     {tab === 'ports' && <PortInspection workspace={workspace} onDirectory={onDirectory ? openDirectory : undefined} onService={openService} />}
     {tab !== 'ports' && <>
     {tab === 'processes' ? <ProcessInspection workspace={workspace} initialOrder={initialOrder === 'memory' ? 'memory' : 'cpu'} onDirectory={onDirectory ? openDirectory : undefined} onFile={onFile ? openFile : undefined} onService={openService} /> : <ServiceInspection key={service} workspace={workspace} initialUnit={service} onDirectory={onDirectory ? openDirectory : undefined} onFile={onFile ? openFile : undefined} onService={openService} />}
     </>}
-  </ModalBody><ModalFooter><Button variant="light" onPress={onClose}>关闭</Button></ModalFooter></ModalContent></Modal>;
+  </ModalBody><ModalFooter><Button variant="light" onPress={onClose}>{translate('monitor:close')}</Button></ModalFooter></ModalContent></Modal>;
 }

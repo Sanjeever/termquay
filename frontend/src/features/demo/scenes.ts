@@ -1,6 +1,7 @@
+import { t } from '../../i18n/index.ts';
 export type DemoScene = 'connections' | 'terminal' | 'editor';
 export const demoScenes: { id: DemoScene; label: string }[] = [
-  { id: 'connections', label: '演示：连接中心' },
-  { id: 'terminal', label: '演示：SSH 工作区' },
-  { id: 'editor', label: '演示：文件编辑' },
+  { id: 'connections', get label() { return t('demo:sceneConnections'); } },
+  { id: 'terminal', get label() { return t('demo:sceneTerminal'); } },
+  { id: 'editor', get label() { return t('demo:sceneEditor'); } },
 ];

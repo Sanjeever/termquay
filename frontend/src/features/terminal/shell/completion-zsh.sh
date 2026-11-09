@@ -6,14 +6,14 @@ __termquay_complete_apply() {
   while read -rsk 1 -t 1 char; do
     [ "$char" != $'\a' ] || break
     packet=$packet$char; count=$((count + 1))
-    [ "$count" -le 16500 ] || { __termquay_emit 'E;补全响应超过上限'; return; }
+    [ "$count" -le 16500 ] || { __termquay_emit 'E;补全响应超过上限;terminal:completionResponseLimit'; return; }
   done
-  if [ "$char" != $'\a' ]; then __termquay_emit 'E;补全响应未完整到达'; return; fi
+  if [ "$char" != $'\a' ]; then __termquay_emit 'E;补全响应未完整到达;terminal:completionResponseIncomplete'; return; fi
   if [ "$BUFFER" != "$__termquay_saved_line" ] || [ "$CURSOR" != "$__termquay_saved_point" ]; then
-    __termquay_emit 'E;命令已变化，请重新触发补全'; return
+    __termquay_emit 'E;命令已变化，请重新触发补全;terminal:completionCommandChanged'; return
   fi
   if ! __termquay_edit_packet "$packet" || [ "$__termquay_new_point" -gt "${#__termquay_decoded}" ]; then
-    __termquay_emit 'E;补全响应无效'; return
+    __termquay_emit 'E;补全响应无效;terminal:completionResponseInvalid'; return
   fi
   BUFFER=$__termquay_decoded; CURSOR=$__termquay_new_point
   __termquay_saved_line=; __termquay_saved_point=; __termquay_decoded=

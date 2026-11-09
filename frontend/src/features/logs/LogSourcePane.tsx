@@ -1,9 +1,12 @@
+import { t as translate, currentLocale } from '../../i18n/index.ts';
+import { useMessageState } from '../../i18n/useMessageState.ts';
+import { useTranslation } from 'react-i18next';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ReadContainerLogs, ReadLinuxServiceLog, ReadRemoteLog } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { RemoteLogSlice } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import ErrorNotice from '../../components/ErrorNotice';
 import Icon from '../../components/Icon';
-import { errorMessage } from '../../lib/errors';
+import { errorMessage, eventError } from '../../lib/errors.ts';
 import { retainLogTail, type LogViewOptions, type LogViewResult } from '../files/logView';
 
 export type LogSource = { id: string; workspace: string; host: string; kind: 'file' | 'service' | 'container'; target: string; name: string; socket: string };
@@ -11,14 +14,15 @@ export type LogSource = { id: string; workspace: string; host: string; kind: 'fi
 export default function LogSourcePane({ source, active, live, follow, refresh, options, onRemove }: {
   source: LogSource; active: boolean; live: boolean; follow: boolean; refresh: number; options: LogViewOptions; onRemove(): void;
 }) {
+  useTranslation();
   const [content, setContent] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useMessageState('');
   const [warning, setWarning] = useState('');
   const [busy, setBusy] = useState(false);
-  const [time, setTime] = useState('');
+  const [time, setTime] = useState(0);
   const [trimmed, setTrimmed] = useState(false);
   const [view, setView] = useState<LogViewResult>();
-  const [filterError, setFilterError] = useState('');
+  const [filterError, setFilterError] = useMessageState('');
   const [filtering, setFiltering] = useState(false);
   const [autoScroll, setAutoScroll] = useState(true);
   const slice = useRef<RemoteLogSlice>();
@@ -50,7 +54,7 @@ export default function LogSourcePane({ source, active, live, follow, refresh, o
           text = tail.content;
           slice.current = { ...value, start: before && !value.reset ? before.start + tail.removedBytes : value.start + tail.removedBytes, content: text };
           setTrimmed(previous => before && !value.reset ? previous || tail.removedBytes > 0 : tail.removedBytes > 0);
-          if (value.reset) note = '文件已缩短，已从头读取';
+          if (value.reset) note = translate('logs:fileShortenedReadingRestartedFromTheBeginning');
         } else if (source.kind === 'service') {
           const request = ReadLinuxServiceLog(source.workspace, source.target);
           pending = request;
@@ -66,11 +70,11 @@ export default function LogSourcePane({ source, active, live, follow, refresh, o
         }
         const tail = retainLogTail(text);
         if (source.kind !== 'file') setTrimmed(tail.removedBytes > 0);
-        setContent(tail.content); setWarning([note, truncated ? '来源输出已截断' : ''].filter(Boolean).join(' · '));
-        setError(''); failed.current = false; setTime(new Date().toLocaleTimeString()); loaded.current = true;
+        setContent(tail.content); setWarning([note, truncated ? translate('logs:sourceOutputTruncated') : ''].filter(Boolean).join(' · '));
+        setError(''); failed.current = false; setTime(Date.now()); loaded.current = true;
         if (follow && !ended) timer = setTimeout(() => void read(false), 2000);
       } catch (e) {
-        if (!ended) { setError(errorMessage(e)); failed.current = true; }
+        if (!ended) { setError(e); failed.current = true; }
       } finally { if (!ended) setBusy(false); }
     }
     void read(true);
@@ -93,12 +97,12 @@ export default function LogSourcePane({ source, active, live, follow, refresh, o
         worker.current.onmessage = (event: MessageEvent<LogViewResult>) => {
           if (ended) return;
           processing = false; clearTimeout(deadline);
-          setView(event.data.error ? undefined : event.data); setFilterError(event.data.error || ''); setFiltering(false);
+          setView(event.data.error ? undefined : event.data); setFilterError(eventError(event.data) || ''); setFiltering(false);
         };
-        worker.current.onerror = event => { event.preventDefault(); fail(`日志处理失败：${event.message}`); };
+        worker.current.onerror = event => { event.preventDefault(); fail(translate('logs:couldNotProcessLogs', { value1: event.message })); };
         processing = true;
         worker.current.postMessage({ content, options });
-        deadline = setTimeout(() => fail('日志处理超时，请简化筛选表达式'), 1000);
+        deadline = setTimeout(() => fail(translate('logs:logProcessingTimedOutSimplifyTheFilterExpression')), 1000);
       } catch (e) { fail(errorMessage(e)); }
     }, 150);
     return () => { ended = true; clearTimeout(timer); clearTimeout(deadline); if (processing) { worker.current?.terminate(); worker.current = undefined; } };
@@ -114,12 +118,12 @@ export default function LogSourcePane({ source, active, live, follow, refresh, o
     return <div key={index}>{row.gap && <div className="remote-log-gap">···</div>}{parts}{row.text.slice(position) || (row.text ? '' : '\n')}</div>;
   }), [view]);
   return <section className="log-source-pane" aria-label={`${source.host} · ${source.name}`}>
-    <header><div><strong>{source.name}</strong><span className="file-path">{source.host}</span></div><button className="icon-button" aria-label={`移除日志来源 ${source.name}`} onClick={onRemove}><Icon name="close" width="14" /></button></header>
+    <header><div><strong>{source.name}</strong><span className="file-path">{source.host}</span></div><button className="icon-button" aria-label={translate('logs:removeLogSource', { value1: source.name })} onClick={onRemove}><Icon name="close" width="14" /></button></header>
     <div className="log-source-path file-path">{source.kind === 'container' ? `${source.socket} · ${source.target}` : source.target}</div>
-    {!live && <p className="error" role="status">原 SSH 工作区已断开，保留已读取内容</p>}
+    {!live && <p className="error" role="status">{translate('logs:theOriginalSSHWorkspaceDisconnectedPreviouslyReadContent')}</p>}
     <ErrorNotice message={error} /><ErrorNotice message={filterError} />
     {warning && <p className="error" role="status">{warning}</p>}
-    <div className="log-source-content remote-log-content" ref={host} tabIndex={0} role="region" aria-label={`${source.name} 已读取日志`} aria-busy={filtering} onScroll={event => { const node = event.currentTarget; if (node.scrollHeight - node.scrollTop - node.clientHeight > 12) setAutoScroll(false); }}>{rows}</div>
-    <footer className="session-status"><span>{busy ? '读取中…' : time ? `读取于 ${time}` : '尚未读取'}{filtering ? ' · 筛选中…' : view && ` · 匹配 ${view.matched} / ${view.scanned} 行`}{trimmed && ' · 较早内容已移出缓存'}{view?.truncated && ' · 显示已截断'}{view?.highlightLimited && ' · 高亮达到上限'}{!!view?.unformatted && ` · ${view.unformatted} 行保留原始 JSON`}</span>{!autoScroll && <button className="session-tool" onClick={() => setAutoScroll(true)}>滚动到最新</button>}</footer>
+    <div className="log-source-content remote-log-content" ref={host} tabIndex={0} role="region" aria-label={translate('logs:logsReadFrom', { value1: source.name })} aria-busy={filtering} onScroll={event => { const node = event.currentTarget; if (node.scrollHeight - node.scrollTop - node.clientHeight > 12) setAutoScroll(false); }}>{rows}</div>
+    <footer className="session-status"><span>{busy ? translate('logs:reading') : time ? translate('logs:readAt', { value1: new Date(time).toLocaleTimeString(currentLocale()) }) : translate('logs:notReadYet')}{filtering ? translate('logs:filtering') : view && translate('logs:matchedLines', { value1: view.matched, value2: view.scanned })}{trimmed && translate('logs:earlierContentEvictedFromCache')}{view?.truncated && translate('logs:displayTruncated')}{view?.highlightLimited && translate('logs:highlightLimitReached')}{!!view?.unformatted && translate('logs:linesRetainOriginalJSON', { value1: view.unformatted })}</span>{!autoScroll && <button className="session-tool" onClick={() => setAutoScroll(true)}>{translate('logs:scrollToLatest')}</button>}</footer>
   </section>;
 }

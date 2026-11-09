@@ -1,16 +1,18 @@
+import { message as uiMessage } from '../../i18n/messages.ts';
+import { useMessageState } from '../../i18n/useMessageState.ts';
 import { useEffect, useRef, useState } from 'react';
 import { Stream } from '@wailsio/runtime';
 import { CreateAIConversation, DeleteAIConversation, GetAIConversation, GetAIRun, OpenAIConversation, StartAIRun, StopAIRun, ApproveAIToolCall, RejectAIToolCall } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { AIConversationPage, AIRunView, AIToolDecision } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import type { Reference } from '../../../bindings/github.com/Sanjeever/termquay/internal/ai/models';
-import { errorMessage } from '../../lib/errors';
+
 
 export const aiRunning = (view?: AIRunView) => !!view && ['running', 'awaiting_approval', 'compressing'].includes(view.state);
 
 export default function useAIConversation(workspace: string, visible: boolean, configRevision: number) {
   const [run, setRun] = useState<AIRunView>();
   const [page, setPage] = useState<AIConversationPage>();
-  const [error, setError] = useState('');
+  const [error, setError] = useMessageState('');
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(false);
   const [epoch, setEpoch] = useState(0);
@@ -42,7 +44,7 @@ export default function useAIConversation(workspace: string, visible: boolean, c
           const next = await GetAIConversation(workspace, id, 0, 24);
           if (valid() && !browsing.current && current.current?.conversation_id === id) { currentPage.current = next; setPage(next); }
         } while (valid() && pageDirty);
-      } catch (e) { if (valid()) setError(errorMessage(e)); }
+      } catch (e) { if (valid()) setError(e); }
       finally { loadingPage = false; }
     }
     function receive(next: AIRunView) {
@@ -65,11 +67,11 @@ export default function useAIConversation(workspace: string, visible: boolean, c
       stream.onmessage = event => {
         if (!valid()) return;
         try { receive(JSON.parse(new TextDecoder().decode(event.data)) as AIRunView); }
-        catch (e) { setError(`AI 状态读取失败：${errorMessage(e)}`); }
+        catch (e) { setError(uiMessage('ai:couldNotReadAIState', { value1: e })); }
       };
-      stream.onerror = () => { if (valid()) setError('AI 状态流已断开，请重新载入'); };
-      stream.onclose = () => { if (valid()) setError('AI 状态流已断开，请重新载入'); };
-    }).catch(e => { if (valid()) setError(errorMessage(e)); }).finally(() => { if (valid()) setLoading(false); });
+      stream.onerror = () => { if (valid()) setError(uiMessage('ai:aIStateStreamDisconnectedReloadToContinue')); };
+      stream.onclose = () => { if (valid()) setError(uiMessage('ai:aIStateStreamDisconnectedReloadToContinue')); };
+    }).catch(e => { if (valid()) setError(e); }).finally(() => { if (valid()) setLoading(false); });
     return () => { ended = true; stream?.close(); };
   }, [workspace, visible, epoch, configRevision]);
 
@@ -77,7 +79,7 @@ export default function useAIConversation(workspace: string, visible: boolean, c
     if (operated.current) return false;
     operated.current = true; setBusy(true); setError('');
     try { await action(); return true; }
-    catch (e) { if (mounted.current) setError(errorMessage(e)); return false; }
+    catch (e) { if (mounted.current) setError(e); return false; }
     finally { operated.current = false; if (mounted.current) setBusy(false); }
   }
   async function send(text: string, references: Reference[], acceptTargetChange: boolean) {
@@ -111,7 +113,7 @@ export default function useAIConversation(workspace: string, visible: boolean, c
   async function decide(approved: boolean) {
     return act(async () => {
       const v = current.current;
-      if (!v?.pending) throw new Error('此命令批准已失效');
+      if (!v?.pending) throw uiMessage('ai:thisCommandApprovalIsNoLongerValid');
       const d: AIToolDecision = { workspace, run_id: v.id, conversation_id: v.conversation_id, token: v.pending.token, call_id: v.pending.call.id, arguments: v.pending.call.arguments, timeout_seconds: v.pending.timeout_seconds };
       await (approved ? ApproveAIToolCall(d) : RejectAIToolCall(d));
     });
