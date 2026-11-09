@@ -43,13 +43,13 @@ Omit `-g` for a project installation. Specify `--skill termquay` to avoid instal
 <a id="界面预览"></a>
 ## Screenshots
 
-These existing screenshots show the Chinese interface in macOS native demo mode.
+These screenshots show the English interface in browser [demo mode](docs/development.md#using-the-workbench).
 
-![Connection center with groups, protocol filters and latency probes](docs/images/screenshots/connection-center.png)
+![Connection center with groups, protocol filters and latency probes](docs/images/screenshots/connection-center-en.png)
 
-![SSH terminal, remote files and Linux monitoring](docs/images/screenshots/ssh-workspace.png)
+![SSH terminal, remote files and Linux monitoring](docs/images/screenshots/ssh-workspace-en.png)
 
-![Remote editor with encoding, line endings and minimap](docs/images/screenshots/remote-file-editor.png)
+![Remote editor with encoding, line endings and minimap](docs/images/screenshots/remote-file-editor-en.png)
 
 <a id="运行与开发"></a>
 ## Build and contribute

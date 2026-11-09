@@ -40,7 +40,7 @@ npx skills add Sanjeever/termquay --skill termquay -g
 
 ## 界面预览
 
-以下截图在 macOS 原生应用的 [演示模式](docs/development.zh-CN.md#设置与演示模式) 中截取。
+以下截图使用中文 UI，在浏览器 [演示模式](docs/development.zh-CN.md#设置与演示模式) 中截取。
 
 连接中心
 
