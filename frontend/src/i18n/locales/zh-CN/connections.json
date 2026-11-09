@@ -256,5 +256,9 @@
   "reconnectingInSeconds3": "{{value1}} 秒后重连 · {{value2}}/3",
   "reconnecting3": "正在重连 · {{value1}}/3",
   "waitingToRetry": "等待重试",
-  "automaticReconnectStoppedConnectManually": "自动重连已停止，请手动连接"
+  "automaticReconnectStoppedConnectManually": "自动重连已停止，请手动连接",
+  "filters": "筛选",
+  "activeFilters": "当前筛选",
+  "removeFilter": "移除筛选：{{value1}}",
+  "resultCount": "{{visible}} / {{total}} 个连接"
 }

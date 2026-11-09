@@ -256,5 +256,9 @@
   "reconnectingInSeconds3": "Reconnecting in {{value1}} seconds · {{value2}}/3",
   "reconnecting3": "Reconnecting · {{value1}}/3",
   "waitingToRetry": "Waiting to retry",
-  "automaticReconnectStoppedConnectManually": "Automatic reconnect stopped. Connect manually."
+  "automaticReconnectStoppedConnectManually": "Automatic reconnect stopped. Connect manually.",
+  "filters": "Filters",
+  "activeFilters": "Active filters",
+  "removeFilter": "Remove filter: {{value1}}",
+  "resultCount": "{{visible}} / {{total}} connections"
 }
