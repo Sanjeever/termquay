@@ -252,6 +252,7 @@ function overlappingScopes(first: string, second: string) {
 export function eventShortcut(event: KeyboardEvent, platform = navigator.platform): string {
   if (
     event.isComposing ||
+    event.keyCode === 229 ||
     event.key === 'Process' ||
     event.getModifierState('AltGraph') ||
     !/^(Key[A-Z]|Digit[0-9]|Comma|Period|Slash|Backslash|Semicolon|Quote|BracketLeft|BracketRight|Minus|Equal|Enter|Tab|Space|PageUp|PageDown|ArrowLeft|ArrowRight|ArrowUp|ArrowDown|F[1-9]|F1[0-2])$/.test(

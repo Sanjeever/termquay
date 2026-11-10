@@ -78,6 +78,7 @@ import {
   ResizeContainerTerminal,
 } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import '@xterm/xterm/css/xterm.css';
+import { addIMEInput } from './terminalInput';
 
 const CommandIndexDialog = lazy(() => import('./CommandIndexDialog'));
 const RecordingPlayer = lazy(() => import('./RecordingPlayer'));
@@ -637,7 +638,8 @@ const TerminalView = forwardRef<
         }
       },
     );
-    term.attachCustomKeyEventHandler((event) => complete.current.key(event));
+    const ime = addIMEInput(term);
+    term.attachCustomKeyEventHandler((event) => complete.current.key(event) && ime.key(event));
     const bufferChange = term.buffer.onBufferChange(() => complete.current.invalidate());
     const textarea = term.textarea,
       blur = () => complete.current.dismiss();
@@ -763,6 +765,7 @@ const TerminalView = forwardRef<
     });
     return () => {
       disposed = true;
+      ime.dispose();
       bufferChange.dispose();
       textarea?.removeEventListener('blur', blur);
       integration.current?.dispose();

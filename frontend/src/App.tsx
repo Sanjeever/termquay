@@ -985,6 +985,7 @@ export default function App() {
         locked.current ||
         demoScene ||
         event.isComposing ||
+        event.keyCode === 229 ||
         event.repeat ||
         dialog ||
         attempt.trust ||

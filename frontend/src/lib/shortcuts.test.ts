@@ -19,6 +19,7 @@ function key(overrides: Partial<KeyboardEvent> = {}): KeyboardEvent {
 }
 test('组合输入和 AltGr 不触发应用动作', () => {
   assert.equal(eventShortcut(key({ isComposing: true })), '');
+  assert.equal(eventShortcut(key({ keyCode: 229 })), '');
   assert.equal(eventShortcut(key({ key: 'Process' })), '');
   assert.equal(eventShortcut(key({ getModifierState: (name) => name === 'AltGraph' })), '');
 });

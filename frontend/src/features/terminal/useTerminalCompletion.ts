@@ -251,7 +251,7 @@ export default function useTerminalCompletion(options: Options) {
   }
   function key(event: KeyboardEvent) {
     if (event.type !== 'keydown') return true;
-    if (event.isComposing) {
+    if (event.isComposing || event.keyCode === 229) {
       dismiss();
       return true;
     }
