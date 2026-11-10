@@ -6,6 +6,7 @@ import { AppearanceProvider, useAppearance } from '../src/features/settings/Appe
 import { appearanceKey, defaultAppearance } from '../src/features/settings/appearance';
 import TitleBar from '../src/components/layout/TitleBar';
 import WorkspaceTabs from '../src/components/layout/WorkspaceTabs';
+import Icon from '../src/components/Icon';
 import LocalTerminalLauncher from '../src/features/terminal/LocalTerminalLauncher';
 import CodeEditor from '../src/features/files/CodeEditor';
 import type { EditorFormat } from '../src/features/files/editorFormat';
@@ -70,9 +71,14 @@ function Fixture() {
             />
           }
           tools={
-            <button className="icon-button" aria-label="Settings">
-              Settings
-            </button>
+            <>
+              <button className="icon-button" aria-label="Named working sets">
+                <Icon name="workspaceSet" />
+              </button>
+              <button className="icon-button" aria-label="Settings">
+                Settings
+              </button>
+            </>
           }
         />
         <div className="button-row">

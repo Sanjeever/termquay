@@ -1537,7 +1537,7 @@ export default function App() {
           disabled={attempt.busy || openingLocal || !catalog}
           onClick={manageWorkspaceSets}
         >
-          <Icon name="list" />
+          <Icon name="workspaceSet" />
         </button>
       </Tooltip>
       <Dropdown>

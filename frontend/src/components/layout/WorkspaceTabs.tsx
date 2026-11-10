@@ -291,7 +291,7 @@ export default function WorkspaceTabs({
               aria-label={translate('common:openWorkspaces')}
               onClick={onSearch}
             >
-              <Icon name="list" />
+              <Icon name="workspaces" />
             </button>
           </Tooltip>
         )}
