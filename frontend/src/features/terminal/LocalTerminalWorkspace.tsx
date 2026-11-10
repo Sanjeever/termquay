@@ -1,4 +1,5 @@
 import { createRef, forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Button,
@@ -114,7 +115,6 @@ const LocalTerminalWorkspace = forwardRef<
   const grid = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 1, height: 1 });
   const drag = useRef('');
-  const focusFrame = useRef(0);
   const [dropTarget, setDropTarget] = useState('');
   const count = localPaneCount(layout);
   const dimensions = localWorkspaceLayouts[layout];
@@ -124,7 +124,6 @@ const LocalTerminalWorkspace = forwardRef<
     disposed.current = false;
     return () => {
       disposed.current = true;
-      cancelAnimationFrame(focusFrame.current);
     };
   }, []);
   useEffect(() => {
@@ -138,16 +137,10 @@ const LocalTerminalWorkspace = forwardRef<
   function select(terminal: string, focus = true) {
     const session = latest.current.find((value) => value.id === terminal);
     if (!session) return;
-    setActive(terminal);
+    if (focus) flushSync(() => setActive(terminal));
+    else setActive(terminal);
     callbacks.current.onSelected(session);
-    cancelAnimationFrame(focusFrame.current);
-    if (focus) {
-      const previous = document.activeElement;
-      focusFrame.current = requestAnimationFrame(() => {
-        if (!disposed.current && document.activeElement === previous)
-          session.terminal.current?.focus();
-      });
-    }
+    if (focus) session.terminal.current?.focus();
   }
 
   function attention(terminal: string, value?: CommandAttention) {
