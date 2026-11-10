@@ -9,6 +9,7 @@ func TestPortableTerminalShortcuts(t *testing.T) {
 	}
 	for _, invalid := range []string{
 		`{"palette":"Mod+KeyC"}`,
+		`{"palette":"Mod+Shift+KeyW"}`,
 		`{"palette":"Ctrl+Tab","nextWorkspace":"Ctrl+Tab"}`,
 		`{"copy":"Ctrl+Shift+KeyC","paste":"Ctrl+Shift+KeyC"}`,
 	} {

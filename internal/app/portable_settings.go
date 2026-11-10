@@ -81,7 +81,8 @@ func validatePortableUI(values map[string]string) error {
 					control = "Mod"
 				}
 				workspaceTab := name == "nextWorkspace" && shortcut == control+"+Tab" || name == "previousWorkspace" && shortcut == control+"+Shift+Tab"
-				if reserved.MatchString(shortcut) && assignedInput[name] != shortcut && !workspaceTab {
+				controlClose := name == "closeTab" && shortcut == control+"+Shift+KeyW"
+				if reserved.MatchString(shortcut) && assignedInput[name] != shortcut && !workspaceTab && !controlClose {
 					return appmessage.New("backend:duplicateShortcutOrReservedSystemInputCombination", "快捷键重复或占用了系统和输入组件保留组合")
 				}
 				for _, other := range seen[shortcut] {

@@ -1,14 +1,8 @@
 import i18n from '../i18n/index.ts';
 await i18n.changeLanguage('zh-CN');
-import { test } from 'vitest';
+import { test, vi } from 'vitest';
 import { strict as assert } from 'node:assert';
-import {
-  defaultShortcuts,
-  eventShortcut,
-  shortcutConflict,
-  mergeShortcuts,
-  weztermShortcuts,
-} from './shortcuts.ts';
+import { defaultShortcuts, eventShortcut, shortcutConflict, mergeShortcuts } from './shortcuts.ts';
 
 function key(overrides: Partial<KeyboardEvent> = {}): KeyboardEvent {
   return {
@@ -52,10 +46,7 @@ test('macOS keeps Control separate from Command and accepts terminal navigation 
     '',
   );
 });
-test('WezTerm preset is valid and legacy custom bindings remain explicit', () => {
-  for (const id of Object.keys(weztermShortcuts) as (keyof typeof weztermShortcuts)[]) {
-    assert.equal(shortcutConflict(id, weztermShortcuts[id], weztermShortcuts), '', id);
-  }
+test('legacy custom bindings remain explicit', () => {
   const previous = mergeShortcuts({
     nextWorkspace: 'Mod+Shift+BracketRight',
     newLocalTerminal: '',
@@ -63,6 +54,26 @@ test('WezTerm preset is valid and legacy custom bindings remain explicit', () =>
   assert.equal(previous.nextWorkspace, 'Mod+Shift+BracketRight');
   assert.equal(previous.newLocalTerminal, '');
 });
+test.each(['MacIntel', 'Win32', 'Linux x86_64'])(
+  'WezTerm preset is valid on %s',
+  async (platform) => {
+    vi.stubGlobal('navigator', { platform, language: 'zh-CN' });
+    vi.resetModules();
+    try {
+      const { shortcutConflict, weztermShortcuts } = await import('./shortcuts.ts');
+      for (const id of Object.keys(weztermShortcuts) as (keyof typeof weztermShortcuts)[]) {
+        assert.equal(shortcutConflict(id, weztermShortcuts[id], weztermShortcuts), '', id);
+      }
+      assert.match(
+        shortcutConflict('palette', 'Mod+Shift+KeyW', { ...weztermShortcuts, closeTab: '' }),
+        /保留/,
+      );
+    } finally {
+      vi.unstubAllGlobals();
+      vi.resetModules();
+    }
+  },
+);
 test('冲突不能覆盖其他动作和基本输入按键', () => {
   assert.match(shortcutConflict('palette', defaultShortcuts.find, defaultShortcuts), /冲突/);
   assert.match(shortcutConflict('palette', 'Mod+KeyC', defaultShortcuts), /保留|冲突/);

@@ -324,12 +324,15 @@ export function shortcutConflict(id: ShortcutID, key: string, values: Shortcuts)
   const workspaceTab =
     (id === 'nextWorkspace' && normalized === (mac ? 'Ctrl+Tab' : 'Mod+Tab')) ||
     (id === 'previousWorkspace' && normalized === (mac ? 'Ctrl+Shift+Tab' : 'Mod+Shift+Tab'));
+  const controlClose =
+    id === 'closeTab' && normalized === (mac ? 'Ctrl+Shift+KeyW' : 'Mod+Shift+KeyW');
   if (
     (/^Shift\+Enter$/.test(normalized) ||
       /^Mod\+(Key[ACFVXYZS]|KeyW|KeyQ|Tab|Arrow\w+)$/.test(normalized) ||
       /^(Alt\+(Tab|F4)|Mod\+Alt\+Tab|Mod\+Shift\+(KeyW|Tab))$/.test(normalized)) &&
     assignedInput[id] !== normalized &&
-    !workspaceTab
+    !workspaceTab &&
+    !controlClose
   )
     return translate('common:thisShortcutIsReservedForInputsOrThe');
   return '';
