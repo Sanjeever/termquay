@@ -68,18 +68,7 @@ pnpm dev
 
 ## 项目结构与文档
 
-| 入口 | 职责 |
-| --- | --- |
-| `main.go`、`assets.go` | 程序入口、资源嵌入与构建信息 |
-| `internal/app/` | 桌面启动、服务绑定、工作区与跨模块生命周期协调 |
-| `internal/` 其余子包 | SSH、远端文件、监控、RDP、存储和备份 |
-| `frontend/src/` | React 工作区、终端、编辑器与设置界面 |
-| `frontend/bindings/` | 从 Go 生成的前端接口，避免手工维护重复定义 |
-| `Taskfile.yml`、`build/` | 开发、原生构建与打包资源 |
-| `.github/workflows/`、`scripts/` | 持续集成、版本同步与发布 |
-| [架构约束与设计理由](docs/architecture.zh-CN.md) | 设计意图、职责边界、数据与安全契约，附代码定位入口 |
-| [开发说明](docs/development.zh-CN.md) | 环境、运行、使用、验证与打包 |
-| [Agent 开发约定](AGENTS.md) | 工作边界、事实来源和语义变更后的文档影响分析 |
+实现与验证入口统一见架构文档的 [代码导航](docs/architecture.md#code-navigation)。[架构说明](docs/architecture.zh-CN.md) 保留设计前提与取舍，[开发说明](docs/development.zh-CN.md) 提供运行、使用和验证入口，[AGENTS.md](AGENTS.md) 规定贡献边界与文档同步要求。
 
 ## 开源许可
 

@@ -31,7 +31,7 @@ Protocol and application versions are independent; use the same distribution if 
   run list|show [--id <run-id>] [--json]
   exec --workspace <id> --command <script> [--timeout 30s] [--json] [--no-input]
 Examples: termquay workspace list --json --no-input
-          termquay exec --workspace <exact-id> --command 'uname -a' --json --no-input`)
+          termquay exec --workspace '<exact-id>' --command 'uname -a' --json --no-input`)
 	case "status":
 		fmt.Fprintln(out, "Usage: termquay status [--json] [--no-input]\nWithout a desktop, returns running=false and unavailable with exit code 1. Minimal status is readable with exit code 0 when disabled/locked; check data.enabled and data.locked before business commands. Locked status does not disclose enabled authorization and returns enabled=false.")
 	case "connection", "connection.list":
@@ -80,7 +80,7 @@ Reads do not start, cancel, continue, replay or persist previously unsaved tasks
 		fmt.Fprintln(out, `Usage: termquay exec --workspace <exact-id> <script-source> [--timeout 30s] [--json] [--no-input]
 Choose one source: --command <script> | --script-file <path> | --script-file - (stdin)
 Script: 1 to 32768 bytes without NUL. Timeout: whole seconds from 1s to 600s, default 30s.
-Example: termquay exec --workspace <exact-id> --script-file ./inspect.sh --timeout 60s --json --no-input
+Example: termquay exec --workspace '<exact-id>' --script-file ./inspect.sh --timeout 60s --json --no-input
 Reuses connected SSH through a separate sh -s session without PTY or the interactive shell's directory/environment.
 Commands may modify remote systems. Result data={workspace,result:{stdout,stderr,exit_code,duration_ms,truncated,error}}.
 Output is UTF-8. On decoding failure result.error reports it; stdout_base64/stderr_base64 retain corresponding raw bytes.

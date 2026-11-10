@@ -63,7 +63,7 @@ Shared credential updates review/recheck the full reference set in one transacti
 
 First SSH identity requires explicit fingerprint verification; known changes block connection. RDP can pass system CA/hostname validation, otherwise require fingerprint confirmation. Expired/not-yet-valid certificates cannot be manually accepted. Pin both trust paths and block later changes. Legitimate trust updates reprobe and check original record, generation and expiry before committing.
 
-Trust is isolated by destination, port and jump route. Explicit `known_hosts` imports use bounded candidates/preview without DNS inference; revoked keys are not trusted and CA entries are not ordinary host fingerprints. Preserve negotiated identity for sessions/resume records. Revocation invalidates stale requests/unused RDP grants while established sessions can continue. Trust stays on the destination device and is excluded from normal backups.
+SSH trust is keyed by destination, port and the immediate saved jump ID, as established by the [multi-hop design](development.zh-CN.md#连接与工作区) and [trust-key implementation](../internal/app/ssh_connect.go). RDP gateway trust additionally binds the SSH target and chain identity through its [gateway scope](../internal/app/rdp_gateway.go). Explicit `known_hosts` imports use bounded candidates/preview without DNS inference; revoked keys are not trusted and CA entries are not ordinary host fingerprints. Preserve negotiated identity for sessions/resume records. Revocation invalidates stale requests/unused RDP grants while established sessions can continue. Trust stays on the destination device and is excluded from normal backups.
 
 <a id="远端文件与监控"></a>
 ## Remote files and monitoring
@@ -71,6 +71,8 @@ Trust is isolated by destination, port and jump route. Explicit `known_hosts` im
 Saving ordinary/sudo files rechecks original remote bytes/attributes. With history enabled, an encrypted version/index commits locally before remote writing; history failure blocks the write. Scope/bound history by actual destination, user, route identity and path, outside normal backups. Loading history changes a draft, not the live file. Validation/reload/health checks are explicit, with reload separately confirmed.
 
 Write through a private staging directory on the same filesystem, preserve reported POSIX mode/UID/GID and publish using server POSIX rename. Reject special permission bits/unsafe writable parents. SFTP checks and rename are not atomic compare-and-swap against external writers. ACLs/xattrs are not preserved and failures may leave staging. Do not describe saving as lossless or conflict-free.
+
+The current SFTP client's file-creation API cannot set permissions at creation time. Restricting the staging directory before writing protects content until final attributes are applied; creating a file directly in a shared directory and changing its permissions afterward would leave an exposure window.
 
 Bound raw bytes, decoded text and encoded output. Use encoding libraries and preserve BOM/line endings as draft format; reject invalid bytes/unrepresentable characters instead of replacement. Normalize mixed line endings explicitly. SFTP uses POSIX paths; identified Windows AI file queries convert drive-letter absolute paths at their boundary. Never concatenate filenames into shell commands. Refresh/errors must not overwrite drafts.
 
@@ -156,6 +158,8 @@ Use these entries to select task context, rather than treating file names as a f
 
 | Concept | Source | Verification |
 | --- | --- | --- |
+| Program/assets/build | [entry point](../main.go), [embedded assets and build identity](../assets.go), [root commands](../package.json), [tasks](../Taskfile.yml), [platform resources](../build), [CI/release workflows](../.github/workflows) | [Development commands](development.md#development-commands), [release checks](development.md#versions-and-releases) |
+| Frontend/service boundary | [React workbench](../frontend/src/App.tsx), [Go application services](../internal/app), [generated bindings](../frontend/bindings) | [Regenerate bindings and inspect changes](development.md#changes-and-checks); do not edit generated interfaces manually |
 | Workspaces/layout/exit | [lifecycle](../internal/app/lifecycle.go), [layout](../internal/app/workspace.go), [drafts](../internal/app/workspace_state.go), [frontend workspaces](../frontend/src/features/workspaces) | Lifecycle/layout/draft tests; native close/restart |
 | Releases/updates | [build identity](../assets.go), [updates](../internal/app/update.go), [provider](../internal/update), [version tool](../scripts/version.mjs) | Provider/script tests; native replacement/restart |
 | SSH/PTY/backpressure | [SSH](../internal/ssh), [connection service](../internal/app/ssh_connect.go), [terminal view](../frontend/src/features/terminal/TerminalView.tsx) | Local protocol tests; [real SSH and reconnect gaps](development.zh-CN.md#重连修复与验证缺口) |

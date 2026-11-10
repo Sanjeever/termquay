@@ -56,7 +56,7 @@ The root [package.json](../package.json) provides these entry points. Keep its p
 | `pnpm lint` | Run Oxlint and Go vet; build frontend assets first for the root Go package |
 | `pnpm format` / `pnpm format:check` | Format handwritten frontend/scripts and Go source, or check without writing |
 | `pnpm test:ui` | Run the Chromium layout and editor-state regressions |
-| `pnpm verify` | Run formatting, frontend lint/build, Go vet, script/frontend/Go tests and browser regressions |
+| `pnpm verify` | Check formatting, run frontend lint/build, Go vet, script/frontend/Go tests and browser regressions |
 
 Arguments are passed through, for example `pnpm build ARCH=arm64` or `pnpm task darwin:package:universal`. Packaging prerequisites still come from the [platform tasks](../build); builds can update Go modules and generated bindings, so inspect the resulting diff. The `frontend` package's `dev` script remains the Vite entry point used by Wails.
 
@@ -89,7 +89,7 @@ CI has one quality job for formatting, Oxlint, TypeScript and Chromium regressio
 
 Oxlint and Oxfmt are pinned development dependencies in [frontend/package.json](../frontend/package.json). The root commands invoke the same configuration as the frontend package. [Oxlint configuration](../.oxlintrc.json) enables correctness checks and the core React Hooks rules, fails on warnings and reports unused suppressions. The React Compiler-specific rules listed there are disabled for this React application without compiler optimization. TypeScript checking remains `tsc --noEmit` with the existing [compiler settings](../frontend/tsconfig.json); type-aware Oxlint and a TypeScript migration are separate changes.
 
-Inspect Effect dependency findings against the resource owner and cleanup path. Stable `useMessageState` setters can be dependencies, and reusable loading functions should have stable callbacks. Existing document/session identity, serialized-value and translation-cache boundaries have local, reasoned exceptions. Preserve these contracts when changing a dependency list; terminal/editor recreation, repeated requests and clearing pending drafts are behavior changes. Protocol regexes deliberately matching control bytes have narrowly scoped exceptions.
+Inspect Effect dependency findings against the resource owner and cleanup path. Local lint exceptions explain which identity or explicit action owns an Effect; preserve those boundaries when changing dependencies. Terminal/editor recreation, repeated requests and clearing pending drafts are behavior changes. Follow the [lifecycle](architecture.md#communication-backpressure-and-lifecycle) and [language-switching](architecture.md#localization-and-collaboration) contracts.
 
 [Oxfmt configuration](../.oxfmtrc.json) keeps existing import, Tailwind class and package-field order. Formatting covers handwritten frontend files, project scripts, package/tool configuration and the CI workflow; generated bindings, lockfiles, build outputs, third-party materials and historical documentation are excluded. The [Go formatter entry point](../scripts/go-format.mjs) checks root Go files and `internal/`; its check mode fails when gofmt reports differences. Keep a formatting migration separate from semantic fixes.
 
@@ -104,7 +104,7 @@ Linux hosts also need Playwright system libraries; CI installs them with `--with
 
 ### Browser regressions
 
-[Playwright configuration](../frontend/playwright.config.ts) starts an isolated Vite server on loopback port 9246 and runs Chromium with two workers. The [fixture](../frontend/e2e/fixture.tsx) mounts the actual titlebar, workspace tabs, appearance provider and CodeMirror editor with controlled state; [tests](../frontend/e2e/workbench.spec.ts) substitute Wails calls at the HTTP boundary. These development fixtures are outside the production entry point and Vitest projects.
+[Playwright configuration](../frontend/playwright.config.ts) defines the isolated loopback Vite server, Chromium selection and worker count. The [fixture](../frontend/e2e/fixture.tsx) mounts the actual titlebar, workspace tabs, appearance provider and CodeMirror editor with controlled state; [tests](../frontend/e2e/workbench.spec.ts) substitute Wails calls at the HTTP boundary. These development fixtures are outside the production entry point and Vitest projects.
 
 The suite checks tab/action adjacency, overflow, mouse/keyboard access and editor instance/document/selection/undo preservation during language, theme and font changes. Platform variants exercise header styling in Chromium, not native Windows/Linux/macOS WebViews. Browser diagnostics are captured on failure and uploaded by CI. Keep native window dragging, input/IME, remote connections and protocol acceptance in their corresponding verification layers.
 
@@ -158,7 +158,7 @@ Follow the [localization contract](architecture.md#localization-and-collaboratio
 - **Terminal fonts:** under **Settings → Terminal and editor → Monospace font → Custom**, enter the family name of a font installed on this computer, for example `JetBrainsMono Nerd Font Mono`. Nerd Font Mono families provide fixed-width icons for prompts such as Powerlevel10k. The preference applies to terminals, editors and the settings preview, persists locally and travels with UI settings backups. Missing fonts use the existing monospace fallbacks; the app does not download fonts. Font changes preserve open sessions and editor drafts/history.
 - **Monitoring/logs:** Linux collection uses existing tools and current-user permissions. Preserve unknown, stale, truncated and partial states. [Docker containers](#docker-containers) use a dedicated tool tab over an SSH-forwarded Unix socket.
 - **AI:** questions, explicitly attached references and tool-read contents go to the configured model service. Review command approvals. Stopping, locking or disconnecting invalidates pending approvals; operations already sent may still have unknown remote state.
-- **RDP:** embedded RDP currently uses TLS 1.2; TLS 1.3-only targets are unsupported. Clipboard is opt-in per session. The Windows system client owns its authentication/identity UI and does not report remote connection success to the app.
+- **RDP:** check the [TLS compatibility boundary](architecture.md#embedded-rdp) before connecting. Clipboard is opt-in per session. The Windows system client owns its authentication/identity UI and does not report remote connection success to the app.
 - **Language/demo:** choose **Settings → Appearance → Language**. Demo mode uses isolated in-memory data while real workspaces remain mounted. Demo results do not prove remote behavior.
 - **Backups:** encryption passwords are separate from WebDAV login passwords. Explicitly include credentials when needed. Full replacement removes the local credential set even when the snapshot has none. Restored tunnel auto-start is paused; reselect local private key files and verify sync paths.
 
@@ -228,11 +228,15 @@ Independently verify the target fingerprint. File tests create and clean their o
 ```sh
 go test -count=1 -v ./internal/app ./internal/ssh ./internal/files ./internal/monitor -run '^TestSG1'
 go test -count=1 -v -timeout=10m ./internal/app -run '^TestSG1Workflow'
-go test -v ./internal/backup -run '^TestRealWebDAV$'
-go test -v ./internal/app -run '^TestSavedConnectionFileEditing$'
+go test -count=1 -v ./internal/backup -run '^TestRealWebDAV$'
+go test -count=1 -v ./internal/app -run '^TestSavedConnectionFileEditing$'
 ```
 
 The workflow-only command is an alternative to the full SSH selection. Use `-race` where supported. The [saved-connection file test](../internal/app/files_integration_test.go) uses `TERMQUAY_TEST_SAVED_CONNECTION`, `TERMQUAY_TEST_HOST_FINGERPRINT` and the system vault; it does not implement master-password unlock. Read the test before using it. Configured real-service tests also run under ordinary `go test` package selections; missing settings cause skips, which must be reported separately from passes.
+
+### Known SSH test deadline failures
+
+The [historical SSH run](development.zh-CN.md#ssh-verification-2026-11-05) recorded deadline failures in `TestSG1Transfers` and `TestSG1Forwarding`. Their internal context and I/O deadlines remain in [transfer_test.go](../internal/app/transfer_test.go) and [forward_test.go](../internal/ssh/forward_test.go). Increasing `go test -timeout` does not extend those internal deadlines. Temporary overlays passed the recorded scenarios with longer deadlines; they do not establish that the unmodified tests pass on that link. The ledger contains no later passing result for these unmodified tests. A follow-up needs the same verified target, measured link conditions and cleanup of the run's staging files before deciding whether the deadlines or application behavior need correction.
 
 <a id="已有验收记录与缺口"></a>
 <a id="重连修复与验证缺口"></a>
@@ -262,7 +266,7 @@ A Chromium browser harness mounted the real appearance provider, settings and xt
 
 Candidate and tag commit `e3cb45e` passed [three-platform CI](https://github.com/Sanjeever/termquay/actions/runs/42646313853), including Linux race detection, and the [manual candidate workflow](https://github.com/Sanjeever/termquay/actions/runs/42646316551). All three downloaded candidate archives matched `SHA256SUMS` and had the expected top-level executable or `.app`. On the local arm64 host, the macOS candidate contained x86_64/arm64, passed strict signature-integrity verification, reported 1.4.2 in its plist and executable, and ran CLI help successfully. This does not establish GUI behavior or execution on x86_64.
 
-The [tag workflow](https://github.com/Sanjeever/termquay/actions/runs/42648552501) succeeded and published [v1.4.2](https://github.com/Sanjeever/termquay/releases/tag/v1.4.2) as the latest stable Release. All three downloaded public archives matched the published `SHA256SUMS` and expected top-level structure; the Release body matched the repository version log. The requester received the release link and font setup steps in [issue #1](https://github.com/Sanjeever/termquay/issues/1#issuecomment-6744568791).
+The [tag workflow](https://github.com/Sanjeever/termquay/actions/runs/42648552501) succeeded and marked [v1.4.2](https://github.com/Sanjeever/termquay/releases/tag/v1.4.2) as the latest stable Release at publication. All three downloaded public archives matched the published `SHA256SUMS` and expected top-level structure; the Release body matched the repository version log. The requester received the release link and font setup steps in [issue #1](https://github.com/Sanjeever/termquay/issues/1#issuecomment-6744568791).
 
 ### Documentation audit and 1.4.1 candidate verification (2026-11-09)
 
@@ -270,7 +274,7 @@ The candidate is `51dcbf2`. The audit compared README entries, architecture/usag
 
 On macOS 26.6.2 / arm64, Go 1.26.10, Node 26.11.0 and pnpm 11.20.0, `pnpm test` passed 5 script tests and 101 frontend tests across 28 files; `pnpm check` and `go test -race ./...` passed. Existing macOS SDK/deployment-target linker warnings remain. The [three-platform CI](https://github.com/Sanjeever/termquay/actions/runs/42637140057) and [manual candidate build](https://github.com/Sanjeever/termquay/actions/runs/42637138768) succeeded for the same commit, including generated-binding consistency and native CLI smoke checks. All three downloaded candidate archives matched `SHA256SUMS` and had the expected top-level program or `.app`. The macOS candidate contained x86_64/arm64, reported version 1.4.1 in its plist and executable, passed strict signature-integrity verification, and ran CLI help on the local arm64 host. Its signature was ad-hoc, without Developer ID authentication.
 
-The [tag workflow](https://github.com/Sanjeever/termquay/actions/runs/42638513293) succeeded and published [v1.4.1](https://github.com/Sanjeever/termquay/releases/tag/v1.4.1) as the latest stable Release. All three downloaded public archives matched the published `SHA256SUMS` and expected top-level structure; the Release body matched the repository version log.
+The [tag workflow](https://github.com/Sanjeever/termquay/actions/runs/42638513293) succeeded and marked [v1.4.1](https://github.com/Sanjeever/termquay/releases/tag/v1.4.1) as the latest stable Release at publication. All three downloaded public archives matched the published `SHA256SUMS` and expected top-level structure; the Release body matched the repository version log.
 
 These checks add no native desktop interaction, real SSH/Docker/RDP/WebDAV/model-provider, old-to-new application upgrade or sustained resource acceptance. The macOS CLI checks do not establish GUI behavior or execution on both architectures.
 
@@ -355,7 +359,8 @@ Check candidate startup, system integration, core connections, unsaved-file exit
 After the candidate checks and audit, create an annotated tag for the same checked commit already on remote `main`, then push it:
 
 ```sh
-git tag -a "v$next_version" -m "Release v$next_version"
+candidate_commit='<verified-candidate-commit>'
+git tag -a "v$next_version" "$candidate_commit" -m "Release v$next_version"
 git push origin "v$next_version"
 ```
 

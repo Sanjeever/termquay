@@ -67,16 +67,7 @@ The [development commands](docs/development.md#development-commands) cover the p
 <a id="项目结构与文档"></a>
 ## Repository map
 
-| Entry | Responsibility |
-| --- | --- |
-| `main.go`, `assets.go` | Program entry, embedded assets and build information |
-| `internal/app/` | Desktop services, workspace ownership and cross-module lifecycle |
-| Other `internal/` packages | SSH, files, monitoring, RDP, storage and backups |
-| `frontend/src/` | React workbench, terminals, editors, settings and bundled translations |
-| `frontend/bindings/` | Generated Go interfaces; regenerate instead of editing manually |
-| `Taskfile.yml`, `build/` | Development, native builds and packaging resources |
-| `.github/workflows/`, `scripts/` | CI, version synchronization and release tooling |
-| [AGENTS.md](AGENTS.md) | Contributor/agent boundaries and documentation obligations |
+Use the architecture guide's [code navigation](docs/architecture.md#code-navigation) for implementation and verification entry points. [AGENTS.md](AGENTS.md) defines contributor boundaries and documentation synchronization rules.
 
 <a id="开源许可"></a>
 ## License
