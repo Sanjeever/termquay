@@ -307,7 +307,7 @@ export default function App() {
     setOpeningLocal(true);
     try {
       await loadTerminalView();
-      const terminal = await OpenLocalTerminal(kind, 100, 30);
+      const terminal = await OpenLocalTerminal(kind, '', 100, 30);
       if (latestWorkspaces.current.length >= 16) {
         await CloseLocalTerminal(terminal.id);
         throw uiMessage('common:openWorkspaceLimitReached16');

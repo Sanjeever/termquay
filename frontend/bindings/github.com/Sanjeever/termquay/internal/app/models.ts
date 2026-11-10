@@ -514,6 +514,8 @@ export interface LocalShell {
 export interface LocalTerminal {
     "id": string;
     "name": string;
+    "directory": string;
+    "hostname": string;
 }
 
 export interface LogViewPreset {

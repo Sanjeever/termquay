@@ -1016,5 +1016,7 @@
   "settingsCiphertextCorrupted": "设置密文损坏",
   "updateSourceVersionDiffersFromAttachment": "更新来源版本与附件不一致",
   "updateAttachmentURLIsOutsideThisProject": "更新附件地址不属于本项目",
-  "updateHasNoValidSHA256SUMSChecksumEntry": "更新缺少有效的 SHA256SUMS 校验记录"
+  "updateHasNoValidSHA256SUMSChecksumEntry": "更新缺少有效的 SHA256SUMS 校验记录",
+  "invalidLocalTerminalDirectory": "本地终端目录须为有效的绝对路径",
+  "localTerminalPathIsNotDirectory": "本地终端路径不是目录"
 }

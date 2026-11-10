@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -21,8 +22,10 @@ type LocalShell struct {
 	Name string `json:"name"`
 }
 type LocalTerminal struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Directory string `json:"directory"`
+	Hostname  string `json:"hostname"`
 }
 type localTerminal struct {
 	pty         pty.Pty
@@ -80,11 +83,23 @@ func (a *AppService) ListLocalShells() []LocalShell {
 	return result
 }
 
-func (a *AppService) OpenLocalTerminal(kind string, cols, rows int) (LocalTerminal, error) {
+func (a *AppService) OpenLocalTerminal(kind, directory string, cols, rows int) (LocalTerminal, error) {
 	if cols < 1 || cols > 1000 || rows < 1 || rows > 1000 {
 		return LocalTerminal{}, appmessage.New("backend:invalidTerminalDimensions", "终端尺寸无效")
 	}
 	path, args, err := localShellCommand(kind)
+	if err != nil {
+		return LocalTerminal{}, err
+	}
+	wslHome := kind == "wsl" && directory == ""
+	directory, err = localTerminalDirectory(directory)
+	if err != nil {
+		return LocalTerminal{}, err
+	}
+	if kind == "wsl" && !wslHome {
+		args = []string{"--cd", directory}
+	}
+	hostname, err := os.Hostname()
 	if err != nil {
 		return LocalTerminal{}, err
 	}
@@ -111,14 +126,18 @@ func (a *AppService) OpenLocalTerminal(kind string, cols, rows int) (LocalTermin
 		}
 	}
 	command.Env = append(command.Env, "TERM=xterm-256color", "COLORTERM=truecolor")
-	command.Dir, err = os.UserHomeDir()
-	if err != nil {
-		console.Close()
-		return LocalTerminal{}, err
-	}
+	command.Dir = directory
 	if err = command.Start(); err != nil {
 		console.Close()
 		return LocalTerminal{}, err
+	}
+	if !wslHome {
+		if err = a.rememberLocalTerminalDirectory(directory); err != nil {
+			command.Process.Kill()
+			command.Wait()
+			console.Close()
+			return LocalTerminal{}, err
+		}
 	}
 	session := &localTerminal{pty: console, command: command, done: make(chan struct{})}
 	id := base64.RawURLEncoding.EncodeToString(randomBytes(24))
@@ -158,7 +177,10 @@ func (a *AppService) OpenLocalTerminal(kind string, cols, rows int) (LocalTermin
 			break
 		}
 	}
-	return LocalTerminal{ID: id, Name: name}, nil
+	if wslHome {
+		directory = "~"
+	}
+	return LocalTerminal{ID: id, Name: name, Directory: filepath.Clean(directory), Hostname: hostname}, nil
 }
 
 func (session *localTerminal) closeConsole(discard bool) {

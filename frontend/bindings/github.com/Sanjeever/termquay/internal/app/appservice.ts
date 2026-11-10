@@ -112,6 +112,10 @@ export function ChooseComparisonFile(charset: string): $CancellablePromise<files
     return $Call.ByID(685130488, charset);
 }
 
+export function ChooseLocalTerminalDirectory(): $CancellablePromise<string> {
+    return $Call.ByID(3975122069);
+}
+
 export function ChooseTerminalRecording(): $CancellablePromise<$models.TerminalRecording> {
     return $Call.ByID(828706094);
 }
@@ -448,6 +452,10 @@ export function GetLicenseText(name: string): $CancellablePromise<string> {
     return $Call.ByID(2436447270, name);
 }
 
+export function GetLocalTerminalDirectories(): $CancellablePromise<string[] | null> {
+    return $Call.ByID(1947497108);
+}
+
 export function GetPortableUI(): $CancellablePromise<{ [_ in string]?: string } | null> {
     return $Call.ByID(2024417379);
 }
@@ -612,8 +620,8 @@ export function OpenContainerTerminal(workspace: string, socket: string, id: str
     return $Call.ByID(2310516577, workspace, socket, id, shell);
 }
 
-export function OpenLocalTerminal(kind: string, cols: number, rows: number): $CancellablePromise<$models.LocalTerminal> {
-    return $Call.ByID(2099865801, kind, cols, rows);
+export function OpenLocalTerminal(kind: string, directory: string, cols: number, rows: number): $CancellablePromise<$models.LocalTerminal> {
+    return $Call.ByID(2099865801, kind, directory, cols, rows);
 }
 
 export function OpenRDP(host: string, port: number): $CancellablePromise<rdp$0.Grant> {

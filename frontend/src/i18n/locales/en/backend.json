@@ -1016,5 +1016,7 @@
   "settingsCiphertextCorrupted": "Settings ciphertext corrupted",
   "updateSourceVersionDiffersFromAttachment": "Update source version differs from attachment",
   "updateAttachmentURLIsOutsideThisProject": "Update attachment URL is outside this project",
-  "updateHasNoValidSHA256SUMSChecksumEntry": "Update has no valid SHA256SUMS checksum entry"
+  "updateHasNoValidSHA256SUMSChecksumEntry": "Update has no valid SHA256SUMS checksum entry",
+  "invalidLocalTerminalDirectory": "Local terminal directory must be a valid absolute path",
+  "localTerminalPathIsNotDirectory": "Local terminal path is not a directory"
 }
