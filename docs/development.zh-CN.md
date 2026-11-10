@@ -360,6 +360,10 @@ macOS 菜单栏提供连接、终端、标签关闭、显示、界面缩放和�
 
 ## 已有验收记录与缺口
 
+### 本地终端工作流验收（2026-11-10）
+
+提交、环境、自动检查及原生覆盖统一见 [Local terminal workflow verification](development.md#local-terminal-workflow-verification-2026-11-10)。记录包含 macOS 原生目录选择与继承、系统剪贴板、Codex/Claude Code 输入、关闭确认及粘贴后焦点恢复；重复确认粘贴另有先失败后通过的浏览器回归。Windows/Linux 原生界面、WSL、物理输入法组词、图片粘贴及持续资源负载仍需对应环境验证。
+
 ### 文档审查与 1.4.1 候选验证（2026-11-09）
 
 审查范围、候选提交、环境、自动检查及附件核对统一见 [Documentation audit and candidate verification](development.md#documentation-audit-and-141-candidate-verification-2026-11-09)。记录区分本机检查、三平台 CI、候选包和标签发布；本轮未补做原生桌面交互、真实远端、升级链路或持续资源验收。
