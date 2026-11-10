@@ -63,7 +63,7 @@ export default function CommandRunComparison({
       ended = true;
       request.cancel();
     };
-  }, [id, current.summary.id]);
+  }, [id, current.summary.id, setError]);
   const before = new Map((previous?.results || []).map((item) => [key(item), item]));
   const after = new Map((current.results || []).map((item) => [key(item), item]));
   const keys = [...new Set([...before.keys(), ...after.keys()])];

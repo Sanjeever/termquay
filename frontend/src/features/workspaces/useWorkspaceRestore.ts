@@ -38,7 +38,7 @@ export default function useWorkspaceRestore(enabled = true) {
       ended = true;
       clearTimeout(timer.current);
     };
-  }, [enabled]);
+  }, [enabled, setError]);
   async function flush(): Promise<void> {
     clearTimeout(timer.current);
     if (running.current) {

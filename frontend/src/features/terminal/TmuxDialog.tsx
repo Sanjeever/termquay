@@ -4,7 +4,7 @@ import { message as uiMessage } from '../../i18n/messages.ts';
 import { useMessageState } from '../../i18n/useMessageState.ts';
 import { useTranslation } from 'react-i18next';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button, Input, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
 import { ListTmuxSessions } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { TmuxSession } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
@@ -29,7 +29,7 @@ export default function TmuxDialog({
   const [busy, setBusy] = useState(false);
   const pending = useRef<ReturnType<typeof ListTmuxSessions>>();
   const mounted = useRef(true);
-  async function load() {
+  const load = useCallback(async () => {
     setBusy(true);
     setError('');
     const operation = ListTmuxSessions(workspace);
@@ -42,7 +42,7 @@ export default function TmuxDialog({
     } finally {
       if (mounted.current) setBusy(false);
     }
-  }
+  }, [workspace, setError]);
   useEffect(() => {
     mounted.current = true;
     void load();
@@ -50,7 +50,7 @@ export default function TmuxDialog({
       mounted.current = false;
       pending.current?.cancel();
     };
-  }, [workspace]);
+  }, [load]);
   function insert(command: string) {
     if (onInsert(command)) onClose();
     else setError(uiMessage('terminal:currentTerminalIsNotInteractive'));
@@ -135,6 +135,7 @@ export default function TmuxDialog({
             color="primary"
             type="submit"
             form="tmux-new"
+            // oxlint-disable-next-line eslint/no-control-regex -- Reject control characters in a shell session name.
             isDisabled={!name.trim() || /[.:\x00-\x1f]/.test(name)}
           >
             {translate('terminal:newSession')}

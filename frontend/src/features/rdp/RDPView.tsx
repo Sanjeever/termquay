@@ -8,7 +8,15 @@ import Tooltip from '../../components/Tooltip';
 import SelectControl from '../../components/SelectControl';
 import ErrorNotice from '../../components/ErrorNotice';
 import { errorMessage, eventError } from '../../lib/errors';
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   Button,
   DropdownTrigger,
@@ -127,27 +135,13 @@ const RDPView = forwardRef<
   }, []);
   const stateCallback = useRef(onState);
   stateCallback.current = onState;
-  useEffect(() => {
-    stateCallback.current(
-      !grant
-        ? pending
-          ? 'connecting'
-          : failure
-            ? 'disconnected'
-            : 'not-connected'
-        : status === 'connected' && ready.running
-          ? 'connected'
-          : ready.ended || failure
-            ? 'disconnected'
-            : 'connecting',
-    );
-  }, [status, failure, pending, grant?.id]);
   function focusDesktop() {
     container.current
       ?.querySelector('iron-remote-desktop')
       ?.shadowRoot?.querySelector<HTMLCanvasElement>('canvas')
       ?.focus();
   }
+  /* oxlint-disable react/exhaustive-deps -- Grant identity defines this readiness promise lifetime. */
   const ready = useMemo(() => {
     let resolve!: (value: UserInteraction) => void;
     let reject!: (reason: unknown) => void;
@@ -173,8 +167,25 @@ const RDPView = forwardRef<
       error: undefined as unknown,
     };
   }, [grant?.id]);
+  /* oxlint-enable react/exhaustive-deps */
 
-  function shutdown() {
+  useEffect(() => {
+    stateCallback.current(
+      !grant
+        ? pending
+          ? 'connecting'
+          : failure
+            ? 'disconnected'
+            : 'not-connected'
+        : status === 'connected' && ready.running
+          ? 'connected'
+          : ready.ended || failure
+            ? 'disconnected'
+            : 'connecting',
+    );
+  }, [status, failure, pending, grant, ready.ended, ready.running]);
+
+  const shutdown = useCallback(() => {
     const api = ui.current;
     ui.current = undefined;
     if (!ready.running) return '';
@@ -185,28 +196,31 @@ const RDPView = forwardRef<
     } catch (e) {
       return uiMessage('rdp:couldNotCloseDesktop', { value1: detail(e) });
     }
-  }
+  }, [ready]);
 
-  function finish(status: string, detailMessage: unknown = '') {
-    if (ready.ended || ready.disposed) return;
-    ready.ended = true;
-    ready.error = detailMessage;
-    const reason = detailMessage || new Error(connectionStateLabel(status));
-    ready.stop(reason);
-    ready.reject(reason);
-    const closingError = shutdown();
-    setStatus(status);
-    setError([detailMessage, closingError].filter(Boolean));
-    if (grant)
-      void CloseRDP(grant.id).catch((e) => {
-        if (!ready.disposed)
-          setError((previous) =>
-            [previous, uiMessage('rdp:couldNotCloseConnection', { value1: detail(e) })].filter(
-              Boolean,
-            ),
-          );
-      });
-  }
+  const finish = useCallback(
+    (status: string, detailMessage: unknown = '') => {
+      if (ready.ended || ready.disposed) return;
+      ready.ended = true;
+      ready.error = detailMessage;
+      const reason = detailMessage || new Error(connectionStateLabel(status));
+      ready.stop(reason);
+      ready.reject(reason);
+      const closingError = shutdown();
+      setStatus(status);
+      setError([detailMessage, closingError].filter(Boolean));
+      if (grant)
+        void CloseRDP(grant.id).catch((e) => {
+          if (!ready.disposed)
+            setError((previous) =>
+              [previous, uiMessage('rdp:couldNotCloseConnection', { value1: detail(e) })].filter(
+                Boolean,
+              ),
+            );
+        });
+    },
+    [ready, shutdown, setError, grant],
+  );
 
   useImperativeHandle(
     ref,
@@ -276,7 +290,7 @@ const RDPView = forwardRef<
       focus: focusDesktop,
       options: () => ({ clipboard, resolution, client: options.client, gateway: options.gateway }),
     }),
-    [grant, ready, options, clipboard, resolution],
+    [grant, ready, options, clipboard, resolution, finish],
   );
 
   useEffect(() => {
@@ -346,7 +360,7 @@ const RDPView = forwardRef<
       desktop?.remove();
       void CloseRDP(grant.id).catch(() => {});
     };
-  }, [grant, ready]);
+  }, [grant, ready, setError, finish, shutdown]);
 
   useEffect(() => {
     if (status !== 'connected') return;

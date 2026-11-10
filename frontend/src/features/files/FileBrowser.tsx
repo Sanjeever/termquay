@@ -195,6 +195,7 @@ export default function FileBrowser({
     return () => observer.disconnect();
   }, [demoDirectories]);
   const lastDirectoryRequest = useRef(0);
+  /* oxlint-disable react/exhaustive-deps -- Only a new explicit directory request navigates; render-created tree methods must not replay navigation. */
   useEffect(() => {
     if (visible && directoryRequest && lastDirectoryRequest.current !== directoryRequest.sequence) {
       lastDirectoryRequest.current = directoryRequest.sequence;
@@ -205,6 +206,7 @@ export default function FileBrowser({
       void load(directoryRequest.path);
     }
   }, [visible, directoryRequest]);
+  /* oxlint-enable react/exhaustive-deps */
 
   async function load(path: string, historyIndex?: number, refresh = false) {
     setNavigationFailure(undefined);
@@ -242,6 +244,7 @@ export default function FileBrowser({
       }
     }
   }
+  /* oxlint-disable react/exhaustive-deps -- Workspace identity resets navigation; directory and visibility changes have their own paths. */
   useEffect(() => {
     loaded.current = false;
     if (visible) void load(directory);
@@ -249,6 +252,8 @@ export default function FileBrowser({
       pending.current = undefined;
     };
   }, [id]);
+  /* oxlint-enable react/exhaustive-deps */
+  /* oxlint-disable react/exhaustive-deps -- Visibility resumes an unloaded directory; successful navigation must not trigger another load. */
   useEffect(() => {
     if (visible && !loaded.current && !pending.current) void load(directory);
     if (!visible && pending.current) {
@@ -257,6 +262,7 @@ export default function FileBrowser({
       setLoading(false);
     }
   }, [visible]);
+  /* oxlint-enable react/exhaustive-deps */
   useEffect(() => {
     if (!connectionID || demoDirectories) return;
     let ended = false;
@@ -270,7 +276,7 @@ export default function FileBrowser({
     return () => {
       ended = true;
     };
-  }, [connectionID, demoDirectories]);
+  }, [connectionID, demoDirectories, setError]);
   const rows = fileTreeRows(tree.nodes, tree.expanded, { filter, showHidden, sort, descending });
   const visibleEntries = rows.map((row) => row.entry);
   const focusedVisible = visibleEntries.some((entry) => entry.path === selected);

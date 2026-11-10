@@ -34,7 +34,7 @@ export default function ApplicationLockSettings() {
       ended = true;
       request.cancel();
     };
-  }, []);
+  }, [setError]);
   async function save() {
     setBusy(true);
     setError('');

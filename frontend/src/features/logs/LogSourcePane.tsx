@@ -149,7 +149,7 @@ export default function LogSourcePane({
       clearTimeout(timer);
       pending?.cancel();
     };
-  }, [source, active, live, follow, refresh]);
+  }, [source, active, live, follow, refresh, setError]);
 
   useEffect(() => {
     if (!active) {
@@ -209,7 +209,7 @@ export default function LogSourcePane({
         worker.current = undefined;
       }
     };
-  }, [content, options, active]);
+  }, [content, options, active, setFilterError]);
   useEffect(() => () => worker.current?.terminate(), []);
   useLayoutEffect(() => {
     if (active && autoScroll && host.current) host.current.scrollTop = host.current.scrollHeight;

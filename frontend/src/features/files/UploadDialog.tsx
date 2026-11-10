@@ -82,7 +82,7 @@ export default function UploadDialog({
       pending.current?.cancel();
       if (latest.current) void DiscardUpload(latest.current.id);
     };
-  }, []);
+  }, [setError]);
   async function close() {
     if (busy) return;
     try {

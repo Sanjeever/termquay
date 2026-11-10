@@ -1,6 +1,6 @@
 import { useMessageState } from '../../i18n/useMessageState.ts';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { GetAutomaticBackupStatus } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { AutomaticBackupStatus } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 
@@ -13,27 +13,30 @@ export default function useAutomaticBackup(ready: boolean) {
   const loadErrorActive = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout>>();
   const mounted = useRef(false);
-  async function refresh(retry = false) {
-    if (retry) loadErrorActive.current = false;
-    const request = ++generation.current;
-    clearTimeout(timer.current);
-    try {
-      const value = await GetAutomaticBackupStatus();
-      if (!mounted.current || request !== generation.current) return;
-      setStatus(value);
-      setError('');
-      loadErrorActive.current = false;
-      if (value.enabled || value.running) timer.current = setTimeout(() => void refresh(), 5000);
-    } catch (e) {
-      if (mounted.current && request === generation.current) {
-        setError(e);
-        if (!loadErrorActive.current) {
-          loadErrorActive.current = true;
-          setLoadFailure((value) => value + 1);
+  const refresh = useCallback(
+    async (retry = false): Promise<void> => {
+      if (retry) loadErrorActive.current = false;
+      const request = ++generation.current;
+      clearTimeout(timer.current);
+      try {
+        const value = await GetAutomaticBackupStatus();
+        if (!mounted.current || request !== generation.current) return;
+        setStatus(value);
+        setError('');
+        loadErrorActive.current = false;
+        if (value.enabled || value.running) timer.current = setTimeout(() => void refresh(), 5000);
+      } catch (e) {
+        if (mounted.current && request === generation.current) {
+          setError(e);
+          if (!loadErrorActive.current) {
+            loadErrorActive.current = true;
+            setLoadFailure((value) => value + 1);
+          }
         }
       }
-    }
-  }
+    },
+    [setError],
+  );
   useEffect(() => {
     mounted.current = true;
     if (ready) void refresh();
@@ -41,7 +44,7 @@ export default function useAutomaticBackup(ready: boolean) {
       mounted.current = false;
       clearTimeout(timer.current);
     };
-  }, [ready]);
+  }, [ready, refresh]);
   const failure = error
     ? `load:${loadFailure}`
     : status?.error

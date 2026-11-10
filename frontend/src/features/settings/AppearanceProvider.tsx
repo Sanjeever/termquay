@@ -65,7 +65,7 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
     changed();
     window.addEventListener('languagechange', changed);
     return () => window.removeEventListener('languagechange', changed);
-  }, [current.language]);
+  }, [current.language, setError]);
   useEffect(() => {
     const restore = () => {
       try {
@@ -77,13 +77,13 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
     };
     window.addEventListener('termquay:portable-restored', restore);
     return () => window.removeEventListener('termquay:portable-restored', restore);
-  }, []);
+  }, [setError]);
   const dark = current.theme === 'system' ? systemDark : current.theme === 'dark';
   useEffect(() => {
     Window.SetZoom(current.uiZoom).catch((error) =>
       setError(uiMessage('settings:couldNotZoomTheInterface', { value1: error })),
     );
-  }, [current.uiZoom]);
+  }, [current.uiZoom, setError]);
   useEffect(() => {
     const media = matchMedia('(prefers-color-scheme: dark)');
     const changed = () => setSystemDark(media.matches);

@@ -231,6 +231,7 @@ export default function useFileTree(
     );
   }
 
+  /* oxlint-disable react/exhaustive-deps -- The workspace owns the file-tree subscription; navigation callbacks use current queue state and must not resubscribe on every render. */
   useEffect(() => {
     invalidated.current.clear();
     setRecentPaths(new Set());
@@ -262,6 +263,8 @@ export default function useFileTree(
       for (const path of reads.current.keys()) cancel(path);
     };
   }, [id]);
+  /* oxlint-enable react/exhaustive-deps */
+  /* oxlint-disable react/exhaustive-deps -- Visibility starts or stops the existing workspace queue; render-created navigation functions are not lifecycle keys. */
   useEffect(() => {
     if (visible) {
       for (const path of expansion.current)
@@ -280,5 +283,6 @@ export default function useFileTree(
       setNodes(nodeState.current);
     }
   }, [visible, id]);
+  /* oxlint-enable react/exhaustive-deps */
   return { nodes, expanded, recentPaths, read, reveal, collapse, expand, refresh };
 }

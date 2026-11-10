@@ -48,7 +48,7 @@ export default function SnapshotPruneDialog({
       listing.cancel();
       request.current?.cancel();
     };
-  }, []);
+  }, [setError]);
   async function plan() {
     if (busy) return;
     setBusy(true);

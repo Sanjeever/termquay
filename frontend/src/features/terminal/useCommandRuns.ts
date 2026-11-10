@@ -56,7 +56,7 @@ export default function useCommandRuns(enabled: boolean) {
       request.cancel();
       off.forEach((dispose) => dispose());
     };
-  }, [enabled, revision]);
+  }, [enabled, revision, setError]);
   return {
     items,
     error,

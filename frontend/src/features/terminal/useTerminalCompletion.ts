@@ -284,8 +284,9 @@ export default function useTerminalCompletion(options: Options) {
   useEffect(() => {
     if (!options.visible) dismiss();
   }, [options.visible]);
+  const completionOpen = !!view;
   useEffect(() => {
-    if (!view) return;
+    if (!completionOpen) return;
     const outside = (event: PointerEvent) => {
       if (!(event.target as Element).closest('.terminal-completion')) dismiss();
     };
@@ -295,7 +296,7 @@ export default function useTerminalCompletion(options: Options) {
       document.removeEventListener('pointerdown', outside, true);
       window.removeEventListener('blur', dismiss);
     };
-  }, [!!view]);
+  }, [completionOpen]);
   useEffect(
     () => () => {
       version.current++;

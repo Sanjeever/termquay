@@ -83,7 +83,7 @@ export default function TunnelPanel({
       ended = true;
       operations.forEach((operation) => operation.cancel());
     };
-  }, [id, connectionID]);
+  }, [id, connectionID, setError]);
   async function savePreset() {
     setBusy(true);
     try {
@@ -123,7 +123,7 @@ export default function TunnelPanel({
       ended = true;
       clearTimeout(timer);
     };
-  }, [id, visible, retry]);
+  }, [id, visible, retry, setListError]);
   useEffect(
     () => () => {
       const operation = request.current;

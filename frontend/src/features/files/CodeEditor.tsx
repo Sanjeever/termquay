@@ -2,7 +2,7 @@ import { t as translate, currentLocale } from '../../i18n/index.ts';
 import { useMessageState } from '../../i18n/useMessageState.ts';
 import { useTranslation } from 'react-i18next';
 
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { DropdownTrigger, DropdownMenu, DropdownSection, DropdownItem } from '@heroui/react';
 import { Dropdown } from '../../components/Popover';
 import Tooltip from '../../components/Tooltip';
@@ -144,7 +144,7 @@ export default function CodeEditor({
   const mode = languageOverride === 'auto' ? detectEditorLanguage(path, content) : languageOverride;
   const callbacks = useRef({ onChange, onSave, completionShortcut });
   callbacks.current = { onChange, onSave, completionShortcut };
-  function localizedEditor() {
+  const localizedEditor = useCallback(() => {
     return [
       EditorState.phrases.of({
         Find: translate('files:find'),
@@ -181,7 +181,7 @@ export default function CodeEditor({
         spellcheck: 'false',
       }),
     ];
-  }
+  }, [path]);
   useEffect(() => {
     const editor = view.current;
     if (!editor) return;
@@ -196,7 +196,8 @@ export default function CodeEditor({
       if (query) editor.dispatch({ effects: setSearchQuery.of(query) });
       if (restoreFocus) focused.focus({ preventScroll: true });
     }
-  }, [locale, path, reloadEpoch]);
+  }, [locale, path, reloadEpoch, localizedEditor]);
+  /* oxlint-disable react/exhaustive-deps -- Document identity or explicit reload owns the editor; content, format, locale and theme are synchronized without destroying history. */
   useEffect(() => {
     const editor = new EditorView({
       parent: host.current!,
@@ -286,6 +287,7 @@ export default function CodeEditor({
       view.current = undefined;
     };
   }, [path, reloadEpoch]);
+  /* oxlint-enable react/exhaustive-deps */
   useEffect(() => {
     const editor = view.current;
     if (!editor) return;
@@ -302,7 +304,7 @@ export default function CodeEditor({
     return () => {
       ended = true;
     };
-  }, [mode, path, reloadEpoch, languageEpoch]);
+  }, [mode, path, reloadEpoch, languageEpoch, setLanguageError]);
   useEffect(() => {
     const editor = view.current;
     if (!editor) return;
@@ -313,7 +315,7 @@ export default function CodeEditor({
         editorIntelligence(mode, setDiagnosticError, visible),
       ),
     });
-  }, [mode, visible, path, reloadEpoch, diagnosticEpoch, locale]);
+  }, [mode, visible, path, reloadEpoch, diagnosticEpoch, locale, setDiagnosticError]);
   useEffect(() => {
     view.current?.dispatch({ effects: theme.current.reconfigure(editorTheme(dark)) });
     view.current?.requestMeasure();
@@ -341,6 +343,7 @@ export default function CodeEditor({
       effects: wrapping.current.reconfigure(wrap ? EditorView.lineWrapping : []),
     });
   }, [wrap, reloadEpoch]);
+  /* oxlint-disable react/exhaustive-deps -- The three serialized format fields define equality; a new format object alone must not resynchronize the editor. */
   useEffect(() => {
     const editor = view.current;
     if (
@@ -361,22 +364,25 @@ export default function CodeEditor({
       syncing.current = false;
     }
   }, [content, format.encoding, format.line_ending, format.bom]);
+  /* oxlint-enable react/exhaustive-deps */
   useEffect(() => {
     if (visible) {
       view.current?.requestMeasure();
       if (focusOnShow && !document.activeElement?.closest('[role=tablist]')) view.current?.focus();
     }
-  }, [visible]);
+  }, [visible, focusOnShow]);
+  const jumpLine = jumpTo?.line;
+  const jumpSequence = jumpTo?.sequence;
   useEffect(() => {
     const editor = view.current;
-    if (!editor || !visible || !jumpTo) return;
-    const line = editor.state.doc.line(Math.max(1, Math.min(editor.state.doc.lines, jumpTo.line)));
+    if (!editor || !visible || jumpLine === undefined) return;
+    const line = editor.state.doc.line(Math.max(1, Math.min(editor.state.doc.lines, jumpLine)));
     editor.dispatch({
       selection: { anchor: line.from },
       effects: EditorView.scrollIntoView(line.from, { y: 'center' }),
     });
     editor.focus();
-  }, [jumpTo?.sequence, visible, reloadEpoch]);
+  }, [jumpLine, jumpSequence, visible, reloadEpoch]);
   function updateFormat(value: Partial<EditorFormat>) {
     const editor = view.current;
     if (editor) {

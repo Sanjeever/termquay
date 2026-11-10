@@ -8,7 +8,16 @@ import { useMessageState } from './i18n/useMessageState.ts';
 import { useTranslation } from 'react-i18next';
 
 import SelectControl from './components/SelectControl';
-import { createRef, lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  createRef,
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { flushSync } from 'react-dom';
 import { AnimatePresence } from 'framer-motion';
 import { Browser, Events, System } from '@wailsio/runtime';
@@ -193,7 +202,7 @@ export default function App() {
     return Events.On('rdp:system-error', (event) =>
       setPreferenceError(eventError(event.data as { error: string })),
     );
-  }, []);
+  }, [setPreferenceError]);
   const [settings, setSettings] = useState(false);
   const [settingsSection, setSettingsSection] = useState('appearance');
   const [transfersOpen, setTransfersOpen] = useState(false);
@@ -277,7 +286,7 @@ export default function App() {
       ended = true;
       request.cancel();
     };
-  }, [catalog, palette, servicesOpen, backgroundReady]);
+  }, [catalog, palette, servicesOpen, backgroundReady, setServiceError]);
   useEffect(
     () => () => {
       serviceRequest.current?.cancel();
@@ -291,7 +300,7 @@ export default function App() {
     ListLocalShells()
       .then((values) => setLocalShells(values || []))
       .catch((e) => setPreferenceError(e));
-  }, []);
+  }, [setPreferenceError]);
   async function openLocalShell(kind: string) {
     if (localOpening.current || latestWorkspaces.current.length >= 16) return;
     localOpening.current = true;
@@ -324,6 +333,9 @@ export default function App() {
   const [shortcuts, setShortcuts] = useState<Shortcuts>({ ...defaultShortcuts });
   const [shortcutError, setShortcutError] = useMessageState('');
   const current = workspaces.find((w) => w.id === active);
+  const focusedWorkspace = useRef(current);
+  focusedWorkspace.current = current;
+  /* oxlint-disable react/exhaustive-deps -- Locale invalidates connection-state labels read through the shared translation helper. */
   const connectionSessions = useMemo(() => {
     const sessions = new Map<string, string[]>();
     for (const workspace of workspaces) {
@@ -333,6 +345,7 @@ export default function App() {
     }
     return Object.fromEntries(sessions);
   }, [workspaces, currentLocale()]);
+  /* oxlint-enable react/exhaustive-deps */
   const rdpGateways = workspaces
     .filter((workspace) => workspace.ssh && workspace.sessionID && workspace.state === 'connected')
     .map((workspace) => ({ id: workspace.sessionID!, name: workspace.name }));
@@ -391,8 +404,10 @@ export default function App() {
     onError: setPreferenceError,
   });
   const { closing, quitConfirm, restarting } = workbenchClose;
+  const localStateChanged = useRef(notifyLocalState);
+  localStateChanged.current = notifyLocalState;
   useEffect(() => {
-    notifyLocalState();
+    localStateChanged.current();
   }, [workspaces, active, recovery.enabled, workspaceRestore.startup]);
   useEffect(() => {
     if (
@@ -406,7 +421,15 @@ export default function App() {
     restorePrompted.current = true;
     if (workspaceRestore.startup.entries?.length && !workspaces.length && !dialog && !settings)
       setRestoreDialog(workspaceRestore.startup);
-  }, [catalog, workspaceRestore.startup, demoScene, workspaceSetLayout]);
+  }, [
+    catalog,
+    workspaceRestore.startup,
+    demoScene,
+    workspaceSetLayout,
+    workspaces.length,
+    settings,
+    dialog,
+  ]);
 
   function remove(id: string, keyboard = false) {
     attempt.cancelWorkspace(id);
@@ -640,7 +663,7 @@ export default function App() {
     loadRDPView,
   );
 
-  async function reload() {
+  const reload = useCallback(async () => {
     setCatalogLoading(true);
     try {
       const data = await GetCatalog();
@@ -657,7 +680,7 @@ export default function App() {
     } finally {
       setCatalogLoading(false);
     }
-  }
+  }, [setPreferenceLoadError, setStorageError]);
   function showDemo(scene: DemoScene = 'connections') {
     if (
       attempt.busy ||
@@ -687,7 +710,7 @@ export default function App() {
   }
   useEffect(() => {
     void reload();
-  }, []);
+  }, [reload]);
   useEffect(() => {
     if (!palette && !commandTasksOpen) {
       setSnippets([]);
@@ -709,7 +732,7 @@ export default function App() {
       ended = true;
       request.cancel();
     };
-  }, [palette, commandTasksOpen]);
+  }, [palette, commandTasksOpen, setSnippetError]);
   useEffect(() => {
     try {
       const stored = localStorage.getItem(shortcutStorageKey);
@@ -723,7 +746,7 @@ export default function App() {
     } catch (e) {
       setShortcutError(e);
     }
-  }, []);
+  }, [setShortcutError]);
   function saveShortcuts(values: Shortcuts) {
     try {
       localStorage.setItem(shortcutStorageKey, JSON.stringify(values));
@@ -734,7 +757,7 @@ export default function App() {
       setShortcutError(e);
     }
   }
-  async function savePortable() {
+  const savePortable = useCallback(async () => {
     const request = ++portableGeneration.current;
     try {
       await SavePortableUI(capturePortableUI());
@@ -745,9 +768,10 @@ export default function App() {
         setPortableFailure((value) => value + 1);
       }
     }
-  }
+  }, [setPortableError]);
+  const storageMode = catalog?.session_only;
   useEffect(() => {
-    if (!catalog) return;
+    if (storageMode === undefined) return;
     let ended = false;
     let changed = false;
     let timer: ReturnType<typeof setTimeout>;
@@ -779,12 +803,13 @@ export default function App() {
       });
     return () => {
       ended = true;
+      // oxlint-disable-next-line react/exhaustive-deps -- Invalidate the latest generation, including requests started after setup.
       ++portableGeneration.current;
       clearTimeout(timer);
       window.removeEventListener('termquay:portable-restored', restored);
       window.removeEventListener('termquay:portable-changed', save);
     };
-  }, [catalog?.session_only]);
+  }, [storageMode, savePortable, setShortcutError, setPreferenceError]);
   useEffect(() => {
     localStorage.setItem('termquay.layout.transfer-height', String(transferHeight));
   }, [transferHeight]);
@@ -811,8 +836,9 @@ export default function App() {
       return;
     }
     const frame = requestAnimationFrame(() => {
-      if (current?.rdp) current.view?.current?.focus();
-      else current?.ssh?.current?.focus();
+      const workspace = focusedWorkspace.current;
+      if (workspace?.rdp) workspace.view?.current?.focus();
+      else workspace?.ssh?.current?.focus();
     });
     return () => cancelAnimationFrame(frame);
   }, [
@@ -829,10 +855,25 @@ export default function App() {
     settings,
     demoScene,
   ]);
+  const shortcutActions = useRef({
+    openDialog,
+    newTerminal,
+    closeCurrentTab,
+    closeWorkspace,
+    openDocker,
+  });
+  shortcutActions.current = {
+    openDialog,
+    newTerminal,
+    closeCurrentTab,
+    closeWorkspace,
+    openDocker,
+  };
+  const locked = appLock.locked;
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
       if (
-        appLock.locked.current ||
+        locked.current ||
         demoScene ||
         event.isComposing ||
         event.repeat ||
@@ -881,10 +922,10 @@ export default function App() {
         setPaletteQuery('');
         setPalette((prev) => !prev);
       } else if (action.id === 'settings') setSettings(true);
-      else if (action.id === 'newConnection') openDialog(false);
-      else if (action.id === 'newTerminal') newTerminal();
-      else if (action.id === 'closeTab') closeCurrentTab();
-      else if (action.id === 'closeWorkspace') closeWorkspace();
+      else if (action.id === 'newConnection') shortcutActions.current.openDialog(false);
+      else if (action.id === 'newTerminal') shortcutActions.current.newTerminal();
+      else if (action.id === 'closeTab') shortcutActions.current.closeCurrentTab();
+      else if (action.id === 'closeWorkspace') shortcutActions.current.closeWorkspace();
       else if (action.id === 'nextWorkspace' || action.id === 'previousWorkspace') {
         const ids = [
           '',
@@ -922,6 +963,7 @@ export default function App() {
     commandTasksTab,
     logsTab,
     dockerTab,
+    locked,
   ]);
   function openDialog(temporary: boolean, connection?: Connection) {
     if (attempt.busy) return;
@@ -1289,7 +1331,8 @@ export default function App() {
     setResourceRequest(undefined);
     select(workspace.id);
     const resource = resourceRequest.resource;
-    if (resource.kind === 'container') openDocker(workspace.sessionID!, resource.target);
+    if (resource.kind === 'container')
+      shortcutActions.current.openDocker(workspace.sessionID!, resource.target);
     else if (resource.kind === 'snippet') {
       void ListSnippets()
         .then((items) => {
@@ -1304,7 +1347,7 @@ export default function App() {
       void workspace.ssh.current
         .openResource(resource.kind, resource.target)
         .catch((e) => setPreferenceError(e));
-  }, [resourceRequest, workspaces]);
+  }, [resourceRequest, workspaces, setPreferenceError]);
   async function restoreWorkspaces(
     entries: WorkspaceLayoutEntry[],
     preferredActive = restoreDialog?.active,
@@ -1923,7 +1966,7 @@ export default function App() {
       void Events.Emit('app:menu-state', JSON.parse(menuState) as Record<string, string>).catch(
         (error) => setPreferenceError(uiMessage('common:couldNotUpdateMenu', { value1: error })),
       );
-  }, [menuState, demoScene]);
+  }, [menuState, demoScene, setPreferenceError]);
   return (
     <>
       <div className="live-workbench" hidden={demoScene !== null}>

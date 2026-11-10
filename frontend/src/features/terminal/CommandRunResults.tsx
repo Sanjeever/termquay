@@ -49,6 +49,7 @@ export default function CommandRunResults({
     [results],
   );
   const byKey = useMemo(() => new Map(results.map((item) => [keyOf(item), item])), [results]);
+  /* oxlint-disable react/exhaustive-deps -- Locale invalidates translated status labels read through module helpers. */
   const groups = useMemo(() => {
     const values = new Map<string, CommandRunItem[]>();
     if (view === 'matrix') return values;
@@ -74,6 +75,7 @@ export default function CommandRunResults({
     }
     return values;
   }, [results, view, currentLocale()]);
+  /* oxlint-enable react/exhaustive-deps */
   const current = byKey.get(selected);
   const comparable = results.filter((item) => item.result);
   const left = byKey.get(comparison[0]),

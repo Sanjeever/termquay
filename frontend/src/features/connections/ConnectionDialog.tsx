@@ -72,6 +72,7 @@ export default function ConnectionDialog({
   rdpOptions?: RDPOptions;
 }) {
   useTranslation();
+  const [error, setError] = useMessageState('');
   const [saved, setSaved] = useState(connection);
   const [protocol, setProtocol] = useState(connection?.protocol || 'ssh');
   const [authKind, setAuthKind] = useState(connection?.auth_method || 'password');
@@ -107,7 +108,7 @@ export default function ConnectionDialog({
     return () => {
       ended = true;
     };
-  }, []);
+  }, [setError]);
   useEffect(() => {
     setReferenceID('');
   }, [protocol]);
@@ -131,7 +132,6 @@ export default function ConnectionDialog({
   );
   const originalPassword = useRef('');
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useMessageState('');
   const [stored, setStored] = useState(false);
   const [credentialEpoch, setCredentialEpoch] = useState(0);
   const [quickAddress, setQuickAddress] = useState('');
@@ -147,6 +147,7 @@ export default function ConnectionDialog({
   const [rdpGateway, setRDPGateway] = useState(rdpOptions?.gateway || '');
   const form = useRef<HTMLFormElement>(null);
 
+  /* oxlint-disable react/exhaustive-deps -- Read the initial saved password once; password edits and load completion must not clear the original-password baseline. */
   useEffect(() => {
     if (!passwordLoading || !connection) return;
     let active = true;
@@ -169,7 +170,8 @@ export default function ConnectionDialog({
       request.cancel();
       originalPassword.current = '';
     };
-  }, []);
+  }, [setError]);
+  /* oxlint-enable react/exhaustive-deps */
 
   async function parseAddress() {
     if (!quickAddress.trim() || parsing) return;

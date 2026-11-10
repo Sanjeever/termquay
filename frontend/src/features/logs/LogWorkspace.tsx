@@ -76,7 +76,7 @@ export default function LogWorkspace({
     setSources((previous) => [...previous, request]);
     setAdding(false);
     setError('');
-  }, [request]);
+  }, [request, sources, setError]);
   useEffect(() => {
     const update = () => setVisible(document.visibilityState === 'visible');
     document.addEventListener('visibilitychange', update);
@@ -108,12 +108,12 @@ export default function LogWorkspace({
       ended = true;
       request.cancel();
     };
-  }, [active]);
+  }, [active, setPresetError]);
   useEffect(() => {
     setTarget('');
     setContainers([]);
     setError('');
-  }, [workspace, kind, socket]);
+  }, [workspace, kind, socket, setError]);
   useEffect(() => {
     if (!active || !adding || !live || kind !== 'container') {
       setLoading(false);
@@ -138,7 +138,7 @@ export default function LogWorkspace({
       ended = true;
       request.cancel();
     };
-  }, [active, adding, live, workspace, kind, socket, containerRefresh]);
+  }, [active, adding, live, workspace, kind, socket, containerRefresh, setError]);
   function addSource() {
     const selected = targets.find((item) => item.id === workspace);
     if (!selected || sources.length >= sourceLimit) return;

@@ -41,6 +41,7 @@ export function parseRecordedCommand(data: string, token: string): string | unde
     return;
   try {
     const command = unhex(data.slice(prefix.length), 8192);
+    // oxlint-disable-next-line eslint/no-control-regex -- Shell protocol parsing intentionally matches or rejects C0 and DEL bytes.
     if (!/[\x00-\x08\x0b-\x1f\x7f]/.test(command)) return command;
   } catch {
     return;
@@ -64,6 +65,7 @@ export function parseCompletionMessage(data: string, token: string): CompletionM
     kind === 'E' &&
     (parts.length === 1 || parts.length === 2) &&
     parts[0].length <= 128 &&
+    // oxlint-disable-next-line eslint/no-control-regex -- Shell protocol parsing intentionally matches or rejects C0 and DEL bytes.
     !/[\x00-\x1f\x7f]/.test(parts[0])
   ) {
     if (parts.length === 1) return { kind: 'error', message: parts[0] };
@@ -85,9 +87,11 @@ export function parseCompletionMessage(data: string, token: string): CompletionM
       directory = unhex(rawDirectory, 4096),
       home = unhex(rawHome, 4096);
     if (
+      // oxlint-disable-next-line eslint/no-control-regex -- Shell protocol parsing intentionally matches or rejects C0 and DEL bytes.
       /[\x00-\x08\x0b-\x1f\x7f]/.test(line) ||
       !directory.startsWith('/') ||
       !home.startsWith('/') ||
+      // oxlint-disable-next-line eslint/no-control-regex -- Shell protocol parsing intentionally matches or rejects C0 and DEL bytes.
       /[\x00-\x1f\x7f]/.test(directory + home)
     )
       return null;
@@ -118,6 +122,7 @@ export function completionEdit(
     from > snapshot.cursor ||
     to < snapshot.cursor ||
     to > snapshot.line.length ||
+    // oxlint-disable-next-line eslint/no-control-regex -- Shell protocol parsing intentionally matches or rejects C0 and DEL bytes.
     /[\x00-\x08\x0b-\x1f\x7f]/.test(text)
   )
     throw uiMessage('terminal:completionEditRange');

@@ -338,7 +338,7 @@ export default function DemoWorkbench({
       void Events.Emit('app:menu-state', JSON.parse(menuState) as Record<string, string>).catch(
         (error) => setError(error),
       );
-  }, [menuState]);
+  }, [menuState, setError]);
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
       if (

@@ -74,6 +74,7 @@ export default function TransferPanel({
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set());
   const groups = useMemo(() => groupTransfers(tasks.items), [tasks.items]);
   const [retryBusy, setRetryBusy] = useState(false);
+  /* oxlint-disable react/exhaustive-deps -- Only an explicit reveal resets the user filter and expands its group; progress updates must preserve navigation. */
   useEffect(() => {
     setFilter('all');
     const group = groups.find((group) => group.items.some((task) => task.id === reveal));
@@ -87,6 +88,7 @@ export default function TransferPanel({
     );
     return () => cancelAnimationFrame(frame);
   }, [reveal]);
+  /* oxlint-enable react/exhaustive-deps */
   const [rate, setRate] = useState(0);
   const [rateError, setRateError] = useMessageState('');
   const [optionsOpen, setOptionsOpen] = useState(false);
@@ -118,7 +120,7 @@ export default function TransferPanel({
     GetTransferRate()
       .then(setRate)
       .catch((e) => setRateError(e));
-  }, []);
+  }, [setRateError]);
   const visible = tasks.items.filter((t) => filter === 'all' || t.state === filter);
   const ended = tasks.items.filter((t) =>
     ['done', 'cancelled', 'failed', 'skipped'].includes(t.state),

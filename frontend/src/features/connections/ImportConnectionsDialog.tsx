@@ -44,7 +44,7 @@ export default function ImportConnectionsDialog({
     PuTTYImportAvailable()
       .then(setPutty)
       .catch((e) => setError(e));
-  }, []);
+  }, [setError]);
   const [source, setSource] = useState('OpenSSH');
   const [knownHosts, setKnownHosts] = useState(false);
   async function selectSessions(directory: boolean) {

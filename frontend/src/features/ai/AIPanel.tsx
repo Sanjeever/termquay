@@ -98,7 +98,7 @@ export default function AIPanel({
   useEffect(() => {
     if (visible && pinned.current && !ai.browsing)
       transcript.current?.scrollTo({ top: transcript.current.scrollHeight });
-  }, [visible, ai.run?.revision, ai.page, history]);
+  }, [visible, ai.run?.revision, ai.page, history, ai.browsing]);
   async function send() {
     if (!visible || running || ai.busy || ai.loading || (!text.trim() && !references.length))
       return;

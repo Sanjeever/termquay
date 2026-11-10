@@ -62,7 +62,7 @@ export default function AboutSettings({
     return () => {
       ended = true;
     };
-  }, [license, licenses]);
+  }, [license, licenses, setError]);
   function openURL(value: string) {
     try {
       const url = new URL(value);

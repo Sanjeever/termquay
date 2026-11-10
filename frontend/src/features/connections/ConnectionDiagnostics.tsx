@@ -62,6 +62,7 @@ export default function ConnectionDiagnostics({
     generation.current++;
     setFileCheck(undefined);
     return () => {
+      // oxlint-disable-next-line react/exhaustive-deps -- Invalidate the latest generation, including requests started after setup.
       generation.current++;
       pending.current?.cancel();
     };

@@ -27,7 +27,7 @@ export default function useSSHReconnect(
   useEffect(() => {
     setAttempts(0);
     setStatus('');
-  }, [session]);
+  }, [session, setStatus]);
   useEffect(() => {
     if (!enabled || state === 'connected') {
       setAttempts(0);
@@ -65,7 +65,7 @@ export default function useSSHReconnect(
       }
     }, delay * 1000);
     return () => clearTimeout(timer);
-  }, [enabled, state, busy, attempts, session]);
+  }, [enabled, state, busy, attempts, session, setStatus]);
   return {
     enabled,
     status,

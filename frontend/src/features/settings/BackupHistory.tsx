@@ -69,7 +69,7 @@ export default function BackupHistory({
       listing.cancel();
       names.cancel();
     };
-  }, [revision, refresh]);
+  }, [revision, refresh, setError, setDetailErrors]);
 
   const groups = new Map<string, RemoteSnapshot[]>();
   for (const item of items) {
@@ -108,7 +108,7 @@ export default function BackupHistory({
       disposed = true;
       request?.cancel();
     };
-  }, [latestPaths, loading, recoverySaved, revision, refresh]);
+  }, [latestPaths, loading, recoverySaved, revision, refresh, setDetailErrors]);
 
   async function saveAlias() {
     if (!aliasEdit || savingAlias) return;

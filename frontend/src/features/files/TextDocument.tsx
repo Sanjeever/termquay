@@ -26,12 +26,13 @@ export default function TextDocument({
   );
   const [sourceOpened, setSourceOpened] = useState(!!editor.jumpTo);
   const [previewOpened, setPreviewOpened] = useState(!editor.jumpTo);
+  const jumpTo = editor.jumpTo;
   useEffect(() => {
-    if (editor.jumpTo) {
+    if (jumpTo) {
       setSourceOpened(true);
       setMode('source');
     }
-  }, [editor.jumpTo?.sequence]);
+  }, [jumpTo]);
   if (!markdown)
     return (
       <Suspense

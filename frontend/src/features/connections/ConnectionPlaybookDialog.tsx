@@ -80,7 +80,7 @@ export default function ConnectionPlaybookDialog({
       ended = true;
       request.cancel();
     };
-  }, [connection.id]);
+  }, [connection.id, setError]);
   useEffect(() => {
     if (!editing || connection.protocol !== 'ssh') return;
     let ended = false;
@@ -103,7 +103,7 @@ export default function ConnectionPlaybookDialog({
       ended = true;
       requests.forEach((request) => request.cancel());
     };
-  }, [editing, connection.id, connection.protocol]);
+  }, [editing, connection.id, connection.protocol, setError]);
   const dirty = !!book && JSON.stringify(book) !== saved;
   function close() {
     if (busy) return;

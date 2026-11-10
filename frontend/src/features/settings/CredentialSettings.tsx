@@ -3,7 +3,7 @@ import { t as translate } from '../../i18n/index.ts';
 import { useMessageState } from '../../i18n/useMessageState.ts';
 import { useTranslation } from 'react-i18next';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button, Input, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
 import {
   ListCredentialReferences,
@@ -19,16 +19,16 @@ export default function CredentialSettings({ onChanged }: { onChanged(): void })
   const [editing, setEditing] = useState<CredentialReference>();
   const [error, setError] = useMessageState('');
   const [busy, setBusy] = useState(false);
-  async function load() {
+  const load = useCallback(async () => {
     try {
       setItems((await ListCredentialReferences()) || []);
     } catch (e) {
       setError(e);
     }
-  }
+  }, [setError]);
   useEffect(() => {
     void load();
-  }, []);
+  }, [load]);
   return (
     <section className="settings-panel">
       <h2>{translate('settings:credentials2')}</h2>

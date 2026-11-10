@@ -43,9 +43,10 @@ export default function FileCompareDialog({
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
+    const activeRequests = requests.current;
     return () => {
       mounted.current = false;
-      requests.current.forEach((request) => request.cancel());
+      activeRequests.forEach((request) => request.cancel());
     };
   }, []);
   function update(index: number, value: Partial<Side>) {

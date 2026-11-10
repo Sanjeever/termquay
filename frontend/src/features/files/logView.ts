@@ -99,7 +99,7 @@ export function renderLogView(content: string, options: LogViewOptions): LogView
     previous = -1;
   for (const index of indices.slice(-4000)) {
     let text = lines[index];
-    if (options.format_json && /^\s*[\[{]/.test(text)) {
+    if (options.format_json && /^\s*[[{]/.test(text)) {
       try {
         const formatted = JSON.stringify(JSON.parse(text), null, 2);
         if (formatted.length <= 128 * 1024) {

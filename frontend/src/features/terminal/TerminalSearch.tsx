@@ -1,6 +1,6 @@
 import { t as translate } from '../../i18n/index.ts';
 import { useTranslation } from 'react-i18next';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { SearchAddon } from '@xterm/addon-search';
 import { useAppearance } from '../settings/AppearanceProvider';
 import { terminalTheme } from '../settings/appearance';
@@ -24,35 +24,38 @@ export default function TerminalSearch({
   const { appearance, dark } = useAppearance();
   const colors = terminalTheme(appearance.terminalPalette, dark);
   const input = useRef<HTMLInputElement>(null);
-  function find(previous = false, incremental = false) {
-    if (!query) {
-      addon.clearDecorations();
-      setResults({ resultIndex: -1, resultCount: 0 });
-      setInvalid('');
-      setFound(true);
-      return;
-    }
-    try {
-      if (regex) new RegExp(query);
-      setInvalid('');
-    } catch {
-      addon.clearDecorations();
-      setInvalid(translate('terminal:invalidRegularExpression'));
-      return;
-    }
-    const options = {
-      caseSensitive,
-      regex,
-      incremental,
-      decorations: {
-        matchBackground: colors.selectionBackground,
-        matchOverviewRuler: colors.blue,
-        activeMatchBorder: colors.yellow,
-        activeMatchColorOverviewRuler: colors.yellow,
-      },
-    };
-    setFound(previous ? addon.findPrevious(query, options) : addon.findNext(query, options));
-  }
+  const find = useCallback(
+    (previous = false, incremental = false) => {
+      if (!query) {
+        addon.clearDecorations();
+        setResults({ resultIndex: -1, resultCount: 0 });
+        setInvalid('');
+        setFound(true);
+        return;
+      }
+      try {
+        if (regex) new RegExp(query);
+        setInvalid('');
+      } catch {
+        addon.clearDecorations();
+        setInvalid(translate('terminal:invalidRegularExpression'));
+        return;
+      }
+      const options = {
+        caseSensitive,
+        regex,
+        incremental,
+        decorations: {
+          matchBackground: colors.selectionBackground,
+          matchOverviewRuler: colors.blue,
+          activeMatchBorder: colors.yellow,
+          activeMatchColorOverviewRuler: colors.yellow,
+        },
+      };
+      setFound(previous ? addon.findPrevious(query, options) : addon.findNext(query, options));
+    },
+    [query, addon, regex, caseSensitive, colors.selectionBackground, colors.blue, colors.yellow],
+  );
   useEffect(() => {
     input.current?.focus();
   }, []);
@@ -62,7 +65,7 @@ export default function TerminalSearch({
   }, [addon]);
   useEffect(() => {
     find(false, true);
-  }, [query, caseSensitive, regex, addon, appearance.terminalPalette, dark]);
+  }, [find]);
   return (
     <div
       className="terminal-search"

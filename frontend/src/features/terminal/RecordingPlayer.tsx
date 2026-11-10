@@ -59,7 +59,7 @@ export default function RecordingPlayer({
       mounted.current = false;
       pending.current?.cancel();
     };
-  }, [terminal]);
+  }, [terminal, setError]);
   useEffect(() => {
     if (!recording || !host.current) return;
     setError('');
@@ -113,7 +113,7 @@ export default function RecordingPlayer({
     } catch (e) {
       setError(e);
     }
-  }, [recording, speed, skipIdle]);
+  }, [recording, speed, skipIdle, setError]);
   useEffect(() => {
     const hide = () => {
       if (document.visibilityState !== 'visible')
@@ -131,7 +131,7 @@ export default function RecordingPlayer({
       document.removeEventListener('visibilitychange', hide);
       off();
     };
-  }, []);
+  }, [setError]);
   async function choose() {
     setBusy(true);
     setError('');

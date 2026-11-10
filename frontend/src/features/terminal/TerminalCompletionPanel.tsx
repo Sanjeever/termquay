@@ -51,7 +51,7 @@ export default function TerminalCompletion({
       maxHeight: Math.max(64, Math.min(320, (below >= 160 ? below : y) - 8)),
       ...(below >= 160 ? { top: y + anchor.rowHeight + 4 } : { bottom: rect.height - y + 4 }),
     });
-  }, [view?.snapshot.sequence]);
+  }, [view, completion]);
   useEffect(() => {
     if (!view) return;
     const input = panel.current?.closest('.terminal-view')?.querySelector('textarea');
@@ -68,7 +68,7 @@ export default function TerminalCompletion({
           ? input.removeAttribute(name)
           : input.setAttribute(name, previous[index]!),
       );
-  }, [!!view, view?.selected, id]);
+  }, [view, id]);
   useEffect(() => {
     list.current?.querySelector('[aria-selected=true]')?.scrollIntoView({ block: 'nearest' });
   }, [view?.selected, view?.snapshot.sequence]);

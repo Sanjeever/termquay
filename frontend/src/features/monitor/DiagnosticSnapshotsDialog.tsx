@@ -76,7 +76,7 @@ export default function DiagnosticSnapshotsDialog({
       mounted.current = false;
       pending.current?.cancel();
     };
-  }, []);
+  }, [setError]);
   async function refresh() {
     const value = await ListDiagnosticSnapshots();
     if (mounted.current) setItems(value || []);
@@ -152,7 +152,7 @@ export default function DiagnosticSnapshotsDialog({
       ended = true;
       request.cancel();
     };
-  }, [baselineID]);
+  }, [baselineID, baseline?.info.id, setError]);
   const sectionName = (item: DiagnosticSection) =>
     (
       {

@@ -71,7 +71,7 @@ export default function useImageResource(
       if (objectURL) URL.revokeObjectURL(objectURL);
       setResource(undefined);
     };
-  }, [key, visible, version]);
+  }, [key, visible, version, external, workspace, path]);
   return {
     resource: visible && resource?.key === key ? resource : undefined,
     error: visible && error?.key === key ? errorMessage(error.message) : '',

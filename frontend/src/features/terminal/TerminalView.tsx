@@ -149,6 +149,7 @@ const TerminalView = forwardRef<
   ref,
 ) {
   useTranslation();
+  const locale = currentLocale();
   const container = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<{ source: string; message: unknown }>();
   const [streamError, setStreamError] = useMessageState('');
@@ -166,7 +167,7 @@ const TerminalView = forwardRef<
     Terminal.strings.promptLabel = translate('terminal:terminalInput');
     Terminal.strings.tooMuchOutput = translate('terminal:tooMuchOutput');
     terminal.current?.textarea?.setAttribute('aria-label', Terminal.strings.promptLabel);
-  }, [currentLocale()]);
+  }, [locale]);
   const canAI =
     !!onAIReference && !!connected && !local && !containerConsole && demoOutput === undefined;
   const [hasAISelection, setHasAISelection] = useState(false);
@@ -190,6 +191,7 @@ const TerminalView = forwardRef<
     if (canAI && text) onAIReference?.({ workspace, terminal: id, text });
   }
   const { appearance, dark } = useAppearance();
+  const fontFamily = monospaceFont(appearance);
   const colors = terminalTheme(appearance.terminalPalette, dark);
   const requestFit = useRef<() => void>();
   const search = useRef<SearchAddon>();
@@ -354,7 +356,7 @@ const TerminalView = forwardRef<
       ended = true;
       clearTimeout(timer);
     };
-  }, [id, log?.recording, connected]);
+  }, [id, log?.recording, connected, setLogError]);
   const [shell, setShell] = useState<'bash' | 'zsh'>(local && System.IsMac() ? 'zsh' : 'bash');
   const shellSetup = useMemo(
     () => shellCompletionSetup(shell, host, setupToken),
@@ -543,6 +545,7 @@ const TerminalView = forwardRef<
     ended: () =>
       !!inputStream.current && inputStream.current.readyState === inputStream.current.CLOSED,
   }));
+  /* oxlint-disable react/exhaustive-deps -- Terminal identity owns the PTY and xterm instance; appearance and size are updated by separate effects. */
   useEffect(() => {
     const term = new Terminal({
       fontFamily: monospaceFont(appearance),
@@ -763,7 +766,8 @@ const TerminalView = forwardRef<
           : CloseTerminal(id)
       ).catch(() => {});
     };
-  }, [id, demoOutput]);
+  }, [id, demoOutput, setStreamError]);
+  /* oxlint-enable react/exhaustive-deps */
   useEffect(() => {
     const term = terminal.current;
     if (!term || !visible || appearance.terminalRenderer !== 'webgl') return;
@@ -820,12 +824,12 @@ const TerminalView = forwardRef<
   useEffect(() => {
     const term = terminal.current;
     if (!term) return;
-    const family = monospaceFont(appearance);
+    const family = fontFamily;
     if (term.options.fontFamily !== family) {
       term.options.fontFamily = family;
       requestFit.current?.();
     }
-  }, [id, appearance.monoFont, appearance.customMonoFont]);
+  }, [id, fontFamily]);
   useEffect(() => {
     const term = terminal.current;
     if (!term) return;

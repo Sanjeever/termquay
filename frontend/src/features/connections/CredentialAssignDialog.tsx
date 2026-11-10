@@ -31,7 +31,7 @@ export default function CredentialAssignDialog({
     ListCredentialReferences()
       .then((values) => setReferences(values || []))
       .catch((e) => setError(e));
-  }, []);
+  }, [setError]);
   return (
     <Modal isOpen onClose={() => !busy && onClose()} className="app-dialog" isDismissable={!busy}>
       <ModalContent>

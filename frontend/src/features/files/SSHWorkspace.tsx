@@ -227,9 +227,11 @@ const SSHWorkspace = forwardRef<
       setChangingMode(false);
     }
   }
+  /* oxlint-disable react/exhaustive-deps -- Reapply the current browsing mode on reconnect; explicit mode changes already update the backend. */
   useEffect(() => {
     if (browseOnly) SetWorkspaceBrowseOnly(sessionID, true).catch((e) => setError(e));
-  }, [sessionID]);
+  }, [sessionID, setError]);
+  /* oxlint-enable react/exhaustive-deps */
   const [selection, setSelection] = useState<[string, string]>(
     initialLayout
       ? [initialIDs[initialLayout.selected[0]] || '', initialIDs[initialLayout.selected[1]] || '']
@@ -565,9 +567,11 @@ const SSHWorkspace = forwardRef<
       setError(e);
     }
   }
+  const focusedSelection = paneSelected[activePane];
+  const otherSelection = paneSelected[1 - activePane];
   useEffect(() => {
-    if (!paneSelected[activePane] && paneSelected[1 - activePane]) setActivePane(1 - activePane);
-  }, [paneSelected[0], paneSelected[1], activePane]);
+    if (!focusedSelection && otherSelection) setActivePane(1 - activePane);
+  }, [focusedSelection, otherSelection, activePane]);
   function setActive(path: string) {
     const pane = paneFor(path);
     setActivePane(pane);
@@ -812,7 +816,8 @@ const SSHWorkspace = forwardRef<
       disposed.current = true;
       ReleaseWorkspaceView(id).catch(() => {});
     };
-  }, [id]);
+  }, [id, setError]);
+  /* oxlint-disable react/exhaustive-deps -- The SSH instance owns this stream and outstanding reads; draft and selection changes must not reconnect it. */
   useEffect(() => {
     let ended = false;
     const owner = Stream('workspace');
@@ -889,6 +894,8 @@ const SSHWorkspace = forwardRef<
       CloseWorkspace(sessionID).catch(() => {});
     };
   }, [sessionID]);
+  /* oxlint-enable react/exhaustive-deps */
+  /* oxlint-disable react/exhaustive-deps -- Restore the initial layout once per SSH instance or explicit retry, without restarting when drafts change. */
   useEffect(() => {
     if (!initialLayout || restoreApplied.current) return;
     restoreApplied.current = true;
@@ -1028,7 +1035,8 @@ const SSHWorkspace = forwardRef<
       stopped = true;
       bodyRequest.cancel();
     };
-  }, [sessionID, restoreEpoch]);
+  }, [sessionID, restoreEpoch, setError]);
+  /* oxlint-enable react/exhaustive-deps */
   useEffect(() => {
     dirtyCallback.current(dirty);
     viewReady.current
@@ -1038,7 +1046,7 @@ const SSHWorkspace = forwardRef<
       .catch((e) => {
         if (!disposed.current) setError(e);
       });
-  }, [dirty, id]);
+  }, [dirty, id, setError]);
   useEffect(() => {
     const handler = (event: BeforeUnloadEvent) => {
       if (draftsRef.current.some((d) => isDirty(d))) {
@@ -1048,7 +1056,7 @@ const SSHWorkspace = forwardRef<
     };
     window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);
-  }, []);
+  }, [draftsRef]);
 
   async function open(entry: Entry, view?: 'text' | 'image') {
     await openPath(entry.path, 'UTF-8', view);

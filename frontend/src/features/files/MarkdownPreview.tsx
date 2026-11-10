@@ -3,7 +3,16 @@ import { message as uiMessage } from '../../i18n/messages.ts';
 import { useMessageState } from '../../i18n/useMessageState.ts';
 import { useTranslation } from 'react-i18next';
 import Tooltip from '../../components/Tooltip';
-import { Component, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  Component,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeSlug from 'rehype-slug';
@@ -61,7 +70,7 @@ function MarkdownCode({ className, children }: { className?: string; children?: 
     return () => {
       ended = true;
     };
-  }, [id, text]);
+  }, [id, text, setError]);
   return (
     <Tooltip content={error || undefined}>
       <code className={className} data-highlight-error={error ? true : undefined}>
@@ -200,6 +209,7 @@ class PreviewBoundary extends Component<
     return { error: errorMessage(error) };
   }
   componentDidUpdate(previous: Readonly<{ revision: string; children: ReactNode }>) {
+    // oxlint-disable-next-line react/no-did-update-set-state -- Reset a failed preview once when its document revision changes.
     if (this.state.error && previous.revision !== this.props.revision) this.setState({ error: '' });
   }
   render() {
@@ -245,18 +255,21 @@ export default function MarkdownPreview({
     const timer = setTimeout(() => setRendered(content), 150);
     return () => clearTimeout(timer);
   }, [content, visible]);
-  const scroll = (hash: string) => {
-    try {
-      const name = decodeURIComponent(hash.replace(/^#/, ''));
-      host.current
-        ?.querySelector<HTMLElement>(
-          `#${CSS.escape(name.startsWith(prefix) ? name : prefix + name)}`,
-        )
-        ?.scrollIntoView({ block: 'start' });
-    } catch {
-      setError(uiMessage('files:invalidDocumentAnchor'));
-    }
-  };
+  const scroll = useCallback(
+    (hash: string) => {
+      try {
+        const name = decodeURIComponent(hash.replace(/^#/, ''));
+        host.current
+          ?.querySelector<HTMLElement>(
+            `#${CSS.escape(name.startsWith(prefix) ? name : prefix + name)}`,
+          )
+          ?.scrollIntoView({ block: 'start' });
+      } catch {
+        setError(uiMessage('files:invalidDocumentAnchor'));
+      }
+    },
+    [prefix, setError],
+  );
   useEffect(() => {
     if (visible && focusOnShow) host.current?.focus();
   }, [visible, focusOnShow]);
@@ -264,7 +277,7 @@ export default function MarkdownPreview({
     if (!visible || !anchor) return;
     const frame = requestAnimationFrame(() => scroll(anchor.hash));
     return () => cancelAnimationFrame(frame);
-  }, [visible, anchor?.sequence, rendered]);
+  }, [visible, anchor, rendered, scroll]);
   const components = useMemo(
     () => ({
       code: MarkdownCode,
@@ -311,8 +324,9 @@ export default function MarkdownPreview({
         </a>
       ),
     }),
-    [workspace, path, prefix],
+    [workspace, path, scroll, setError],
   );
+  /* oxlint-disable react/exhaustive-deps -- Image approval invalidates cached Markdown; stable image components read the latest approval set through callbacks. */
   const renderedDocument = useMemo(
     () => (
       <PreviewBoundary revision={rendered}>
@@ -329,6 +343,7 @@ export default function MarkdownPreview({
     ),
     [rendered, components, prefix, allowed],
   );
+  /* oxlint-enable react/exhaustive-deps */
   return (
     <div
       className="markdown-preview"

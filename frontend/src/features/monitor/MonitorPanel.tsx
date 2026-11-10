@@ -110,7 +110,7 @@ export default function MonitorPanel({
           if (!disposed) setError(e);
         });
     };
-  }, [id, visible, retry, demoSamples]);
+  }, [id, visible, retry, demoSamples, setError]);
   const stale = sample && now - new Date(sample.time).getTime() > 10000;
   const points = historyPoints(history.current);
   return (

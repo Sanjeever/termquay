@@ -31,12 +31,13 @@ export default function SelectControl({
   const [selected, setSelected] = useState(String(defaultValue ?? options[0]?.props.value ?? ''));
   const native = useRef<HTMLSelectElement>(null);
   const [portal, setPortal] = useState<HTMLElement>();
+  const ariaLabel = props['aria-label'];
   const [label, setLabel] = useState(props['aria-label'] || title || translate('common:select'));
   const [invalid, setInvalid] = useState(false);
   useLayoutEffect(() => {
     setPortal(native.current?.closest<HTMLElement>('[role=dialog], details') || document.body);
-    if (props['aria-label'] || title) {
-      setLabel(props['aria-label'] || title!);
+    if (ariaLabel || title) {
+      setLabel(ariaLabel || title!);
       return;
     }
     const parent = native.current?.closest('label');
@@ -50,7 +51,7 @@ export default function SelectControl({
         ? document.querySelector(`label[for="${CSS.escape(id)}"]`)?.textContent
         : '';
     setLabel(text || translate('common:select'));
-  }, [id, props['aria-label'], title, i18n.resolvedLanguage]);
+  }, [id, ariaLabel, title, i18n.resolvedLanguage]);
   const current = String(value ?? selected);
   return (
     <>

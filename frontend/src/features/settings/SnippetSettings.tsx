@@ -4,7 +4,7 @@ import { useMessageState } from '../../i18n/useMessageState.ts';
 import { useTranslation } from 'react-i18next';
 import Tooltip from '../../components/Tooltip';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button, ModalContent, ModalHeader, ModalBody, ModalFooter } from '@heroui/react';
 import {
   ListSnippets,
@@ -21,17 +21,17 @@ export default function SnippetSettings() {
   const [deleting, setDeleting] = useState<Snippet>();
   const [error, setError] = useMessageState('');
   const [busy, setBusy] = useState(false);
-  async function load() {
+  const load = useCallback(async () => {
     try {
       setItems((await ListSnippets()) || []);
       setError('');
     } catch (e) {
       setError(e);
     }
-  }
+  }, [setError]);
   useEffect(() => {
     void load();
-  }, []);
+  }, [load]);
   return (
     <div className="settings-section">
       <h2>{translate('settings:commandSnippets')}</h2>

@@ -91,11 +91,13 @@ export function addShellIntegration(
     return value;
   }
   const cwd = term.parser.registerOscHandler(7, (data) => {
+    // oxlint-disable-next-line eslint/no-control-regex -- Shell protocol parsing intentionally matches or rejects C0 and DEL bytes.
     if (data.length > 8192 || /[\x00-\x1f\x7f]/.test(data) || term.buffer.active.type !== 'normal')
       return true;
     try {
       const url = new URL(data);
       const path = decodeURIComponent(url.pathname);
+      // oxlint-disable-next-line eslint/no-control-regex -- Shell protocol parsing intentionally matches or rejects C0 and DEL bytes.
       if (url.protocol === 'file:' && path.startsWith('/') && !/[\x00-\x1f\x7f]/.test(path)) {
         currentDirectory = path;
         onDirectory(path, url.hostname);

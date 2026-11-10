@@ -91,6 +91,7 @@ export default function RestoreBackupDialog({
       if (mounted.current) setBusy(false);
     }
   }
+  /* oxlint-disable react/exhaustive-deps -- Open one restore preview for this dialog; editing unlock fields must not cancel it or trigger another unlock. */
   useEffect(() => {
     mounted.current = true;
     if (recoverySaved) void unlock('');
@@ -101,6 +102,7 @@ export default function RestoreBackupDialog({
         void CancelRestorePreview(previewID.current).catch((error) => onError(errorMessage(error)));
     };
   }, []);
+  /* oxlint-enable react/exhaustive-deps */
 
   function chooseMode(next: 'import' | 'replace') {
     setMode(next);

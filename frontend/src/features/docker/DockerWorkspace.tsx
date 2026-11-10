@@ -91,6 +91,7 @@ export default function DockerWorkspace({
   }>();
   const containers = listing?.owner === owner ? listing.containers : [];
   const selected = containers.find((item) => item.id === listing?.selected);
+  const selectedID = selected?.id;
   const selection = `${owner}\0${selected?.id || ''}`;
   const [inspection, setInspection] = useState<{ selection: string; value: Details }>();
   const details = inspection?.selection === selection ? inspection.value : undefined;
@@ -136,9 +137,10 @@ export default function DockerWorkspace({
 
   useEffect(() => {
     mounted.current = true;
+    const activeRequests = pending.current;
     return () => {
       mounted.current = false;
-      pending.current.forEach((item) => item.cancel());
+      activeRequests.forEach((item) => item.cancel());
     };
   }, []);
   useEffect(() => {
@@ -161,11 +163,12 @@ export default function DockerWorkspace({
     requestedContainer.current = request.container;
     setView('overview');
     setRefresh((value) => value + 1);
-  }, [request]);
+  }, [request, targets]);
   useEffect(() => {
     setSocketDraft(socket);
     setSettingsError('');
-  }, [workspace, socket]);
+  }, [workspace, socket, setSettingsError]);
+  /* oxlint-disable react/exhaustive-deps -- Selection changes reset operation state; finishing an operation must retain its result and error. */
   useEffect(() => {
     setTerminalError('');
     setTunnelError('');
@@ -173,7 +176,8 @@ export default function DockerWorkspace({
       setAction(undefined);
       setActionError('');
     }
-  }, [selection]);
+  }, [selection, setActionError, setTerminalError, setTunnelError]);
+  /* oxlint-enable react/exhaustive-deps */
 
   useEffect(() => {
     const key = `${owner}\0${refresh}`;
@@ -217,18 +221,18 @@ export default function DockerWorkspace({
       ended = true;
       call.cancel();
     };
-  }, [owner, workspace, socket, refresh, active, live]);
+  }, [owner, workspace, socket, refresh, active, live, setListError]);
 
   useEffect(() => {
     const key = `${selection}\0${refresh}`;
-    if (!active || !live || !selected || lastDetail.current === key) {
+    if (!active || !live || !selectedID || lastDetail.current === key) {
       setDetailBusy(false);
       return;
     }
     let ended = false;
     setDetailBusy(true);
     setDetailError('');
-    const call = InspectContainer(workspace, socket, selected.id);
+    const call = InspectContainer(workspace, socket, selectedID);
     call
       .then((value) => {
         if (!ended) {
@@ -249,7 +253,7 @@ export default function DockerWorkspace({
       ended = true;
       call.cancel();
     };
-  }, [selection, workspace, socket, selected?.id, refresh, active, live]);
+  }, [selection, workspace, socket, selectedID, refresh, active, live, setDetailError]);
 
   function chooseTarget(id: string) {
     const next = targets.find((item) => item.id === id);

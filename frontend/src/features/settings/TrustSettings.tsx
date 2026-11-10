@@ -33,9 +33,11 @@ export default function TrustSettings() {
       setError(e);
     }
   }
+  /* oxlint-disable react/exhaustive-deps -- Load the first trust page on mount; paging and explicit refresh invoke load themselves. */
   useEffect(() => {
     void load();
   }, []);
+  /* oxlint-enable react/exhaustive-deps */
   const [importing, setImporting] = useState(false);
   if (importing)
     return (

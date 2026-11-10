@@ -24,7 +24,7 @@ export default function CLISettings() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [setError]);
   return (
     <div className="settings-section">
       <h2>{translate('settings:localCLI')}</h2>

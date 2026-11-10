@@ -57,7 +57,7 @@ export default function CommandTargets({
       ended = true;
       request.cancel();
     };
-  }, []);
+  }, [setError]);
   const preferences = Object.fromEntries(
     targets
       .filter((target) => target.connection)

@@ -26,7 +26,7 @@ export default function ContainerResources({
   useEffect(() => {
     setStats(undefined);
     setError('');
-  }, [workspace, socket, id]);
+  }, [workspace, socket, id, setError]);
   useEffect(() => {
     if (!active) return;
     let ended = false,
@@ -54,7 +54,7 @@ export default function ContainerResources({
       clearTimeout(timer);
       pending?.cancel();
     };
-  }, [workspace, socket, id, active, refresh]);
+  }, [workspace, socket, id, active, refresh, setError]);
   const amount = (value: number | null | undefined) => (value == null ? '—' : bytes(value));
   return (
     <section aria-label={translate('docker:containerResources')}>

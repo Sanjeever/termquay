@@ -73,7 +73,7 @@ export default function DirectorySyncDialog({
       GetSyncPresets(connectionID)
         .then((values) => setPresets(values || []))
         .catch((e) => setError(e));
-  }, [connectionID]);
+  }, [connectionID, setError]);
   const pending = useRef<ReturnType<typeof PreviewDirectorySyncFiltered>>();
   const disposed = useRef(false);
   const latest = useRef(preview);

@@ -1,7 +1,7 @@
 import { message as uiMessage } from '../../i18n/messages.ts';
 import { useMessageState } from '../../i18n/useMessageState.ts';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   GetDraftRecoveryState,
   SetDraftRecoveryEnabled,
@@ -27,7 +27,7 @@ export default function useDraftRecovery(ready: boolean) {
   const writing = useRef<Promise<void>>();
   const timer = useRef<ReturnType<typeof setTimeout>>();
   const constraint = useRef<unknown>('');
-  async function refresh() {
+  const refresh = useCallback(async () => {
     const request = ++generation.current;
     try {
       const value = await GetDraftRecoveryState();
@@ -39,12 +39,12 @@ export default function useDraftRecovery(ready: boolean) {
     } catch (e) {
       if (request === generation.current) setError(e);
     }
-  }
+  }, [setError]);
   useEffect(() => {
     if (!ready) return;
     void refresh();
     return () => clearTimeout(timer.current);
-  }, [ready]);
+  }, [ready, refresh]);
   async function flush(): Promise<void> {
     clearTimeout(timer.current);
     if (constraint.current) throw constraint.current;

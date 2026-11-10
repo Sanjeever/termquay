@@ -58,7 +58,7 @@ function ProcessDetails({
       ended = true;
       request.cancel();
     };
-  }, [workspace, process.pid]);
+  }, [workspace, process.pid, setError]);
   return (
     <section
       className="inspection-detail"
@@ -148,7 +148,7 @@ function ProcessInspection({
       ended = true;
       request.cancel();
     };
-  }, [workspace, order, revision]);
+  }, [workspace, order, revision, setError]);
   const query = filter.toLowerCase();
   const items = (list?.items || []).filter((process) =>
     `${process.pid} ${process.user} ${process.command}`.toLowerCase().includes(query),
@@ -347,7 +347,7 @@ function ServiceDetails({
       request.cancel();
       logs.cancel();
     };
-  }, [workspace, unit, revision]);
+  }, [workspace, unit, revision, setError, setLogError]);
   async function changeState() {
     if (!action || mutation.current) return;
     setChanging(true);
@@ -556,7 +556,7 @@ function ServiceInspection({
       ended = true;
       request.cancel();
     };
-  }, [workspace, query, revision]);
+  }, [workspace, query, revision, setError]);
   return (
     <>
       <form

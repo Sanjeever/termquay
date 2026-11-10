@@ -44,7 +44,7 @@ export default function AISettings() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [setError]);
   function update(value: Partial<AISettingsUpdate>) {
     setDraft((previous) => previous && { ...previous, ...value });
     setDirty(true);

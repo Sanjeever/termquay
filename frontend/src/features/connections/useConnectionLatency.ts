@@ -204,7 +204,7 @@ export default function useConnectionLatency(
       dispatch.current = () => {};
       resume.current = () => {};
     };
-  }, [active, version]);
+  }, [active, version, setError]);
 
   return { measurements, refreshing, error, refresh: (id?: string) => dispatch.current(id) };
 }

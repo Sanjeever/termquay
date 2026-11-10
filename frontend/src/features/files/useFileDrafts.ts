@@ -1,6 +1,6 @@
 import { message as uiMessage } from '../../i18n/messages.ts';
 
-import { useRef, useState, type MutableRefObject } from 'react';
+import { useCallback, useRef, useState, type MutableRefObject } from 'react';
 import {
   ReadRemoteFileEncoded,
   ReadSudoFile,
@@ -36,11 +36,11 @@ export default function useFileDrafts({
   const [rereading, setRereading] = useState('');
   const [reopenEncoding, setReopenEncoding] = useState('UTF-8');
 
-  function updateDrafts(update: (previous: Draft[]) => Draft[]) {
+  const updateDrafts = useCallback((update: (previous: Draft[]) => Draft[]) => {
     const next = update(draftsRef.current);
     draftsRef.current = next;
     setDrafts(next);
-  }
+  }, []);
 
   async function save(path: string): Promise<boolean> {
     const pending = saves.current.get(path);

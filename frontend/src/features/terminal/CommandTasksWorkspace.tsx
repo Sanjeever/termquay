@@ -317,7 +317,8 @@ export default function CommandTasksWorkspace({
       ended = true;
       pending.cancel();
     };
-  }, [open]);
+  }, [open, setError]);
+  /* oxlint-disable react/exhaustive-deps -- Handle each explicit navigation request once after loading; later task edits must not replay it. */
   useEffect(() => {
     if (!open || loading || !request || handled.current === request.id) return;
     handled.current = request.id;
@@ -341,7 +342,8 @@ export default function CommandTasksWorkspace({
       setSection(request.section);
       if (request.targets) setSelected(new Set(request.targets));
     }
-  }, [open, loading, request]);
+  }, [open, loading, request, setError]);
+  /* oxlint-enable react/exhaustive-deps */
   useEffect(() => {
     if (section === 'history' && !runs.some((item) => item.id === runID))
       setRunID(
@@ -353,6 +355,7 @@ export default function CommandTasksWorkspace({
       );
   }, [runs, section, runID]);
   const finishedAt = summary?.finished_at;
+  /* oxlint-disable react/exhaustive-deps -- Run identity and completion own the subscription; incoming cached record updates must not restart it. */
   useEffect(() => {
     setRecord((previous) =>
       open && section === 'history' && previous?.summary.id === runID ? previous : undefined,
@@ -400,7 +403,8 @@ export default function CommandTasksWorkspace({
       off();
       pending.cancel();
     };
-  }, [open, section, runID, finishedAt]);
+  }, [open, section, runID, finishedAt, setError]);
+  /* oxlint-enable react/exhaustive-deps */
 
   function choose(value: CommandTask, next: Section, selection?: string[]) {
     if (!value.steps?.length) {

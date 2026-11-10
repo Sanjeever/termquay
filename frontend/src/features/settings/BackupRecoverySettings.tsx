@@ -31,7 +31,7 @@ export default function BackupRecoverySettings({ disabled }: { disabled: boolean
     return () => {
       ended = true;
     };
-  }, []);
+  }, [setError]);
   async function choose(create: boolean) {
     if (busy) return;
     setBusy(true);

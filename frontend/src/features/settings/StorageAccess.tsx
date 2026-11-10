@@ -38,7 +38,7 @@ export default function StorageAccess({
     return () => {
       ended = true;
     };
-  }, []);
+  }, [setError]);
   async function open(session = false) {
     if (busy) return;
     if (!session && create && password !== confirmation) {

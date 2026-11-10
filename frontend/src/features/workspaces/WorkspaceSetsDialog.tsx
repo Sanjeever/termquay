@@ -66,7 +66,7 @@ export default function WorkspaceSetsDialog({
       mounted.current = false;
       request.cancel();
     };
-  }, [revision]);
+  }, [revision, setError]);
 
   async function save(id: string, title: string, source: WorkspaceLayout) {
     if (busy || !ready) return;

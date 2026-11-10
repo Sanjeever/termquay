@@ -41,9 +41,10 @@ export default function PortInspection({
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
+    const activeRequests = requests.current;
     return () => {
       mounted.current = false;
-      requests.current.forEach((value) => value.cancel());
+      activeRequests.forEach((value) => value.cancel());
     };
   }, []);
   useEffect(() => {
@@ -62,7 +63,7 @@ export default function PortInspection({
       ended = true;
       request.cancel();
     };
-  }, [workspace, revision]);
+  }, [workspace, revision, setError]);
   async function operate<T>(request: Promise<T> & { cancel(): void }, apply: (value: T) => void) {
     setBusy(true);
     setError('');

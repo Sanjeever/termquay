@@ -21,7 +21,7 @@ export default function useApplicationLock(ready: boolean) {
         setStatus(value);
         setError('');
       }),
-    [],
+    [setError],
   );
   useEffect(() => {
     let ended = false;
@@ -45,7 +45,7 @@ export default function useApplicationLock(ready: boolean) {
       ended = true;
       window.removeEventListener('termquay:storage-protection-changed', refresh);
     };
-  }, [ready]);
+  }, [ready, setError]);
   useEffect(() => {
     if (!status?.available || status.locked || !status.idle_minutes) return;
     let last = 0;
@@ -58,7 +58,7 @@ export default function useApplicationLock(ready: boolean) {
     const events = ['pointerdown', 'pointermove', 'keydown', 'wheel'] as const;
     events.forEach((name) => window.addEventListener(name, touch, { passive: true }));
     return () => events.forEach((name) => window.removeEventListener(name, touch));
-  }, [status?.available, status?.locked, status?.idle_minutes]);
+  }, [status?.available, status?.locked, status?.idle_minutes, setError]);
   async function lock() {
     try {
       await LockApplication();

@@ -25,6 +25,7 @@ export default function CommandHelpDialog({
   const [error, setError] = useMessageState('');
   const navigation = useRef<HTMLElement>(null),
     article = useRef<HTMLElement>(null);
+  /* oxlint-disable react/exhaustive-deps -- Locale invalidates translated command descriptions read through module getters. */
   const matches = useMemo(
     () =>
       posixCommands.filter((command) =>
@@ -32,6 +33,7 @@ export default function CommandHelpDialog({
       ),
     [query, currentLocale()],
   );
+  /* oxlint-enable react/exhaustive-deps */
   const command = commandByName.get(selected);
   useEffect(() => {
     if (article.current) article.current.scrollTop = 0;

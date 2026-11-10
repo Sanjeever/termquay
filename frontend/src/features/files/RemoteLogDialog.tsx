@@ -4,7 +4,7 @@ import { message as uiMessage } from '../../i18n/messages.ts';
 import { useMessageState } from '../../i18n/useMessageState.ts';
 import { useTranslation } from 'react-i18next';
 import { eventError } from '../../lib/errors.ts';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Button, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
 import {
   ReadRemoteLog,
@@ -66,57 +66,60 @@ export default function RemoteLogDialog({
   const mounted = useRef(true);
   const pending = useRef<ReturnType<typeof ReadRemoteLog>>();
   const content = useRef<HTMLDivElement>(null);
-  async function load(kind: 'refresh' | 'older' | 'append') {
-    if (pending.current) return;
-    setBusy(true);
-    setError('');
-    const before = current.current;
-    const request = ReadRemoteLog(
-      workspace,
-      path,
-      kind === 'refresh' ? -1 : kind === 'older' ? before?.start || 0 : before?.end || 0,
-      kind === 'older',
-    );
-    pending.current = request;
-    try {
-      const value = await request;
-      if (!mounted.current || pending.current !== request) return;
-      if (kind === 'append' && before && !value.reset && value.start === before.end) {
-        const retained = retainLogTail(before.content + value.content);
-        setSlice({
-          ...value,
-          start: before.start + retained.removedBytes,
-          content: retained.content,
-        });
-        if (retained.removedBytes) setTrimmed(true);
-        if (!scrolling.current && value.content) {
-          setUnread((previous) => previous + (value.content.match(/\n/g)?.length || 0));
-          setUnreadBytes((previous) => previous + value.end - value.start);
+  const load = useCallback(
+    async (kind: 'refresh' | 'older' | 'append') => {
+      if (pending.current) return;
+      setBusy(true);
+      setError('');
+      const before = current.current;
+      const request = ReadRemoteLog(
+        workspace,
+        path,
+        kind === 'refresh' ? -1 : kind === 'older' ? before?.start || 0 : before?.end || 0,
+        kind === 'older',
+      );
+      pending.current = request;
+      try {
+        const value = await request;
+        if (!mounted.current || pending.current !== request) return;
+        if (kind === 'append' && before && !value.reset && value.start === before.end) {
+          const retained = retainLogTail(before.content + value.content);
+          setSlice({
+            ...value,
+            start: before.start + retained.removedBytes,
+            content: retained.content,
+          });
+          if (retained.removedBytes) setTrimmed(true);
+          if (!scrolling.current && value.content) {
+            setUnread((previous) => previous + (value.content.match(/\n/g)?.length || 0));
+            setUnreadBytes((previous) => previous + value.end - value.start);
+          }
+        } else {
+          const retained = retainLogTail(value.content);
+          setSlice({
+            ...value,
+            start: value.start + retained.removedBytes,
+            content: retained.content,
+          });
+          setTrimmed(retained.removedBytes > 0);
+          setUnread(0);
+          setUnreadBytes(0);
+          if (kind === 'older') setAutoScroll(false);
         }
-      } else {
-        const retained = retainLogTail(value.content);
-        setSlice({
-          ...value,
-          start: value.start + retained.removedBytes,
-          content: retained.content,
-        });
-        setTrimmed(retained.removedBytes > 0);
-        setUnread(0);
-        setUnreadBytes(0);
-        if (kind === 'older') setAutoScroll(false);
+      } catch (e) {
+        if (mounted.current && active.current && pending.current === request) {
+          setError(e);
+          setFollow(false);
+        }
+      } finally {
+        if (pending.current === request) {
+          pending.current = undefined;
+          if (mounted.current) setBusy(false);
+        }
       }
-    } catch (e) {
-      if (mounted.current && active.current && pending.current === request) {
-        setError(e);
-        setFollow(false);
-      }
-    } finally {
-      if (pending.current === request) {
-        pending.current = undefined;
-        if (mounted.current) setBusy(false);
-      }
-    }
-  }
+    },
+    [workspace, path, setError],
+  );
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -129,12 +132,12 @@ export default function RemoteLogDialog({
   useEffect(() => {
     if (!visible) pending.current?.cancel();
     else if (!current.current) void load('refresh');
-  }, [visible, workspace, path]);
+  }, [visible, workspace, path, load]);
   useEffect(() => {
     if (!follow || !visible) return;
     const timer = setInterval(() => void load('append'), 2000);
     return () => clearInterval(timer);
-  }, [follow, visible, workspace, path]);
+  }, [follow, visible, workspace, path, load]);
   useEffect(() => {
     const request = ListLogViewPresets();
     let disposed = false;
@@ -149,7 +152,7 @@ export default function RemoteLogDialog({
       disposed = true;
       request.cancel();
     };
-  }, []);
+  }, [setPresetError]);
   useEffect(() => {
     if (!visible) {
       worker.current?.terminate();
@@ -212,7 +215,7 @@ export default function RemoteLogDialog({
         worker.current = undefined;
       }
     };
-  }, [slice?.content, options, visible]);
+  }, [slice?.content, options, visible, setFilterError]);
   useLayoutEffect(() => {
     if (autoScroll && visible && content.current)
       content.current.scrollTop = content.current.scrollHeight;

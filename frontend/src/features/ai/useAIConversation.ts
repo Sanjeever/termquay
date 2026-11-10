@@ -46,6 +46,7 @@ export default function useAIConversation(
     mounted.current = true;
     return () => {
       mounted.current = false;
+      // oxlint-disable-next-line react/exhaustive-deps -- Invalidate the latest generation, including requests started after setup.
       generation.current++;
     };
   }, []);
@@ -142,7 +143,7 @@ export default function useAIConversation(
       ended = true;
       stream?.close();
     };
-  }, [workspace, visible, epoch, configRevision]);
+  }, [workspace, visible, epoch, configRevision, setError]);
 
   async function act(action: () => Promise<void>) {
     if (operated.current) return false;

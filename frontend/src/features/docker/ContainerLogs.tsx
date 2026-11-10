@@ -23,7 +23,9 @@ export default function ContainerLogs({
   const [follow, setFollow] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const [options, setOptions] = useState({ ...defaultLogViewOptions });
+  /* oxlint-disable react/exhaustive-deps -- A source ID owns an immutable log configuration; equivalent parent objects must not restart its worker. */
   const stableSource = useMemo(() => source, [source.id]);
+  /* oxlint-enable react/exhaustive-deps */
   return (
     <div className="docker-log-page" hidden={hidden}>
       <div className="docker-log-toolbar">

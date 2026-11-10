@@ -47,7 +47,7 @@ export default function AIHistory({
     return () => {
       active = false;
     };
-  }, [workspace, offset, epoch]);
+  }, [workspace, offset, epoch, setError]);
   return (
     <div className="ai-history">
       {items.map((item) => (

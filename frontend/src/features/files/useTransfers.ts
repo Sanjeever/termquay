@@ -1,6 +1,6 @@
 import { useMessageState } from '../../i18n/useMessageState.ts';
 import { errorMessage } from '../../lib/errors';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Events } from '@wailsio/runtime';
 import {
   CancelTransfer,
@@ -42,7 +42,7 @@ export default function useTransfers(ready: boolean) {
       Object.fromEntries(Object.entries(previous).filter(([id]) => !removed.has(id))),
     );
   }
-  async function refresh() {
+  const refresh = useCallback(async () => {
     const version = ++loadVersion.current;
     try {
       await RestoreTransferResumes();
@@ -57,9 +57,11 @@ export default function useTransfers(ready: boolean) {
     } catch (error) {
       if (live.current && loadVersion.current === version) setLoadError(error);
     }
-  }
+  }, [setLoadError]);
   useEffect(() => {
     live.current = true;
+    const pendingUpdates = pending.current;
+    const activeOperations = operations.current;
     let frame = 0;
     const off = Events.On('transfer:changed', (event) => {
       const t = event.data as Transfer;
@@ -78,13 +80,13 @@ export default function useTransfers(ready: boolean) {
       live.current = false;
       off();
       cancelAnimationFrame(frame);
-      pending.current.clear();
-      operations.current.clear();
+      pendingUpdates.clear();
+      activeOperations.clear();
     };
   }, []);
   useEffect(() => {
     if (ready) void refresh();
-  }, [ready]);
+  }, [ready, refresh]);
   const items = useMemo(
     () => Object.values(transfers).sort((a, b) => a.sequence - b.sequence),
     [transfers],

@@ -37,17 +37,20 @@ function Pane({
   const [path, setPath] = useState(side.directory);
   const [error, setError] = useMessageState('');
   const [revision, setRevision] = useState(0);
+  const { workspace, directory } = side;
+  const changed = useRef(onChange);
+  changed.current = onChange;
   useEffect(() => {
     let ended = false;
     setList(undefined);
     setError('');
-    const request = BrowseTransferDirectory(side.workspace, side.directory);
+    const request = BrowseTransferDirectory(workspace, directory);
     request
       .then((value) => {
         if (!ended) {
           setList(value);
           setPath(value.path);
-          if (!side.directory) onChange({ ...side, directory: value.path, selected: [] });
+          if (!directory) changed.current({ workspace, directory: value.path, selected: [] });
         }
       })
       .catch((e) => {
@@ -57,7 +60,7 @@ function Pane({
       ended = true;
       request.cancel();
     };
-  }, [side.workspace, side.directory, revision]);
+  }, [workspace, directory, revision, setError]);
   return (
     <section>
       <SelectControl

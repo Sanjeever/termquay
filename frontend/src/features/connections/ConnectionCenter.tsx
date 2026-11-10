@@ -140,6 +140,7 @@ export default function ConnectionCenter({
       development: translate('connections:development'),
     } as Record<string, string>
   )[environment];
+  /* oxlint-disable react/exhaustive-deps -- Locale invalidates catalog ordering performed by the shared locale-aware helper. */
   const visible = useMemo(
     () =>
       catalogConnections(connections, groups, preferences, {
@@ -167,6 +168,7 @@ export default function ConnectionCenter({
       currentLocale(),
     ],
   );
+  /* oxlint-enable react/exhaustive-deps */
   const latency = useConnectionLatency(
     connections,
     active && !demo && !loading && !loadError,
@@ -193,7 +195,7 @@ export default function ConnectionCenter({
       ended = true;
       request.cancel();
     };
-  }, [demo, loading, loadError]);
+  }, [demo, loading, loadError, setError]);
   async function saveFilters(next: ConnectionFilter[]) {
     setSavingFilter(true);
     setError('');

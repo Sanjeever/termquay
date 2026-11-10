@@ -35,6 +35,7 @@ export default function FileConflictView({
   onClose(): void;
 }) {
   useTranslation();
+  const locale = currentLocale();
   const host = useRef<HTMLDivElement>(null);
   const merge = useRef<MergeView>();
   const [remote, setRemote] = useState<Document | undefined>(remoteDocument);
@@ -62,7 +63,8 @@ export default function FileConflictView({
       ended = true;
       request.cancel();
     };
-  }, [sessionID, path, encoding, remoteDocument]);
+  }, [sessionID, path, encoding, remoteDocument, setError]);
+  /* oxlint-disable react/exhaustive-deps -- The remote revision owns the merge view; theme and labels are reconfigured separately to retain edits. */
   useEffect(() => {
     if (!remote || !host.current) return;
     const view = new MergeView({
@@ -111,7 +113,8 @@ export default function FileConflictView({
       view.destroy();
       merge.current = undefined;
     };
-  }, [remote]);
+  }, [remote, setError]);
+  /* oxlint-enable react/exhaustive-deps */
   useEffect(() => {
     [merge.current?.a, merge.current?.b].forEach((view, i) => {
       view?.dispatch({ effects: themes.current[i].reconfigure(editorTheme(dark)) });
@@ -130,7 +133,7 @@ export default function FileConflictView({
         ),
       }),
     );
-  }, [currentLocale(), remote]);
+  }, [locale, remote]);
   return (
     <Modal
       isOpen

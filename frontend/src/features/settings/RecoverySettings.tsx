@@ -20,9 +20,10 @@ export default function RecoverySettings({
   const [view, setView] = useState<RecoveryDraft>();
   const [error, setError] = useMessageState('');
   const [busy, setBusy] = useState(false);
+  const refresh = recovery.refresh;
   useEffect(() => {
-    void recovery.refresh();
-  }, []);
+    void refresh();
+  }, [refresh]);
   return (
     <div className="settings-section">
       <h2>{translate('settings:localDraftRecovery')}</h2>

@@ -41,7 +41,7 @@ export default function useUpdates(ready: boolean) {
       mounted.current = false;
       off();
     };
-  }, [ready]);
+  }, [ready, setError]);
   async function run(action: () => Promise<unknown>) {
     if (running.current) return;
     running.current = true;

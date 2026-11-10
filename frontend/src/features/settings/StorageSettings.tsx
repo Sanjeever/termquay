@@ -34,7 +34,7 @@ export default function StorageSettings() {
     return () => {
       ended = true;
     };
-  }, []);
+  }, [setError]);
   function close() {
     if (busy) return;
     setEditing(undefined);

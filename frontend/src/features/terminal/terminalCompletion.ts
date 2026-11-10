@@ -203,7 +203,8 @@ export function commandContext(snapshot: ShellSnapshot): CompletionContext {
         kind: 'value',
       }));
   if (argument?.kind === 'file' || argument?.kind === 'directory' || !command) {
-    if (/[\x00-\x1f\x7f$*?\[\]{}]/.test(prefix)) return context;
+    // oxlint-disable-next-line eslint/no-control-regex -- Shell protocol parsing intentionally matches or rejects C0 and DEL bytes.
+    if (/[\x00-\x1f\x7f$*?[\]{}]/.test(prefix)) return context;
     const slash = prefix.lastIndexOf('/'),
       displayPrefix = slash < 0 ? '' : prefix.slice(0, slash + 1);
     const tilde = line[from] === '~' && prefix.startsWith('~/');

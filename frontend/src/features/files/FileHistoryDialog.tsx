@@ -58,6 +58,7 @@ export default function FileHistoryDialog({
   const requests = useRef(new Set<{ cancel(): void }>());
   useEffect(() => {
     mounted.current = true;
+    const activeRequests = requests.current;
     const request = GetFileHistory(workspace, document.path);
     request
       .then((value) => {
@@ -75,9 +76,9 @@ export default function FileHistoryDialog({
     return () => {
       mounted.current = false;
       request.cancel();
-      requests.current.forEach((value) => value.cancel());
+      activeRequests.forEach((value) => value.cancel());
     };
-  }, [workspace, document.path]);
+  }, [workspace, document.path, setError]);
   useEffect(() => {
     if (!selected) {
       setVersion(undefined);
@@ -97,7 +98,7 @@ export default function FileHistoryDialog({
       ended = true;
       request.cancel();
     };
-  }, [workspace, document.path, selected]);
+  }, [workspace, document.path, selected, setError]);
   useEffect(() => {
     setValidated(false);
     setReloaded(false);

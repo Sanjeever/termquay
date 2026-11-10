@@ -61,6 +61,7 @@ export default function BackupSettings({
   const localForm = useRef<HTMLFormElement>(null);
   const mounted = useRef(true);
   const [loadRevision, setLoadRevision] = useState(0);
+  const refreshAutomaticBackup = automaticBackup.refresh;
 
   useEffect(() => {
     mounted.current = true;
@@ -72,7 +73,7 @@ export default function BackupSettings({
           setNewConfiguration(!value.configured);
           setLocationEditing(!value.configured);
           setBackupEditing(!value.recovery_saved);
-          void automaticBackup.refresh();
+          void refreshAutomaticBackup();
         }
       })
       .catch((error) => {
@@ -82,7 +83,7 @@ export default function BackupSettings({
       mounted.current = false;
       request.cancel();
     };
-  }, [loadRevision]);
+  }, [loadRevision, refreshAutomaticBackup]);
   useEffect(() => {
     let disposed = false;
     const request = GetBackupCoverage();

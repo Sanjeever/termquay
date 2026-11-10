@@ -46,9 +46,10 @@ function Workbench() {
     setError: () => {},
   });
   const [selected, setSelected] = useState('terminal-a');
+  const updateDrafts = drafts.updateDrafts;
   useEffect(() => {
-    drafts.updateDrafts(() => [{ ...document, saved: document.content, error: '', saving: false }]);
-  }, []);
+    updateDrafts(() => [{ ...document, saved: document.content, error: '', saving: false }]);
+  }, [updateDrafts]);
   const draft = drafts.drafts[0];
   return (
     <>
