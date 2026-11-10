@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -59,6 +60,10 @@ func TestLocalTerminalStartsInSelectedDirectory(t *testing.T) {
 	}
 	session := a.locals[opened.ID]
 	go io.Copy(io.Discard, session.pty)
+	current, err := a.GetLocalTerminalDirectory(opened.ID)
+	if err != nil || current == "" {
+		t.Fatalf("current directory = %q, %v", current, err)
+	}
 	if _, err := session.pty.Write([]byte("pwd > termquay-cwd; exit\r")); err != nil {
 		t.Fatal(err)
 	}
@@ -72,5 +77,42 @@ func TestLocalTerminalStartsInSelectedDirectory(t *testing.T) {
 	}
 	if _, err := a.OpenLocalTerminal("shell", filepath.Join(directory, "missing"), 80, 24); err == nil {
 		t.Fatal("missing directory silently fell back")
+	}
+}
+
+func TestLocalTerminalDirectoryAfterChange(t *testing.T) {
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
+		t.Skip("native process cwd lookup is supported on macOS and Linux")
+	}
+	t.Setenv("SHELL", "/bin/sh")
+	a := testAppStore(t)
+	directory := t.TempDir()
+	child := filepath.Join(directory, "project")
+	if err := os.Mkdir(child, 0700); err != nil {
+		t.Fatal(err)
+	}
+	opened, err := a.OpenLocalTerminal("shell", directory, 80, 24)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer a.CloseLocalTerminal(opened.ID)
+	session := a.locals[opened.ID]
+	go io.Copy(io.Discard, session.pty)
+	if _, err := session.pty.Write([]byte("cd project\r")); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		current, err := a.GetLocalTerminalDirectory(opened.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.HasSuffix(current, "/project") {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("shell directory did not change: %q", current)
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 }

@@ -456,6 +456,10 @@ export function GetLocalTerminalDirectories(): $CancellablePromise<string[] | nu
     return $Call.ByID(1947497108);
 }
 
+export function GetLocalTerminalDirectory(id: string): $CancellablePromise<string> {
+    return $Call.ByID(248113312, id);
+}
+
 export function GetPortableUI(): $CancellablePromise<{ [_ in string]?: string } | null> {
     return $Call.ByID(2024417379);
 }

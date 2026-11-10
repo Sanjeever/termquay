@@ -40,6 +40,17 @@ test('macOS keeps Control separate from Command and accepts terminal navigation 
   for (const code of ['PageUp', 'PageDown', 'Space']) {
     assert.equal(eventShortcut(key({ code }), 'MacIntel'), `Ctrl+Shift+${code}`);
   }
+  assert.equal(
+    eventShortcut(key({ code: 'Enter', key: 'Enter', ctrlKey: false }), 'MacIntel'),
+    'Shift+Enter',
+  );
+  assert.equal(
+    eventShortcut(
+      key({ code: 'Enter', key: 'Enter', ctrlKey: false, isComposing: true }),
+      'MacIntel',
+    ),
+    '',
+  );
 });
 test('WezTerm preset is valid and legacy custom bindings remain explicit', () => {
   for (const id of Object.keys(weztermShortcuts) as (keyof typeof weztermShortcuts)[]) {

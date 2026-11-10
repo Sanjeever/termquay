@@ -63,6 +63,21 @@ func (a *AppService) GetLocalTerminalDirectories() ([]string, error) {
 	return a.localTerminalDirectories()
 }
 
+func (a *AppService) GetLocalTerminalDirectory(id string) (string, error) {
+	a.mu.Lock()
+	session := a.locals[id]
+	a.mu.Unlock()
+	if session == nil {
+		return "", appmessage.New("backend:localTerminalClosed", "本地终端已关闭")
+	}
+	select {
+	case <-session.done:
+		return "", nil
+	default:
+		return localProcessDirectory(session.command.Process.Pid)
+	}
+}
+
 func (a *AppService) rememberLocalTerminalDirectory(directory string) error {
 	a.storeMu.Lock()
 	defer a.storeMu.Unlock()

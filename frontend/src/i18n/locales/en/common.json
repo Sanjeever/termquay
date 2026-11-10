@@ -208,6 +208,7 @@
   "conflictsWith": "Conflicts with “{{value1}}”",
   "thisShortcutIsReservedForInputsOrThe": "This shortcut is reserved for inputs or the system",
   "newLocalTerminal": "New local terminal",
+  "localTuiNewline": "Insert newline in local TUI",
   "localTerminalOptions": "Local terminal options",
   "openTerminalInDirectory": "Open in directory…",
   "recentDirectories": "Recent directories",

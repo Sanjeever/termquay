@@ -11,13 +11,14 @@ import {
   lazy,
   Suspense,
   useEffect,
+  useCallback,
   useImperativeHandle,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from 'react';
-import { Stream, Events, Browser, System } from '@wailsio/runtime';
+import { Stream, Events, Browser, System, Clipboard } from '@wailsio/runtime';
 import {
   Button,
   DropdownTrigger,
@@ -82,6 +83,7 @@ const CommandIndexDialog = lazy(() => import('./CommandIndexDialog'));
 const RecordingPlayer = lazy(() => import('./RecordingPlayer'));
 
 export type TerminalAction =
+  | 'lineBreak'
   | 'find'
   | 'terminalCompletion'
   | 'commandHelp'
@@ -198,6 +200,7 @@ const TerminalView = forwardRef<
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [paste, setPaste] = useState<string>();
+  const pendingPaste = useRef<string>();
   const [locked, setLocked] = useState(false);
   const inputLocked = useRef(false);
   function toggleInputLock() {
@@ -210,6 +213,7 @@ const TerminalView = forwardRef<
         locked || connected !== true || demoOutput !== undefined;
     if (locked) {
       complete.current.dismiss();
+      pendingPaste.current = undefined;
       setPaste(undefined);
       setIntegrationOpen(false);
       nextIntegration.current = undefined;
@@ -462,6 +466,9 @@ const TerminalView = forwardRef<
   }
   function confirmPaste() {
     if (inputLocked.current) return;
+    const text = pendingPaste.current;
+    if (text === undefined) return;
+    pendingPaste.current = undefined;
     if (nextIntegration.current) {
       clearError('completion');
       commandToken.current = nextIntegration.current.token;
@@ -471,7 +478,7 @@ const TerminalView = forwardRef<
       );
       nextIntegration.current = undefined;
     }
-    terminal.current?.paste(paste || '');
+    terminal.current?.paste(text);
     setPaste(undefined);
     terminal.current?.focus();
   }
@@ -500,13 +507,20 @@ const TerminalView = forwardRef<
     }
     clearError('input');
     completion.dismiss();
-    if (/[\r\n]/.test(text)) setPaste(text);
-    else terminal.current?.paste(text);
+    if (/[\r\n]/.test(text)) {
+      pendingPaste.current = text;
+      setPaste(text);
+    } else terminal.current?.paste(text);
     return true;
   }
   function action(name: TerminalAction) {
     const term = terminal.current;
     if (!term) return;
+    if (name === 'lineBreak' && local) {
+      sendFrame('\x1b[13;2u');
+      term.focus();
+      return;
+    }
     if (name === 'find') {
       setSearchQuery(term.getSelection());
       setSearchOpen(true);
@@ -523,14 +537,15 @@ const TerminalView = forwardRef<
       setHelp({ command });
       return;
     }
-    if (name === 'copy')
-      navigator.clipboard
-        .writeText(term.getSelection())
+    if (name === 'copy' && term.hasSelection())
+      (demoOutput === undefined
+        ? Clipboard.SetText(term.getSelection())
+        : navigator.clipboard.writeText(term.getSelection())
+      )
         .then(() => clearError('clipboard'))
         .catch((e) => reportError('clipboard', e));
     if (name === 'paste' && demoOutput === undefined)
-      navigator.clipboard
-        .readText()
+      Clipboard.Text()
         .then((value) => {
           clearError('clipboard');
           insert(value);
@@ -855,6 +870,12 @@ const TerminalView = forwardRef<
     search.current?.clearDecorations();
     terminal.current?.focus();
   }
+  const pastePreviewRef = useCallback((element: HTMLElement | null) => {
+    if (element) return;
+    requestAnimationFrame(() => {
+      if (shown.current && !document.querySelector('[role=dialog]')) terminal.current?.focus();
+    });
+  }, []);
   return (
     <div
       className="terminal-view"
@@ -1171,9 +1192,9 @@ const TerminalView = forwardRef<
               setAIContext(undefined);
               if (key === 'ai' && snapshot) onAIReference?.(snapshot.reference);
               else if (key === 'copy' && snapshot)
-                navigator.clipboard
-                  .writeText(snapshot.reference.text)
-                  .catch((e) => reportError('clipboard', e));
+                Clipboard.SetText(snapshot.reference.text).catch((e) =>
+                  reportError('clipboard', e),
+                );
               else if (key === 'paste') action('paste');
             }}
           >
@@ -1286,8 +1307,7 @@ const TerminalView = forwardRef<
             <button
               className="session-tool"
               onClick={() => {
-                navigator.clipboard
-                  .writeText(log.file || log.directory)
+                Clipboard.SetText(log.file || log.directory)
                   .then(() => clearError('clipboard'))
                   .catch((e) => reportError('clipboard', e));
               }}
@@ -1461,6 +1481,7 @@ const TerminalView = forwardRef<
         isOpen={paste !== undefined}
         onClose={() => {
           nextIntegration.current = undefined;
+          pendingPaste.current = undefined;
           setPaste(undefined);
           terminal.current?.focus();
         }}
@@ -1470,13 +1491,16 @@ const TerminalView = forwardRef<
           <ModalHeader>{translate('terminal:confirmMultilinePaste')}</ModalHeader>
           <ModalBody>
             <p>{translate('terminal:newlinesMayExecuteCommandsImmediatelyReviewTheContents')}</p>
-            <pre className="paste-preview">{paste}</pre>
+            <pre className="paste-preview" ref={pastePreviewRef}>
+              {paste}
+            </pre>
           </ModalBody>
           <ModalFooter>
             <Button
               variant="light"
               onPress={() => {
                 nextIntegration.current = undefined;
+                pendingPaste.current = undefined;
                 setPaste(undefined);
                 terminal.current?.focus();
               }}

@@ -65,9 +65,9 @@ func validatePortableUI(values map[string]string) error {
 				return appmessage.New("backend:invalidShortcutSettings", "快捷键设置无效")
 			}
 			seen := map[string][]string{}
-			terminalActions := []string{"find", "terminalCompletion", "commandHelp", "copy", "paste", "selectAll", "clear", "zoomIn", "zoomOut", "zoomReset"}
-			reserved := regexp.MustCompile(`^Mod\+(Key[ACFVXYZSWQ]|Tab|Arrow\w+)$|^(Alt\+(Tab|F4)|Mod\+Alt\+Tab|Mod\+Shift\+(KeyW|Tab))$`)
-			assignedInput := map[string]string{"closeTab": "Mod+KeyW", "closeWorkspace": "Mod+Shift+KeyW", "copy": "Mod+KeyC", "paste": "Mod+KeyV", "find": "Mod+KeyF"}
+			terminalActions := []string{"find", "lineBreak", "terminalCompletion", "commandHelp", "copy", "paste", "selectAll", "clear", "zoomIn", "zoomOut", "zoomReset"}
+			reserved := regexp.MustCompile(`^Shift\+Enter$|^Mod\+(Key[ACFVXYZSWQ]|Tab|Arrow\w+)$|^(Alt\+(Tab|F4)|Mod\+Alt\+Tab|Mod\+Shift\+(KeyW|Tab))$`)
+			assignedInput := map[string]string{"closeTab": "Mod+KeyW", "closeWorkspace": "Mod+Shift+KeyW", "copy": "Mod+KeyC", "paste": "Mod+KeyV", "find": "Mod+KeyF", "lineBreak": "Shift+Enter"}
 			for name, shortcut := range shortcuts {
 				if len(name) > 64 || len(shortcut) > 128 {
 					return appmessage.New("backend:shortcutFieldTooLong", "快捷键字段过长")

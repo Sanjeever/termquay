@@ -95,3 +95,40 @@ test('language, theme and custom font changes preserve the editor instance, sele
   await page.getByRole('button', { name: /^撤销/ }).click();
   await expect(editor).toHaveText('original');
 });
+
+test('multiline clipboard confirmation sends one bracketed paste even when activated twice', async ({
+  page,
+}) => {
+  const inputs: string[] = [];
+  const text = 'first line\nsecond line';
+  await page.route('**/wails/runtime*', (route) => {
+    const body = route.request().postDataJSON();
+    const clipboard = body?.object === 1 && body?.method === 1;
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(clipboard ? text : null),
+    });
+  });
+  await page.routeWebSocket('**/terminal-fixture', (socket) => {
+    socket.onMessage((data) => {
+      const frame = Buffer.isBuffer(data) ? data : Buffer.from(data);
+      if (frame[0] === 0) inputs.push(frame.subarray(1).toString('utf8'));
+    });
+    socket.send(Buffer.from('\x1b[?2004hready\r\n'));
+  });
+  await page.goto('/e2e/terminal.html');
+  await expect(page.getByRole('button', { name: 'Lock input', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Terminal actions', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Paste', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.locator('.paste-preview')).toHaveText(text);
+  await dialog
+    .getByRole('button', { name: 'Paste into terminal', exact: true })
+    .evaluate((button) => {
+      (button as HTMLButtonElement).click();
+      (button as HTMLButtonElement).click();
+    });
+  await expect.poll(() => inputs.join('')).toBe('\x1b[200~first line\rsecond line\x1b[201~');
+  await expect(page.getByRole('textbox', { name: 'Terminal input' })).toBeFocused();
+});

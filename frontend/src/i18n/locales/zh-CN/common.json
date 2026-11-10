@@ -208,6 +208,7 @@
   "conflictsWith": "与“{{value1}}”冲突",
   "thisShortcutIsReservedForInputsOrThe": "此组合保留给输入组件或系统",
   "newLocalTerminal": "新建本地终端",
+  "localTuiNewline": "本地 TUI 输入换行",
   "localTerminalOptions": "本地终端选项",
   "openTerminalInDirectory": "在目录中打开…",
   "recentDirectories": "最近目录",

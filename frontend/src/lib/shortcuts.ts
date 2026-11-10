@@ -115,6 +115,14 @@ export const shortcutDefinitions = [
     key: 'Alt+Slash',
   },
   {
+    id: 'lineBreak',
+    get label() {
+      return translate('common:localTuiNewline');
+    },
+    scope: 'terminal',
+    key: '',
+  },
+  {
     id: 'commandHelp',
     get label() {
       return translate('common:pOSIXCommandReference');
@@ -208,6 +216,7 @@ export const weztermShortcuts: Shortcuts = {
   zoomIn: 'Ctrl+Equal',
   zoomOut: 'Ctrl+Minus',
   zoomReset: 'Ctrl+Digit0',
+  lineBreak: 'Shift+Enter',
 };
 export const shortcutStorageKey = 'termquay.shortcuts';
 export function shortcutKey(key: string) {
@@ -245,13 +254,17 @@ export function eventShortcut(event: KeyboardEvent, platform = navigator.platfor
     event.isComposing ||
     event.key === 'Process' ||
     event.getModifierState('AltGraph') ||
-    !/^(Key[A-Z]|Digit[0-9]|Comma|Period|Slash|Backslash|Semicolon|Quote|BracketLeft|BracketRight|Minus|Equal|Tab|Space|PageUp|PageDown|ArrowLeft|ArrowRight|ArrowUp|ArrowDown|F[1-9]|F1[0-2])$/.test(
+    !/^(Key[A-Z]|Digit[0-9]|Comma|Period|Slash|Backslash|Semicolon|Quote|BracketLeft|BracketRight|Minus|Equal|Enter|Tab|Space|PageUp|PageDown|ArrowLeft|ArrowRight|ArrowUp|ArrowDown|F[1-9]|F1[0-2])$/.test(
       event.code,
     )
   )
     return '';
   const mac = /Mac|iPhone|iPad/.test(platform);
-  if ((!mac && event.metaKey) || !(event.ctrlKey || event.metaKey || event.altKey)) return '';
+  if (
+    (!mac && event.metaKey) ||
+    !(event.ctrlKey || event.metaKey || event.altKey || (event.shiftKey && event.code === 'Enter'))
+  )
+    return '';
   return [
     event.metaKey || (!mac && event.ctrlKey) ? 'Mod' : '',
     mac && event.ctrlKey ? 'Ctrl' : '',
@@ -306,12 +319,14 @@ export function shortcutConflict(id: ShortcutID, key: string, values: Shortcuts)
     copy: 'Mod+KeyC',
     paste: 'Mod+KeyV',
     find: 'Mod+KeyF',
+    lineBreak: 'Shift+Enter',
   };
   const workspaceTab =
     (id === 'nextWorkspace' && normalized === (mac ? 'Ctrl+Tab' : 'Mod+Tab')) ||
     (id === 'previousWorkspace' && normalized === (mac ? 'Ctrl+Shift+Tab' : 'Mod+Shift+Tab'));
   if (
-    (/^Mod\+(Key[ACFVXYZS]|KeyW|KeyQ|Tab|Arrow\w+)$/.test(normalized) ||
+    (/^Shift\+Enter$/.test(normalized) ||
+      /^Mod\+(Key[ACFVXYZS]|KeyW|KeyQ|Tab|Arrow\w+)$/.test(normalized) ||
       /^(Alt\+(Tab|F4)|Mod\+Alt\+Tab|Mod\+Shift\+(KeyW|Tab))$/.test(normalized)) &&
     assignedInput[id] !== normalized &&
     !workspaceTab

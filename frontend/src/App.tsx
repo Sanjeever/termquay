@@ -83,6 +83,7 @@ import {
   CloseLocalTerminal,
   ChooseLocalTerminalDirectory,
   GetLocalTerminalDirectories,
+  GetLocalTerminalDirectory,
 } from '../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { LocalShell } from '../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import LocalTerminalLauncher from './features/terminal/LocalTerminalLauncher';
@@ -322,10 +323,24 @@ export default function App() {
     localOpening.current = true;
     setOpeningLocal(true);
     try {
-      const previous = focusedWorkspace.current?.local;
-      const path =
+      const previousWorkspace = focusedWorkspace.current;
+      const previous = previousWorkspace?.local;
+      let path =
         directory ??
         (previous?.kind === kind && previous.directory !== '~' ? previous.directory : '');
+      if (
+        directory === undefined &&
+        previous?.kind === kind &&
+        kind !== 'wsl' &&
+        previousWorkspace?.sessionID &&
+        !previous.terminal.current?.ended()
+      ) {
+        const resolved = await GetLocalTerminalDirectory(previousWorkspace.sessionID);
+        if (resolved) {
+          path = resolved;
+          localDirectoryChanged(previousWorkspace.id, resolved, previous.hostname);
+        }
+      }
       await loadTerminalView();
       const terminal = await OpenLocalTerminal(kind, path, 100, 30);
       if (latestWorkspaces.current.length >= 16) {
@@ -1004,6 +1019,7 @@ export default function App() {
       const action = shortcutDefinitions.find(
         (d) =>
           shortcutKey(shortcuts[d.id]) === key &&
+          (d.id !== 'lineBreak' || current?.local) &&
           (d.scope === 'app' ||
             (d.scope === 'workspace' && !settings && current?.ssh) ||
             (terminal && d.scope === 'terminal')),
@@ -1756,6 +1772,7 @@ export default function App() {
     ...(current?.ssh || current?.local
       ? shortcutDefinitions
           .filter((d) => d.scope === 'terminal')
+          .filter((d) => d.id !== 'lineBreak' || current?.local)
           .map((d) => ({
             id: `terminal-${d.id}`,
             label: d.label,
