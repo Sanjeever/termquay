@@ -27,6 +27,34 @@ Choose **Settings → Appearance → Language** to follow the system, use Englis
 
 See [usage and boundaries](docs/development.md#using-the-workbench), including the [RDP TLS compatibility boundary](docs/architecture.md#embedded-rdp).
 
+## Comparison with other tools
+
+TermQuay is built for managing multiple hosts: edit configurations, inspect logs, compare task results and open remote desktops in one desktop workspace.
+
+### OpenSSH / PuTTY
+
+[OpenSSH](https://www.openssh.org/) provides command-line tools for SSH, file transfer and tunneling; [PuTTY](https://www.chiark.greenend.org.uk/~sgtatham/putty/) provides terminal access through SSH and other protocols. TermQuay brings connection groups, split terminals, graphical file management, remote editing and monitoring into a shared workspace. Named working sets and recovery of layouts and drafts help you return to ongoing work.
+
+### MSTSC
+
+[MSTSC (Microsoft Terminal Services Client)](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/mstsc) is Windows' Remote Desktop Connection client. TermQuay organizes SSH and RDP connections in the same catalog, with embedded desktops and SSH gateways for work across Linux and Windows hosts. On Windows, you can also launch the system client from a saved RDP connection.
+
+### Xshell / SecureCRT
+
+[Xshell](https://www.netsarang.com/en/xshell/) and [SecureCRT](https://www.vandyke.com/products/securecrt/index.html) offer terminal sessions, session management and scripting tools. TermQuay offers an Apache-2.0 open source workbench with remote editing, Linux diagnostics, multi-source logs and encrypted backups alongside terminals. Its source is available for inspection and customization, and saved connections have no commercial count limit.
+
+### MobaXterm
+
+[MobaXterm](https://mobaxterm.mobatek.net/) combines a Windows terminal, an X server and remote connection tools. Its [Home Edition](https://mobaxterm.mobatek.net/download.html) limits sessions and SSH tunnels; Professional Edition removes those limits. TermQuay provides a shared workbench interface on macOS, Windows and Linux, with no commercial limit on saved connections and encrypted backups for moving connection configurations between devices.
+
+### FinalShell
+
+[FinalShell](https://www.hostbuf.com/t/988.html) combines SSH, file management, monitoring and remote desktop access. TermQuay emphasizes the configuration editing workflow: handle conflicting edits, recover drafts from encrypted version history, and explicitly run validation, reload and health checks. Local encrypted backups and snapshots on your chosen WebDAV storage support recovery previews and selective connection imports.
+
+### XTerminal / motty
+
+[XTerminal](https://docs.xterminal.cn/) and [motty](https://github.com/t8y2/motty) also combine SSH, SFTP, remote desktops and AI; motty is Apache-2.0 open source with a native interface. TermQuay brings background multi-host tasks, result comparisons, multi-source logs and Docker tools into dedicated tabs that use existing SSH connections. Its [local CLI and Agent skill](#cli-and-agent-skill) let external agents query and run commands in explicitly selected, connected SSH workspaces.
+
 <a id="cli-与-agent-skill"></a>
 ## CLI and Agent skill
 

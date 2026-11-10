@@ -26,6 +26,34 @@ TermQuay 是使用 Go、Wails v3 和 React 构建的开源远程连接工作台�
 
 操作方式与限制见 [使用说明](docs/development.zh-CN.md#使用说明)，内嵌 RDP 的 TLS 兼容边界见 [RDP 设计说明](docs/architecture.zh-CN.md#内嵌-rdp)。
 
+## 对比其他工具
+
+TermQuay 面向多主机日常管理，将配置编辑、日志排查、任务结果比较和远程桌面放在统一桌面工作区。
+
+### OpenSSH / PuTTY
+
+[OpenSSH](https://www.openssh.org/) 提供 SSH、文件传输和隧道命令行工具；[PuTTY](https://www.chiark.greenend.org.uk/~sgtatham/putty/) 通过 SSH 等协议提供终端访问。TermQuay 将连接分组、终端分屏、图形化文件管理、远程编辑和监控整合到同一工作区，通过命名工作集、布局与草稿恢复，方便继续之前的工作。
+
+### MSTSC
+
+[MSTSC（Microsoft Terminal Services Client）](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/mstsc) 是 Windows 远程桌面连接客户端。TermQuay 在同一连接目录中管理 SSH 与 RDP，通过内嵌桌面和 SSH 网关处理 Linux 与 Windows 混合环境。在 Windows 上，也可以从已保存的 RDP 连接启动系统客户端。
+
+### Xshell / SecureCRT
+
+[Xshell](https://www.netsarang.com/en/xshell/) 和 [SecureCRT](https://www.vandyke.com/products/securecrt/index.html) 提供终端会话、会话管理与脚本工具。TermQuay 采用 Apache-2.0 开源许可，在终端之外整合远程编辑、Linux 诊断、多来源日志与加密备份。源码可供检查和定制，已保存连接数量不设置商业限制。
+
+### MobaXterm
+
+[MobaXterm](https://mobaxterm.mobatek.net/) 在 Windows 上整合终端、X Server 与远程连接工具。[Home Edition](https://mobaxterm.mobatek.net/download.html) 对会话和 SSH 隧道数量设有限制，Professional Edition 取消这些限制。TermQuay 在 macOS、Windows 和 Linux 上提供一致的工作台界面，已保存连接数量不设置商业限制，并通过加密备份在设备间迁移连接配置。
+
+### FinalShell
+
+[FinalShell](https://www.hostbuf.com/t/988.html) 整合 SSH、文件管理、监控与远程桌面。TermQuay 注重配置编辑流程，支持处理编辑冲突、从加密版本历史恢复草稿，以及显式执行配置验证、重载与健康检查。本地加密备份和自选 WebDAV 存储中的快照支持恢复预览与选择性导入连接。
+
+### XTerminal / motty
+
+[XTerminal](https://docs.xterminal.cn/) 和 [motty](https://github.com/t8y2/motty) 同样整合 SSH、SFTP、远程桌面与 AI；motty 采用 Apache-2.0 开源许可和原生界面。TermQuay 通过独立工具标签组织后台多主机任务、结果比较、多来源日志与 Docker 操作，复用已有 SSH 连接。[本机 CLI 与 Agent Skill](#cli-与-agent-skill) 让外部 Agent 在明确选定的已连接 SSH 工作区查询信息和执行命令。
+
 ## CLI 与 Agent Skill
 
 同一程序无参数启动桌面，`termquay --help` 查看 CLI 帮助。先在桌面“设置 → 本机 CLI”启用访问并解锁，再用精确 SSH 工作区 ID 查询远端或执行命令。CLI 可修改远端，支持命令、平台程序路径与取消限制见 [本机 CLI](docs/development.zh-CN.md#本机-cli)。
