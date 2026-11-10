@@ -175,7 +175,7 @@ AI turns continue beyond a fixed tool-call count while their runtime budget allo
 
 **Terminal shortcuts:** **Settings → Keyboard shortcuts → WezTerm** applies the supported Control-based bindings for new local tabs, tab switching/search, copy/paste, close, find and font size. Existing custom bindings stay until explicitly replaced. Control and Command are distinct on macOS. New local terminals and new terminals inside SSH workspaces have separate actions. Terminal search starts with the current selection.
 
-The preset also binds **Shift+Enter** to [CSI-u modified Enter](https://sw.kovidgoyal.net/kitty/keyboard-protocol/) in the focused local terminal for TUI multiline input. Clear **Insert newline in local TUI** for shells/apps that do not consume modified Enter. IME composition keeps its own Enter handling.
+The preset also binds **Shift+Enter** to modified Enter in the focused local terminal for TUI multiline input. When the local PTY enables Windows `win32-input-mode`, [terminal input](../frontend/src/features/terminal/windowsInput.ts) preserves Ctrl+J and modified Enter as Win32 key records. The newline action uses Shift+Enter records in that mode and [CSI-u modified Enter](https://sw.kovidgoyal.net/kitty/keyboard-protocol/) otherwise. Clear **Insert newline in local TUI** for shells/apps that do not consume modified Enter. IME composition keeps its own Enter handling.
 
 Closing an active local terminal requires confirmation; exited terminals close directly. Application exit or update restart lists active local sessions alongside existing task/draft checks. Canceling keeps the sessions open. Layout recovery does not restart local processes.
 

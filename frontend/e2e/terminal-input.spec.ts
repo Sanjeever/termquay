@@ -83,3 +83,35 @@ test('IME candidate confirmation commits text without submitting the terminal', 
   await page.waitForTimeout(50);
   expect(inputs).toEqual(['中文']);
 });
+
+test('ConPTY mode preserves Ctrl+J and modified Enter while ordinary input stays intact', async ({
+  page,
+}) => {
+  const inputs = await openTerminal(page, '\x1b[?9001hready\r\n');
+  await expect(page.locator('.xterm-screen')).toContainText('ready');
+  await page.keyboard.press('Control+j');
+  await page.keyboard.press('Shift+Enter');
+  await page.keyboard.press('Alt+Enter');
+  await page.keyboard.press('Control+Enter');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('abc');
+  await expect
+    .poll(() => inputs.join(''))
+    .toBe(
+      '\x1b[74;36;10;1;8;1_\x1b[74;36;10;0;8;1_' +
+        '\x1b[13;28;13;1;16;1_\x1b[13;28;13;0;16;1_' +
+        '\x1b[13;28;13;1;2;1_\x1b[13;28;13;0;2;1_' +
+        '\x1b[13;28;10;1;8;1_\x1b[13;28;10;0;8;1_' +
+        '\rabc',
+    );
+});
+
+test('legacy mode keeps LF and leaving ConPTY mode restores normal keyboard encoding', async ({
+  page,
+}) => {
+  const inputs = await openTerminal(page, '\x1b[?9001h\x1b[?9001lready\r\n');
+  await expect(page.locator('.xterm-screen')).toContainText('ready');
+  await page.keyboard.press('Control+j');
+  await page.keyboard.press('Shift+Enter');
+  await expect.poll(() => inputs.join('')).toBe('\n\r');
+});

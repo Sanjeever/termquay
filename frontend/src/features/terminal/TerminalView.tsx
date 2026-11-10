@@ -79,6 +79,7 @@ import {
 } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import '@xterm/xterm/css/xterm.css';
 import { addIMEInput } from './terminalInput';
+import { addWindowsInput } from './windowsInput';
 
 const CommandIndexDialog = lazy(() => import('./CommandIndexDialog'));
 const RecordingPlayer = lazy(() => import('./RecordingPlayer'));
@@ -166,6 +167,7 @@ const TerminalView = forwardRef<
   }
   const [connected, setConnected] = useState<boolean | null>(null);
   const terminal = useRef<Terminal>();
+  const windowsInput = useRef<ReturnType<typeof addWindowsInput>>();
   useLayoutEffect(() => {
     Terminal.strings.promptLabel = translate('terminal:terminalInput');
     Terminal.strings.tooMuchOutput = translate('terminal:tooMuchOutput');
@@ -518,7 +520,7 @@ const TerminalView = forwardRef<
     const term = terminal.current;
     if (!term) return;
     if (name === 'lineBreak' && local) {
-      sendFrame('\x1b[13;2u');
+      sendFrame(windowsInput.current?.newline() ?? '\x1b[13;2u');
       term.focus();
       return;
     }
@@ -639,7 +641,11 @@ const TerminalView = forwardRef<
       },
     );
     const ime = addIMEInput(term);
-    term.attachCustomKeyEventHandler((event) => complete.current.key(event) && ime.key(event));
+    const windows = local ? addWindowsInput(term) : undefined;
+    windowsInput.current = windows;
+    term.attachCustomKeyEventHandler(
+      (event) => complete.current.key(event) && ime.key(event) && (windows?.key(event) ?? true),
+    );
     const bufferChange = term.buffer.onBufferChange(() => complete.current.invalidate());
     const textarea = term.textarea,
       blur = () => complete.current.dismiss();
@@ -766,6 +772,8 @@ const TerminalView = forwardRef<
     return () => {
       disposed = true;
       ime.dispose();
+      windows?.dispose();
+      windowsInput.current = undefined;
       bufferChange.dispose();
       textarea?.removeEventListener('blur', blur);
       integration.current?.dispose();

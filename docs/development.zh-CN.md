@@ -268,7 +268,7 @@ Markdown 默认预览，可切换源码或分栏；首次进入源码才创建�
 
 “设置 → 快捷键 → WezTerm”可显式应用 [预设键位](../frontend/src/lib/shortcuts.ts)，包括新建本地标签、标签切换与搜索、复制粘贴、关闭、查找及字号调整。已有自定义设置保留到用户主动替换。macOS 区分 Control 和 Command；新建本地终端与 SSH 内层终端分别提供动作。终端查找默认带入当前选中文本。
 
-该预设还将 Shift+Enter 绑定为当前本地终端的 CSI-u modified Enter，供 TUI 输入多行文本。不接收该序列的 Shell 或程序可清除“本地 TUI 输入换行”键位。输入法组词期间保留输入法自身的回车处理。
+该预设还将 Shift+Enter 绑定为当前本地终端的 modified Enter，供 TUI 输入多行文本。本地 PTY 启用 Windows `win32-input-mode` 后，[终端输入](../frontend/src/features/terminal/windowsInput.ts) 使用 Win32 按键记录保留 Ctrl+J 与修饰回车键；换行动作在该模式使用 Shift+Enter 记录，其他情况使用 CSI-u modified Enter。不接收修饰回车键的 Shell 或程序可清除“本地 TUI 输入换行”键位。输入法组词期间保留输入法自身的回车处理。
 
 macOS 菜单栏提供连接、终端、标签关闭、显示、界面缩放和工作区切换入口，操作复用前端命令及草稿确认流程。应用命令的按键统一由 WebView 按焦点与归属分发，原生菜单显示当前键位，避免原生快捷键抢走 RDP 输入。原生导航和标题栏采用系统材质，终端、编辑器与桌面内容保持不透明。
 
