@@ -336,7 +336,9 @@ export default function App() {
         previous?.kind === kind &&
         kind !== 'wsl' &&
         previousWorkspace?.sessionID &&
-        !previous.terminal.current?.ended()
+        !previous.terminal.current
+          ?.sessions()
+          .find((session) => session.id === previousWorkspace.sessionID)?.ended
       ) {
         const resolved = await GetLocalTerminalDirectory(previousWorkspace.sessionID);
         if (resolved) {
