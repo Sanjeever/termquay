@@ -462,10 +462,11 @@ func RelayIO(input io.Writer, output io.Reader, done <-chan struct{}, closeEndpo
 			}
 		}
 	}()
-	// 等待 xterm.js 解析确认后再读下一帧，避免积压转移到前端解析队列。
+	// Keep one frame in flight; the coalescer has two bounded read buffers.
+	readOutput := coalescedTerminalOutput(ctx, output)
 	buf := make([]byte, ChunkSize)
 	for {
-		n, err := output.Read(buf)
+		n, err := readOutput(buf)
 		if n > 0 {
 			if record != nil {
 				record(buf[:n])
