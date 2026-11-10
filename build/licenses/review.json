@@ -2,8 +2,13 @@
   "inputs": {
     "go.mod": "0a951ac612ba5346da42b8a6a1aab560d9c97afdb7bf37e3cb0e5a7d78d14baf",
     "go.sum": "cc5057fd8467af8ee42e503a11552ba4e9ddda40b7550c862cb81d0ad9878b6e",
-    "frontend/pnpm-lock.yaml": "c3de7076cb497b378d050e66e126b8c9548b9d19a3439f14253b31a768c938b8",
+    "frontend/pnpm-lock.yaml": "b69bdf84641657d8ae5402803aa5acd22a7068745ba02f8b907418caf1eb7754",
     "frontend/patches/@devolutions__iron-remote-desktop@0.11.0.patch": "53b4e282385f535f908c6399947350bff05c762c268b5060a9bba9d998fa0168"
+  },
+  "terminal_dependencies": {
+    "reviewed_at": "2026-11-10",
+    "baseline": "bdab488",
+    "verification": "Upgraded the pinned xterm core to 6.0.0 and its fit, search, unicode11, web-links and WebGL addons to their matching stable releases. The lockfile delta replaces these six packages without adding runtime dependencies. All six packages declare MIT; collected license originals and updated the production package inventory. Historical license copies are retained. This is dependency and license review, not native renderer or artifact-provenance acceptance."
   },
   "frontend_test_dependencies": {
     "reviewed_at": "2026-11-09",

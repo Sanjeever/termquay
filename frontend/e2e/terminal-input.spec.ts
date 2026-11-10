@@ -151,7 +151,7 @@ test('copy on selection is opt-in, updates live and resets without recreating th
   const terminal = await page.locator('.xterm').elementHandle();
   const line = page.locator('.xterm-rows > div').first();
   await expect(line).toContainText('selectable text');
-  await line.click({ clickCount: 3, position: { x: 20, y: 8 } });
+  await page.locator('.xterm-screen').click({ clickCount: 3, position: { x: 20, y: 8 } });
   await page.waitForTimeout(50);
   expect(copies).toEqual([]);
 
@@ -169,7 +169,7 @@ test('copy on selection is opt-in, updates live and resets without recreating th
   expect(await terminal!.evaluate((element) => element === document.querySelector('.xterm'))).toBe(
     true,
   );
-  await line.click({ clickCount: 3, position: { x: 20, y: 8 } });
+  await page.locator('.xterm-screen').click({ clickCount: 3, position: { x: 20, y: 8 } });
   await expect.poll(() => copies.length).toBe(1);
   expect(copies[0].trim()).toBe('selectable text');
 
@@ -180,7 +180,7 @@ test('copy on selection is opt-in, updates live and resets without recreating th
   await page.getByRole('button', { name: 'Restore defaults', exact: true }).click();
   await expect(preference).not.toBeChecked();
   await page.getByRole('button', { name: 'Terminal settings', exact: true }).click();
-  await line.click({ clickCount: 3, position: { x: 20, y: 8 } });
+  await page.locator('.xterm-screen').click({ clickCount: 3, position: { x: 20, y: 8 } });
   await page.waitForTimeout(50);
   expect(copies).toHaveLength(1);
 });
@@ -218,9 +218,6 @@ test('selection release outside the terminal copies and clipboard failures remai
   expect(copies).toHaveLength(1);
 
   fail = true;
-  await page
-    .locator('.xterm-rows > div')
-    .first()
-    .click({ clickCount: 3, position: { x: 20, y: 8 } });
+  await page.locator('.xterm-screen').click({ clickCount: 3, position: { x: 20, y: 8 } });
   await expect(page.getByRole('alert')).toContainText('clipboard denied');
 });

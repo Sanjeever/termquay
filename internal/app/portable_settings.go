@@ -53,10 +53,12 @@ func validatePortableUI(values map[string]string) error {
 					return errors.New("Invalid language preference")
 				}
 			}
-			if raw, ok := settings["terminalRenderer"]; ok {
-				var renderer string
-				if err := json.Unmarshal(raw, &renderer); err != nil || !slices.Contains([]string{"dom", "webgl"}, renderer) {
-					return appmessage.New("backend:invalidTerminalRendererSettings", "终端渲染设置无效")
+			for _, field := range []string{"terminalRenderer", "localTerminalRenderer"} {
+				if raw, ok := settings[field]; ok {
+					var renderer string
+					if err := json.Unmarshal(raw, &renderer); err != nil || !slices.Contains([]string{"dom", "webgl"}, renderer) {
+						return appmessage.New("backend:invalidTerminalRendererSettings", "终端渲染设置无效")
+					}
 				}
 			}
 			if raw, ok := settings["uiZoom"]; ok {

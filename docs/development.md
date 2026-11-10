@@ -181,6 +181,8 @@ The preset also binds **Shift+Enter** to modified Enter in the focused local ter
 
 Closing an active local terminal requires confirmation; exited terminals close directly. Application exit or update restart lists active local sessions alongside existing task/draft checks. Canceling keeps the sessions open. Layout recovery does not restart local processes.
 
+Local terminals default to WebGL; **Settings → Terminal and editor → Local terminal renderer** selects WebGL or the basic renderer independently of SSH/container preferences. The [appearance defaults](../frontend/src/features/settings/appearance.ts) and [renderer lifecycle](../frontend/src/features/terminal/webglRenderer.ts) are authoritative. Briefly hiding a terminal preserves its renderer; under resource pressure, inactive renderers are evicted before visible ones. Context loss reports an error and restores basic rendering. The pinned xterm version supports synchronized output (DEC 2026), allowing participating TUIs to finish a screen update before it becomes visible. Parsing acknowledgements continue during synchronized output. Applications that do not send synchronized updates still require workload-specific flicker checks.
+
 ### Docker containers
 
 Open **Tools → Docker**, **SSH session actions → Docker containers**, or the **Docker container workspace** command. The tool selects the current SSH workspace when opened from it and reads containers automatically. Resize the container list, filter by name/image/project or state, and use **Overview**, **Logs**, **Terminal**, and **Mounts and ports**. Compose labels group existing containers; this is not Compose deployment, image management, or Kubernetes support.

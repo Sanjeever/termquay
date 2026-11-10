@@ -27,6 +27,7 @@ export type Appearance = {
   terminalLogHighlight: boolean;
   terminalCopyOnSelect: boolean;
   terminalRenderer: 'dom' | 'webgl';
+  localTerminalRenderer: 'dom' | 'webgl';
 };
 export const defaultAppearance: Appearance = {
   language: 'auto',
@@ -39,6 +40,7 @@ export const defaultAppearance: Appearance = {
   terminalLogHighlight: true,
   terminalCopyOnSelect: false,
   terminalRenderer: 'dom',
+  localTerminalRenderer: 'webgl',
 };
 export const uiFonts = {
   system:
@@ -84,6 +86,11 @@ export function parseAppearance(value: string | null): Appearance {
     !['dom', 'webgl'].includes(settings.terminalRenderer)
   )
     throw uiMessage('settings:invalidTerminalRendererSettings');
+  if (
+    settings.localTerminalRenderer !== undefined &&
+    !['dom', 'webgl'].includes(settings.localTerminalRenderer)
+  )
+    throw uiMessage('settings:invalidTerminalRendererSettings');
   if (settings.language !== undefined && !['auto', 'zh-CN', 'en'].includes(settings.language))
     throw uiMessage('invalidLanguage');
   return {
@@ -97,6 +104,8 @@ export function parseAppearance(value: string | null): Appearance {
     terminalLogHighlight: settings.terminalLogHighlight ?? defaultAppearance.terminalLogHighlight,
     terminalCopyOnSelect: settings.terminalCopyOnSelect ?? defaultAppearance.terminalCopyOnSelect,
     terminalRenderer: settings.terminalRenderer ?? defaultAppearance.terminalRenderer,
+    localTerminalRenderer:
+      settings.localTerminalRenderer ?? defaultAppearance.localTerminalRenderer,
   };
 }
 

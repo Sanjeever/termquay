@@ -46,3 +46,17 @@ func TestPortableCopyOnSelect(t *testing.T) {
 		}
 	}
 }
+
+func TestPortableLocalTerminalRenderer(t *testing.T) {
+	base := `"theme":"system","uiFont":"system","monoFont":"system","terminalPalette":"theme"`
+	for _, value := range []string{`"dom"`, `"webgl"`} {
+		if err := validatePortableUI(map[string]string{"appearance": "{" + base + `,"localTerminalRenderer":` + value + "}"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, value := range []string{`null`, `true`, `"canvas"`} {
+		if err := validatePortableUI(map[string]string{"appearance": "{" + base + `,"localTerminalRenderer":` + value + "}"}); err == nil {
+			t.Fatalf("accepted invalid local terminal renderer %s", value)
+		}
+	}
+}

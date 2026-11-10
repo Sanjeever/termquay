@@ -80,6 +80,7 @@ import {
 import '@xterm/xterm/css/xterm.css';
 import { addIMEInput } from './terminalInput';
 import { addWindowsInput } from './windowsInput';
+import { addWebGLRenderer } from './webglRenderer';
 
 const CommandIndexDialog = lazy(() => import('./CommandIndexDialog'));
 const RecordingPlayer = lazy(() => import('./RecordingPlayer'));
@@ -168,6 +169,7 @@ const TerminalView = forwardRef<
   const [connected, setConnected] = useState<boolean | null>(null);
   const terminal = useRef<Terminal>();
   const windowsInput = useRef<ReturnType<typeof addWindowsInput>>();
+  const webgl = useRef<ReturnType<typeof addWebGLRenderer>>();
   useLayoutEffect(() => {
     Terminal.strings.promptLabel = translate('terminal:terminalInput');
     Terminal.strings.tooMuchOutput = translate('terminal:tooMuchOutput');
@@ -198,6 +200,7 @@ const TerminalView = forwardRef<
   const { appearance, dark } = useAppearance();
   const fontFamily = monospaceFont(appearance);
   const colors = terminalTheme(appearance.terminalPalette, dark);
+  const renderer = local ? appearance.localTerminalRenderer : appearance.terminalRenderer;
   const requestFit = useRef<() => void>();
   const search = useRef<SearchAddon>();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -832,40 +835,26 @@ const TerminalView = forwardRef<
   }, [id, visible, appearance.terminalCopyOnSelect, demoOutput]);
   useEffect(() => {
     const term = terminal.current;
-    if (!term || !visible || appearance.terminalRenderer !== 'webgl') return;
-    let ended = false;
-    let addon: import('@xterm/addon-webgl').WebglAddon | undefined;
-    let loss: { dispose(): void } | undefined;
-    const release = () => {
-      loss?.dispose();
-      loss = undefined;
-      addon?.dispose();
-      addon = undefined;
-    };
+    if (!term || renderer !== 'webgl') return;
     clearError('renderer');
-    void import('@xterm/addon-webgl')
-      .then(({ WebglAddon }) => {
-        if (ended) return;
-        addon = new WebglAddon();
-        loss = addon.onContextLoss(() => {
-          release();
-          reportError('renderer', translate('terminal:webGLContextLostBasicRendererRestored'));
-        });
-        term.loadAddon(addon);
-      })
-      .catch((error) => {
-        release();
-        if (!ended)
-          reportError(
-            'renderer',
-            uiMessage('terminal:webGLUnavailableUsingBasicRenderer', { value1: error }),
-          );
-      });
+    const instance = addWebGLRenderer(term, (error) =>
+      reportError(
+        'renderer',
+        error === undefined
+          ? uiMessage('terminal:webGLContextLostBasicRendererRestored')
+          : uiMessage('terminal:webGLUnavailableUsingBasicRenderer', { value1: error }),
+      ),
+    );
+    webgl.current = instance;
+    instance.setVisible(shown.current);
     return () => {
-      ended = true;
-      release();
+      instance.dispose();
+      webgl.current = undefined;
     };
-  }, [id, demoOutput, visible, appearance.terminalRenderer]);
+  }, [id, demoOutput, renderer]);
+  useEffect(() => {
+    webgl.current?.setVisible(visible);
+  }, [id, demoOutput, visible, renderer]);
   useEffect(() => {
     if (terminal.current)
       terminal.current.options.theme = terminalTheme(appearance.terminalPalette, dark);

@@ -7,7 +7,15 @@ import TerminalView from '../src/features/terminal/TerminalView';
 import AppearanceSettings from '../src/features/settings/AppearanceSettings';
 import '../src/style.css';
 
-localStorage.setItem(appearanceKey, JSON.stringify({ ...defaultAppearance, language: 'en' }));
+localStorage.setItem(
+  appearanceKey,
+  JSON.stringify({
+    ...defaultAppearance,
+    language: 'en',
+    localTerminalRenderer:
+      new URLSearchParams(location.search).get('renderer') === 'webgl' ? 'webgl' : 'dom',
+  }),
+);
 const runtime = Reflect.get(window, '_wails');
 runtime.streamFactory = () => {
   const socket = new WebSocket(`ws://${location.host}/terminal-fixture`);

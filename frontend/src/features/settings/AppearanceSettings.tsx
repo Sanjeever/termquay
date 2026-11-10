@@ -166,6 +166,25 @@ export default function AppearanceSettings({
               </div>
             </div>
             <div className="settings-row">
+              <label htmlFor="local-terminal-renderer">
+                {translate('settings:localTerminalRenderer')}
+              </label>
+              <SelectControl
+                id="local-terminal-renderer"
+                value={appearance.localTerminalRenderer}
+                onChange={(event) =>
+                  update({
+                    ...appearance,
+                    localTerminalRenderer: event.target
+                      .value as Appearance['localTerminalRenderer'],
+                  })
+                }
+              >
+                <option value="dom">{translate('settings:basicRenderer')}</option>
+                <option value="webgl">WebGL</option>
+              </SelectControl>
+            </div>
+            <div className="settings-row">
               <label htmlFor="terminal-renderer">{translate('settings:terminalRenderer')}</label>
               <SelectControl
                 id="terminal-renderer"

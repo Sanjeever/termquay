@@ -85,6 +85,16 @@ test('copy on selection is opt-in and survives portable serialization', () => {
     assert.throws(() => parseAppearance(JSON.stringify({ ...legacy, terminalCopyOnSelect })));
 });
 
+test('local terminals default to WebGL independently of remote renderer preferences', () => {
+  const { localTerminalRenderer, ...legacy } = defaultAppearance;
+  assert.equal(parseAppearance(JSON.stringify(legacy)).localTerminalRenderer, 'webgl');
+  assert.equal(parseAppearance(JSON.stringify(legacy)).terminalRenderer, 'dom');
+  const basic = { ...defaultAppearance, localTerminalRenderer: 'dom' as const };
+  assert.deepEqual(parseAppearance(JSON.stringify(basic)), basic);
+  for (const localTerminalRenderer of [null, true, '', 'canvas'])
+    assert.throws(() => parseAppearance(JSON.stringify({ ...legacy, localTerminalRenderer })));
+});
+
 test('终端跟随主题与独立配色都提供完整 ANSI 颜色', () => {
   assert.deepEqual(terminalTheme('theme', false), terminalTheme('light', true));
   assert.deepEqual(terminalTheme('theme', true), terminalTheme('dark', false));
