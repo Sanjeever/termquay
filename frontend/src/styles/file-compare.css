@@ -34,6 +34,18 @@
 .transfer-browser-pane .inspection-table td {
   overflow-wrap: anywhere;
 }
+.transfer-browser-pane .inspection-table th:first-child {
+  width: 52px;
+}
+.transfer-browser-pane .inspection-table th:nth-child(3) {
+  width: 76px;
+}
+.transfer-browser-pane .inspection-table th:nth-child(4) {
+  width: 128px;
+}
+.transfer-browser-pane .inspection-table th:nth-child(5) {
+  width: 100px;
+}
 .transfer-browser-pane .inspection-table td:nth-child(2) > :is(button, span) {
   display: flex;
   align-items: center;
