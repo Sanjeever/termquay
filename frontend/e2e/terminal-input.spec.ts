@@ -51,37 +51,59 @@ test('direct IME punctuation is sent once across keyup and repeated keydown even
   await expect.poll(() => inputs.join('')).toBe('，。。abc');
 });
 
-test('IME candidate confirmation commits text without submitting the terminal', async ({
-  page,
-}) => {
+for (const keyCode of [229, 13])
+  test(`IME candidate confirmation with keyCode ${keyCode} commits without submitting`, async ({
+    page,
+  }) => {
+    const inputs = await openTerminal(page);
+    await page.locator('.xterm-helper-textarea').evaluate(async (element, keyCode) => {
+      const textarea = element as HTMLTextAreaElement;
+      textarea.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Process', keyCode: 229, bubbles: true }),
+      );
+      textarea.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
+      textarea.value = '中文';
+      textarea.dispatchEvent(
+        new CompositionEvent('compositionupdate', { data: '中文', bubbles: true }),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      textarea.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'Enter',
+          code: 'Enter',
+          keyCode,
+          isComposing: true,
+          bubbles: true,
+        }),
+      );
+      textarea.dispatchEvent(
+        new CompositionEvent('compositionend', { data: '中文', bubbles: true }),
+      );
+      textarea.dispatchEvent(
+        new InputEvent('input', { data: '中文', inputType: 'insertText', bubbles: true }),
+      );
+    }, keyCode);
+    await page.waitForTimeout(50);
+    expect(inputs).toEqual(['中文']);
+  });
+
+test('direct IME input owns text even when keypress is also delivered', async ({ page }) => {
   const inputs = await openTerminal(page);
-  await page.locator('.xterm-helper-textarea').evaluate(async (element) => {
+  await page.locator('.xterm-helper-textarea').evaluate((element) => {
     const textarea = element as HTMLTextAreaElement;
     textarea.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'Process', keyCode: 229, bubbles: true }),
     );
-    textarea.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
-    textarea.value = '中文';
     textarea.dispatchEvent(
-      new CompositionEvent('compositionupdate', { data: '中文', bubbles: true }),
+      new KeyboardEvent('keypress', { key: '，', keyCode: 65292, charCode: 65292, bubbles: true }),
     );
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    textarea.value += '，';
     textarea.dispatchEvent(
-      new KeyboardEvent('keydown', {
-        key: 'Enter',
-        code: 'Enter',
-        keyCode: 229,
-        isComposing: true,
-        bubbles: true,
-      }),
-    );
-    textarea.dispatchEvent(new CompositionEvent('compositionend', { data: '中文', bubbles: true }));
-    textarea.dispatchEvent(
-      new InputEvent('input', { data: '中文', inputType: 'insertText', bubbles: true }),
+      new InputEvent('input', { data: '，', inputType: 'insertText', bubbles: true }),
     );
   });
   await page.waitForTimeout(50);
-  expect(inputs).toEqual(['中文']);
+  expect(inputs).toEqual(['，']);
 });
 
 test('ConPTY mode preserves Ctrl+J and modified Enter while ordinary input stays intact', async ({

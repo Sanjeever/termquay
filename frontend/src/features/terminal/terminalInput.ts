@@ -35,8 +35,10 @@ export function addIMEInput(term: Terminal) {
   element.addEventListener('input', input, true);
   return {
     key(event: KeyboardEvent) {
+      if (event.type === 'keypress' && (directInput || composing)) return false;
       if (event.type !== 'keydown') return true;
-      if (event.keyCode === 229) {
+      if (event.isComposing || (composing && event.key === 'Enter')) return false;
+      if (event.keyCode === 229 || event.key === 'Process') {
         // Own direct IME input through the input event, without xterm's textarea polling timer.
         directInput = !composing;
         return false;
