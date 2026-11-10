@@ -25,6 +25,7 @@ export type Appearance = {
   customMonoFont: string;
   terminalPalette: keyof typeof terminalPalettes;
   terminalLogHighlight: boolean;
+  terminalCopyOnSelect: boolean;
   terminalRenderer: 'dom' | 'webgl';
 };
 export const defaultAppearance: Appearance = {
@@ -36,6 +37,7 @@ export const defaultAppearance: Appearance = {
   customMonoFont: '',
   terminalPalette: 'theme',
   terminalLogHighlight: true,
+  terminalCopyOnSelect: false,
   terminalRenderer: 'dom',
 };
 export const uiFonts = {
@@ -70,7 +72,9 @@ export function parseAppearance(value: string | null): Appearance {
     (settings.customMonoFont !== undefined && typeof settings.customMonoFont !== 'string') ||
     !Object.prototype.hasOwnProperty.call(terminalPalettes, settings.terminalPalette) ||
     (settings.terminalLogHighlight !== undefined &&
-      typeof settings.terminalLogHighlight !== 'boolean')
+      typeof settings.terminalLogHighlight !== 'boolean') ||
+    (settings.terminalCopyOnSelect !== undefined &&
+      typeof settings.terminalCopyOnSelect !== 'boolean')
   )
     throw uiMessage('settings:invalidAppearanceSettingsResetThem');
   if (settings.uiZoom !== undefined && !uiZoomLevels.includes(settings.uiZoom))
@@ -91,6 +95,7 @@ export function parseAppearance(value: string | null): Appearance {
     customMonoFont: settings.customMonoFont ?? defaultAppearance.customMonoFont,
     terminalPalette: settings.terminalPalette,
     terminalLogHighlight: settings.terminalLogHighlight ?? defaultAppearance.terminalLogHighlight,
+    terminalCopyOnSelect: settings.terminalCopyOnSelect ?? defaultAppearance.terminalCopyOnSelect,
     terminalRenderer: settings.terminalRenderer ?? defaultAppearance.terminalRenderer,
   };
 }

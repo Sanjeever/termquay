@@ -177,6 +177,8 @@ AI turns continue beyond a fixed tool-call count while their runtime budget allo
 
 The preset also binds **Shift+Enter** to modified Enter in the focused local terminal for TUI multiline input. When the local PTY enables Windows `win32-input-mode`, [terminal input](../frontend/src/features/terminal/windowsInput.ts) preserves Ctrl+J and modified Enter as Win32 key records. The newline action uses Shift+Enter records in that mode and [CSI-u modified Enter](https://sw.kovidgoyal.net/kitty/keyboard-protocol/) otherwise. Clear **Insert newline in local TUI** for shells/apps that do not consume modified Enter. IME composition keeps its own Enter handling.
 
+**Settings → Terminal and editor → Copy terminal selection on mouse release** enables PuTTY-style copying for terminal selections. It is [disabled by default](../frontend/src/features/settings/appearance.ts). Releasing the left mouse button after selecting terminal text copies it to the system clipboard, including when the pointer leaves the terminal. The preference applies to existing terminals and travels with portable UI settings. Clipboard errors appear at the terminal.
+
 Closing an active local terminal requires confirmation; exited terminals close directly. Application exit or update restart lists active local sessions alongside existing task/draft checks. Canceling keeps the sessions open. Layout recovery does not restart local processes.
 
 ### Docker containers

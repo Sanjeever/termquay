@@ -184,6 +184,15 @@ export default function AppearanceSettings({
           </div>
           <div className="settings-group">
             <div className="settings-row">
+              <span id="appearance-copy-on-select-label">{translate('settings:copyOnSelect')}</span>
+              <Switch
+                size="sm"
+                aria-labelledby="appearance-copy-on-select-label"
+                isSelected={appearance.terminalCopyOnSelect}
+                onValueChange={(value) => update({ ...appearance, terminalCopyOnSelect: value })}
+              />
+            </div>
+            <div className="settings-row">
               <label htmlFor="appearance-terminal-palette">
                 {translate('settings:terminalColors')}
               </label>
@@ -263,6 +272,7 @@ export default function AppearanceSettings({
               customMonoFont: defaultAppearance.customMonoFont,
               terminalPalette: defaultAppearance.terminalPalette,
               terminalLogHighlight: defaultAppearance.terminalLogHighlight,
+              terminalCopyOnSelect: defaultAppearance.terminalCopyOnSelect,
               terminalRenderer: defaultAppearance.terminalRenderer,
             });
             onFontSize(14);

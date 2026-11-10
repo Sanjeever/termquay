@@ -78,6 +78,7 @@
   "webGLExperimental": "WebGL (experimental)",
   "terminalColors": "Terminal colors",
   "logLevelHighlighting": "Log level highlighting",
+  "copyOnSelect": "Copy terminal selection on mouse release",
   "terminalColorPreview": "Terminal color preview",
   "serviceStarted": "  Service started\n",
   "responseTimedOut": "  Response timed out\n",

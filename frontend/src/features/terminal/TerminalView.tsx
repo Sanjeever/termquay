@@ -800,6 +800,38 @@ const TerminalView = forwardRef<
   /* oxlint-enable react/exhaustive-deps */
   useEffect(() => {
     const term = terminal.current;
+    const element = term?.element;
+    if (!term || !element || !visible || !appearance.terminalCopyOnSelect) return;
+    let selecting = false;
+    let frame = 0;
+    const start = (event: MouseEvent) => {
+      if (event.button !== 0) return;
+      selecting = true;
+      cancelAnimationFrame(frame);
+    };
+    const finish = (event: MouseEvent) => {
+      if (event.button !== 0 || !selecting) return;
+      selecting = false;
+      frame = requestAnimationFrame(() => {
+        const text = term.getSelection();
+        if (!text) return;
+        (demoOutput === undefined ? Clipboard.SetText(text) : navigator.clipboard.writeText(text))
+          .then(() =>
+            setError((previous) => (previous?.source === 'clipboard' ? undefined : previous)),
+          )
+          .catch((message) => setError({ source: 'clipboard', message }));
+      });
+    };
+    element.addEventListener('mousedown', start, true);
+    document.addEventListener('mouseup', finish);
+    return () => {
+      cancelAnimationFrame(frame);
+      element.removeEventListener('mousedown', start, true);
+      document.removeEventListener('mouseup', finish);
+    };
+  }, [id, visible, appearance.terminalCopyOnSelect, demoOutput]);
+  useEffect(() => {
+    const term = terminal.current;
     if (!term || !visible || appearance.terminalRenderer !== 'webgl') return;
     let ended = false;
     let addon: import('@xterm/addon-webgl').WebglAddon | undefined;

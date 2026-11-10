@@ -115,3 +115,90 @@ test('legacy mode keeps LF and leaving ConPTY mode restores normal keyboard enco
   await page.keyboard.press('Shift+Enter');
   await expect.poll(() => inputs.join('')).toBe('\n\r');
 });
+
+test('copy on selection is opt-in, updates live and resets without recreating the terminal', async ({
+  page,
+}) => {
+  await openTerminal(page, 'selectable text\r\n');
+  const copies: string[] = [];
+  await page.route('**/wails/runtime*', (route) => {
+    const body = route.request().postDataJSON();
+    if (body?.object === 1 && body?.method === 0) copies.push(body.args.text);
+    return route.fulfill({ status: 200, contentType: 'application/json', body: 'null' });
+  });
+  const terminal = await page.locator('.xterm').elementHandle();
+  const line = page.locator('.xterm-rows > div').first();
+  await expect(line).toContainText('selectable text');
+  await line.click({ clickCount: 3, position: { x: 20, y: 8 } });
+  await page.waitForTimeout(50);
+  expect(copies).toEqual([]);
+
+  await page.getByRole('button', { name: 'Terminal settings', exact: true }).click();
+  const preference = page.getByRole('switch', { name: 'Copy terminal selection on mouse release' });
+  await expect(preference).not.toBeChecked();
+  await preference.click();
+  await expect(preference).toBeChecked();
+  expect(
+    await page.evaluate(
+      () => JSON.parse(localStorage.getItem('termquay.appearance')!).terminalCopyOnSelect,
+    ),
+  ).toBe(true);
+  await page.getByRole('button', { name: 'Terminal settings', exact: true }).click();
+  expect(await terminal!.evaluate((element) => element === document.querySelector('.xterm'))).toBe(
+    true,
+  );
+  await line.click({ clickCount: 3, position: { x: 20, y: 8 } });
+  await expect.poll(() => copies.length).toBe(1);
+  expect(copies[0].trim()).toBe('selectable text');
+
+  await page.mouse.click(20, 200);
+  await page.waitForTimeout(50);
+  expect(copies).toHaveLength(1);
+  await page.getByRole('button', { name: 'Terminal settings', exact: true }).click();
+  await page.getByRole('button', { name: 'Restore defaults', exact: true }).click();
+  await expect(preference).not.toBeChecked();
+  await page.getByRole('button', { name: 'Terminal settings', exact: true }).click();
+  await line.click({ clickCount: 3, position: { x: 20, y: 8 } });
+  await page.waitForTimeout(50);
+  expect(copies).toHaveLength(1);
+});
+
+test('selection release outside the terminal copies and clipboard failures remain visible', async ({
+  page,
+}) => {
+  await openTerminal(page, 'selectable text\r\nend\r\n');
+  const copies: string[] = [];
+  let fail = false;
+  await page.route('**/wails/runtime*', (route) => {
+    const body = route.request().postDataJSON();
+    const copy = body?.object === 1 && body?.method === 0;
+    if (copy) copies.push(body.args.text);
+    return route.fulfill({
+      status: copy && fail ? 500 : 200,
+      contentType: 'application/json',
+      body: copy && fail ? JSON.stringify({ message: 'clipboard denied' }) : 'null',
+    });
+  });
+  await page.getByRole('button', { name: 'Terminal settings', exact: true }).click();
+  await page.getByRole('switch', { name: 'Copy terminal selection on mouse release' }).click();
+  await page.getByRole('button', { name: 'Terminal settings', exact: true }).click();
+  const bounds = (await page.locator('.xterm-screen').boundingBox())!;
+  const line = (await page.locator('.xterm-rows > div').first().boundingBox())!;
+  await page.mouse.move(bounds.x + 1, bounds.y + line.height + 8);
+  await page.mouse.down();
+  await page.mouse.move(bounds.x + 100, bounds.y + 8, { steps: 5 });
+  await page.mouse.move(bounds.x + 100, bounds.y - 5);
+  await page.mouse.up();
+  await expect.poll(() => copies.length).toBe(1);
+  expect(copies[0]).toContain('selectable');
+  await page.locator('.xterm-screen').click({ button: 'right' });
+  await page.waitForTimeout(50);
+  expect(copies).toHaveLength(1);
+
+  fail = true;
+  await page
+    .locator('.xterm-rows > div')
+    .first()
+    .click({ clickCount: 3, position: { x: 20, y: 8 } });
+  await expect(page.getByRole('alert')).toContainText('clipboard denied');
+});

@@ -41,6 +41,12 @@ func validatePortableUI(values map[string]string) error {
 					return appmessage.New("backend:invalidLogHighlightingSettings", "日志高亮设置无效")
 				}
 			}
+			if raw, ok := settings["terminalCopyOnSelect"]; ok {
+				var enabled *bool
+				if err := json.Unmarshal(raw, &enabled); err != nil || enabled == nil {
+					return appmessage.New("backend:invalidAppearanceSettingsField", "外观设置字段无效")
+				}
+			}
 			if raw, ok := settings["language"]; ok {
 				var language string
 				if err := json.Unmarshal(raw, &language); err != nil || !slices.Contains([]string{"auto", "zh-CN", "en"}, language) {

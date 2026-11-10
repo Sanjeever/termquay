@@ -76,6 +76,15 @@ test('custom local font families survive serialization and retain monospace fall
     assert.throws(() => parseAppearance(JSON.stringify({ ...custom, customMonoFont })));
 });
 
+test('copy on selection is opt-in and survives portable serialization', () => {
+  const { terminalCopyOnSelect, ...legacy } = defaultAppearance;
+  assert.equal(parseAppearance(JSON.stringify(legacy)).terminalCopyOnSelect, false);
+  const enabled = { ...defaultAppearance, terminalCopyOnSelect: true };
+  assert.deepEqual(parseAppearance(JSON.stringify(enabled)), enabled);
+  for (const terminalCopyOnSelect of ['true', null, 1])
+    assert.throws(() => parseAppearance(JSON.stringify({ ...legacy, terminalCopyOnSelect })));
+});
+
 test('终端跟随主题与独立配色都提供完整 ANSI 颜色', () => {
   assert.deepEqual(terminalTheme('theme', false), terminalTheme('light', true));
   assert.deepEqual(terminalTheme('theme', true), terminalTheme('dark', false));
