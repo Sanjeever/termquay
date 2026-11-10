@@ -108,9 +108,7 @@ func TestLocalTerminalWin32KeyRecords(t *testing.T) {
 			go func() { done <- command.Wait() }()
 			defer func() {
 				command.Process.Kill()
-				pipes := console.(pty.ConPty)
-				pipes.InputPipe().Close()
-				pipes.OutputPipe().Close()
+				// Older Windows versions need the output reader alive during ClosePseudoConsole.
 				console.Close()
 				<-readDone
 			}()
