@@ -54,7 +54,14 @@ beforeEach(() => {
   api.history.mockImplementation(() => response(history));
   api.configure.mockImplementation(() => response(undefined));
   api.action.mockImplementation(() =>
-    response({ stdout: 'ok', stderr: '', exit_code: 0, truncated: false, error: '' }),
+    response({
+      stdout: 'ok',
+      stderr: '',
+      exit_code: 0,
+      duration_ms: 20,
+      truncated: false,
+      error: '',
+    }),
   );
 });
 
@@ -107,7 +114,14 @@ test('missing configuration opens the workflow without saving or executing a gue
 
 test('failed validation never enables reload', async () => {
   api.action.mockImplementation(() =>
-    response({ stdout: 'invalid config', stderr: '', exit_code: 1, truncated: false, error: '' }),
+    response({
+      stdout: 'invalid config',
+      stderr: '',
+      exit_code: 1,
+      duration_ms: 20,
+      truncated: false,
+      error: '',
+    }),
   );
   setup(true);
   await waitFor(() => expect(api.action).toHaveBeenCalledTimes(1));

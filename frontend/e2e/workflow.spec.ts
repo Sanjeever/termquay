@@ -263,6 +263,7 @@ test('the editor saves normally without commands and explicitly saves and valida
       actions.push(body.args.args);
       value = {
         stdout: 'validation output',
+        duration_ms: 20,
         stderr: '',
         exit_code: 0,
         truncated: false,
