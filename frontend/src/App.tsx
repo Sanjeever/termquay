@@ -400,8 +400,9 @@ export default function App() {
     );
   }
   function localDirectoryChanged(id: string, path: string, host: string) {
-    setWorkspaces((previous) =>
-      previous.map((workspace) => {
+    setWorkspaces((previous) => {
+      let changed = false;
+      const next = previous.map((workspace) => {
         if (workspace.id !== id || !workspace.local) return workspace;
         const directory = localDirectoryReport(
           path,
@@ -410,13 +411,15 @@ export default function App() {
           workspace.local.kind,
         );
         if (!directory || directory === workspace.local.directory) return workspace;
+        changed = true;
         return {
           ...workspace,
           name: workspace.local.renamed ? workspace.name : localDirectoryName(directory),
           local: { ...workspace.local, directory },
         };
-      }),
-    );
+      });
+      return changed ? next : previous;
+    });
   }
   /* oxlint-disable react/exhaustive-deps -- Locale invalidates connection-state labels read through the shared translation helper. */
   const connectionSessions = useMemo(() => {
@@ -515,6 +518,7 @@ export default function App() {
   ]);
 
   function remove(id: string, keyboard = false) {
+    const local = latestWorkspaces.current.find((workspace) => workspace.id === id)?.local;
     attempt.cancelWorkspace(id);
     latestWorkspaces.current.find((w) => w.id === id)?.view?.current?.cancel();
     notifyLocalState(latestWorkspaces.current.filter((w) => w.id !== id));
@@ -522,7 +526,7 @@ export default function App() {
     setActive((prev) =>
       nextWorkspaceAfterClose(latestWorkspaces.current, prev, id, recentWorkspaces.current),
     );
-    if (keyboard) {
+    if (keyboard && !local) {
       tabNavigation.current = true;
       requestAnimationFrame(() =>
         document
@@ -530,6 +534,7 @@ export default function App() {
           ?.focus(),
       );
     }
+    if (local) tabNavigation.current = false;
   }
   function select(id: string, keyboard = false) {
     tabNavigation.current = keyboard;

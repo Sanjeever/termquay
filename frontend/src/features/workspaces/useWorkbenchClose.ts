@@ -60,6 +60,9 @@ export default function useWorkbenchClose(options: {
     latest.current.beforeQuit();
     if (
       latest.current.activeTasks ||
+      latest.current.workspaces.some(
+        (workspace) => workspace.local && !workspace.local.terminal.current?.ended(),
+      ) ||
       latest.current.workspaces.some((workspace) => workspace.ssh?.current?.hasDirty())
     ) {
       setQuitConfirm(true);
@@ -91,8 +94,10 @@ export default function useWorkbenchClose(options: {
 
   function requestClose(id: string, byKeyboard: boolean) {
     keyboard.current = byKeyboard;
+    const workspace = latest.current.workspaces.find((workspace) => workspace.id === id);
     if (
-      latest.current.workspaces.find((workspace) => workspace.id === id)?.ssh?.current?.hasDirty()
+      workspace?.ssh?.current?.hasDirty() ||
+      (workspace?.local && !workspace.local.terminal.current?.ended())
     )
       setClosing(id);
     else latest.current.remove(id, byKeyboard);
@@ -170,6 +175,13 @@ export default function useWorkbenchClose(options: {
     save,
     restart,
     activeTasks: quitConfirm ? options.activeTasks : 0,
+    localTerminals: options.workspaces.flatMap((workspace) =>
+      (quitConfirm || workspace.id === closing) &&
+      workspace.local &&
+      !workspace.local.terminal.current?.ended()
+        ? [{ id: workspace.id, name: workspace.name, directory: workspace.local.directory }]
+        : [],
+    ),
     hasDirty: options.workspaces.some(
       (workspace) =>
         (quitConfirm || workspace.id === closing) && workspace.ssh?.current?.hasDirty(),

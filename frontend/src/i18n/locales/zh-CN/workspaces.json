@@ -1,4 +1,7 @@
 {
+  "closeTerminal": "关闭终端",
+  "confirmCloseLocalTerminals": "关闭本地终端？",
+  "closingLocalTerminalsEndsSessions": "关闭会结束以下本地会话，可能中断其中运行的程序。",
   "cancelTasksAndQuit": "取消任务并退出",
   "quit": "退出",
   "ignoreLocalSaveErrorsAndQuit": "忽略本地保存错误并退出",

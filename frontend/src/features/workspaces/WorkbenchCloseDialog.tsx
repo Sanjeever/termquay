@@ -24,7 +24,9 @@ export default function WorkbenchCloseDialog({
           : keepDrafts
             ? translate('workspaces:keepLocalDraftsAndQuit')
             : translate('workspaces:discardChangesAndQuit')
-        : translate('workspaces:discardChangesAndClose');
+        : close.localTerminals.length
+          ? translate('workspaces:closeTerminal')
+          : translate('workspaces:discardChangesAndClose');
   return (
     <>
       <Modal
@@ -57,7 +59,9 @@ export default function WorkbenchCloseDialog({
                   ? translate('workspaces:unsavedFiles')
                   : close.activeTasks
                     ? translate('workspaces:tasksStillRunning')
-                    : translate('workspaces:confirmQuit')}
+                    : close.localTerminals.length
+                      ? translate('workspaces:confirmCloseLocalTerminals')
+                      : translate('workspaces:confirmQuit')}
           </ModalHeader>
           <ModalBody>
             {(close.persistenceError || close.hasDirty) && (
@@ -75,9 +79,23 @@ export default function WorkbenchCloseDialog({
                 {translate('workspaces:tasksAreStillRunningQuittingCancelsLocalRequests')}
               </p>
             )}
+            {close.localTerminals.length > 0 && (
+              <>
+                <p>{translate('workspaces:closingLocalTerminalsEndsSessions')}</p>
+                <ul className="terminal-close-list">
+                  {close.localTerminals.map((terminal) => (
+                    <li key={terminal.id}>
+                      <strong>{terminal.name}</strong>
+                      <span>{terminal.directory}</span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
             {close.quitConfirm &&
               !close.hasDirty &&
               !close.activeTasks &&
+              !close.localTerminals.length &&
               !close.persistenceError && (
                 <p>{translate('workspaces:quittingDiscardsUnsavedExecutionResults')}</p>
               )}

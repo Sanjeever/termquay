@@ -1,4 +1,7 @@
 {
+  "closeTerminal": "Close terminal",
+  "confirmCloseLocalTerminals": "Close local terminals?",
+  "closingLocalTerminalsEndsSessions": "Closing ends these local sessions and can interrupt programs running in them.",
   "cancelTasksAndQuit": "Cancel tasks and quit",
   "quit": "Quit",
   "ignoreLocalSaveErrorsAndQuit": "Ignore local save errors and quit",

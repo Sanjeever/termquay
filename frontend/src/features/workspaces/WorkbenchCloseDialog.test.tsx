@@ -9,6 +9,7 @@ import useFileDrafts from '../files/useFileDrafts';
 import { deferred } from '../../test/deferred';
 import WorkbenchCloseDialog from './WorkbenchCloseDialog';
 import useWorkbenchClose from './useWorkbenchClose';
+import type { TerminalHandle } from '../terminal/TerminalView';
 
 const api = vi.hoisted(() => ({
   save: vi.fn(),
@@ -110,6 +111,84 @@ beforeEach(() => {
   api.restart.mockResolvedValue(undefined);
   api.flush.mockResolvedValue(undefined);
   api.on.mockReturnValue(api.off);
+});
+
+function LocalWorkbench({ exited = false }: { exited?: boolean }) {
+  const [open, setOpen] = useState(true);
+  const terminal = useRef({ ended: () => exited } as TerminalHandle);
+  const close = useWorkbenchClose({
+    workspaces: open
+      ? [
+          {
+            id: 'local',
+            connectionID: '',
+            name: 'project',
+            local: {
+              shell: 'Shell',
+              kind: 'shell',
+              directory: '/work/project',
+              hostname: 'computer',
+              terminal,
+            },
+          },
+        ]
+      : [],
+    activeTasks: 0,
+    flushLocalState: api.flush,
+    beforeQuit: () => {},
+    select: api.select,
+    onError: () => {},
+    remove: (id, keyboard) => {
+      api.remove(id, keyboard);
+      setOpen(false);
+    },
+  });
+  return (
+    <>
+      {open && <button onClick={() => close.requestClose('local', true)}>Close local</button>}
+      <WorkbenchCloseDialog close={close} keepDrafts={false} />
+    </>
+  );
+}
+
+test('closing a live local terminal requires confirmation and cancel preserves it', async () => {
+  const user = userEvent.setup();
+  render(<LocalWorkbench />);
+  await user.click(screen.getByRole('button', { name: 'Close local' }));
+  const dialog = await screen.findByRole('dialog');
+  expect(within(dialog).getByText('/work/project')).toBeTruthy();
+  expect(api.remove).not.toHaveBeenCalled();
+  await user.click(within(dialog).getByRole('button', { name: 'Back to workbench' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  expect(api.remove).not.toHaveBeenCalled();
+  await user.click(screen.getByRole('button', { name: 'Close local' }));
+  await user.click(
+    within(await screen.findByRole('dialog')).getByRole('button', {
+      name: 'Close terminal',
+    }),
+  );
+  expect(api.remove).toHaveBeenCalledWith('local', true);
+});
+
+test('an exited local terminal closes directly', async () => {
+  const user = userEvent.setup();
+  render(<LocalWorkbench exited />);
+  await user.click(screen.getByRole('button', { name: 'Close local' }));
+  expect(api.remove).toHaveBeenCalledWith('local', true);
+  expect(screen.queryByRole('dialog')).toBeNull();
+});
+
+test('native quit with a live local terminal waits for confirmation and persistence', async () => {
+  const user = userEvent.setup();
+  render(<LocalWorkbench />);
+  const quit = api.on.mock.calls.find(([name]) => name === 'app:close-requested')?.[1];
+  act(() => quit());
+  const dialog = await screen.findByRole('dialog');
+  expect(api.quit).not.toHaveBeenCalled();
+  expect(within(dialog).getByText('/work/project')).toBeTruthy();
+  await user.click(within(dialog).getByRole('button', { name: 'Quit' }));
+  await waitFor(() => expect(api.quit).toHaveBeenCalledOnce());
+  expect(api.flush).toHaveBeenCalledOnce();
 });
 
 test('returning to editing preserves the draft without saving or closing the workspace', async () => {
