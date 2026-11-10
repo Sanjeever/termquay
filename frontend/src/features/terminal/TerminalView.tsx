@@ -17,7 +17,9 @@ import {
   useMemo,
   useRef,
   useState,
+  type ReactNode,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { Stream, Events, Browser, System, Clipboard } from '@wailsio/runtime';
 import {
   Button,
@@ -99,6 +101,7 @@ export type TerminalAction =
   | 'zoomReset';
 export type TerminalHandle = {
   ended(): boolean;
+  focus(): void;
   action(action: TerminalAction): void;
   insert(text: string): boolean;
 };
@@ -114,6 +117,8 @@ const TerminalView = forwardRef<
     fontSize: number;
     demoOutput?: string;
     focusOnShow?: boolean;
+    toolbarHost?: HTMLElement | null;
+    showTools?: boolean;
     tmuxSession?: string;
     tmuxAttached?: boolean;
     tmuxAvailable?: boolean;
@@ -138,6 +143,8 @@ const TerminalView = forwardRef<
     fontSize,
     demoOutput,
     focusOnShow = true,
+    toolbarHost,
+    showTools = true,
     tmuxSession,
     tmuxAttached = false,
     tmuxAvailable = false,
@@ -567,6 +574,7 @@ const TerminalView = forwardRef<
   useImperativeHandle(ref, () => ({
     action,
     insert,
+    focus: () => terminal.current?.focus(),
     ended: () =>
       !!inputStream.current && inputStream.current.readyState === inputStream.current.CLOSED,
   }));
@@ -753,18 +761,33 @@ const TerminalView = forwardRef<
         stream.send(frame);
       }
     });
-    const resize = term.onResize(({ cols, rows }) => {
-      if (stream.readyState === stream.OPEN)
-        (containerConsole
-          ? ResizeContainerTerminal(id, cols, rows)
-          : local
-            ? ResizeLocalTerminal(id, cols, rows)
-            : ResizeTerminal(id, cols, rows)
-        )
-          .then(() => {
+    let pendingResize: { cols: number; rows: number } | undefined;
+    let resizing = false;
+    const sendResize = async () => {
+      if (resizing) return;
+      resizing = true;
+      try {
+        while (pendingResize && !disposed && stream.readyState === stream.OPEN) {
+          const { cols, rows } = pendingResize;
+          pendingResize = undefined;
+          try {
+            await (containerConsole
+              ? ResizeContainerTerminal(id, cols, rows)
+              : local
+                ? ResizeLocalTerminal(id, cols, rows)
+                : ResizeTerminal(id, cols, rows));
             if (!disposed) clearError('resize');
-          })
-          .catch(fail);
+          } catch (error) {
+            fail(error);
+          }
+        }
+      } finally {
+        resizing = false;
+      }
+    };
+    const resize = term.onResize(({ cols, rows }) => {
+      pendingResize = { cols, rows };
+      void sendResize();
     });
     const observer = new ResizeObserver(fitVisible);
     observer.observe(container.current!);
@@ -918,168 +941,172 @@ const TerminalView = forwardRef<
         insert(e.clipboardData.getData('text/plain'));
       }}
     >
-      <div className="terminal-tools">
-        {demoOutput === undefined && (
-          <button className="session-tool" aria-pressed={locked} onClick={toggleInputLock}>
-            {locked ? translate('terminal:inputLockedUnlock') : translate('terminal:lockInput')}
-          </button>
-        )}
-        {!containerConsole && (
-          <Tooltip content={translate('terminal:commandSnippets')}>
-            <button
-              className="icon-button"
-              aria-label={translate('terminal:commandSnippets')}
-              disabled={demoOutput !== undefined || locked}
-              onClick={onSnippets}
-            >
-              <Icon name="list" width="14" />
+      <TerminalTools host={toolbarHost} visible={showTools}>
+        <div className="terminal-tools">
+          {demoOutput === undefined && (
+            <button className="session-tool" aria-pressed={locked} onClick={toggleInputLock}>
+              {locked ? translate('terminal:inputLockedUnlock') : translate('terminal:lockInput')}
             </button>
-          </Tooltip>
-        )}
-        <Tooltip content={translate('terminal:findInTerminal')}>
-          <button
-            className="icon-button"
-            aria-label={translate('terminal:findInTerminal')}
-            onClick={() => action('find')}
-          >
-            <Icon name="search" width="14" />
-          </button>
-        </Tooltip>
-        <Dropdown>
-          <DropdownTrigger>
-            <Tooltip content={translate('terminal:terminalActions')}>
-              <button className="icon-button" aria-label={translate('terminal:terminalActions')}>
-                <Icon name="more" width="14" />
+          )}
+          {!containerConsole && (
+            <Tooltip content={translate('terminal:commandSnippets')}>
+              <button
+                className="icon-button"
+                aria-label={translate('terminal:commandSnippets')}
+                disabled={demoOutput !== undefined || locked}
+                onClick={onSnippets}
+              >
+                <Icon name="list" width="14" />
               </button>
             </Tooltip>
-          </DropdownTrigger>
-          <DropdownMenu
-            aria-label={translate('terminal:terminalActions')}
-            disabledKeys={
-              demoOutput !== undefined
-                ? ['paste', 'export', 'log', 'outputLog', 'tmux', 'integration']
-                : []
-            }
-            onAction={(key) => {
-              if (
-                demoOutput !== undefined &&
-                ['paste', 'export', 'log', 'outputLog', 'tmux', 'integration'].includes(String(key))
-              )
-                return;
-              if (key === 'keyword') setKeywordOpen((value) => !value);
-              else if (key === 'export') void exportBuffer();
-              else if (key === 'tmux') setTmuxOpen(true);
-              else if (key === 'integration') openIntegration();
-              else if (key === 'previousCommand') integration.current?.previous();
-              else if (key === 'commandOutput') integration.current?.selectOutput();
-              else action(key as TerminalAction);
-            }}
-          >
-            <DropdownItem key="copy">{translate('terminal:copy')}</DropdownItem>
-            <DropdownItem key="paste">{translate('terminal:paste')}</DropdownItem>
-            <DropdownItem key="selectAll">{translate('terminal:selectAll')}</DropdownItem>
-            <DropdownItem key="find" showDivider>
-              {translate('terminal:find')}
-            </DropdownItem>
-            <DropdownItem key="clear">{translate('terminal:clearDisplay')}</DropdownItem>
-            <DropdownItem key="zoomIn">{translate('terminal:increaseFontSize')}</DropdownItem>
-            <DropdownItem key="zoomOut">{translate('terminal:decreaseFontSize')}</DropdownItem>
-            <DropdownItem key="zoomReset" showDivider>
-              {translate('terminal:resetFontSize')}
-            </DropdownItem>
-            {canAI ? (
-              <DropdownItem key="aiReference" isDisabled={!hasAISelection} onPress={aiReference}>
-                {translate('terminal:attachToAIConversation')}
+          )}
+          <Tooltip content={translate('terminal:findInTerminal')}>
+            <button
+              className="icon-button"
+              aria-label={translate('terminal:findInTerminal')}
+              onClick={() => action('find')}
+            >
+              <Icon name="search" width="14" />
+            </button>
+          </Tooltip>
+          <Dropdown>
+            <DropdownTrigger>
+              <Tooltip content={translate('terminal:terminalActions')}>
+                <button className="icon-button" aria-label={translate('terminal:terminalActions')}>
+                  <Icon name="more" width="14" />
+                </button>
+              </Tooltip>
+            </DropdownTrigger>
+            <DropdownMenu
+              aria-label={translate('terminal:terminalActions')}
+              disabledKeys={
+                demoOutput !== undefined
+                  ? ['paste', 'export', 'log', 'outputLog', 'tmux', 'integration']
+                  : []
+              }
+              onAction={(key) => {
+                if (
+                  demoOutput !== undefined &&
+                  ['paste', 'export', 'log', 'outputLog', 'tmux', 'integration'].includes(
+                    String(key),
+                  )
+                )
+                  return;
+                if (key === 'keyword') setKeywordOpen((value) => !value);
+                else if (key === 'export') void exportBuffer();
+                else if (key === 'tmux') setTmuxOpen(true);
+                else if (key === 'integration') openIntegration();
+                else if (key === 'previousCommand') integration.current?.previous();
+                else if (key === 'commandOutput') integration.current?.selectOutput();
+                else action(key as TerminalAction);
+              }}
+            >
+              <DropdownItem key="copy">{translate('terminal:copy')}</DropdownItem>
+              <DropdownItem key="paste">{translate('terminal:paste')}</DropdownItem>
+              <DropdownItem key="selectAll">{translate('terminal:selectAll')}</DropdownItem>
+              <DropdownItem key="find" showDivider>
+                {translate('terminal:find')}
               </DropdownItem>
-            ) : null}
-            <DropdownItem key="previousCommand">
-              {translate('terminal:jumpToPreviousCommand')}
-            </DropdownItem>
-            <DropdownItem key="commandOutput">
-              {translate('terminal:selectLastCommandOutput')}
-            </DropdownItem>
-            <DropdownItem key="integration" isDisabled={!connected}>
-              {translate('terminal:enableCurrentShellIntegration2')}
-            </DropdownItem>
-            <DropdownItem key="commandIndex" onPress={() => setCommandIndexOpen(true)}>
-              {translate('terminal:commandsInThisSession2')}
-            </DropdownItem>
-            <DropdownItem
-              key="reminder"
-              isDisabled={
-                !connected || !runningCommand || armingReminder || demoOutput !== undefined
-              }
-              onPress={() => void toggleReminder()}
-              endContent={reminder ? '✓' : null}
-            >
-              {translate('terminal:notifyOnCompletion')}
-            </DropdownItem>
-            <DropdownItem
-              key="terminalCompletion"
-              isDisabled={!connected || demoOutput !== undefined}
-            >
-              {translate('terminal:commandCompletion')}
-            </DropdownItem>
-            <DropdownItem key="commandHelp">
-              {translate('terminal:pOSIXCommandReference2')}
-            </DropdownItem>
-            <DropdownItem
-              key="tmux"
-              className={local || containerConsole ? 'hidden' : ''}
-              isDisabled={local || containerConsole || !connected}
-            >
-              {translate('terminal:tmuxSessions')}
-            </DropdownItem>
-            <DropdownItem key="keyword" showDivider>
-              {translate('terminal:temporaryKeywordHighlighting')}
-            </DropdownItem>
-            <DropdownItem key="export">
-              {translate('terminal:exportCurrentTerminalContent')}
-            </DropdownItem>
-            <DropdownItem
-              key="log"
-              className={local || containerConsole ? 'hidden' : ''}
-              isDisabled={
-                local ||
-                containerConsole ||
-                !connected ||
-                logBusy ||
-                (!!log?.directory && !log.finished)
-              }
-              onPress={() => {
-                setLogFormat('asciicast');
-                setLogConfirm(true);
-              }}
-            >
-              {translate('terminal:startRecording')}
-            </DropdownItem>
-            <DropdownItem
-              key="outputLog"
-              className={local || containerConsole ? 'hidden' : ''}
-              isDisabled={
-                local ||
-                containerConsole ||
-                !connected ||
-                logBusy ||
-                (!!log?.directory && !log.finished)
-              }
-              onPress={() => {
-                setLogFormat('ansi');
-                setLogConfirm(true);
-              }}
-            >
-              {translate('terminal:saveOutputLog')}
-            </DropdownItem>
-            <DropdownItem
-              key="playback"
-              isDisabled={demoOutput !== undefined}
-              onPress={() => setPlayback('file')}
-            >
-              {translate('terminal:openTerminalRecording')}
-            </DropdownItem>
-          </DropdownMenu>
-        </Dropdown>
-      </div>
+              <DropdownItem key="clear">{translate('terminal:clearDisplay')}</DropdownItem>
+              <DropdownItem key="zoomIn">{translate('terminal:increaseFontSize')}</DropdownItem>
+              <DropdownItem key="zoomOut">{translate('terminal:decreaseFontSize')}</DropdownItem>
+              <DropdownItem key="zoomReset" showDivider>
+                {translate('terminal:resetFontSize')}
+              </DropdownItem>
+              {canAI ? (
+                <DropdownItem key="aiReference" isDisabled={!hasAISelection} onPress={aiReference}>
+                  {translate('terminal:attachToAIConversation')}
+                </DropdownItem>
+              ) : null}
+              <DropdownItem key="previousCommand">
+                {translate('terminal:jumpToPreviousCommand')}
+              </DropdownItem>
+              <DropdownItem key="commandOutput">
+                {translate('terminal:selectLastCommandOutput')}
+              </DropdownItem>
+              <DropdownItem key="integration" isDisabled={!connected}>
+                {translate('terminal:enableCurrentShellIntegration2')}
+              </DropdownItem>
+              <DropdownItem key="commandIndex" onPress={() => setCommandIndexOpen(true)}>
+                {translate('terminal:commandsInThisSession2')}
+              </DropdownItem>
+              <DropdownItem
+                key="reminder"
+                isDisabled={
+                  !connected || !runningCommand || armingReminder || demoOutput !== undefined
+                }
+                onPress={() => void toggleReminder()}
+                endContent={reminder ? '✓' : null}
+              >
+                {translate('terminal:notifyOnCompletion')}
+              </DropdownItem>
+              <DropdownItem
+                key="terminalCompletion"
+                isDisabled={!connected || demoOutput !== undefined}
+              >
+                {translate('terminal:commandCompletion')}
+              </DropdownItem>
+              <DropdownItem key="commandHelp">
+                {translate('terminal:pOSIXCommandReference2')}
+              </DropdownItem>
+              <DropdownItem
+                key="tmux"
+                className={local || containerConsole ? 'hidden' : ''}
+                isDisabled={local || containerConsole || !connected}
+              >
+                {translate('terminal:tmuxSessions')}
+              </DropdownItem>
+              <DropdownItem key="keyword" showDivider>
+                {translate('terminal:temporaryKeywordHighlighting')}
+              </DropdownItem>
+              <DropdownItem key="export">
+                {translate('terminal:exportCurrentTerminalContent')}
+              </DropdownItem>
+              <DropdownItem
+                key="log"
+                className={local || containerConsole ? 'hidden' : ''}
+                isDisabled={
+                  local ||
+                  containerConsole ||
+                  !connected ||
+                  logBusy ||
+                  (!!log?.directory && !log.finished)
+                }
+                onPress={() => {
+                  setLogFormat('asciicast');
+                  setLogConfirm(true);
+                }}
+              >
+                {translate('terminal:startRecording')}
+              </DropdownItem>
+              <DropdownItem
+                key="outputLog"
+                className={local || containerConsole ? 'hidden' : ''}
+                isDisabled={
+                  local ||
+                  containerConsole ||
+                  !connected ||
+                  logBusy ||
+                  (!!log?.directory && !log.finished)
+                }
+                onPress={() => {
+                  setLogFormat('ansi');
+                  setLogConfirm(true);
+                }}
+              >
+                {translate('terminal:saveOutputLog')}
+              </DropdownItem>
+              <DropdownItem
+                key="playback"
+                isDisabled={demoOutput !== undefined}
+                onPress={() => setPlayback('file')}
+              >
+                {translate('terminal:openTerminalRecording')}
+              </DropdownItem>
+            </DropdownMenu>
+          </Dropdown>
+        </div>
+      </TerminalTools>
       {searchOpen && search.current && (
         <TerminalSearch addon={search.current} initialQuery={searchQuery} onClose={closeSearch} />
       )}
@@ -1549,3 +1576,16 @@ const TerminalView = forwardRef<
   );
 });
 export default TerminalView;
+
+function TerminalTools({
+  host,
+  visible,
+  children,
+}: {
+  host?: HTMLElement | null;
+  visible: boolean;
+  children: ReactNode;
+}) {
+  if (!visible) return null;
+  return host ? createPortal(children, host) : children;
+}

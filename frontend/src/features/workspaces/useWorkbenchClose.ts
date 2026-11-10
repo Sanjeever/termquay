@@ -175,13 +175,19 @@ export default function useWorkbenchClose(options: {
     save,
     restart,
     activeTasks: quitConfirm ? options.activeTasks : 0,
-    localTerminals: options.workspaces.flatMap((workspace) =>
-      (quitConfirm || workspace.id === closing) &&
-      workspace.local &&
-      !workspace.local.terminal.current?.ended()
-        ? [{ id: workspace.id, name: workspace.name, directory: workspace.local.directory }]
-        : [],
-    ),
+    localTerminals: options.workspaces.flatMap((workspace) => {
+      if (!(quitConfirm || workspace.id === closing) || !workspace.local) return [];
+      const sessions = workspace.local.terminal.current?.sessions();
+      if (sessions)
+        return sessions
+          .filter((session) => !session.ended)
+          .map((session) => ({
+            id: session.id,
+            name: session.shell,
+            directory: session.directory,
+          }));
+      return [{ id: workspace.id, name: workspace.name, directory: workspace.local.directory }];
+    }),
     hasDirty: options.workspaces.some(
       (workspace) =>
         (quitConfirm || workspace.id === closing) && workspace.ssh?.current?.hasDirty(),

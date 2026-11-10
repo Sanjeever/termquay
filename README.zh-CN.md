@@ -13,7 +13,7 @@ TermQuay 是使用 Go、Wails v3 和 React 构建的开源远程连接工作台�
 ## 当前能力
 
 - [连接管理](docs/development.zh-CN.md#连接与工作区)：分组与筛选、配置导入、操作手册、加密凭据与主密码保护。
-- [SSH 与本地终端](docs/development.zh-CN.md#ssh-工作区与本地终端)：多种认证、跳板与代理、端口转发、双窗格、重连与连接诊断。
+- [SSH 与本地终端](docs/development.zh-CN.md#ssh-工作区与本地终端)：多种认证、跳板与代理、端口转发、重连与连接诊断。本地工作区提供六种布局，最多同时展示四个终端，支持调整比例、拖动交换与 WebGL 渲染。
 - [文件管理与传输](docs/development.zh-CN.md#远端文件与传输)：搜索、批量传输、显式续传、目录同步、文件对比与跨主机复制。
 - [文件编辑](docs/development.zh-CN.md#文件编辑)：多编码、补全、冲突合并、版本历史与配置验证；[文件预览](docs/development.zh-CN.md#文件预览) 支持 Markdown 与常见图片。
 - [终端工具与多主机操作](docs/development.zh-CN.md#终端工具与命令片段)：片段与补全、tmux、录制回放、后台执行、巡检与结果比较。

@@ -14,7 +14,7 @@ Choose **Settings → Appearance → Language** to follow the system, use Englis
 ## Features
 
 - **Connections** — groups, filters, configuration imports, connection playbooks, encrypted credentials and master password protection.
-- **SSH and local terminals** — multiple authentication methods, jump hosts, SOCKS5 proxies, port forwarding, split panes, reconnect and connection diagnostics.
+- **SSH and local terminals** — multiple authentication methods, jump hosts, SOCKS5 proxies, port forwarding, reconnect and connection diagnostics. Local workspaces offer six layouts with up to four visible terminal panes, resizing, drag-to-swap and WebGL rendering.
 - **Files and transfers** — search, batch transfers, explicit resume, directory sync, comparisons and copies between hosts.
 - **Remote editing** — encodings and line endings, completion, conflict merging, encrypted version history and explicit validation/reload commands. Preview Markdown and common image formats.
 - **Terminal tools** — snippets, shell completion, tmux, recording/playback, background multi-host tasks, inspections and result comparisons.

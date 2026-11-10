@@ -87,12 +87,15 @@ import {
 } from '../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { LocalShell } from '../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import LocalTerminalLauncher from './features/terminal/LocalTerminalLauncher';
+import type {
+  LocalTerminalSession,
+  LocalTerminalWorkspaceHandle,
+} from './features/terminal/LocalTerminalWorkspace';
 import {
   localDirectoryName,
   localDirectoryReport,
   localTerminalLabels,
 } from './features/terminal/localTerminal';
-import type { TerminalHandle } from './features/terminal/TerminalView';
 import type { CommandAttention } from './features/terminal/commandAttention';
 import type { CommandTarget } from './features/terminal/CommandTargets';
 import useCommandRuns from './features/terminal/useCommandRuns';
@@ -131,11 +134,11 @@ import useApplicationLock from './features/settings/useApplicationLock';
 import ApplicationLockScreen from './features/settings/ApplicationLockScreen';
 
 const loadSSHWorkspace = () => import('./features/files/SSHWorkspace');
-const loadTerminalView = () => import('./features/terminal/TerminalView');
+const loadLocalTerminalWorkspace = () => import('./features/terminal/LocalTerminalWorkspace');
 const loadRDPView = () => import('./features/rdp/RDPView');
 const RDPView = lazy(loadRDPView);
 const SSHWorkspace = lazy(loadSSHWorkspace);
-const TerminalView = lazy(loadTerminalView);
+const LocalTerminalWorkspace = lazy(loadLocalTerminalWorkspace);
 const ConnectionDialog = lazy(() => import('./features/connections/ConnectionDialog'));
 const TransferPanel = lazy(() => import('./features/files/TransferPanel'));
 const SettingsView = lazy(() => import('./features/settings/SettingsView'));
@@ -341,16 +344,17 @@ export default function App() {
           localDirectoryChanged(previousWorkspace.id, resolved, previous.hostname);
         }
       }
-      await loadTerminalView();
+      await loadLocalTerminalWorkspace();
       const terminal = await OpenLocalTerminal(kind, path, 100, 30);
       if (latestWorkspaces.current.length >= 16) {
         await CloseLocalTerminal(terminal.id);
         throw uiMessage('common:openWorkspaceLimitReached16');
       }
+      const workspaceID = crypto.randomUUID();
       setWorkspaces((previous) => [
         ...previous,
         {
-          id: terminal.id,
+          id: workspaceID,
           sessionID: terminal.id,
           connectionID: '',
           name: localDirectoryName(terminal.directory),
@@ -360,11 +364,11 @@ export default function App() {
             kind,
             directory: terminal.directory,
             hostname: terminal.hostname,
-            terminal: createRef<TerminalHandle>(),
+            terminal: createRef<LocalTerminalWorkspaceHandle>(),
           },
         },
       ]);
-      select(terminal.id);
+      select(workspaceID);
       GetLocalTerminalDirectories()
         .then((paths) => setLocalDirectories(paths || []))
         .catch(setPreferenceError);
@@ -435,6 +439,31 @@ export default function App() {
       });
       return changed ? next : previous;
     });
+  }
+  function localTerminalSelected(id: string, session: LocalTerminalSession) {
+    setWorkspaces((previous) =>
+      previous.map((workspace) => {
+        if (workspace.id !== id || !workspace.local) return workspace;
+        if (
+          workspace.sessionID === session.id &&
+          workspace.local.directory === session.directory &&
+          workspace.local.kind === session.kind
+        )
+          return workspace;
+        return {
+          ...workspace,
+          sessionID: session.id,
+          name: workspace.local.renamed ? workspace.name : localDirectoryName(session.directory),
+          local: {
+            ...workspace.local,
+            shell: session.shell,
+            kind: session.kind,
+            directory: session.directory,
+            hostname: session.hostname,
+          },
+        };
+      }),
+    );
   }
   /* oxlint-disable react/exhaustive-deps -- Locale invalidates connection-state labels read through the shared translation helper. */
   const connectionSessions = useMemo(() => {
@@ -620,9 +649,17 @@ export default function App() {
       return;
     }
     if (current?.ssh?.current?.workspaceAction('closeContent')) return;
+    if (current?.local) {
+      current.local.terminal.current?.closeTerminal();
+      return;
+    }
     closeWorkspace();
   }
   function newTerminal() {
+    if (current?.local && !settings) {
+      current.local.terminal.current?.newTerminal();
+      return;
+    }
     if (current?.ssh && !settings) {
       current.ssh.current?.workspaceAction('newTerminal');
       return;
@@ -1022,7 +1059,8 @@ export default function App() {
           shortcutKey(shortcuts[d.id]) === key &&
           (d.id !== 'lineBreak' || current?.local) &&
           (d.scope === 'app' ||
-            (d.scope === 'workspace' && !settings && current?.ssh) ||
+            (d.scope === 'workspace' && !settings && (current?.ssh || current?.local)) ||
+            (d.scope === 'local' && !settings && current?.local) ||
             (terminal && d.scope === 'terminal')),
       );
       if (!action) return;
@@ -1056,8 +1094,10 @@ export default function App() {
               ids.length
           ],
         );
-      } else if (action.scope === 'workspace') current?.ssh?.current?.workspaceAction(action.id);
-      else if (action.scope === 'terminal') {
+      } else if (action.scope === 'workspace' || action.scope === 'local') {
+        if (current?.local) current.local.terminal.current?.workspaceAction(action.id);
+        else if (action.scope === 'workspace') current?.ssh?.current?.workspaceAction(action.id);
+      } else if (action.scope === 'terminal') {
         if (current?.local) current.local.terminal.current?.action(action.id);
         else current?.ssh?.current?.terminalAction(action.id);
       }
@@ -1785,15 +1825,18 @@ export default function App() {
             },
           }))
       : []),
-    ...(current?.ssh
+    ...(current?.ssh || current?.local
       ? shortcutDefinitions
-          .filter((d) => d.scope === 'workspace')
+          .filter((d) => d.scope === 'workspace' || (d.scope === 'local' && current?.local))
           .map((d) => ({
             id: d.id,
             label: d.label,
             detail: shortcutLabel(shortcuts[d.id]),
             kind: 'command' as const,
-            run: () => current.ssh?.current?.workspaceAction(d.id),
+            run: () => {
+              if (current.local) current.local.terminal.current?.workspaceAction(d.id);
+              else if (d.scope === 'workspace') current.ssh?.current?.workspaceAction(d.id);
+            },
           }))
       : []),
     {
@@ -2526,30 +2569,35 @@ export default function App() {
                     onState={(state) => workspaceState(w.id, state)}
                   />
                 ) : w.local && w.sessionID ? (
-                  <div className="local-workspace">
-                    <TerminalView
-                      local
-                      id={w.sessionID}
-                      workspace={w.sessionID}
-                      ref={w.local.terminal}
-                      visible={!demoScene && !settings && active === w.id}
-                      fontSize={fontSize}
-                      onDirectory={(path, host) => localDirectoryChanged(w.id, path, host)}
-                      onAttention={(value) => workspaceAttention(w.id, value)}
-                      onActivate={() => select(w.id)}
-                      onSnippets={() => {
-                        setPaletteScope('command');
-                        setPaletteQuery(translate('common:insertSnippet2'));
-                        setPalette(true);
-                      }}
-                      onConnectionChange={() =>
-                        workspaceState(
-                          w.id,
-                          w.local?.terminal.current?.ended() ? 'exited' : 'running',
-                        )
-                      }
-                    />
-                  </div>
+                  <LocalTerminalWorkspace
+                    id={w.id}
+                    initial={{
+                      id: w.sessionID,
+                      shell: w.local.shell,
+                      kind: w.local.kind,
+                      directory: w.local.directory,
+                      hostname: w.local.hostname,
+                    }}
+                    shells={localShells}
+                    ref={w.local.terminal}
+                    visible={!demoScene && !settings && active === w.id}
+                    fontSize={fontSize}
+                    onSelected={(session) => localTerminalSelected(w.id, session)}
+                    onAttention={(value) => workspaceAttention(w.id, value)}
+                    onActivate={() => select(w.id)}
+                    onSnippets={() => {
+                      setPaletteScope('command');
+                      setPaletteQuery(translate('common:insertSnippet2'));
+                      setPalette(true);
+                    }}
+                    onEmpty={() => remove(w.id)}
+                    onStateChange={() =>
+                      workspaceState(
+                        w.id,
+                        w.local?.terminal.current?.ended() ? 'exited' : 'running',
+                      )
+                    }
+                  />
                 ) : w.sessionID ? (
                   <SSHWorkspace
                     onDocker={() => openDocker(w.sessionID)}

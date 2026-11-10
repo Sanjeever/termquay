@@ -1455,6 +1455,7 @@
 .local-workspace {
   display: flex;
   flex-direction: column;
+  width: 100%;
   height: 100%;
   min-height: 0;
 }
@@ -1479,6 +1480,114 @@
 .local-workspace > .terminal-view {
   flex: 1;
   min-height: 0;
+}
+.local-workspace-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 34px;
+  padding: 2px 8px;
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+.local-workspace-toolbar .select-control {
+  width: 140px;
+  flex-shrink: 0;
+}
+.local-workspace-toolbar > .session-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.local-terminal-tools {
+  margin-left: auto;
+}
+.local-terminal-grid {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.local-terminal-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px transparent;
+}
+.local-terminal-pane[hidden] {
+  display: none;
+}
+.local-terminal-pane.focused-pane {
+  box-shadow: inset 0 0 0 1px var(--color-border-strong);
+}
+.local-terminal-pane.pane-drop-target {
+  box-shadow: inset 0 0 0 2px var(--color-primary);
+}
+.local-terminal-pane > .terminal-view {
+  flex: 1;
+}
+.local-terminal-pane-header {
+  display: flex;
+  align-items: center;
+  padding: 0 4px 0 8px;
+  height: 28px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-muted);
+}
+.local-terminal-pane.focused-pane > .local-terminal-pane-header {
+  color: var(--color-text);
+  background: var(--color-hover);
+}
+.local-terminal-pane-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  cursor: grab;
+  text-align: left;
+}
+.local-terminal-pane-title > span:first-of-type {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.local-terminal-pane-header > .icon-button {
+  width: 24px;
+  height: 24px;
+}
+.local-pane-separator {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+.local-pane-separator.horizontal {
+  flex-direction: column;
+}
+.local-terminal-empty {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 0;
+}
+.terminal-attention {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-muted);
+  flex-shrink: 0;
+}
+.terminal-attention.failed {
+  background: var(--color-danger);
+}
+.terminal-attention.completed {
+  background: var(--color-primary);
 }
 .sync-preview {
   width: 100%;

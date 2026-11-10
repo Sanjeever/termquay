@@ -7,7 +7,7 @@ import type { Connection } from '../../../bindings/github.com/Sanjeever/termquay
 import type { Grant } from '../../../bindings/github.com/Sanjeever/termquay/internal/rdp/models';
 import type { SSHWorkspaceHandle } from '../files/SSHWorkspace';
 import type { RDPHandle, RDPOptions } from '../rdp/RDPView';
-import type { TerminalHandle } from '../terminal/TerminalView';
+import type { LocalTerminalWorkspaceHandle } from '../terminal/LocalTerminalWorkspace';
 import type { CommandAttention } from '../terminal/commandAttention';
 
 export type Workspace = {
@@ -27,7 +27,7 @@ export type Workspace = {
     directory: string;
     hostname: string;
     renamed?: boolean;
-    terminal: RefObject<TerminalHandle>;
+    terminal: RefObject<LocalTerminalWorkspaceHandle>;
   };
   view?: RefObject<RDPHandle>;
   ssh?: RefObject<SSHWorkspaceHandle>;

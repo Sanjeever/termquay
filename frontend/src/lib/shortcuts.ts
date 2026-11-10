@@ -67,6 +67,38 @@ export const shortcutDefinitions = [
     key: 'Mod+Alt+Backslash',
   },
   {
+    id: 'focusTerminalLeft',
+    get label() {
+      return translate('terminal:focusTerminalLeft');
+    },
+    scope: 'local',
+    key: 'Mod+Alt+ArrowLeft',
+  },
+  {
+    id: 'focusTerminalRight',
+    get label() {
+      return translate('terminal:focusTerminalRight');
+    },
+    scope: 'local',
+    key: 'Mod+Alt+ArrowRight',
+  },
+  {
+    id: 'focusTerminalUp',
+    get label() {
+      return translate('terminal:focusTerminalUp');
+    },
+    scope: 'local',
+    key: 'Mod+Alt+ArrowUp',
+  },
+  {
+    id: 'focusTerminalDown',
+    get label() {
+      return translate('terminal:focusTerminalDown');
+    },
+    scope: 'local',
+    key: 'Mod+Alt+ArrowDown',
+  },
+  {
     id: 'closeContent',
     get label() {
       return translate('common:closeCurrentTerminalOrFile');
@@ -246,7 +278,9 @@ function overlappingScopes(first: string, second: string) {
     first === 'app' ||
     second === 'app' ||
     first === 'workspace' ||
-    second === 'workspace'
+    second === 'workspace' ||
+    (first === 'local' && second === 'terminal') ||
+    (first === 'terminal' && second === 'local')
   );
 }
 export function eventShortcut(event: KeyboardEvent, platform = navigator.platform): string {

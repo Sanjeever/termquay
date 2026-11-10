@@ -9,7 +9,7 @@ import useFileDrafts from '../files/useFileDrafts';
 import { deferred } from '../../test/deferred';
 import WorkbenchCloseDialog from './WorkbenchCloseDialog';
 import useWorkbenchClose from './useWorkbenchClose';
-import type { TerminalHandle } from '../terminal/TerminalView';
+import type { LocalTerminalWorkspaceHandle } from '../terminal/LocalTerminalWorkspace';
 
 const api = vi.hoisted(() => ({
   save: vi.fn(),
@@ -115,7 +115,19 @@ beforeEach(() => {
 
 function LocalWorkbench({ exited = false }: { exited?: boolean }) {
   const [open, setOpen] = useState(true);
-  const terminal = useRef({ ended: () => exited } as TerminalHandle);
+  const terminal = useRef({
+    ended: () => exited,
+    sessions: () => [
+      {
+        id: 'local',
+        shell: 'Shell',
+        kind: 'shell',
+        directory: '/work/project',
+        hostname: 'computer',
+        ended: exited,
+      },
+    ],
+  } as LocalTerminalWorkspaceHandle);
   const close = useWorkbenchClose({
     workspaces: open
       ? [
