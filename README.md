@@ -4,7 +4,7 @@
 
 TermQuay is an open source remote connection workbench built with Go, Wails v3 and React. It brings SSH, local terminals, remote file editing, Linux monitoring and embedded RDP into one desktop workspace. Connections can be grouped and backed up using encrypted local files or WebDAV snapshots. There is no commercial limit on saved connections.
 
-Available for macOS, Windows and Linux. Download the appropriate archive from [GitHub Releases](https://github.com/Sanjeever/termquay/releases). Check [platform prerequisites](docs/development.md#environment) and the [recorded verification limits](docs/development.md#verification-and-known-gaps).
+Available for macOS, Windows and Linux. Download the appropriate archive from [GitHub Releases](https://github.com/Sanjeever/termquay/releases). Check [runtime prerequisites](docs/development.md#packaged-desktop) and the [recorded verification limits](docs/development.md#verification-and-known-gaps).
 
 ## Interface languages
 
