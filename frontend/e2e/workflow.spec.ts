@@ -243,3 +243,46 @@ test('the actual tools menu opens a persistent file tab with the shared transfer
   await expect(page.getByRole('tab', { name: 'File transfers', exact: true })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Transfers', exact: true })).toBeVisible();
 });
+
+test('the editor saves normally without commands and explicitly saves and validates from its toolbar', async ({
+  page,
+}) => {
+  const actions: unknown[][] = [];
+  await page.route('**/wails/runtime*', async (route) => {
+    const body = route.request().postDataJSON();
+    let value: unknown = null;
+    if (body?.args?.methodID === 1754201140)
+      value = {
+        enabled: true,
+        validate: 'check-config',
+        reload: 'reload-service',
+        health_check: '',
+        versions: [],
+      };
+    if (body?.args?.methodID === 2078851123) {
+      actions.push(body.args.args);
+      value = {
+        stdout: 'validation output',
+        stderr: '',
+        exit_code: 0,
+        truncated: false,
+        error: '',
+      };
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(value),
+    });
+  });
+  await page.goto('/e2e/workflow.html');
+  await page.getByRole('button', { name: 'Configuration editor', exact: true }).click();
+  await page.locator('.cm-content').fill('first edit');
+  await page.locator('.editor-save').click();
+  expect(actions).toHaveLength(0);
+  await page.locator('.cm-content').fill('second edit');
+  await page.getByRole('button', { name: 'Save and validate', exact: true }).click();
+  await expect(page.getByRole('dialog')).toContainText('validation output');
+  expect(actions).toEqual([['owner-1', '/tmp/config', 'validate', 'check-config']]);
+  await expect(page.getByRole('button', { name: 'Confirm reload' })).toBeEnabled();
+});

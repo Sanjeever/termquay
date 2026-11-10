@@ -317,7 +317,11 @@ const SSHWorkspace = forwardRef<
   }>();
   const sudoAnswer = useRef<(value?: SudoAuthorization) => void>();
   const [sudoConflict, setSudoConflict] = useState<Document>();
-  const [historyPath, setHistoryPath] = useState('');
+  const [historyRequest, setHistoryRequest] = useState<{
+    path: string;
+    owner: string;
+    validate: boolean;
+  }>();
   const [resourceLog, setResourceLog] = useState('');
   const [resourceService, setResourceService] = useState('');
   async function openResource(kind: string, path: string) {
@@ -1878,7 +1882,15 @@ const SSHWorkspace = forwardRef<
                   >
                     <TextDocument
                       workspace={sessionID}
-                      onHistory={() => setHistoryPath(d.path)}
+                      onHistory={() =>
+                        setHistoryRequest({ path: d.path, owner: sessionID, validate: false })
+                      }
+                      onSaveAndValidate={
+                        state === 'connected'
+                          ? () =>
+                              setHistoryRequest({ path: d.path, owner: sessionID, validate: true })
+                          : undefined
+                      }
                       anchor={markdownAnchor?.path === d.path ? markdownAnchor : undefined}
                       onNavigate={(path, hash) => {
                         setMarkdownAnchor((previous) => ({
@@ -1914,9 +1926,9 @@ const SSHWorkspace = forwardRef<
               );
             })}
           </WorkspacePanes>
-          {historyPath &&
+          {historyRequest?.owner === sessionID &&
             drafts
-              .filter((d) => d.path === historyPath)
+              .filter((d) => d.path === historyRequest.path)
               .map((d) => (
                 <Suspense
                   key={`history:${sessionID}:${d.path}`}
@@ -1929,8 +1941,9 @@ const SSHWorkspace = forwardRef<
                     target={target}
                     document={d}
                     dirty={isDirty(d)}
+                    validateOnOpen={historyRequest.validate}
                     onSave={() => save(d.path)}
-                    onClose={() => setHistoryPath('')}
+                    onClose={() => setHistoryRequest(undefined)}
                     onRestore={(version) =>
                       updateDrafts((previous) =>
                         previous.map((item) =>

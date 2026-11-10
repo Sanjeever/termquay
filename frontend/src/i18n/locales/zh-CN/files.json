@@ -1,4 +1,5 @@
 {
+  "validationNotConfigured": "请先为此文件配置并保存验证命令，再执行保存并验证。",
   "fileTransfers": "文件传输",
   "leftLocation": "左侧位置",
   "rightLocation": "右侧位置",

@@ -7,6 +7,8 @@ import { appearanceKey, defaultAppearance } from '../src/features/settings/appea
 import MonitorPanel from '../src/features/monitor/MonitorPanel';
 import TunnelPanel from '../src/features/tunnels/TunnelPanel';
 import TransferBrowser from '../src/features/files/TransferBrowser';
+import CodeEditor from '../src/features/files/CodeEditor';
+import FileHistoryDialog from '../src/features/files/FileHistoryDialog';
 import { demoSamples } from '../src/features/demo/data';
 import '../src/style.css';
 
@@ -20,6 +22,10 @@ function Fixture() {
   const [filesCreated, setFilesCreated] = useState(false);
   const [connected, setConnected] = useState(true);
   const [accepted, setAccepted] = useState('');
+  const [editor, setEditor] = useState(false);
+  const [content, setContent] = useState('original');
+  const [saved, setSaved] = useState('original');
+  const [history, setHistory] = useState<'history' | 'validate'>();
   return (
     <HeroUIProvider disableAnimation disableRipple>
       <main className="app-shell">
@@ -38,6 +44,14 @@ function Fixture() {
           <button onClick={() => setFiles(false)}>Terminal workspace</button>
           <button onClick={() => setFilesCreated(false)}>Close files</button>
           <button onClick={() => setConnected(false)}>Disconnect</button>
+          <button
+            onClick={() => {
+              setEditor(true);
+              setFiles(false);
+            }}
+          >
+            Configuration editor
+          </button>
           <output aria-label="Accepted transfer">{accepted}</output>
         </div>
         {filesCreated && (
@@ -60,7 +74,47 @@ function Fixture() {
             />
           </div>
         )}
-        <div className="ssh-workspace" hidden={files && filesCreated}>
+        {editor && (
+          <div style={{ display: 'flex', flex: 1, flexDirection: 'column', minHeight: 0 }}>
+            <CodeEditor
+              path="/tmp/config"
+              content={content}
+              format={{ encoding: 'UTF-8', line_ending: 'LF', bom: false }}
+              visible
+              dirty={content !== saved}
+              saving={false}
+              onChange={setContent}
+              onSave={() => setSaved(content)}
+              onSaveAndValidate={() => setHistory('validate')}
+              onHistory={() => setHistory('history')}
+              onReload={() => {}}
+              onDownload={() => {}}
+            />
+            {history && (
+              <FileHistoryDialog
+                workspace="owner-1"
+                target="user@example.invalid:22"
+                document={{
+                  path: '/tmp/config',
+                  content,
+                  revision: saved,
+                  encoding: 'UTF-8',
+                  line_ending: 'LF',
+                  bom: false,
+                }}
+                dirty={content !== saved}
+                validateOnOpen={history === 'validate'}
+                onSave={async () => {
+                  setSaved(content);
+                  return true;
+                }}
+                onRestore={(value) => setContent(value.content)}
+                onClose={() => setHistory(undefined)}
+              />
+            )}
+          </div>
+        )}
+        <div className="ssh-workspace" hidden={editor || (files && filesCreated)}>
           <div className="workspace-toolbar">
             <span className="session-target">deploy@long-application-host.example.invalid:22</span>
             <span className="connection-environment production">Production</span>

@@ -81,6 +81,7 @@ export default function CodeEditor({
   onReload,
   onDownload,
   onHistory,
+  onSaveAndValidate,
   focusOnShow = true,
   jumpTo,
   demo = false,
@@ -102,6 +103,7 @@ export default function CodeEditor({
   demo?: boolean;
   completionShortcut?: string;
   onHistory?(): void;
+  onSaveAndValidate?(): void;
 }) {
   useTranslation();
   const host = useRef<HTMLDivElement>(null);
@@ -461,6 +463,11 @@ export default function CodeEditor({
               ? translate('files:unsaved')
               : translate('files:noUnsavedChanges')}
         </span>
+        {onSaveAndValidate && (
+          <button className="session-tool" disabled={saving || demo} onClick={onSaveAndValidate}>
+            {translate('files:saveAndValidate')}
+          </button>
+        )}
         {onHistory && (
           <button className="session-tool" disabled={saving || demo} onClick={onHistory}>
             {translate('files:historyAndValidation')}

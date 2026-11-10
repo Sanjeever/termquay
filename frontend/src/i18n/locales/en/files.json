@@ -1,4 +1,5 @@
 {
+  "validationNotConfigured": "Configure and save a validation command for this file before running Save and validate.",
   "fileTransfers": "File transfers",
   "leftLocation": "Left location",
   "rightLocation": "Right location",

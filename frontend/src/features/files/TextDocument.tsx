@@ -90,6 +90,16 @@ export default function TextDocument({
             >
               {translate('files:save')}
             </Button>
+            {editor.onSaveAndValidate && (
+              <Button
+                size="sm"
+                variant="light"
+                isDisabled={editor.saving || editor.demo}
+                onPress={editor.onSaveAndValidate}
+              >
+                {translate('files:saveAndValidate')}
+              </Button>
+            )}
             <Button size="sm" variant="light" isDisabled={editor.demo} onPress={editor.onDownload}>
               {translate('files:downloadCurrentContent')}
             </Button>

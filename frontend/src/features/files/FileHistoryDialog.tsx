@@ -28,6 +28,7 @@ export default function FileHistoryDialog({
   onSave,
   onRestore,
   onClose,
+  validateOnOpen = false,
 }: {
   workspace: string;
   target: string;
@@ -36,6 +37,7 @@ export default function FileHistoryDialog({
   onSave(): Promise<boolean>;
   onRestore(value: Document): void;
   onClose(): void;
+  validateOnOpen?: boolean;
 }) {
   useTranslation();
   const [history, setHistory] = useState<FileHistory>();
@@ -56,6 +58,7 @@ export default function FileHistoryDialog({
   const [confirmation, setConfirmation] = useState<'reload' | 'clear' | 'restore'>();
   const mounted = useRef(true);
   const requests = useRef(new Set<{ cancel(): void }>());
+  const validationStarted = useRef(false);
   useEffect(() => {
     mounted.current = true;
     const activeRequests = requests.current;
@@ -168,6 +171,7 @@ export default function FileHistoryDialog({
           requests.current.delete(request);
         }
       }
+      if (!mounted.current) return;
       const script = action === 'reload' ? reload : action === 'health' ? health : validate;
       const request = RunFileAction(workspace, document.path, action, script);
       requests.current.add(request);
@@ -206,6 +210,17 @@ export default function FileHistoryDialog({
       if (mounted.current) setBusy(false);
     }
   }
+  const executeRequest = useRef(execute);
+  executeRequest.current = execute;
+  useEffect(() => {
+    if (!validateOnOpen || !history || validationStarted.current) return;
+    validationStarted.current = true;
+    if (!history.validate.trim()) {
+      setError(uiMessage('files:validationNotConfigured'));
+      return;
+    }
+    void executeRequest.current('validate', true);
+  }, [validateOnOpen, history, setError]);
   function restore() {
     if (version) {
       onRestore(version);
