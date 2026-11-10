@@ -1018,5 +1018,10 @@
   "updateAttachmentURLIsOutsideThisProject": "Update attachment URL is outside this project",
   "updateHasNoValidSHA256SUMSChecksumEntry": "Update has no valid SHA256SUMS checksum entry",
   "invalidLocalTerminalDirectory": "Local terminal directory must be a valid absolute path",
-  "localTerminalPathIsNotDirectory": "Local terminal path is not a directory"
+  "localTerminalPathIsNotDirectory": "Local terminal path is not a directory",
+  "clipboardImagesUnsupported": "Clipboard images are unavailable in this environment",
+  "invalidLocalDropPath": "Dropped paths must be absolute and contain no control characters",
+  "cmdDropExpansionUnsupported": "cmd.exe cannot safely insert paths containing quotes, percent signs or exclamation marks",
+  "wslDropMappingUnsupported": "Native file drops require a native shell; WSL path mapping is not configured",
+  "localDropInputLimit": "Dropped paths exceed the terminal input limit (256 KiB)"
 }

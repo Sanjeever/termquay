@@ -4,6 +4,10 @@ package app
 
 import appmessage "github.com/Sanjeever/termquay/internal/message"
 
+func localClipboardHasImage() (bool, error) {
+	return false, appmessage.New("backend:clipboardImagesUnsupported", "Clipboard images are unavailable in this environment")
+}
+
 func localClipboardFiles() ([]string, error) {
 	return nil, appmessage.New("backend:localFileClipboardIsUnsupportedInThisEnvironment", "当前运行环境不支持本地文件剪贴板")
 }

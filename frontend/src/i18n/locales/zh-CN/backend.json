@@ -1018,5 +1018,10 @@
   "updateAttachmentURLIsOutsideThisProject": "更新附件地址不属于本项目",
   "updateHasNoValidSHA256SUMSChecksumEntry": "更新缺少有效的 SHA256SUMS 校验记录",
   "invalidLocalTerminalDirectory": "本地终端目录须为有效的绝对路径",
-  "localTerminalPathIsNotDirectory": "本地终端路径不是目录"
+  "localTerminalPathIsNotDirectory": "本地终端路径不是目录",
+  "clipboardImagesUnsupported": "当前运行环境无法访问剪贴板图片",
+  "invalidLocalDropPath": "拖入路径须为绝对路径，且不能包含控制字符",
+  "cmdDropExpansionUnsupported": "cmd.exe 无法安全插入包含引号、百分号或感叹号的路径",
+  "wslDropMappingUnsupported": "原生文件拖入需要本机 Shell，WSL 路径映射尚未配置",
+  "localDropInputLimit": "拖入路径超过终端输入上限（256 KiB）"
 }

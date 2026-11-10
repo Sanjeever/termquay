@@ -16,6 +16,11 @@ static char *clipboardFilePaths(void) {
         return data ? strndup(data.bytes, data.length) : NULL;
     }
 }
+static bool clipboardHasImage(void) {
+    @autoreleasepool {
+        return [[NSPasteboard generalPasteboard] availableTypeFromArray:@[NSPasteboardTypePNG, NSPasteboardTypeTIFF]] != nil;
+    }
+}
 */
 import "C"
 
@@ -27,6 +32,8 @@ import (
 	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
+
+func localClipboardHasImage() (bool, error) { return bool(C.clipboardHasImage()), nil }
 
 func localClipboardFiles() ([]string, error) {
 	var paths []string

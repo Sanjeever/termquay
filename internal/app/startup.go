@@ -63,6 +63,15 @@ func Run(assets fs.FS, appIcons fs.ReadFileFS, build BuildInfo, licenses fs.Read
 		if details == nil {
 			return
 		}
+		if id := details.Attributes["data-local-terminal-id"]; id != "" {
+			text, err := service.prepareLocalTerminalDrop(id, event.Context().DroppedFiles())
+			message := ""
+			if err != nil {
+				message = err.Error()
+			}
+			app.Event.Emit("local-terminal:files-dropped", map[string]any{"id": id, "text": text, "error": message, "error_message": appmessage.Describe(err)})
+			return
+		}
 		id := details.Attributes["data-workspace-id"]
 		directory := details.Attributes["data-remote-directory"]
 		preview, err := service.prepareUploads(id, directory, event.Context().DroppedFiles())

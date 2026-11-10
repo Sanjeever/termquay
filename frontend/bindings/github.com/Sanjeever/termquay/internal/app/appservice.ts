@@ -592,6 +592,10 @@ export function ListWorkspaceSets(): $CancellablePromise<$models.WorkspaceSet[] 
     return $Call.ByID(253206);
 }
 
+export function LocalTerminalHasClipboardImage(id: string): $CancellablePromise<boolean> {
+    return $Call.ByID(3674738652, id);
+}
+
 export function LockApplication(): $CancellablePromise<void> {
     return $Call.ByID(3976378473);
 }

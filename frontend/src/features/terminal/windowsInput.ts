@@ -53,6 +53,9 @@ export function addWindowsInput(term: Terminal) {
     newline() {
       return enabled ? keyRecords(13, 28, 13, 16) : '\x1b[13;2u';
     },
+    imagePaste() {
+      return enabled ? keyRecords(86, 47, 22, 8) : '\x16';
+    },
     dispose() {
       handlers.forEach((handler) => handler.dispose());
     },

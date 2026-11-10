@@ -47,6 +47,19 @@ static char **clipboardFileURIs(void) {
 }
 #endif
 
+static int clipboardHasImage(void) {
+#if GTK_MAJOR_VERSION >= 4
+    GdkDisplay *display = gdk_display_get_default();
+    if (!display) return -1;
+    GdkContentFormats *formats = gdk_clipboard_get_formats(gdk_display_get_clipboard(display));
+    return gdk_content_formats_contain_gtype(formats, GDK_TYPE_TEXTURE) ||
+           gdk_content_formats_contain_mime_type(formats, "image/png") ||
+           gdk_content_formats_contain_mime_type(formats, "image/jpeg");
+#else
+    return gtk_clipboard_wait_is_image_available(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD));
+#endif
+}
+
 static const char *clipboardURI(char **uris, int index) { return uris[index]; }
 */
 import "C"
@@ -57,6 +70,14 @@ import (
 	appmessage "github.com/Sanjeever/termquay/internal/message"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
+
+func localClipboardHasImage() (bool, error) {
+	value := C.clipboardHasImage()
+	if value < 0 {
+		return false, appmessage.New("backend:clipboardImagesUnsupported", "Clipboard images are unavailable in this environment")
+	}
+	return value != 0, nil
+}
 
 func localClipboardFiles() ([]string, error) {
 	var paths []string

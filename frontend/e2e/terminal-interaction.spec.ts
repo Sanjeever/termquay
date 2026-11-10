@@ -92,3 +92,71 @@ test('interrupt, escape, tab navigation and modified input reach the PTY unchang
   await page.keyboard.press('Control+j');
   await expect.poll(() => inputs.join('')).toBe('\x03\x1b\x1b\t\x1b[Z\n');
 });
+
+for (const windows of [false, true]) {
+  test(`native image paste sends the TUI clipboard shortcut (${windows ? 'ConPTY' : 'legacy'})`, async ({
+    page,
+  }) => {
+    const { inputs } = await terminal(
+      page,
+      (windows ? '\x1b[?9001h' : '') + '\x1b[?2004hready\r\n',
+    );
+    await page.route('**/wails/runtime*', (route) => {
+      const body = route.request().postDataJSON();
+      const value =
+        body?.object === 1 && body?.method === 1
+          ? ''
+          : body?.args?.methodID === 3674738652
+            ? true
+            : null;
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(value),
+      });
+    });
+    await page.getByRole('button', { name: 'Terminal actions', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Paste', exact: true }).click();
+    await expect
+      .poll(() => inputs.join(''))
+      .toBe(windows ? '\x1b[86;47;22;1;8;1_\x1b[86;47;22;0;8;1_' : '\x16');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  });
+}
+
+test('native file drops preserve quoted paths, target identity and input locking', async ({
+  page,
+}) => {
+  const { inputs } = await terminal(page);
+  const text = "'/work/a'\\''b.txt' ";
+  await page.evaluate(
+    (text) =>
+      Reflect.get(window, '_wails').dispatchWailsEvent({
+        name: 'local-terminal:files-dropped',
+        data: { id: 'another-terminal', text },
+      }),
+    text,
+  );
+  expect(inputs).toEqual([]);
+  await page.evaluate(
+    (text) =>
+      Reflect.get(window, '_wails').dispatchWailsEvent({
+        name: 'local-terminal:files-dropped',
+        data: { id: 'terminal-fixture', text },
+      }),
+    text,
+  );
+  await expect.poll(() => inputs.join('')).toBe(`\x1b[200~${text}\x1b[201~`);
+  await page.getByRole('button', { name: 'Lock input', exact: true }).click();
+  await expect(page.locator('.terminal-view')).not.toHaveAttribute('data-file-drop-target');
+  await page.evaluate(
+    (text) =>
+      Reflect.get(window, '_wails').dispatchWailsEvent({
+        name: 'local-terminal:files-dropped',
+        data: { id: 'terminal-fixture', text },
+      }),
+    text,
+  );
+  await expect(page.getByRole('alert')).toContainText('locked');
+  expect(inputs.join('')).toBe(`\x1b[200~${text}\x1b[201~`);
+});

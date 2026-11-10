@@ -73,6 +73,7 @@ import {
 } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import {
   CloseLocalTerminal,
+  LocalTerminalHasClipboardImage,
   ResizeLocalTerminal,
 } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import {
@@ -385,8 +386,8 @@ const TerminalView = forwardRef<
     [shell, host, setupToken],
   );
   const integration = useRef<ReturnType<typeof addShellIntegration>>();
-  const callbacks = useRef({ onDirectory, onFile, onAttention, onActivate, onTitle });
-  callbacks.current = { onDirectory, onFile, onAttention, onActivate, onTitle };
+  const callbacks = useRef({ onDirectory, onFile, onAttention, onActivate, onTitle, insert });
+  callbacks.current = { onDirectory, onFile, onAttention, onActivate, onTitle, insert };
   const shown = useRef(visible);
   shown.current = visible;
   const appFocused = useRef(document.hasFocus());
@@ -442,9 +443,24 @@ const TerminalView = forwardRef<
       Events.On('terminal:notification-activated', (event) => {
         if (event.data === id) callbacks.current.onActivate?.();
       }),
+      ...(local
+        ? [
+            Events.On('local-terminal:files-dropped', (event) => {
+              const data = event.data as {
+                id: string;
+                text: string;
+                error?: string;
+                error_message?: unknown;
+              };
+              if (data.id !== id) return;
+              if (data.error) reportError('input', eventError(data));
+              else callbacks.current.insert(data.text);
+            }),
+          ]
+        : []),
     ];
     return () => off.forEach((dispose) => dispose());
-  }, [id, demoOutput]);
+  }, [id, demoOutput, local]);
   useEffect(() => {
     if (visible && appFocused.current && !running.current) callbacks.current.onAttention?.();
   }, [visible]);
@@ -563,11 +579,17 @@ const TerminalView = forwardRef<
         .catch((e) => reportError('clipboard', e));
     if (name === 'paste' && demoOutput === undefined)
       Clipboard.Text()
-        .then((value) => {
+        .then(async (value) => {
+          if (terminal.current !== term) return;
           clearError('clipboard');
-          insert(value);
+          if (value || !local) insert(value);
+          else if (await LocalTerminalHasClipboardImage(id)) {
+            if (terminal.current === term) sendFrame(windowsInput.current?.imagePaste() ?? '\x16');
+          }
         })
-        .catch((e) => reportError('clipboard', e));
+        .catch((e) => {
+          if (terminal.current === term) reportError('clipboard', e);
+        });
     if (name === 'selectAll') term.selectAll();
     if (name === 'clear') term.clear();
     if (name === 'zoomIn') setZoom((v) => Math.min(36 - fontSize, v + 1));
@@ -955,11 +977,22 @@ const TerminalView = forwardRef<
   return (
     <div
       className="terminal-view"
+      data-file-drop-target={
+        local && visible && connected && !locked && demoOutput === undefined ? true : undefined
+      }
+      data-local-terminal-id={local ? id : undefined}
       onPasteCapture={(e) => {
         if (!(e.target as HTMLElement).closest('.xterm')) return;
         e.preventDefault();
         e.stopPropagation();
-        insert(e.clipboardData.getData('text/plain'));
+        const text = e.clipboardData.getData('text/plain');
+        if (
+          !text &&
+          Array.from(e.clipboardData.files).some((file) => file.type.startsWith('image/'))
+        ) {
+          if (local) sendFrame(windowsInput.current?.imagePaste() ?? '\x16');
+          else reportError('clipboard', uiMessage('terminal:imagePasteRequiresLocalTerminal'));
+        } else insert(text);
       }}
     >
       <TerminalTools host={toolbarHost} visible={showTools}>

@@ -886,5 +886,6 @@
   "focusTerminalDown": "聚焦下方终端",
   "confirmPasteBeforeSending": "多行粘贴前确认",
   "allowDirectPaste": "直接粘贴多行文本",
-  "newOutput": "新输出"
+  "newOutput": "新输出",
+  "imagePasteRequiresLocalTerminal": "剪贴板图片粘贴需要本地终端"
 }

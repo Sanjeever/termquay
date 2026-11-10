@@ -8,6 +8,23 @@ import (
 	"golang.org/x/sys/windows"
 )
 
+func localClipboardHasImage() (bool, error) {
+	user := windows.NewLazySystemDLL("user32.dll")
+	available := user.NewProc("IsClipboardFormatAvailable")
+	for _, format := range []uintptr{2, 8, 17} {
+		if found, _, _ := available.Call(format); found != 0 {
+			return true, nil
+		}
+	}
+	name, _ := windows.UTF16PtrFromString("PNG")
+	format, _, err := user.NewProc("RegisterClipboardFormatW").Call(uintptr(unsafe.Pointer(name)))
+	if format == 0 {
+		return false, err
+	}
+	found, _, _ := available.Call(format)
+	return found != 0, nil
+}
+
 func localClipboardFiles() ([]string, error) {
 	var paths []string
 	err := application.InvokeSyncWithError(func() error {

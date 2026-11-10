@@ -28,6 +28,7 @@ type LocalTerminal struct {
 	Hostname  string `json:"hostname"`
 }
 type localTerminal struct {
+	kind        string
 	pty         pty.Pty
 	command     *pty.Cmd
 	done        chan struct{}
@@ -139,7 +140,7 @@ func (a *AppService) OpenLocalTerminal(kind, directory string, cols, rows int) (
 			return LocalTerminal{}, err
 		}
 	}
-	session := &localTerminal{pty: console, command: command, done: make(chan struct{})}
+	session := &localTerminal{kind: kind, pty: console, command: command, done: make(chan struct{})}
 	id := base64.RawURLEncoding.EncodeToString(randomBytes(24))
 	a.mu.Lock()
 	if a.closed {
