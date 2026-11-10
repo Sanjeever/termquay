@@ -145,6 +145,7 @@ const SettingsView = lazy(() => import('./features/settings/SettingsView'));
 const DemoWorkbench = lazy(() => import('./features/demo/DemoWorkbench'));
 const WorkspaceSetsDialog = lazy(() => import('./features/workspaces/WorkspaceSetsDialog'));
 const FileCompareDialog = lazy(() => import('./features/files/FileCompareDialog'));
+const TransferBrowser = lazy(() => import('./features/files/TransferBrowser'));
 const CommandTasksWorkspace = lazy(() => import('./features/terminal/CommandTasksWorkspace'));
 const LogWorkspace = lazy(() => import('./features/logs/LogWorkspace'));
 const RecordingPlayer = lazy(() => import('./features/terminal/RecordingPlayer'));
@@ -160,6 +161,7 @@ const DiagnosticSnapshotsDialog = lazy(
 const commandTasksTabID = 'multi-host-operations';
 const logsTabID = 'multi-source-logs';
 const dockerTabID = 'docker';
+const filesTabID = 'file-transfers';
 
 export default function App() {
   useTranslation();
@@ -246,6 +248,10 @@ export default function App() {
     terminal: string;
   }>();
   const [fileCompareOpen, setFileCompareOpen] = useState(false);
+  const [filesTab, setFilesTab] = useState(false);
+  const [filesInitial, setFilesInitial] = useState<string>();
+  const filesOpen =
+    filesTab && active === filesTabID && !settings && !demoScene && !appLock.status?.locked;
   const [recordingOpen, setRecordingOpen] = useState(false);
   const [commandTasksTab, setCommandTasksTab] = useState(false);
   const [logsTab, setLogsTab] = useState(false);
@@ -588,7 +594,8 @@ export default function App() {
     setSettings(false);
   }
   function closeWorkspace(id = active, keyboard = true) {
-    if ([logsTabID, commandTasksTabID, dockerTabID].includes(id)) {
+    if ([logsTabID, commandTasksTabID, dockerTabID, filesTabID].includes(id)) {
+      if (id === filesTabID) setFilesTab(false);
       if (id === logsTabID) {
         setLogsTab(false);
         setLogsRequest(undefined);
@@ -606,7 +613,8 @@ export default function App() {
               (workspaces.some((workspace) => workspace.id === value) ||
                 (commandTasksTab && value === commandTasksTabID) ||
                 (logsTab && value === logsTabID) ||
-                (dockerTab && value === dockerTabID)),
+                (dockerTab && value === dockerTabID) ||
+                (filesTab && value === filesTabID)),
           ) || '',
           keyboard,
         );
@@ -644,6 +652,12 @@ export default function App() {
     if (!dockerTab || target) setDockerResource({ workspace: target, container });
     setDockerTab(true);
     select(dockerTabID);
+  }
+  function openFileTransfers() {
+    if (!filesTab) setFilesInitial(current?.ssh ? current.sessionID : undefined);
+    setFilesTab(true);
+    setTransfersOpen(true);
+    select(filesTabID);
   }
   function closeCurrentTab() {
     if (settings) {
@@ -1089,6 +1103,7 @@ export default function App() {
           ...(commandTasksTab ? [commandTasksTabID] : []),
           ...(logsTab ? [logsTabID] : []),
           ...(dockerTab ? [dockerTabID] : []),
+          ...(filesTab ? [filesTabID] : []),
         ];
         select(
           ids[
@@ -1121,6 +1136,7 @@ export default function App() {
     commandTasksTab,
     logsTab,
     dockerTab,
+    filesTab,
     locked,
   ]);
   function openDialog(temporary: boolean, connection?: Connection) {
@@ -1598,6 +1614,7 @@ export default function App() {
             else if (key === 'history') openCommandTasks('history');
             else if (key === 'logs') openLogs();
             else if (key === 'docker') openDocker();
+            else if (key === 'files') openFileTransfers();
             else if (key === 'recording') setRecordingOpen(true);
           }}
         >
@@ -1606,6 +1623,7 @@ export default function App() {
           <DropdownItem key="history">{translate('common:taskHistory')}</DropdownItem>
           <DropdownItem key="logs">{translate('common:multiSourceLogs')}</DropdownItem>
           <DropdownItem key="docker">Docker</DropdownItem>
+          <DropdownItem key="files">{translate('files:fileTransfers')}</DropdownItem>
           <DropdownItem key="recording" showDivider>
             {translate('common:openTerminalRecording')}
           </DropdownItem>
@@ -1653,6 +1671,16 @@ export default function App() {
     </>
   );
   const commands: WorkbenchCommand[] = [
+    ...(filesTab
+      ? [
+          {
+            id: 'workspace-files',
+            label: translate('files:fileTransfers'),
+            kind: 'workspace' as const,
+            run: () => select(filesTabID),
+          },
+        ]
+      : []),
     ...(dockerTab
       ? [
           {
@@ -1907,7 +1935,7 @@ export default function App() {
       id: 'file-compare',
       label: translate('common:manageCompareAndCopyFilesAcrossWorkspaces'),
       kind: 'command',
-      run: () => setFileCompareOpen(true),
+      run: openFileTransfers,
     },
     {
       id: 'recording-playback',
@@ -2027,7 +2055,7 @@ export default function App() {
         ]
       : []),
     ...(['nextWorkspace', 'previousWorkspace'] as const)
-      .filter(() => workspaces.length > 0 || commandTasksTab || logsTab || dockerTab)
+      .filter(() => workspaces.length > 0 || commandTasksTab || logsTab || dockerTab || filesTab)
       .map((id) => ({
         id,
         label:
@@ -2043,6 +2071,7 @@ export default function App() {
             ...(commandTasksTab ? [commandTasksTabID] : []),
             ...(logsTab ? [logsTabID] : []),
             ...(dockerTab ? [dockerTabID] : []),
+            ...(filesTab ? [filesTabID] : []),
           ];
           select(
             ids[
@@ -2179,6 +2208,9 @@ export default function App() {
                   ? [{ id: logsTabID, name: translate('common:multiSourceLogs2'), tool: true }]
                   : []),
                 ...(dockerTab ? [{ id: dockerTabID, name: 'Docker', tool: true }] : []),
+                ...(filesTab
+                  ? [{ id: filesTabID, name: translate('files:fileTransfers'), tool: true }]
+                  : []),
               ]}
               active={active}
               onSelect={select}
@@ -2375,6 +2407,33 @@ export default function App() {
                 }}
               />
             </Suspense>
+          )}
+          {filesTab && (
+            <div className="workspace" hidden={!filesOpen}>
+              <Suspense
+                fallback={
+                  <div className="view-loading" role="status">
+                    {translate('common:loadingTransfers')}
+                  </div>
+                }
+              >
+                <TransferBrowser
+                  embedded
+                  visible={filesOpen}
+                  targets={workspaces
+                    .filter((w) => w.ssh && w.sessionID && w.state === 'connected')
+                    .map((w) => ({ id: w.sessionID!, name: w.name }))}
+                  initial={filesInitial}
+                  onTransfer={(item) => {
+                    transfers.accept([item]);
+                    setTransferReveal(item.id);
+                    setTransfersOpen(true);
+                  }}
+                  onCompare={() => setFileCompareOpen(true)}
+                  onClose={() => closeWorkspace(filesTabID)}
+                />
+              </Suspense>
+            </div>
           )}
           {dockerTab && (
             <div className="workspace" hidden={!dockerOpen}>
@@ -2972,6 +3031,7 @@ export default function App() {
                 fallback={<div role="status">{translate('common:loadingFileComparison')}</div>}
               >
                 <FileCompareDialog
+                  initialCompare
                   targets={workspaces
                     .filter((w) => !w.local && !w.rdp && w.sessionID && w.state === 'connected')
                     .map((w) => ({ id: w.sessionID!, name: w.name }))}

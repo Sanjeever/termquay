@@ -24,14 +24,16 @@ export default function FileCompareDialog({
   initial,
   onTransfer,
   onClose,
+  initialCompare = false,
 }: {
   targets: Target[];
   initial?: string;
   onTransfer(transfer: Transfer): void;
   onClose(): void;
+  initialCompare?: boolean;
 }) {
   useTranslation();
-  const [browsing, setBrowsing] = useState(true);
+  const [browsing, setBrowsing] = useState(!initialCompare);
   const [sides, setSides] = useState<[Side, Side]>([
     { workspace: initial || '', path: '', encoding: 'UTF-8' },
     { workspace: '', path: '', encoding: 'UTF-8' },

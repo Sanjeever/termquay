@@ -1,4 +1,13 @@
 {
+  "fileTransfers": "文件传输",
+  "leftLocation": "左侧位置",
+  "rightLocation": "右侧位置",
+  "disconnectedLocation": "SSH 工作区已断开，请选择已连接的工作区。",
+  "entryCount_one": "{{count}} 个项目",
+  "entryCount_other": "{{count}} 个项目",
+  "selectedCount_one": "已选 {{count}} 项",
+  "selectedCount_other": "已选 {{count}} 项",
+  "modified": "修改时间",
   "directorySyncTask_one": "目录同步（{{count}} 项）",
   "directorySyncTask_other": "目录同步（{{count}} 项）",
   "cmGoToLine": "跳转到行",

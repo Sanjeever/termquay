@@ -8,6 +8,99 @@
   min-height: 160px;
   overflow: auto;
 }
+.transfer-browser-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  min-height: 0;
+  container-type: inline-size;
+  container-name: transfer-pane;
+}
+.transfer-path-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.transfer-path-bar input {
+  flex: 1 1 120px;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius);
+  background: var(--color-control);
+  font: 12px var(--font-mono);
+}
+.transfer-browser-pane .inspection-table td {
+  overflow-wrap: anywhere;
+}
+.transfer-browser-pane .inspection-table td:nth-child(2) > :is(button, span) {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-align: left;
+  white-space: normal;
+}
+.transfer-browser-pane tr[data-selected='true'] {
+  background: var(--color-selected);
+}
+.transfer-pane-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  border-top: 1px solid var(--color-border);
+  font-size: 11px;
+  color: var(--color-muted);
+}
+.file-transfer-workspace {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+.transfer-browser-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 12px;
+  overflow: auto;
+  padding: 16px;
+}
+.transfer-browser-body > .file-compare-sides {
+  flex: 1;
+  min-height: 180px;
+}
+.transfer-browser-body .transfer-browser-list {
+  flex: 1;
+  max-height: none;
+  min-height: 120px;
+}
+.transfer-browser-body > details {
+  flex-shrink: 0;
+}
+.transfer-browser-body > details > textarea {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-control);
+}
+.transfer-browser-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--color-border);
+}
+@container transfer-pane (max-width: 460px) {
+  .transfer-file-detail {
+    display: none;
+  }
+}
 @media (max-width: 640px) {
   .file-compare-sides {
     grid-template-columns: 1fr;

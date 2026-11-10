@@ -1,8 +1,8 @@
 import Modal from '../../components/Modal';
-import { t as translate } from '../../i18n/index.ts';
+import { t as translate, currentLocale } from '../../i18n/index.ts';
 import { useMessageState } from '../../i18n/useMessageState.ts';
 import { useTranslation } from 'react-i18next';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react';
 import {
   BrowseTransferDirectory,
@@ -16,8 +16,10 @@ import type {
   DirectorySyncPreview,
 } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import SelectControl from '../../components/SelectControl';
+import FileIcon from './FileIcon';
 
 import { bytes } from './transferFormat';
+import '../../styles/file-compare.css';
 
 type Location = { workspace: string; directory: string; selected: string[] };
 type Target = { id: string; name: string };
@@ -25,22 +27,33 @@ function Pane({
   side,
   targets,
   disabled,
+  visible,
+  label,
   onChange,
 }: {
   side: Location;
   targets: Target[];
   disabled: boolean;
+  visible: boolean;
+  label: string;
   onChange(value: Location): void;
 }) {
   useTranslation();
+  const locale = currentLocale();
+  const dateFormat = useMemo(
+    () => new Intl.DateTimeFormat(locale, { dateStyle: 'short', timeStyle: 'short' }),
+    [locale],
+  );
   const [list, setList] = useState<TransferDirectory>();
   const [path, setPath] = useState(side.directory);
   const [error, setError] = useMessageState('');
   const [revision, setRevision] = useState(0);
   const { workspace, directory } = side;
+  const available = !workspace || targets.some((target) => target.id === workspace);
   const changed = useRef(onChange);
   changed.current = onChange;
   useEffect(() => {
+    if (!visible || !available) return;
     let ended = false;
     setList(undefined);
     setError('');
@@ -60,9 +73,9 @@ function Pane({
       ended = true;
       request.cancel();
     };
-  }, [workspace, directory, revision, setError]);
+  }, [workspace, directory, revision, visible, available, setError]);
   return (
-    <section>
+    <section className="transfer-browser-pane" aria-label={label}>
       <SelectControl
         aria-label={translate('files:fileLocation')}
         value={side.workspace}
@@ -72,6 +85,7 @@ function Pane({
         }
       >
         <option value="">{translate('files:local')}</option>
+        {!available && <option value={workspace}>{translate('files:disconnectedLocation')}</option>}
         {targets.map((target) => (
           <option key={target.id} value={target.id}>
             {target.name}
@@ -79,7 +93,7 @@ function Pane({
         ))}
       </SelectControl>
       <form
-        className="button-row"
+        className="transfer-path-bar"
         onSubmit={(event) => {
           event.preventDefault();
           onChange({ ...side, directory: path, selected: [] });
@@ -89,16 +103,16 @@ function Pane({
         <input
           aria-label={translate('files:directoryPath')}
           value={path}
-          disabled={disabled}
+          disabled={disabled || !available}
           onChange={(event) => setPath(event.target.value)}
         />
-        <Button size="sm" variant="light" type="submit" isDisabled={disabled}>
+        <Button size="sm" variant="light" type="submit" isDisabled={disabled || !available}>
           {translate('files:openRefresh')}
         </Button>
         <Button
           size="sm"
           variant="light"
-          isDisabled={disabled || !list || list.parent === list.path}
+          isDisabled={disabled || !available || !list || list.parent === list.path}
           onPress={() => onChange({ ...side, directory: list!.parent, selected: [] })}
         >
           {translate('files:parent')}
@@ -109,6 +123,12 @@ function Pane({
           {error}
         </p>
       )}
+      {!available && (
+        <p className="error" role="alert">
+          {translate('files:disconnectedLocation')}
+        </p>
+      )}
+      {available && !list && !error && <p role="status">{translate('files:loading')}</p>}
       {list?.truncated && (
         <p role="status">{translate('files:directoryExceeds512EntriesListTruncatedEnterA')}</p>
       )}
@@ -119,50 +139,63 @@ function Pane({
               <th>{translate('files:select')}</th>
               <th>{translate('files:name')}</th>
               <th>{translate('files:size')}</th>
+              <th className="transfer-file-detail">{translate('files:modified')}</th>
+              <th className="transfer-file-detail">{translate('files:permissions')}</th>
             </tr>
           </thead>
           <tbody>
-            {list?.entries?.map((entry) => (
-              <tr key={entry.path}>
-                <td>
-                  <input
-                    type="checkbox"
-                    aria-label={translate('files:select2', { value1: entry.name })}
-                    disabled={
-                      disabled || entry.symlink || (!entry.directory && !entry.mode.startsWith('-'))
-                    }
-                    checked={side.selected.includes(entry.name)}
-                    onChange={(event) =>
-                      onChange({
-                        ...side,
-                        selected: event.target.checked
-                          ? [...side.selected, entry.name]
-                          : side.selected.filter((name) => name !== entry.name),
-                      })
-                    }
-                  />
-                </td>
-                <td>
-                  {entry.directory && !entry.symlink ? (
-                    <button
-                      className="session-tool"
-                      disabled={disabled}
-                      onClick={() => onChange({ ...side, directory: entry.path, selected: [] })}
-                    >
-                      {entry.name}/
-                    </button>
-                  ) : (
-                    <span>
-                      {entry.name}
-                      {entry.symlink && ' ↗'}
-                    </span>
-                  )}
-                </td>
-                <td>{entry.directory ? '' : bytes(entry.size)}</td>
-              </tr>
-            ))}
+            {available &&
+              list?.entries?.map((entry) => (
+                <tr key={entry.path} data-selected={side.selected.includes(entry.name)}>
+                  <td>
+                    <input
+                      type="checkbox"
+                      aria-label={translate('files:select2', { value1: entry.name })}
+                      disabled={
+                        disabled ||
+                        entry.symlink ||
+                        (!entry.directory && !entry.mode.startsWith('-'))
+                      }
+                      checked={side.selected.includes(entry.name)}
+                      onChange={(event) =>
+                        onChange({
+                          ...side,
+                          selected: event.target.checked
+                            ? [...side.selected, entry.name]
+                            : side.selected.filter((name) => name !== entry.name),
+                        })
+                      }
+                    />
+                  </td>
+                  <td>
+                    {entry.directory && !entry.symlink ? (
+                      <button
+                        className="session-tool"
+                        disabled={disabled}
+                        onClick={() => onChange({ ...side, directory: entry.path, selected: [] })}
+                      >
+                        <FileIcon {...entry} /> {entry.name}/
+                      </button>
+                    ) : (
+                      <span>
+                        <FileIcon {...entry} /> {entry.name}
+                        {entry.symlink && ' ↗'}
+                      </span>
+                    )}
+                  </td>
+                  <td>{entry.directory ? '' : bytes(entry.size)}</td>
+                  <td className="transfer-file-detail">{dateFormat.format(entry.modified)}</td>
+                  <td className="transfer-file-detail">{entry.mode}</td>
+                </tr>
+              ))}
           </tbody>
         </table>
+      </div>
+      <div className="transfer-pane-summary">
+        <span>
+          {translate('files:entryCount', { count: available ? list?.entries?.length || 0 : 0 })}
+        </span>
+        <span>{translate('files:selectedCount', { count: side.selected.length })}</span>
       </div>
     </section>
   );
@@ -174,12 +207,16 @@ export default function TransferBrowser({
   onTransfer,
   onCompare,
   onClose,
+  embedded = false,
+  visible = true,
 }: {
   targets: Target[];
   initial?: string;
   onTransfer(value: Transfer): void;
   onCompare(): void;
   onClose(): void;
+  embedded?: boolean;
+  visible?: boolean;
 }) {
   useTranslation();
   const [sides, setSides] = useState<[Location, Location]>([
@@ -196,6 +233,18 @@ export default function TransferBrowser({
   const latest = useRef(preview);
   latest.current = preview;
   const mounted = useRef(true);
+  const endpointsAvailable = sides.every(
+    (side) => !side.workspace || targets.some((target) => target.id === side.workspace),
+  );
+  const available = useRef(endpointsAvailable);
+  available.current = endpointsAvailable;
+  useEffect(() => {
+    if (endpointsAvailable) return;
+    pending.current?.cancel();
+    if (latest.current) CancelDirectorySyncPreview(latest.current.id).catch(setError);
+    setPreview(undefined);
+    setSelected(new Set());
+  }, [endpointsAvailable, setError]);
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -229,9 +278,11 @@ export default function TransferBrowser({
     pending.current = request;
     try {
       const value = await request;
-      if (mounted.current) {
+      if (mounted.current && available.current) {
         setPreview(value);
         setSelected(new Set());
+      } else {
+        await CancelDirectorySyncPreview(value.id);
       }
     } catch (e) {
       if (mounted.current) setError(e);
@@ -241,6 +292,214 @@ export default function TransferBrowser({
   }
   const changes =
     preview?.entries?.filter((entry) => ['new', 'update'].includes(entry.state)) || [];
+  const Body = embedded ? 'div' : ModalBody;
+  const Footer = embedded ? 'div' : ModalFooter;
+  const content = (
+    <>
+      {!embedded && <ModalHeader>{translate('files:fileManagementAndCopy')}</ModalHeader>}
+      <Body className={embedded ? 'transfer-browser-body' : undefined}>
+        <div className="file-compare-sides">
+          {sides.map((side, index) => (
+            <Pane
+              key={index}
+              side={side}
+              targets={targets}
+              disabled={busy}
+              visible={visible}
+              label={translate(index === 0 ? 'files:leftLocation' : 'files:rightLocation')}
+              onChange={(value) => {
+                invalidate();
+                setSides(
+                  (previous) =>
+                    previous.map((item, i) => (i === index ? value : item)) as [Location, Location],
+                );
+              }}
+            />
+          ))}
+        </div>
+        <details>
+          <summary>{translate('files:exclusionRules')}</summary>
+          <textarea
+            aria-label={translate('files:copyExclusionRulesOnePerLine')}
+            rows={3}
+            value={exclude}
+            disabled={busy}
+            onChange={(event) => {
+              setExclude(event.target.value);
+              invalidate();
+            }}
+          />
+        </details>
+        <div className="button-row">
+          {[false, true].map((reverse) => (
+            <Button
+              key={String(reverse)}
+              size="sm"
+              variant="light"
+              isDisabled={
+                busy ||
+                !endpointsAvailable ||
+                !sides.every((side) => !!side.directory) ||
+                !sides.some((side) => !!side.workspace)
+              }
+              onPress={() => void scan(reverse)}
+            >
+              {reverse ? translate('files:previewRightLeft') : translate('files:previewLeftRight')}
+              {sides[reverse ? 1 : 0].selected.length
+                ? translate('files:items2', { value1: sides[reverse ? 1 : 0].selected.length })
+                : translate('files:entireDirectory')}
+            </Button>
+          ))}
+          {busy && (
+            <Button size="sm" variant="light" onPress={() => pending.current?.cancel()}>
+              {translate('files:cancelCurrentOperation')}
+            </Button>
+          )}
+        </div>
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
+        {preview && (
+          <>
+            <p className="file-path">
+              {preview.direction === 'download'
+                ? `${preview.remote} → ${preview.local}`
+                : `${preview.local} → ${preview.remote}`}
+            </p>
+            <div className="button-row">
+              <Button
+                size="sm"
+                variant="light"
+                isDisabled={busy}
+                onPress={() =>
+                  setSelected(
+                    new Set(changes.filter((entry) => !entry.directory).map((entry) => entry.path)),
+                  )
+                }
+              >
+                {translate('files:selectAllFileDifferences')}
+              </Button>
+              <Button
+                size="sm"
+                variant="light"
+                isDisabled={busy}
+                onPress={() => setSelected(new Set())}
+              >
+                {translate('files:clearSelection')}
+              </Button>
+              <span>
+                {selected.size} {translate('files:items')}
+              </span>
+            </div>
+            <table className="inspection-table">
+              <thead>
+                <tr>
+                  <th>{translate('files:select')}</th>
+                  <th>{translate('files:path')}</th>
+                  <th>{translate('files:difference')}</th>
+                  <th>{translate('files:size')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {preview.entries?.slice(page * 100, (page + 1) * 100).map((entry) => (
+                  <tr key={entry.path}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        aria-label={translate('files:copy2', { value1: entry.path })}
+                        checked={selected.has(entry.path)}
+                        disabled={busy || !['new', 'update'].includes(entry.state)}
+                        onChange={(event) =>
+                          setSelected((previous) => {
+                            const next = new Set(previous);
+                            if (event.target.checked) next.add(entry.path);
+                            else next.delete(entry.path);
+                            return next;
+                          })
+                        }
+                      />
+                    </td>
+                    <td>
+                      {entry.path}
+                      {entry.directory && '/'}
+                    </td>
+                    <td>
+                      {
+                        {
+                          new: translate('files:new'),
+                          update: translate('files:overwriteUpdates'),
+                          same: translate('files:unchanged'),
+                          conflict: translate('files:conflictUnsupported'),
+                        }[entry.state]
+                      }
+                    </td>
+                    <td>{entry.directory ? '' : bytes(entry.size)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {(preview.entries?.length || 0) > 100 && (
+              <div className="button-row">
+                <Button size="sm" isDisabled={!page} onPress={() => setPage((value) => value - 1)}>
+                  {translate('files:previousPage')}
+                </Button>
+                <span>{page + 1}</span>
+                <Button
+                  size="sm"
+                  isDisabled={(page + 1) * 100 >= (preview.entries?.length || 0)}
+                  onPress={() => setPage((value) => value + 1)}
+                >
+                  {translate('files:nextPage')}
+                </Button>
+              </div>
+            )}
+          </>
+        )}
+      </Body>
+      <Footer className={embedded ? 'transfer-browser-actions' : undefined}>
+        <Button variant="light" isDisabled={busy} onPress={onCompare}>
+          {translate('files:textFileComparison')}
+        </Button>
+        {!embedded && (
+          <Button variant="light" onPress={onClose}>
+            {translate('files:close')}
+          </Button>
+        )}
+        <Button
+          color="primary"
+          isDisabled={busy || !endpointsAvailable || !preview || !selected.size}
+          onPress={async () => {
+            if (!preview) return;
+            setBusy(true);
+            const request = ExecuteDirectorySync(preview.id, [...selected]);
+            pending.current = request;
+            try {
+              const value = await request;
+              if (mounted.current) {
+                onTransfer(value);
+                setPreview(undefined);
+                setSelected(new Set());
+              }
+            } catch (e) {
+              if (mounted.current) setError(e);
+            } finally {
+              if (mounted.current) setBusy(false);
+            }
+          }}
+        >
+          {translate('files:copySelected')}
+        </Button>
+      </Footer>
+    </>
+  );
+  if (embedded)
+    return (
+      <section className="file-transfer-workspace" aria-label={translate('files:fileTransfers')}>
+        {content}
+      </section>
+    );
   return (
     <Modal
       isOpen
@@ -250,210 +509,7 @@ export default function TransferBrowser({
       scrollBehavior="inside"
       isDismissable={!busy}
     >
-      <ModalContent>
-        <ModalHeader>{translate('files:fileManagementAndCopy')}</ModalHeader>
-        <ModalBody>
-          <div className="file-compare-sides">
-            {sides.map((side, index) => (
-              <Pane
-                key={index}
-                side={side}
-                targets={targets}
-                disabled={busy}
-                onChange={(value) => {
-                  invalidate();
-                  setSides(
-                    (previous) =>
-                      previous.map((item, i) => (i === index ? value : item)) as [
-                        Location,
-                        Location,
-                      ],
-                  );
-                }}
-              />
-            ))}
-          </div>
-          <details>
-            <summary>{translate('files:exclusionRules')}</summary>
-            <textarea
-              aria-label={translate('files:copyExclusionRulesOnePerLine')}
-              rows={3}
-              value={exclude}
-              disabled={busy}
-              onChange={(event) => {
-                setExclude(event.target.value);
-                invalidate();
-              }}
-            />
-          </details>
-          <div className="button-row">
-            {[false, true].map((reverse) => (
-              <Button
-                key={String(reverse)}
-                size="sm"
-                variant="light"
-                isDisabled={
-                  busy ||
-                  !sides.every((side) => !!side.directory) ||
-                  !sides.some((side) => !!side.workspace)
-                }
-                onPress={() => void scan(reverse)}
-              >
-                {reverse
-                  ? translate('files:previewRightLeft')
-                  : translate('files:previewLeftRight')}
-                {sides[reverse ? 1 : 0].selected.length
-                  ? translate('files:items2', { value1: sides[reverse ? 1 : 0].selected.length })
-                  : translate('files:entireDirectory')}
-              </Button>
-            ))}
-            {busy && (
-              <Button size="sm" variant="light" onPress={() => pending.current?.cancel()}>
-                {translate('files:cancelCurrentOperation')}
-              </Button>
-            )}
-          </div>
-          {error && (
-            <p className="error" role="alert">
-              {error}
-            </p>
-          )}
-          {preview && (
-            <>
-              <p className="file-path">
-                {preview.direction === 'download'
-                  ? `${preview.remote} → ${preview.local}`
-                  : `${preview.local} → ${preview.remote}`}
-              </p>
-              <div className="button-row">
-                <Button
-                  size="sm"
-                  variant="light"
-                  isDisabled={busy}
-                  onPress={() =>
-                    setSelected(
-                      new Set(
-                        changes.filter((entry) => !entry.directory).map((entry) => entry.path),
-                      ),
-                    )
-                  }
-                >
-                  {translate('files:selectAllFileDifferences')}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="light"
-                  isDisabled={busy}
-                  onPress={() => setSelected(new Set())}
-                >
-                  {translate('files:clearSelection')}
-                </Button>
-                <span>
-                  {selected.size} {translate('files:items')}
-                </span>
-              </div>
-              <table className="inspection-table">
-                <thead>
-                  <tr>
-                    <th>{translate('files:select')}</th>
-                    <th>{translate('files:path')}</th>
-                    <th>{translate('files:difference')}</th>
-                    <th>{translate('files:size')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {preview.entries?.slice(page * 100, (page + 1) * 100).map((entry) => (
-                    <tr key={entry.path}>
-                      <td>
-                        <input
-                          type="checkbox"
-                          aria-label={translate('files:copy2', { value1: entry.path })}
-                          checked={selected.has(entry.path)}
-                          disabled={busy || !['new', 'update'].includes(entry.state)}
-                          onChange={(event) =>
-                            setSelected((previous) => {
-                              const next = new Set(previous);
-                              if (event.target.checked) next.add(entry.path);
-                              else next.delete(entry.path);
-                              return next;
-                            })
-                          }
-                        />
-                      </td>
-                      <td>
-                        {entry.path}
-                        {entry.directory && '/'}
-                      </td>
-                      <td>
-                        {
-                          {
-                            new: translate('files:new'),
-                            update: translate('files:overwriteUpdates'),
-                            same: translate('files:unchanged'),
-                            conflict: translate('files:conflictUnsupported'),
-                          }[entry.state]
-                        }
-                      </td>
-                      <td>{entry.directory ? '' : bytes(entry.size)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {(preview.entries?.length || 0) > 100 && (
-                <div className="button-row">
-                  <Button
-                    size="sm"
-                    isDisabled={!page}
-                    onPress={() => setPage((value) => value - 1)}
-                  >
-                    {translate('files:previousPage')}
-                  </Button>
-                  <span>{page + 1}</span>
-                  <Button
-                    size="sm"
-                    isDisabled={(page + 1) * 100 >= (preview.entries?.length || 0)}
-                    onPress={() => setPage((value) => value + 1)}
-                  >
-                    {translate('files:nextPage')}
-                  </Button>
-                </div>
-              )}
-            </>
-          )}
-        </ModalBody>
-        <ModalFooter>
-          <Button variant="light" isDisabled={busy} onPress={onCompare}>
-            {translate('files:textFileComparison')}
-          </Button>
-          <Button variant="light" onPress={onClose}>
-            {translate('files:close')}
-          </Button>
-          <Button
-            color="primary"
-            isDisabled={busy || !preview || !selected.size}
-            onPress={async () => {
-              if (!preview) return;
-              setBusy(true);
-              const request = ExecuteDirectorySync(preview.id, [...selected]);
-              pending.current = request;
-              try {
-                const value = await request;
-                if (mounted.current) {
-                  onTransfer(value);
-                  setPreview(undefined);
-                  setSelected(new Set());
-                }
-              } catch (e) {
-                if (mounted.current) setError(e);
-              } finally {
-                if (mounted.current) setBusy(false);
-              }
-            }}
-          >
-            {translate('files:copySelected')}
-          </Button>
-        </ModalFooter>
-      </ModalContent>
+      <ModalContent>{content}</ModalContent>
     </Modal>
   );
 }

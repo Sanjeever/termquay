@@ -1,4 +1,13 @@
 {
+  "fileTransfers": "File transfers",
+  "leftLocation": "Left location",
+  "rightLocation": "Right location",
+  "disconnectedLocation": "SSH workspace disconnected. Select a connected workspace.",
+  "entryCount_one": "{{count}} item",
+  "entryCount_other": "{{count}} items",
+  "selectedCount_one": "{{count}} selected",
+  "selectedCount_other": "{{count}} selected",
+  "modified": "Modified",
   "directorySyncTask_one": "Directory sync ({{count}} item)",
   "directorySyncTask_other": "Directory sync ({{count}} items)",
   "cmGoToLine": "Go to line",

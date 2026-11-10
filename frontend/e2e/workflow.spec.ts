@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 test('narrow monitoring and workspace controls remain readable in both languages', async ({
   page,
@@ -23,6 +23,148 @@ test('narrow monitoring and workspace controls remain readable in both languages
       true,
     );
   }
+});
+
+async function fileWorkspace(page: Page) {
+  const calls: { method: number; args: unknown[] }[] = [];
+  await page.route('**/wails/runtime*', async (route) => {
+    const body = route.request().postDataJSON();
+    const method = body?.args?.methodID;
+    const args = body?.args?.args || [];
+    let value: unknown = null;
+    if (body?.object === 0) calls.push({ method, args });
+    if (method === 2404688278) {
+      const directory = args[1] || (args[0] ? '/remote' : '/local');
+      value = {
+        path: directory,
+        parent: '/',
+        truncated: false,
+        entries: [
+          {
+            name: 'config',
+            path: directory + '/config',
+            directory: true,
+            symlink: false,
+            mode: 'drwxr-xr-x',
+            size: 0,
+            modified: 1700000000000,
+          },
+          {
+            name: 'release.conf',
+            path: directory + '/release.conf',
+            directory: false,
+            symlink: false,
+            mode: '-rw-r--r--',
+            size: 2048,
+            modified: 1700000000000,
+          },
+        ],
+      };
+    } else if (method === 1375116584)
+      value = {
+        id: 'preview-1',
+        direction: 'upload',
+        local: args[1],
+        remote: args[3],
+        entries: [{ path: 'release.conf', state: 'new', directory: false, size: 2048 }],
+      };
+    else if (method === 1166658499)
+      value = {
+        id: 'transfer-1',
+        workspace: 'host-a',
+        name: 'release.conf',
+        state: 'running',
+        direction: 'upload',
+        total: 2048,
+        completed: 0,
+      };
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(value),
+    });
+  });
+  await page.goto('/e2e/workflow.html');
+  await page.getByRole('button', { name: 'Files workspace', exact: true }).click();
+  await expect(
+    page
+      .getByRole('region', { name: 'Left location' })
+      .getByRole('checkbox', { name: 'Select release.conf' }),
+  ).toBeVisible();
+  return calls;
+}
+
+test('file workspace keeps location and selection across tabs and languages, and submits the selected remote pair', async ({
+  page,
+}) => {
+  const calls = await fileWorkspace(page);
+  const left = page.getByRole('region', { name: 'Left location' });
+  expect(
+    await page
+      .locator('.file-transfer-workspace')
+      .evaluate((element) => element.getBoundingClientRect().height),
+  ).toBeGreaterThan(600);
+  await left.getByRole('button', { name: 'File location' }).click();
+  await page.getByRole('option', { name: 'Host B', exact: true }).click();
+  await left.getByRole('checkbox', { name: 'Select release.conf' }).check();
+  const original = await page.locator('.file-transfer-workspace').elementHandle();
+  await page.getByRole('button', { name: 'Terminal workspace', exact: true }).click();
+  await page.getByRole('button', { name: 'Chinese', exact: true }).click();
+  await page.getByRole('button', { name: 'Files workspace', exact: true }).click();
+  expect(
+    await original!.evaluate(
+      (element) => element === document.querySelector('.file-transfer-workspace'),
+    ),
+  ).toBe(true);
+  await expect(
+    page.getByRole('region', { name: '左侧位置' }).getByRole('checkbox').last(),
+  ).toBeChecked();
+  await page.getByRole('button', { name: 'English', exact: true }).click();
+  await page.getByRole('button', { name: /Preview left → Right/ }).click();
+  expect(calls.find((call) => call.method === 1375116584)?.args).toEqual([
+    'host-b',
+    '/remote',
+    'host-a',
+    '/remote',
+    ['release.conf'],
+    [],
+  ]);
+  await page.getByRole('button', { name: 'Select all file differences' }).click();
+  await page.getByRole('button', { name: 'Copy selected' }).click();
+  await expect(page.getByLabel('Accepted transfer')).toHaveText('transfer-1');
+  await page.getByRole('button', { name: 'Close files', exact: true }).click();
+  await expect(page.getByLabel('Accepted transfer')).toHaveText('transfer-1');
+  expect(calls.filter((call) => call.method === 1166658499).map((call) => call.args)).toEqual([
+    ['preview-1', ['release.conf']],
+  ]);
+  expect(calls.some((call) => call.method === 3293823215)).toBe(false);
+});
+
+test('disconnected file locations stay explicit and never switch to the local filesystem', async ({
+  page,
+}) => {
+  const calls = await fileWorkspace(page);
+  const right = page.getByRole('region', { name: 'Right location' });
+  await expect(right.getByRole('textbox', { name: 'Directory path' })).toHaveValue('/remote');
+  await page.getByRole('button', { name: 'Disconnect', exact: true }).click();
+  await expect(right.getByRole('alert')).toContainText('SSH workspace disconnected');
+  await expect(right.getByRole('textbox', { name: 'Directory path' })).toHaveValue('/remote');
+  await expect(page.getByRole('button', { name: /Preview left → Right/ })).toBeDisabled();
+  await page.getByRole('button', { name: 'Terminal workspace', exact: true }).click();
+  const before = calls.filter(
+    (call) => call.method === 2404688278 && call.args[0] === 'host-a',
+  ).length;
+  await page.getByRole('button', { name: 'Files workspace', exact: true }).click();
+  expect(
+    calls.filter((call) => call.method === 2404688278 && call.args[0] === 'host-a'),
+  ).toHaveLength(before);
+  expect(
+    calls.some(
+      (call) => call.method === 2404688278 && call.args[0] === '' && call.args[1] === '/remote',
+    ),
+  ).toBe(false);
+  await page.setViewportSize({ width: 760, height: 650 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
 test('forwarding route follows local, remote and dynamic form values without starting a tunnel', async ({
@@ -58,4 +200,46 @@ test('forwarding route follows local, remote and dynamic form values without sta
       .locator('.tunnel-panel')
       .evaluate((element) => element.scrollWidth <= element.clientWidth),
   ).toBe(true);
+});
+
+test('the actual tools menu opens a persistent file tab with the shared transfer panel', async ({
+  page,
+}) => {
+  await page.route('**/wails/runtime*', async (route) => {
+    const body = route.request().postDataJSON();
+    const method = body?.args?.methodID;
+    const args = body?.args?.args || [];
+    let value: unknown = null;
+    if (method === 3198086081) value = { groups: [], connections: [], session_only: true };
+    else if (method === 3288919527) value = { locked: false, available: false, idle_minutes: 0 };
+    else if (method === 1509178199) value = { enabled: false, drafts: [] };
+    else if (method === 2326168153 || method === 2007269789) value = {};
+    else if (method === 841988121) value = { entries: [], active: '' };
+    else if (method === 2404688278)
+      value = { path: args[1] || '/local', parent: '/', entries: [], truncated: false };
+    else if (method === 706236747) value = 0;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(value),
+    });
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Workbench tools' }).click();
+  await page.getByRole('menuitem', { name: 'File transfers', exact: true }).click();
+  await expect(
+    page.getByRole('tab', { name: 'File transfers', exact: true, selected: true }),
+  ).toBeVisible();
+  const original = await page.locator('.file-transfer-workspace').elementHandle();
+  await expect(page.getByRole('heading', { name: 'Transfers', exact: true })).toBeVisible();
+  await page.getByRole('tab', { name: 'Connection center', exact: true }).click();
+  await page.getByRole('tab', { name: 'File transfers', exact: true }).click();
+  expect(
+    await original!.evaluate(
+      (element) => element === document.querySelector('.file-transfer-workspace'),
+    ),
+  ).toBe(true);
+  await page.locator('[data-workspace-id="file-transfers"] .tab-close').click();
+  await expect(page.getByRole('tab', { name: 'File transfers', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Transfers', exact: true })).toBeVisible();
 });
