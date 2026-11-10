@@ -10,7 +10,7 @@
   <Identity 
     Name="com.termquay.app"
     Publisher="CN=TermQuay"
-    Version="1.4.2.0"
+    Version="1.4.3.0"
     ProcessorArchitecture="arm64" />
   
   <Properties>

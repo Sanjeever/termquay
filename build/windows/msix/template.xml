@@ -17,7 +17,7 @@
         PackageDisplayName="TermQuay"
         PublisherName="CN=TermQuay"
         PublisherDisplayName="TermQuay"
-        Version="1.4.2.0"
+        Version="1.4.3.0"
         PackageDescription="TermQuay 远程连接工作台">
         <Capabilities>
             <Capability Name="runFullTrust" />
