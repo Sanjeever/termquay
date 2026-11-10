@@ -207,6 +207,10 @@
   "triggerCodeCompletion": "触发代码补全",
   "conflictsWith": "与“{{value1}}”冲突",
   "thisShortcutIsReservedForInputsOrThe": "此组合保留给输入组件或系统",
+  "newLocalTerminal": "新建本地终端",
+  "localTerminalOptions": "本地终端选项",
+  "openTerminalInDirectory": "在目录中打开…",
+  "recentDirectories": "最近目录",
   "missingParameter": "缺少参数 {{value1}}",
   "expandedContentExceedsTerminalInputLimit256KiB": "替换后内容超过终端输入上限（256 KiB）"
 }

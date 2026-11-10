@@ -378,6 +378,23 @@ button:active:not(:disabled):not([role='tab']) {
   gap: 2px;
   padding: 0 6px;
 }
+.local-terminal-launcher {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 2px;
+}
+.local-terminal-menu {
+  max-width: min(480px, calc(100vw - 32px));
+  max-height: min(520px, calc(100vh - 80px));
+  overflow-y: auto;
+}
+.local-terminal-menu .file-path {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .workspace-tabs > .icon-button {
   margin: 0 4px;
 }

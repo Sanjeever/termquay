@@ -506,8 +506,6 @@ export default function DemoWorkbench({
             onEdit={() => {}}
             onNew={() => {}}
             onReload={() => {}}
-            onLocal={() => {}}
-            shells={[]}
             systemRDP={false}
             busy={false}
             loading={false}

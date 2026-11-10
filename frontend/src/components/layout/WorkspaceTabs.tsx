@@ -2,7 +2,7 @@ import { t as translate } from '../../i18n/index.ts';
 import { useTranslation } from 'react-i18next';
 import Tooltip from '../Tooltip';
 import Icon from '../Icon';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { DropdownTrigger, DropdownMenu, DropdownItem } from '@heroui/react';
 import { Dropdown } from '../Popover';
 import {
@@ -19,6 +19,7 @@ export default function WorkspaceTabs({
   onRename,
   onMove,
   onSearch,
+  newAction,
   disableNew = false,
 }: {
   items: {
@@ -29,6 +30,7 @@ export default function WorkspaceTabs({
     dirty?: boolean;
     attention?: CommandAttention;
     tool?: boolean;
+    detail?: string;
   }[];
   active: string;
   onSelect(id: string, keyboard?: boolean): void;
@@ -37,6 +39,7 @@ export default function WorkspaceTabs({
   onRename(id: string, name: string): void;
   onMove(id: string, target: string): void;
   onSearch(): void;
+  newAction?: ReactNode;
   disableNew?: boolean;
 }) {
   useTranslation();
@@ -132,7 +135,11 @@ export default function WorkspaceTabs({
                 }}
               />
             ) : (
-              <Tooltip content={item.name}>
+              <Tooltip
+                content={
+                  'detail' in item && item.detail ? `${item.name} · ${item.detail}` : item.name
+                }
+              >
                 <button
                   role="tab"
                   aria-selected={active === item.id}
@@ -265,16 +272,18 @@ export default function WorkspaceTabs({
         ))}
       </div>
       <div className="workspace-tab-actions">
-        <Tooltip content={translate('common:newConnection')}>
-          <button
-            className="icon-button"
-            aria-label={translate('common:newConnection')}
-            disabled={disableNew}
-            onClick={onNew}
-          >
-            <Icon name="plus" />
-          </button>
-        </Tooltip>
+        {newAction || (
+          <Tooltip content={translate('common:newConnection')}>
+            <button
+              className="icon-button"
+              aria-label={translate('common:newConnection')}
+              disabled={disableNew}
+              onClick={onNew}
+            >
+              <Icon name="plus" />
+            </button>
+          </Tooltip>
+        )}
         {items.length > 0 && (
           <Tooltip content={translate('common:openWorkspaces')}>
             <button

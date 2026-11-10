@@ -81,8 +81,16 @@ import {
   ListLocalShells,
   OpenLocalTerminal,
   CloseLocalTerminal,
+  ChooseLocalTerminalDirectory,
+  GetLocalTerminalDirectories,
 } from '../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { LocalShell } from '../bindings/github.com/Sanjeever/termquay/internal/app/models';
+import LocalTerminalLauncher from './features/terminal/LocalTerminalLauncher';
+import {
+  localDirectoryName,
+  localDirectoryReport,
+  localTerminalLabels,
+} from './features/terminal/localTerminal';
 import type { TerminalHandle } from './features/terminal/TerminalView';
 import type { CommandAttention } from './features/terminal/commandAttention';
 import type { CommandTarget } from './features/terminal/CommandTargets';
@@ -294,6 +302,7 @@ export default function App() {
     [],
   );
   const [localShells, setLocalShells] = useState<LocalShell[]>([]);
+  const [localDirectories, setLocalDirectories] = useState<string[]>([]);
   const [openingLocal, setOpeningLocal] = useState(false);
   const localOpening = useRef(false);
   useEffect(() => {
@@ -301,13 +310,23 @@ export default function App() {
       .then((values) => setLocalShells(values || []))
       .catch((e) => setPreferenceError(e));
   }, [setPreferenceError]);
-  async function openLocalShell(kind: string) {
+  useEffect(() => {
+    if (!catalog) return;
+    GetLocalTerminalDirectories()
+      .then((paths) => setLocalDirectories(paths || []))
+      .catch(setPreferenceError);
+  }, [catalog, setPreferenceError]);
+  async function openLocalShell(kind: string, directory?: string) {
     if (localOpening.current || latestWorkspaces.current.length >= 16) return;
     localOpening.current = true;
     setOpeningLocal(true);
     try {
+      const previous = focusedWorkspace.current?.local;
+      const path =
+        directory ??
+        (previous?.kind === kind && previous.directory !== '~' ? previous.directory : '');
       await loadTerminalView();
-      const terminal = await OpenLocalTerminal(kind, '', 100, 30);
+      const terminal = await OpenLocalTerminal(kind, path, 100, 30);
       if (latestWorkspaces.current.length >= 16) {
         await CloseLocalTerminal(terminal.id);
         throw uiMessage('common:openWorkspaceLimitReached16');
@@ -318,11 +337,21 @@ export default function App() {
           id: terminal.id,
           sessionID: terminal.id,
           connectionID: '',
-          name: terminal.name,
-          local: { shell: terminal.name, terminal: createRef<TerminalHandle>() },
+          name: localDirectoryName(terminal.directory),
+          state: 'running',
+          local: {
+            shell: terminal.name,
+            kind,
+            directory: terminal.directory,
+            hostname: terminal.hostname,
+            terminal: createRef<TerminalHandle>(),
+          },
         },
       ]);
       select(terminal.id);
+      GetLocalTerminalDirectories()
+        .then((paths) => setLocalDirectories(paths || []))
+        .catch(setPreferenceError);
     } catch (e) {
       setPreferenceError(e);
     } finally {
@@ -330,11 +359,64 @@ export default function App() {
       setOpeningLocal(false);
     }
   }
+  async function chooseLocalDirectory(kind: string) {
+    if (localOpening.current) return;
+    localOpening.current = true;
+    setOpeningLocal(true);
+    let directory = '';
+    try {
+      directory = await ChooseLocalTerminalDirectory();
+    } catch (error) {
+      setPreferenceError(error);
+    } finally {
+      localOpening.current = false;
+      setOpeningLocal(false);
+    }
+    if (directory && !locked.current) void openLocalShell(kind, directory);
+  }
   const [shortcuts, setShortcuts] = useState<Shortcuts>({ ...defaultShortcuts });
   const [shortcutError, setShortcutError] = useMessageState('');
   const current = workspaces.find((w) => w.id === active);
   const focusedWorkspace = useRef(current);
   focusedWorkspace.current = current;
+  const localLabels = localTerminalLabels(workspaces);
+  function localLauncher(compact = false) {
+    return (
+      <LocalTerminalLauncher
+        compact={compact}
+        shells={localShells}
+        shell={current?.local?.kind}
+        directory={current?.local?.directory}
+        recent={localDirectories}
+        disabled={openingLocal || attempt.busy || !catalog || workspaces.length >= 16}
+        onOpen={(kind, directory) => {
+          void openLocalShell(kind, directory);
+        }}
+        onChooseDirectory={(kind) => {
+          void chooseLocalDirectory(kind);
+        }}
+      />
+    );
+  }
+  function localDirectoryChanged(id: string, path: string, host: string) {
+    setWorkspaces((previous) =>
+      previous.map((workspace) => {
+        if (workspace.id !== id || !workspace.local) return workspace;
+        const directory = localDirectoryReport(
+          path,
+          host,
+          workspace.local.hostname,
+          workspace.local.kind,
+        );
+        if (!directory || directory === workspace.local.directory) return workspace;
+        return {
+          ...workspace,
+          name: workspace.local.renamed ? workspace.name : localDirectoryName(directory),
+          local: { ...workspace.local, directory },
+        };
+      }),
+    );
+  }
   /* oxlint-disable react/exhaustive-deps -- Locale invalidates connection-state labels read through the shared translation helper. */
   const connectionSessions = useMemo(() => {
     const sessions = new Map<string, string[]>();
@@ -1539,10 +1621,10 @@ export default function App() {
         : '';
       return {
         id: `workspace-${w.id}`,
-        label: w.name,
+        label: localLabels.get(w.id) || w.name,
         detail: [
           w.local
-            ? translate('common:localTerminal')
+            ? `${w.local.shell} · ${w.local.directory}`
             : c
               ? `${c.protocol.toUpperCase()} · ${c.username}@${c.host}:${c.port}`
               : '',
@@ -1976,6 +2058,10 @@ export default function App() {
               items={[
                 ...workspaces.map((workspace) => ({
                   ...workspace,
+                  name: localLabels.get(workspace.id) || workspace.name,
+                  detail: workspace.local
+                    ? `${workspace.local.shell} · ${workspace.local.directory}`
+                    : undefined,
                   environment: preferences[workspace.connectionID]?.environment,
                 })),
                 ...(commandTasksTab
@@ -2000,9 +2086,16 @@ export default function App() {
                 setPalette(true);
               }}
               onNew={() => openDialog(false)}
+              newAction={localLauncher(true)}
               onMove={moveWorkspace}
               onRename={(id, name) =>
-                setWorkspaces((prev) => prev.map((w) => (w.id === id ? { ...w, name } : w)))
+                setWorkspaces((prev) =>
+                  prev.map((w) =>
+                    w.id === id
+                      ? { ...w, name, local: w.local ? { ...w.local, renamed: true } : undefined }
+                      : w,
+                  ),
+                )
               }
             />
           }
@@ -2289,10 +2382,7 @@ export default function App() {
               loading={catalogLoading}
               loadError={storageError}
               systemRDP={systemRDP}
-              shells={localShells}
-              onLocal={(kind) => {
-                void openLocalShell(kind);
-              }}
+              localTerminalAction={localLauncher()}
               active={!demoScene && !settings && active === ''}
             />
           </div>
@@ -2387,6 +2477,7 @@ export default function App() {
                       ref={w.local.terminal}
                       visible={!demoScene && !settings && active === w.id}
                       fontSize={fontSize}
+                      onDirectory={(path, host) => localDirectoryChanged(w.id, path, host)}
                       onAttention={(value) => workspaceAttention(w.id, value)}
                       onActivate={() => select(w.id)}
                       onSnippets={() => {

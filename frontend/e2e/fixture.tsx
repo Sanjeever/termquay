@@ -6,6 +6,7 @@ import { AppearanceProvider, useAppearance } from '../src/features/settings/Appe
 import { appearanceKey, defaultAppearance } from '../src/features/settings/appearance';
 import TitleBar from '../src/components/layout/TitleBar';
 import WorkspaceTabs from '../src/components/layout/WorkspaceTabs';
+import LocalTerminalLauncher from '../src/features/terminal/LocalTerminalLauncher';
 import CodeEditor from '../src/features/files/CodeEditor';
 import type { EditorFormat } from '../src/features/files/editorFormat';
 import '../src/style.css';
@@ -55,6 +56,16 @@ function Fixture() {
               onRename={() => {}}
               onMove={() => {}}
               onNew={() => setActions((value) => ({ ...value, created: value.created + 1 }))}
+              newAction={
+                <LocalTerminalLauncher
+                  compact
+                  shells={[{ id: 'shell', name: 'Shell' }]}
+                  recent={['/work/project', '/work/another']}
+                  disabled={false}
+                  onOpen={() => setActions((value) => ({ ...value, created: value.created + 1 }))}
+                  onChooseDirectory={() => {}}
+                />
+              }
               onSearch={() => setActions((value) => ({ ...value, switched: value.switched + 1 }))}
             />
           }

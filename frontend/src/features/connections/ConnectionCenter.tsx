@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 import Tooltip from '../../components/Tooltip';
 
 import SelectControl from '../../components/SelectControl';
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   GetConnectionFilters,
   SaveConnectionFilters,
@@ -48,7 +48,6 @@ import ImportConnectionsDialog from './ImportConnectionsDialog';
 import { catalogConnections, type CatalogSort } from './catalog';
 import { selectItems } from '../../lib/selection';
 import CredentialAssignDialog from './CredentialAssignDialog';
-import type { LocalShell } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import useConnectionLatency from './useConnectionLatency';
 import ConnectionLatency from './ConnectionLatency';
 
@@ -67,8 +66,7 @@ export default function ConnectionCenter({
   loading,
   loadError,
   systemRDP,
-  shells,
-  onLocal,
+  localTerminalAction,
   active,
   demoLatency,
 }: {
@@ -86,8 +84,7 @@ export default function ConnectionCenter({
   systemRDP: boolean;
   onPlaybook?(connection: Connection): void;
   onMultiHost?(connections: string[]): void;
-  shells: LocalShell[];
-  onLocal(kind: string): void;
+  localTerminalAction?: ReactNode;
   active: boolean;
   demoLatency?: ReturnType<typeof useConnectionLatency>['measurements'];
 }) {
@@ -580,6 +577,7 @@ export default function ConnectionCenter({
             {translate('connections:quickConnect')}
           </Button>
           <div className="catalog-create">
+            {localTerminalAction}
             <Button
               size="sm"
               color="primary"
@@ -591,33 +589,25 @@ export default function ConnectionCenter({
             </Button>
             <Dropdown>
               <DropdownTrigger>
-                <Tooltip content={translate('connections:importConnectionsAndLocalTerminals')}>
+                <Tooltip content={translate('connections:importConnections')}>
                   <button
                     className="icon-button"
                     disabled={busy || demo}
-                    aria-label={translate('connections:importConnectionsAndLocalTerminals')}
+                    aria-label={translate('connections:importConnections')}
                   >
                     <Icon name="chevron" width="13" style={{ transform: 'rotate(90deg)' }} />
                   </button>
                 </Tooltip>
               </DropdownTrigger>
               <DropdownMenu
-                aria-label={translate('connections:importAndLocalTerminals')}
-                items={[
-                  { id: 'import', name: translate('connections:importConnections') },
-                  ...shells.map((shell) => ({ id: `local:${shell.id}`, name: shell.name })),
-                ]}
+                aria-label={translate('connections:importConnections')}
+                items={[{ id: 'import', name: translate('connections:importConnections') }]}
                 onAction={(key) => {
                   if (demo) return;
                   if (key === 'import') setImportOpen(true);
-                  else onLocal(String(key).slice(6));
                 }}
               >
-                {(item) => (
-                  <DropdownItem key={item.id} showDivider={item.id === 'import' && !!shells.length}>
-                    {item.name}
-                  </DropdownItem>
-                )}
+                {(item) => <DropdownItem key={item.id}>{item.name}</DropdownItem>}
               </DropdownMenu>
             </Dropdown>
           </div>

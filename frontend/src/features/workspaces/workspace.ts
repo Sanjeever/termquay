@@ -21,7 +21,14 @@ export type Workspace = {
   restore?: SSHLayout;
   restored?: boolean;
   rdp?: { connection: Connection; grant?: Grant; error?: unknown; options: RDPOptions };
-  local?: { shell: string; terminal: RefObject<TerminalHandle> };
+  local?: {
+    shell: string;
+    kind: string;
+    directory: string;
+    hostname: string;
+    renamed?: boolean;
+    terminal: RefObject<TerminalHandle>;
+  };
   view?: RefObject<RDPHandle>;
   ssh?: RefObject<SSHWorkspaceHandle>;
   dirty?: boolean;

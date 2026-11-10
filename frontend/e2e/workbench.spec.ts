@@ -27,7 +27,9 @@ for (const platform of ['darwin', 'windows', 'linux']) {
         })
         .toBeLessThan(1);
       await page.getByRole('button', { name: 'No workspaces', exact: true }).click();
-      await expect(page.getByRole('button', { name: 'New connection', exact: true })).toBeVisible();
+      await expect(
+        page.getByRole('button', { name: 'New local terminal', exact: true }),
+      ).toBeVisible();
       await expect(page.getByRole('button', { name: 'Open workspaces', exact: true })).toHaveCount(
         0,
       );
@@ -43,7 +45,7 @@ for (const platform of ['darwin', 'windows', 'linux']) {
         element.scrollLeft = 0;
       });
       expect((await actions.boundingBox())!.x).toBe(position!.x);
-      await page.getByRole('button', { name: 'New connection', exact: true }).click();
+      await page.getByRole('button', { name: 'New local terminal', exact: true }).click();
       await page.getByRole('button', { name: 'Open workspaces', exact: true }).focus();
       await page.keyboard.press('Enter');
       await expect(page.getByLabel('Action counts')).toHaveText('1,1');
