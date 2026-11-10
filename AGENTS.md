@@ -28,6 +28,15 @@ When code and documentation disagree, distinguish stale implementation descripti
 - Expose real failures. Do not mask incomplete behavior with fake data, silent fallbacks, swallowed errors, retries, disabled identity verification or invented defaults.
 - The application version comes from `frontend/package.json`; `scripts/version.mjs` synchronizes platform resources. Before an authorized bump, write `docs/releases/<version>.md` and commit it with version files. Publishing and updates reuse that log. Database and backup format versions are independent.
 
+## Code style and quality
+
+- Write readable source. Keep independent statements on separate lines. Use conventional multiline blocks and JSX instead of manually compressed code.
+- Follow the repository's Oxfmt and gofmt configuration. Format changed handwritten files before committing; `pnpm format` applies repository formatting. Preserve unrelated user changes.
+- Run `pnpm format:check` before committing code changes. For frontend changes, also run `pnpm lint:frontend` and `pnpm check`, plus relevant tests.
+- Use `pnpm verify` for aggregate verification when the change warrants it. Documentation-only changes follow the documentation verification rules.
+- Keep formatter rules and lint checks enabled. Any local lint exception needs a concrete reason.
+- Follow [the quality workflow](docs/development.md#linting-and-formatting) for command scope, prerequisites and browser checks.
+
 ## Documentation consistency
 
 - Before committing a behavior change, record which documentation surfaces were checked and any unresolved discrepancies.
