@@ -6,10 +6,29 @@ const token = 'a'.repeat(64);
 const hex = (value: string) => Buffer.from(value).toString('hex');
 
 test('completion error metadata accepts known codes while retaining legacy diagnostics', () => {
-  assert.deepEqual(parseCompletionMessage(`termquay;${token};E;original diagnostic`, token), { kind: 'error', message: 'original diagnostic' });
-  assert.deepEqual(parseCompletionMessage(`termquay;${token};E;original diagnostic;terminal:completionCommandChanged`, token), { kind: 'error', message: 'original diagnostic', messageCode: 'terminal:completionCommandChanged' });
+  assert.deepEqual(parseCompletionMessage(`termquay;${token};E;original diagnostic`, token), {
+    kind: 'error',
+    message: 'original diagnostic',
+  });
+  assert.deepEqual(
+    parseCompletionMessage(
+      `termquay;${token};E;original diagnostic;terminal:completionCommandChanged`,
+      token,
+    ),
+    {
+      kind: 'error',
+      message: 'original diagnostic',
+      messageCode: 'terminal:completionCommandChanged',
+    },
+  );
   assert.equal(parseCompletionMessage(`termquay;${token};E;diagnostic;unknown:code`, token), null);
-  assert.equal(parseCompletionMessage(`termquay;${token};E;invalid\ntext;terminal:completionCommandChanged`, token), null);
+  assert.equal(
+    parseCompletionMessage(
+      `termquay;${token};E;invalid\ntext;terminal:completionCommandChanged`,
+      token,
+    ),
+    null,
+  );
 });
 test('Shell 补全只接受当前会话且编码完整的快照', () => {
   const packet = `termquay;${token};S;1;bash;3;${hex('ls ')};${hex('/tmp')};${hex('/home/user')}`;
@@ -21,7 +40,10 @@ test('Shell 补全只接受当前会话且编码完整的快照', () => {
 test('UTF-8 字节、Zsh 字符与前端光标可往返，补全帧不包含回车', () => {
   const line = 'cat 中文😀.txt';
   for (const shell of ['bash', 'zsh'] as const) {
-    const data = parseCompletionMessage(`termquay;${token};S;2;${shell};${shellPoint(line, line.length, shell)};${hex(line)};${hex('/tmp')};${hex('/home/user')}`, token);
+    const data = parseCompletionMessage(
+      `termquay;${token};S;2;${shell};${shellPoint(line, line.length, shell)};${hex(line)};${hex('/tmp')};${hex('/home/user')}`,
+      token,
+    );
     assert.equal(data?.kind, 'snapshot');
     if (data?.kind !== 'snapshot') return;
     assert.equal(data.snapshot.cursor, line.length);

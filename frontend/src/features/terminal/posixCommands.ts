@@ -1,74 +1,1153 @@
 import { t as translate } from '../../i18n/index.ts';
 import { posixCatalog } from './posixCatalog.ts';
 
-export type CommandArgument = { name: string; kind?: 'file' | 'directory' | 'value'; values?: readonly (readonly [string, string])[] };
-export type CommandOption = { name: string; description: string; argument?: CommandArgument; exclusive?: readonly string[] };
-export type PosixCommand = { name: string; description: string; synopsis: string; options: CommandOption[]; operands: CommandArgument[]; examples: readonly string[] };
+export type CommandArgument = {
+  name: string;
+  kind?: 'file' | 'directory' | 'value';
+  values?: readonly (readonly [string, string])[];
+};
+export type CommandOption = {
+  name: string;
+  description: string;
+  argument?: CommandArgument;
+  exclusive?: readonly string[];
+};
+export type PosixCommand = {
+  name: string;
+  description: string;
+  synopsis: string;
+  options: CommandOption[];
+  operands: CommandArgument[];
+  examples: readonly string[];
+};
 type OptionRow = readonly [string, string, CommandArgument?, (readonly string[])?];
-type Details = { synopsis: string; options?: readonly OptionRow[]; operands?: CommandArgument[]; examples: readonly string[] };
-const file: CommandArgument = { get name() { return translate('terminal:file'); }, kind: 'file' };
-const directory: CommandArgument = { get name() { return translate('terminal:directory'); }, kind: 'directory' };
-const count: CommandArgument = { get name() { return translate('terminal:count'); }, kind: 'value' };
-const pattern: CommandArgument = { get name() { return translate('terminal:pattern'); }, kind: 'value' };
+type Details = {
+  synopsis: string;
+  options?: readonly OptionRow[];
+  operands?: CommandArgument[];
+  examples: readonly string[];
+};
+const file: CommandArgument = {
+  get name() {
+    return translate('terminal:file');
+  },
+  kind: 'file',
+};
+const directory: CommandArgument = {
+  get name() {
+    return translate('terminal:directory');
+  },
+  kind: 'directory',
+};
+const count: CommandArgument = {
+  get name() {
+    return translate('terminal:count');
+  },
+  kind: 'value',
+};
+const pattern: CommandArgument = {
+  get name() {
+    return translate('terminal:pattern');
+  },
+  kind: 'value',
+};
 const logical = ['-L', '-P'];
 const overwrite = ['-f', '-i'];
 const details: Record<string, Details> = {
-  get ls(): Details { return { get synopsis() { return translate('terminal:lsOptionsFile'); }, examples: ['ls -la', 'ls -lt /var/log'], options: [
-    ['-a',translate('terminal:includeDotfiles')],['-A',translate('terminal:includeHiddenEntriesExceptAnd')],['-l',translate('terminal:useLongFormat')],['-1',translate('terminal:oneEntryPerLine')],['-C',translate('terminal:outputInColumns')],['-x',translate('terminal:listMultipleColumnsAcrossRows')],['-m',translate('terminal:separateWithCommas')],['-R',translate('terminal:recursivelyListSubdirectories')],['-d',translate('terminal:listDirectoriesThemselves')],['-F',translate('terminal:appendFileTypeIndicators')],['-p',translate('terminal:appendToDirectories')],['-i',translate('terminal:displayInodeNumbers')],['-s',translate('terminal:displayAllocatedBlocks')],['-k',translate('terminal:countIn1024ByteBlocks')],['-n',translate('terminal:displayNumericUsersAndGroups')],['-g',translate('terminal:omitOwnerInLongFormat')],['-o',translate('terminal:omitGroupInLongFormat')],['-r',translate('terminal:reverseSortOrder')],['-t',translate('terminal:sortByTime')],['-S',translate('terminal:sortBySize')],['-f',translate('terminal:outputInDirectoryOrder')],['-u',translate('terminal:useAccessTime')],['-c',translate('terminal:useStatusChangeTime')],['-q',translate('terminal:replaceNonPrintableCharacters')],['-H',translate('terminal:followSymbolicLinksOnTheCommandLine')],['-L',translate('terminal:followAllSymbolicLinks')]], operands: [file] }; },
-  get cd(): Details { return { get synopsis() { return translate('terminal:cdLPDirectory'); }, examples: ['cd /var/log', 'cd -'], options: [['-L',translate('terminal:useLogicalPaths'),undefined,logical],['-P',translate('terminal:resolveSymbolicLinks'),undefined,logical]], operands: [directory] }; },
-  get pwd(): Details { return { synopsis: 'pwd [-L|-P]', examples: ['pwd -P'], options: [['-L',translate('terminal:displayLogicalPath'),undefined,logical],['-P',translate('terminal:displayPhysicalPath'),undefined,logical]] }; },
-  get cp(): Details { return { get synopsis() { return translate('terminal:cpOptionsSourceDestination'); }, examples: ['cp -i config.conf config.conf.bak', 'cp -R source destination'], options: [['-f',translate('terminal:removeAnExistingDestinationThatCannotBeOpened')],['-i',translate('terminal:promptBeforeOverwriting')],['-p',translate('terminal:preservePermissionsOwnershipAndTimestamps')],['-R',translate('terminal:copyDirectoriesRecursively')],['-H',translate('terminal:followCommandLineSymbolicLinksDuringRecursion')],['-L',translate('terminal:followAllSymbolicLinksDuringRecursion')],['-P',translate('terminal:copyLinksThemselves')]], operands: [file] }; },
-  get mv(): Details { return { get synopsis() { return translate('terminal:mvFISourceDestination'); }, examples: ['mv -i old.conf new.conf'], options: [['-f',translate('terminal:replaceDestinationDirectly'),undefined,overwrite],['-i',translate('terminal:promptBeforeReplacing'),undefined,overwrite]], operands: [file] }; },
-  get rm(): Details { return { get synopsis() { return translate('terminal:rmFiRrFile'); }, examples: ['rm -i old.conf', 'rm -r old-directory'], options: [['-f',translate('terminal:ignoreMissingEntriesWithoutPrompting'),undefined,overwrite],['-i',translate('terminal:promptBeforeDeleting'),undefined,overwrite],['-R',translate('terminal:removeDirectoriesRecursively')],['-r',translate('terminal:removeDirectoriesRecursively')]], operands: [file] }; },
-  get mkdir(): Details { return { get synopsis() { return translate('terminal:mkdirPMModeDirectory'); }, examples: ['mkdir -p logs/archive', 'mkdir -m 700 private'], options: [['-p',translate('terminal:createMissingParentDirectories')],['-m',translate('terminal:setNewDirectoryPermissions'),{get name() { return translate('terminal:modeSuchAs755OrURwx'); },kind:'value'}]], operands: [directory] }; },
-  get rmdir(): Details { return { get synopsis() { return translate('terminal:rmdirPDirectory'); }, examples: ['rmdir empty-directory'], options: [['-p',translate('terminal:alsoRemoveEmptyParentDirectories')]], operands: [directory] }; },
-  get ln(): Details { return { get synopsis() { return translate('terminal:lnFsLPSourceDestination'); }, examples: ['ln -s app.conf current.conf'], options: [['-f',translate('terminal:replaceExistingDestination')],['-s',translate('terminal:createSymbolicLinks')],['-L',translate('terminal:followSourceSymbolicLinksForHardLinks'),undefined,logical],['-P',translate('terminal:hardLinkToTheSymbolicLinkItself'),undefined,logical]], operands: [file] }; },
-  get chmod(): Details { return { get synopsis() { return translate('terminal:chmodRModeFile'); }, examples: ['chmod 600 config.conf', 'chmod u+x script.sh'], options: [['-R',translate('terminal:changePermissionsRecursively')]], operands: [{get name() { return translate('terminal:mode'); },kind:'value',values:[['600',translate('terminal:ownerReadWrite')],['644',translate('terminal:ownerWritableReadableByAll')],['700',translate('terminal:ownerAccessOnly')],['755',translate('terminal:ownerWritableReadableAndExecutableByAll')],['u+x',translate('terminal:addExecutePermissionForOwner')]]},file] }; },
-  get chown(): Details { return { get synopsis() { return translate('terminal:chownRHLPOwnerGroupFile'); }, examples: ['chown user:group app.conf'], options: [['-R',translate('terminal:changeOwnershipRecursively')],['-H',translate('terminal:followCommandLineDirectoryLinks')],['-L',translate('terminal:followAllDirectoryLinks')],['-P',translate('terminal:doNotFollowDirectoryLinks')]], operands: [{get name() { return translate('terminal:ownerGroup'); },kind:'value'},file] }; },
-  get chgrp(): Details { return { get synopsis() { return translate('terminal:chgrpRHLPGroupFile'); }, examples: ['chgrp group app.conf'], options: [['-R',translate('terminal:changeGroupOwnershipRecursively')],['-H',translate('terminal:followCommandLineDirectoryLinks')],['-L',translate('terminal:followAllDirectoryLinks')],['-P',translate('terminal:doNotFollowDirectoryLinks')]], operands: [{get name() { return translate('terminal:group'); },kind:'value'},file] }; },
-  get cat(): Details { return { get synopsis() { return translate('terminal:catUFile'); }, examples: ['cat config.conf'], options: [['-u',translate('terminal:writeDataAsSoonAsItIsRead')]], operands: [file] }; },
-  get head(): Details { return { get synopsis() { return translate('terminal:headNLinesFile'); }, examples: ['head -n 20 app.log'], options: [['-n',translate('terminal:specifyNumberOfInitialLines'),count]], operands: [file] }; },
-  get tail(): Details { return { get synopsis() { return translate('terminal:tailFCBytesNLinesFile'); }, examples: ['tail -n 100 app.log', 'tail -f app.log'], options: [['-f',translate('terminal:continueReadingAppendedContent')],['-c',translate('terminal:selectTrailingContentByBytes'),count,['-c','-n']],['-n',translate('terminal:selectTrailingContentByLines'),count,['-c','-n']]], operands: [file] }; },
-  get grep(): Details { return { get synopsis() { return translate('terminal:grepOptionsPatternFile'); }, examples: ["grep -n 'ERROR' app.log", "grep -E 'warn|error' app.log"], options: [['-E',translate('terminal:useExtendedRegularExpressions'),undefined,['-E','-F']],['-F',translate('terminal:matchFixedText'),undefined,['-E','-F']],['-e',translate('terminal:addAMatchingPattern'),pattern],['-f',translate('terminal:readPatternsFromAFile'),file],['-c',translate('terminal:outputMatchingLineCountsOnly')],['-i',translate('terminal:ignoreCase')],['-l',translate('terminal:listMatchingFilenamesOnly')],['-n',translate('terminal:displayLineNumbers')],['-q',translate('terminal:reportViaExitCodeOnly')],['-s',translate('terminal:suppressFileReadErrors')],['-v',translate('terminal:selectNonMatchingLines')],['-x',translate('terminal:requireAWholeLineMatch')]], operands: [pattern,file] }; },
-  get find(): Details { return { get synopsis() { return translate('terminal:findHLPathExpression'); }, examples: ["find . -type f -name '*.log'", 'find /var/log -type f -mtime +7 -print'], options: [
-    ['-H',translate('terminal:followSymbolicLinksInCommandLinePaths')],['-L',translate('terminal:followAllSymbolicLinks')],['-name',translate('terminal:matchNamePattern'),pattern],['-path',translate('terminal:matchPathPattern'),pattern],['-type',translate('terminal:matchFileType'),{get name() { return translate('terminal:type'); },kind:'value',values:[['f',translate('terminal:regularFile')],['d',translate('terminal:directory')],['l',translate('terminal:symbolicLink')],['b',translate('terminal:blockDevice')],['c',translate('terminal:characterDevice')],['p',translate('terminal:namedPipe')],['s',translate('terminal:socket')]]}],['-user',translate('terminal:matchOwner'),{get name() { return translate('terminal:user'); },kind:'value'}],['-group',translate('terminal:matchGroup'),{get name() { return translate('terminal:group'); },kind:'value'}],['-nouser',translate('terminal:matchFilesWithNoCorrespondingUser')],['-nogroup',translate('terminal:matchFilesWithNoCorrespondingGroup')],['-perm',translate('terminal:matchPermissions'),{get name() { return translate('terminal:mode'); },kind:'value'}],['-links',translate('terminal:matchHardLinkCount'),count],['-size',translate('terminal:matchSizeCSuffixMeansBytes'),count],['-atime',translate('terminal:matchAccessAgeInDays'),count],['-ctime',translate('terminal:matchStatusChangeAgeInDays'),count],['-mtime',translate('terminal:matchModificationAgeInDays'),count],['-newer',translate('terminal:matchEntriesNewerThanAReferenceFile'),file],['-xdev',translate('terminal:stayOnTheSameFilesystem')],['-depth',translate('terminal:processChildrenBeforeDirectories')],['-prune',translate('terminal:doNotDescendIntoTheCurrentDirectory')],['-print',translate('terminal:printMatchingPaths')],['-exec',translate('terminal:executeACommandOnMatchesUsingAndA'),{get name() { return translate('terminal:command'); },kind:'value'}],['-ok',translate('terminal:executeACommandOnMatchesAfterConfirmation'),{get name() { return translate('terminal:command'); },kind:'value'}],['-a',translate('terminal:combineExpressionsWithLogicalAND')],['-o',translate('terminal:combineExpressionsWithLogicalOR')]], operands: [directory] }; },
-  get sed(): Details { return { get synopsis() { return translate('terminal:sedNEScriptFFileFile'); }, examples: ["sed -n '1,20p' app.log", "sed 's/old/new/g' input.txt"], options: [['-n',translate('terminal:outputExplicitlyPrintedContentOnly')],['-e',translate('terminal:addAnEditingScript'),{get name() { return translate('terminal:script'); },kind:'value'}],['-f',translate('terminal:readEditingScriptFromFile'),file]], operands: [{get name() { return translate('terminal:script'); },kind:'value'},file] }; },
-  get awk(): Details { return { get synopsis() { return translate('terminal:awkFSeparatorVNameValueFProgram'); }, examples: ["awk -F ':' '{print $1}' /etc/passwd"], options: [['-F',translate('terminal:setFieldSeparator'),{get name() { return translate('terminal:separator'); },kind:'value'}],['-v',translate('terminal:setVariablesBeforeProgramExecution'),{get name() { return translate('terminal:nameValue'); },kind:'value'}],['-f',translate('terminal:readProgramFromFile'),file]], operands: [{get name() { return translate('terminal:program'); },kind:'value'},file] }; },
-  get sort(): Details { return { get synopsis() { return translate('terminal:sortOptionsOOutputFileFile'); }, examples: ['sort -u names.txt', 'sort -n -k 2 data.txt'], options: [['-b',translate('terminal:ignoreLeadingFieldWhitespace')],['-c',translate('terminal:checkWhetherInputIsSorted')],['-d',translate('terminal:compareWhitespaceAndAlphanumericCharactersOnly')],['-f',translate('terminal:ignoreCase')],['-i',translate('terminal:ignoreNonPrintableCharacters')],['-m',translate('terminal:mergeSortedFiles')],['-n',translate('terminal:compareNumerically')],['-r',translate('terminal:reverseSortOrder')],['-u',translate('terminal:mergeEqualSortKeys')],['-k',translate('terminal:specifySortKey'),{get name() { return translate('terminal:startFieldEndField'); },kind:'value'}],['-o',translate('terminal:writeToSpecifiedFile'),file],['-t',translate('terminal:setFieldSeparator'),{get name() { return translate('terminal:separator'); },kind:'value'}]], operands: [file] }; },
-  get uniq(): Details { return { get synopsis() { return translate('terminal:uniqCDUFFieldsSCharacters'); }, examples: ['sort names.txt | uniq -c'], options: [['-c',translate('terminal:displayOccurrenceCounts')],['-d',translate('terminal:outputDuplicateLinesOnly'),undefined,['-d','-u']],['-u',translate('terminal:outputUniqueLinesOnly'),undefined,['-d','-u']],['-f',translate('terminal:skipFieldsWhenComparing'),count],['-s',translate('terminal:skipCharactersWhenComparing'),count]], operands: [file] }; },
-  get cut(): Details { return { get synopsis() { return translate('terminal:cutBListCListFListD'); }, examples: ["cut -d ':' -f 1 /etc/passwd"], options: [['-b',translate('terminal:selectBytePositions'),{get name() { return translate('terminal:positionList'); },kind:'value'},['-b','-c','-f']],['-c',translate('terminal:selectCharacterPositions'),{get name() { return translate('terminal:positionList'); },kind:'value'},['-b','-c','-f']],['-f',translate('terminal:selectFields'),{get name() { return translate('terminal:fieldList'); },kind:'value'},['-b','-c','-f']],['-d',translate('terminal:setFieldSeparator'),{get name() { return translate('terminal:separator'); },kind:'value'}],['-s',translate('terminal:skipLinesWithoutSeparators')],['-n',translate('terminal:doNotSplitMultibyteCharacters')]], operands: [file] }; },
-  get tr(): Details { return { get synopsis() { return translate('terminal:trCCDSSet1Set2'); }, examples: ["tr '[:lower:]' '[:upper:]'", "tr -s ' '"], options: [['-c',translate('terminal:useByteSetComplement'),undefined,['-c','-C']],['-C',translate('terminal:useCharacterSetComplement'),undefined,['-c','-C']],['-d',translate('terminal:deleteMatchingCharacters')],['-s',translate('terminal:squeezeRepeatedCharacters')]], operands: [{get name() { return translate('terminal:characterSet'); },kind:'value'}] }; },
-  get wc(): Details { return { get synopsis() { return translate('terminal:wcCMLwFile'); }, examples: ['wc -l app.log'], options: [['-c',translate('terminal:countBytes'),undefined,['-c','-m']],['-m',translate('terminal:countCharacters'),undefined,['-c','-m']],['-l',translate('terminal:countLines')],['-w',translate('terminal:countWords')]], operands: [file] }; },
-  get du(): Details { return { get synopsis() { return translate('terminal:duASHLKxFile'); }, examples: ['du -sk /var/log'], options: [['-a',translate('terminal:alsoListFiles'),undefined,['-a','-s']],['-s',translate('terminal:displayTotalsForEachArgumentOnly'),undefined,['-a','-s']],['-H',translate('terminal:followCommandLineSymbolicLinks')],['-L',translate('terminal:followAllSymbolicLinks')],['-k',translate('terminal:countInUnitsOf1024Bytes')],['-x',translate('terminal:stayOnTheSameFilesystem')]], operands: [file] }; },
-  get df(): Details { return { get synopsis() { return translate('terminal:dfKPTFile'); }, examples: ['df -Pk /var'], options: [['-k',translate('terminal:countInUnitsOf1024Bytes')],['-P',translate('terminal:usePortableStandardFormat')],['-t',translate('terminal:displayTotalAllocations')]], operands: [file] }; },
-  get touch(): Details { return { get synopsis() { return translate('terminal:touchAcmRReferenceTTimeFile'); }, examples: ['touch new.txt', 'touch -r source.txt target.txt'], options: [['-a',translate('terminal:updateAccessTimeOnly')],['-m',translate('terminal:updateModificationTimeOnly')],['-c',translate('terminal:doNotCreateMissingFiles')],['-r',translate('terminal:useReferenceFileTimestamps'),file,['-r','-t']],['-t',translate('terminal:specifyTimeAsCCYYMMDDhhmmSS'),{get name() { return translate('terminal:time'); },kind:'value'},['-r','-t']]], operands: [file] }; },
-  get tee(): Details { return { get synopsis() { return translate('terminal:teeAiFile'); }, examples: ['printf hello | tee output.txt'], options: [['-a',translate('terminal:appendToFiles')],['-i',translate('terminal:ignoreInterruptSignals')]], operands: [file] }; },
-  get xargs(): Details { return { get synopsis() { return translate('terminal:xargsOptionsCommandArgument'); }, examples: ['printf "%s\\n" one two | xargs -n 1 printf "%s\\n"'], options: [['-E',translate('terminal:setLogicalEndOfInputMarker'),{get name() { return translate('terminal:endMarker'); },kind:'value'}],['-I',translate('terminal:replaceTheSpecifiedPlaceholderForEachInputLine'),{get name() { return translate('terminal:placeholder'); },kind:'value'},['-I','-L','-n']],['-L',translate('terminal:nonemptyInputLinesPerInvocation'),count,['-I','-L','-n']],['-n',translate('terminal:argumentsPassedPerInvocation'),count,['-I','-L','-n']],['-p',translate('terminal:promptBeforeExecuting')],['-s',translate('terminal:limitCommandLineBytes'),count],['-t',translate('terminal:displayCommandsBeforeExecution')],['-x',translate('terminal:stopWhenLengthLimitIsExceeded')]], operands: [{get name() { return translate('terminal:commandAndArguments'); },kind:'value'}] }; },
-  get printf(): Details { return { get synopsis() { return translate('terminal:printfFormatArgument'); }, examples: ['printf "%s\\n" hello'], operands: [{get name() { return translate('terminal:format'); },kind:'value'},{get name() { return translate('terminal:parameter'); },kind:'value'}] }; },
-  get echo(): Details { return { get synopsis() { return translate('terminal:echoArgument'); }, examples: ['echo hello'], operands: [{get name() { return translate('terminal:parameter'); },kind:'value'}] }; },
-  get env(): Details { return { get synopsis() { return translate('terminal:envINameValueCommandArgument'); }, examples: ['env', 'env LC_ALL=C sort names.txt'], options: [['-i',translate('terminal:startWithAnEmptyEnvironment')]], operands: [{get name() { return translate('terminal:nameValueOrCommand'); },kind:'value'}] }; },
-  get export(): Details { return { get synopsis() { return translate('terminal:exportPNameValue'); }, examples: ['export EDITOR=vi', 'export -p'], options: [['-p',translate('terminal:listExportedVariables')]], operands: [{get name() { return translate('terminal:nameValue2'); },kind:'value'}] }; },
-  get unset(): Details { return { get synopsis() { return translate('terminal:unsetFVName'); }, examples: ['unset VARIABLE'], options: [['-f',translate('terminal:removeFunctions'),undefined,['-f','-v']],['-v',translate('terminal:removeVariables'),undefined,['-f','-v']]], operands: [{get name() { return translate('terminal:name'); },kind:'value'}] }; },
-  get command(): Details { return { get synopsis() { return translate('terminal:commandPCommandArgumentCommandVVCommand'); }, examples: ['command -v sh'], options: [['-p',translate('terminal:useStandardUtilitySearchPath')],['-v',translate('terminal:displayCommandInterpretation')],['-V',translate('terminal:displayDetailedInterpretation')]], operands: [{get name() { return translate('terminal:command'); },kind:'value'}] }; },
-  get type(): Details { return { get synopsis() { return translate('terminal:typeName'); }, examples: ['type ls'], operands: [{get name() { return translate('terminal:commandName'); },kind:'value'}] }; },
-  get sleep(): Details { return { get synopsis() { return translate('terminal:sleepSeconds'); }, examples: ['sleep 5'], operands: [{get name() { return translate('terminal:seconds2'); },kind:'value'}] }; },
-  get basename(): Details { return { get synopsis() { return translate('terminal:basenamePathSuffix'); }, examples: ['basename /var/log/app.log .log'], operands: [file,{get name() { return translate('terminal:suffix'); },kind:'value'}] }; },
-  get dirname(): Details { return { get synopsis() { return translate('terminal:dirnamePath'); }, examples: ['dirname /var/log/app.log'], operands: [file] }; },
-  get uname(): Details { return { synopsis: 'uname [-amnrsv]', examples: ['uname -a'], options: [['-a',translate('terminal:displayAllSystemInformation')],['-m',translate('terminal:displayHardwareType')],['-n',translate('terminal:displayNodeName')],['-r',translate('terminal:displayOSRelease')],['-s',translate('terminal:displayOSName')],['-v',translate('terminal:displayOSVersion')]] }; },
-  get id(): Details { return { get synopsis() { return translate('terminal:idGGUNrUser'); }, examples: ['id', 'id -u'], options: [['-G',translate('terminal:displayAllGroupIDs'),undefined,['-G','-g','-u']],['-g',translate('terminal:displayEffectiveGroupID'),undefined,['-G','-g','-u']],['-u',translate('terminal:displayEffectiveUserID'),undefined,['-G','-g','-u']],['-n',translate('terminal:useNamesInsteadOfNumbers')],['-r',translate('terminal:displayRealIdentity')]], operands: [{get name() { return translate('terminal:user'); },kind:'value'}] }; },
-  get kill(): Details { return { get synopsis() { return translate('terminal:killSSignalProcessKillLStatus'); }, examples: ['kill -s TERM 1234', 'kill -l'], options: [['-s',translate('terminal:selectSignalToSend'),{get name() { return translate('terminal:signal'); },kind:'value',values:[['TERM',translate('terminal:requestNormalTermination')],['HUP',translate('terminal:hangUpOrReload')],['INT',translate('terminal:interrupt')],['QUIT',translate('terminal:quit')],['KILL',translate('terminal:forceTermination')],['STOP',translate('terminal:pause')],['CONT',translate('terminal:resume')]]}],['-l',translate('terminal:listOrConvertSignalNames')]], operands: [{get name() { return translate('terminal:processIDOrJob'); },kind:'value'}] }; },
-  get nice(): Details { return { get synopsis() { return translate('terminal:niceNAdjustmentCommandArgument'); }, examples: ['nice -n 10 command'], options: [['-n',translate('terminal:setSchedulingPriorityAdjustment'),{get name() { return translate('terminal:adjustment'); },kind:'value'}]], operands: [{get name() { return translate('terminal:commandAndArguments'); },kind:'value'}] }; },
-  get nohup(): Details { return { get synopsis() { return translate('terminal:nohupCommandArgument'); }, examples: ['nohup command > output.log 2>&1 &'], operands: [{get name() { return translate('terminal:commandAndArguments'); },kind:'value'}] }; },
-  get test(): Details { return { get synopsis() { return translate('terminal:testExpression'); }, examples: ['test -f config.conf', 'test -d /var/log'], options: [['-b',translate('terminal:testForBlockDevice'),file],['-c',translate('terminal:testForCharacterDevice'),file],['-d',translate('terminal:testForDirectory'),directory],['-e',translate('terminal:testPathExistence'),file],['-f',translate('terminal:testForRegularFile'),file],['-g',translate('terminal:testSetGroupIDBit'),file],['-h',translate('terminal:testForSymbolicLink'),file],['-L',translate('terminal:testForSymbolicLink'),file],['-n',translate('terminal:testNonemptyString'),{get name() { return translate('terminal:string'); },kind:'value'}],['-p',translate('terminal:testForNamedPipe'),file],['-r',translate('terminal:testReadability'),file],['-S',translate('terminal:testForSocket'),file],['-s',translate('terminal:testNonemptyFile'),file],['-t',translate('terminal:testTerminalDescriptor'),{get name() { return translate('terminal:fileDescriptor'); },kind:'value'}],['-u',translate('terminal:testSetUserIDBit'),file],['-w',translate('terminal:testWritability'),file],['-x',translate('terminal:testExecutability'),file],['-z',translate('terminal:testEmptyString'),{get name() { return translate('terminal:string'); },kind:'value'}]], operands: [{get name() { return translate('terminal:expression'); },kind:'value'}] }; },
+  get ls(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:lsOptionsFile');
+      },
+      examples: ['ls -la', 'ls -lt /var/log'],
+      options: [
+        ['-a', translate('terminal:includeDotfiles')],
+        ['-A', translate('terminal:includeHiddenEntriesExceptAnd')],
+        ['-l', translate('terminal:useLongFormat')],
+        ['-1', translate('terminal:oneEntryPerLine')],
+        ['-C', translate('terminal:outputInColumns')],
+        ['-x', translate('terminal:listMultipleColumnsAcrossRows')],
+        ['-m', translate('terminal:separateWithCommas')],
+        ['-R', translate('terminal:recursivelyListSubdirectories')],
+        ['-d', translate('terminal:listDirectoriesThemselves')],
+        ['-F', translate('terminal:appendFileTypeIndicators')],
+        ['-p', translate('terminal:appendToDirectories')],
+        ['-i', translate('terminal:displayInodeNumbers')],
+        ['-s', translate('terminal:displayAllocatedBlocks')],
+        ['-k', translate('terminal:countIn1024ByteBlocks')],
+        ['-n', translate('terminal:displayNumericUsersAndGroups')],
+        ['-g', translate('terminal:omitOwnerInLongFormat')],
+        ['-o', translate('terminal:omitGroupInLongFormat')],
+        ['-r', translate('terminal:reverseSortOrder')],
+        ['-t', translate('terminal:sortByTime')],
+        ['-S', translate('terminal:sortBySize')],
+        ['-f', translate('terminal:outputInDirectoryOrder')],
+        ['-u', translate('terminal:useAccessTime')],
+        ['-c', translate('terminal:useStatusChangeTime')],
+        ['-q', translate('terminal:replaceNonPrintableCharacters')],
+        ['-H', translate('terminal:followSymbolicLinksOnTheCommandLine')],
+        ['-L', translate('terminal:followAllSymbolicLinks')],
+      ],
+      operands: [file],
+    };
+  },
+  get cd(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:cdLPDirectory');
+      },
+      examples: ['cd /var/log', 'cd -'],
+      options: [
+        ['-L', translate('terminal:useLogicalPaths'), undefined, logical],
+        ['-P', translate('terminal:resolveSymbolicLinks'), undefined, logical],
+      ],
+      operands: [directory],
+    };
+  },
+  get pwd(): Details {
+    return {
+      synopsis: 'pwd [-L|-P]',
+      examples: ['pwd -P'],
+      options: [
+        ['-L', translate('terminal:displayLogicalPath'), undefined, logical],
+        ['-P', translate('terminal:displayPhysicalPath'), undefined, logical],
+      ],
+    };
+  },
+  get cp(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:cpOptionsSourceDestination');
+      },
+      examples: ['cp -i config.conf config.conf.bak', 'cp -R source destination'],
+      options: [
+        ['-f', translate('terminal:removeAnExistingDestinationThatCannotBeOpened')],
+        ['-i', translate('terminal:promptBeforeOverwriting')],
+        ['-p', translate('terminal:preservePermissionsOwnershipAndTimestamps')],
+        ['-R', translate('terminal:copyDirectoriesRecursively')],
+        ['-H', translate('terminal:followCommandLineSymbolicLinksDuringRecursion')],
+        ['-L', translate('terminal:followAllSymbolicLinksDuringRecursion')],
+        ['-P', translate('terminal:copyLinksThemselves')],
+      ],
+      operands: [file],
+    };
+  },
+  get mv(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:mvFISourceDestination');
+      },
+      examples: ['mv -i old.conf new.conf'],
+      options: [
+        ['-f', translate('terminal:replaceDestinationDirectly'), undefined, overwrite],
+        ['-i', translate('terminal:promptBeforeReplacing'), undefined, overwrite],
+      ],
+      operands: [file],
+    };
+  },
+  get rm(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:rmFiRrFile');
+      },
+      examples: ['rm -i old.conf', 'rm -r old-directory'],
+      options: [
+        ['-f', translate('terminal:ignoreMissingEntriesWithoutPrompting'), undefined, overwrite],
+        ['-i', translate('terminal:promptBeforeDeleting'), undefined, overwrite],
+        ['-R', translate('terminal:removeDirectoriesRecursively')],
+        ['-r', translate('terminal:removeDirectoriesRecursively')],
+      ],
+      operands: [file],
+    };
+  },
+  get mkdir(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:mkdirPMModeDirectory');
+      },
+      examples: ['mkdir -p logs/archive', 'mkdir -m 700 private'],
+      options: [
+        ['-p', translate('terminal:createMissingParentDirectories')],
+        [
+          '-m',
+          translate('terminal:setNewDirectoryPermissions'),
+          {
+            get name() {
+              return translate('terminal:modeSuchAs755OrURwx');
+            },
+            kind: 'value',
+          },
+        ],
+      ],
+      operands: [directory],
+    };
+  },
+  get rmdir(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:rmdirPDirectory');
+      },
+      examples: ['rmdir empty-directory'],
+      options: [['-p', translate('terminal:alsoRemoveEmptyParentDirectories')]],
+      operands: [directory],
+    };
+  },
+  get ln(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:lnFsLPSourceDestination');
+      },
+      examples: ['ln -s app.conf current.conf'],
+      options: [
+        ['-f', translate('terminal:replaceExistingDestination')],
+        ['-s', translate('terminal:createSymbolicLinks')],
+        ['-L', translate('terminal:followSourceSymbolicLinksForHardLinks'), undefined, logical],
+        ['-P', translate('terminal:hardLinkToTheSymbolicLinkItself'), undefined, logical],
+      ],
+      operands: [file],
+    };
+  },
+  get chmod(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:chmodRModeFile');
+      },
+      examples: ['chmod 600 config.conf', 'chmod u+x script.sh'],
+      options: [['-R', translate('terminal:changePermissionsRecursively')]],
+      operands: [
+        {
+          get name() {
+            return translate('terminal:mode');
+          },
+          kind: 'value',
+          values: [
+            ['600', translate('terminal:ownerReadWrite')],
+            ['644', translate('terminal:ownerWritableReadableByAll')],
+            ['700', translate('terminal:ownerAccessOnly')],
+            ['755', translate('terminal:ownerWritableReadableAndExecutableByAll')],
+            ['u+x', translate('terminal:addExecutePermissionForOwner')],
+          ],
+        },
+        file,
+      ],
+    };
+  },
+  get chown(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:chownRHLPOwnerGroupFile');
+      },
+      examples: ['chown user:group app.conf'],
+      options: [
+        ['-R', translate('terminal:changeOwnershipRecursively')],
+        ['-H', translate('terminal:followCommandLineDirectoryLinks')],
+        ['-L', translate('terminal:followAllDirectoryLinks')],
+        ['-P', translate('terminal:doNotFollowDirectoryLinks')],
+      ],
+      operands: [
+        {
+          get name() {
+            return translate('terminal:ownerGroup');
+          },
+          kind: 'value',
+        },
+        file,
+      ],
+    };
+  },
+  get chgrp(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:chgrpRHLPGroupFile');
+      },
+      examples: ['chgrp group app.conf'],
+      options: [
+        ['-R', translate('terminal:changeGroupOwnershipRecursively')],
+        ['-H', translate('terminal:followCommandLineDirectoryLinks')],
+        ['-L', translate('terminal:followAllDirectoryLinks')],
+        ['-P', translate('terminal:doNotFollowDirectoryLinks')],
+      ],
+      operands: [
+        {
+          get name() {
+            return translate('terminal:group');
+          },
+          kind: 'value',
+        },
+        file,
+      ],
+    };
+  },
+  get cat(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:catUFile');
+      },
+      examples: ['cat config.conf'],
+      options: [['-u', translate('terminal:writeDataAsSoonAsItIsRead')]],
+      operands: [file],
+    };
+  },
+  get head(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:headNLinesFile');
+      },
+      examples: ['head -n 20 app.log'],
+      options: [['-n', translate('terminal:specifyNumberOfInitialLines'), count]],
+      operands: [file],
+    };
+  },
+  get tail(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:tailFCBytesNLinesFile');
+      },
+      examples: ['tail -n 100 app.log', 'tail -f app.log'],
+      options: [
+        ['-f', translate('terminal:continueReadingAppendedContent')],
+        ['-c', translate('terminal:selectTrailingContentByBytes'), count, ['-c', '-n']],
+        ['-n', translate('terminal:selectTrailingContentByLines'), count, ['-c', '-n']],
+      ],
+      operands: [file],
+    };
+  },
+  get grep(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:grepOptionsPatternFile');
+      },
+      examples: ["grep -n 'ERROR' app.log", "grep -E 'warn|error' app.log"],
+      options: [
+        ['-E', translate('terminal:useExtendedRegularExpressions'), undefined, ['-E', '-F']],
+        ['-F', translate('terminal:matchFixedText'), undefined, ['-E', '-F']],
+        ['-e', translate('terminal:addAMatchingPattern'), pattern],
+        ['-f', translate('terminal:readPatternsFromAFile'), file],
+        ['-c', translate('terminal:outputMatchingLineCountsOnly')],
+        ['-i', translate('terminal:ignoreCase')],
+        ['-l', translate('terminal:listMatchingFilenamesOnly')],
+        ['-n', translate('terminal:displayLineNumbers')],
+        ['-q', translate('terminal:reportViaExitCodeOnly')],
+        ['-s', translate('terminal:suppressFileReadErrors')],
+        ['-v', translate('terminal:selectNonMatchingLines')],
+        ['-x', translate('terminal:requireAWholeLineMatch')],
+      ],
+      operands: [pattern, file],
+    };
+  },
+  get find(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:findHLPathExpression');
+      },
+      examples: ["find . -type f -name '*.log'", 'find /var/log -type f -mtime +7 -print'],
+      options: [
+        ['-H', translate('terminal:followSymbolicLinksInCommandLinePaths')],
+        ['-L', translate('terminal:followAllSymbolicLinks')],
+        ['-name', translate('terminal:matchNamePattern'), pattern],
+        ['-path', translate('terminal:matchPathPattern'), pattern],
+        [
+          '-type',
+          translate('terminal:matchFileType'),
+          {
+            get name() {
+              return translate('terminal:type');
+            },
+            kind: 'value',
+            values: [
+              ['f', translate('terminal:regularFile')],
+              ['d', translate('terminal:directory')],
+              ['l', translate('terminal:symbolicLink')],
+              ['b', translate('terminal:blockDevice')],
+              ['c', translate('terminal:characterDevice')],
+              ['p', translate('terminal:namedPipe')],
+              ['s', translate('terminal:socket')],
+            ],
+          },
+        ],
+        [
+          '-user',
+          translate('terminal:matchOwner'),
+          {
+            get name() {
+              return translate('terminal:user');
+            },
+            kind: 'value',
+          },
+        ],
+        [
+          '-group',
+          translate('terminal:matchGroup'),
+          {
+            get name() {
+              return translate('terminal:group');
+            },
+            kind: 'value',
+          },
+        ],
+        ['-nouser', translate('terminal:matchFilesWithNoCorrespondingUser')],
+        ['-nogroup', translate('terminal:matchFilesWithNoCorrespondingGroup')],
+        [
+          '-perm',
+          translate('terminal:matchPermissions'),
+          {
+            get name() {
+              return translate('terminal:mode');
+            },
+            kind: 'value',
+          },
+        ],
+        ['-links', translate('terminal:matchHardLinkCount'), count],
+        ['-size', translate('terminal:matchSizeCSuffixMeansBytes'), count],
+        ['-atime', translate('terminal:matchAccessAgeInDays'), count],
+        ['-ctime', translate('terminal:matchStatusChangeAgeInDays'), count],
+        ['-mtime', translate('terminal:matchModificationAgeInDays'), count],
+        ['-newer', translate('terminal:matchEntriesNewerThanAReferenceFile'), file],
+        ['-xdev', translate('terminal:stayOnTheSameFilesystem')],
+        ['-depth', translate('terminal:processChildrenBeforeDirectories')],
+        ['-prune', translate('terminal:doNotDescendIntoTheCurrentDirectory')],
+        ['-print', translate('terminal:printMatchingPaths')],
+        [
+          '-exec',
+          translate('terminal:executeACommandOnMatchesUsingAndA'),
+          {
+            get name() {
+              return translate('terminal:command');
+            },
+            kind: 'value',
+          },
+        ],
+        [
+          '-ok',
+          translate('terminal:executeACommandOnMatchesAfterConfirmation'),
+          {
+            get name() {
+              return translate('terminal:command');
+            },
+            kind: 'value',
+          },
+        ],
+        ['-a', translate('terminal:combineExpressionsWithLogicalAND')],
+        ['-o', translate('terminal:combineExpressionsWithLogicalOR')],
+      ],
+      operands: [directory],
+    };
+  },
+  get sed(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:sedNEScriptFFileFile');
+      },
+      examples: ["sed -n '1,20p' app.log", "sed 's/old/new/g' input.txt"],
+      options: [
+        ['-n', translate('terminal:outputExplicitlyPrintedContentOnly')],
+        [
+          '-e',
+          translate('terminal:addAnEditingScript'),
+          {
+            get name() {
+              return translate('terminal:script');
+            },
+            kind: 'value',
+          },
+        ],
+        ['-f', translate('terminal:readEditingScriptFromFile'), file],
+      ],
+      operands: [
+        {
+          get name() {
+            return translate('terminal:script');
+          },
+          kind: 'value',
+        },
+        file,
+      ],
+    };
+  },
+  get awk(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:awkFSeparatorVNameValueFProgram');
+      },
+      examples: ["awk -F ':' '{print $1}' /etc/passwd"],
+      options: [
+        [
+          '-F',
+          translate('terminal:setFieldSeparator'),
+          {
+            get name() {
+              return translate('terminal:separator');
+            },
+            kind: 'value',
+          },
+        ],
+        [
+          '-v',
+          translate('terminal:setVariablesBeforeProgramExecution'),
+          {
+            get name() {
+              return translate('terminal:nameValue');
+            },
+            kind: 'value',
+          },
+        ],
+        ['-f', translate('terminal:readProgramFromFile'), file],
+      ],
+      operands: [
+        {
+          get name() {
+            return translate('terminal:program');
+          },
+          kind: 'value',
+        },
+        file,
+      ],
+    };
+  },
+  get sort(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:sortOptionsOOutputFileFile');
+      },
+      examples: ['sort -u names.txt', 'sort -n -k 2 data.txt'],
+      options: [
+        ['-b', translate('terminal:ignoreLeadingFieldWhitespace')],
+        ['-c', translate('terminal:checkWhetherInputIsSorted')],
+        ['-d', translate('terminal:compareWhitespaceAndAlphanumericCharactersOnly')],
+        ['-f', translate('terminal:ignoreCase')],
+        ['-i', translate('terminal:ignoreNonPrintableCharacters')],
+        ['-m', translate('terminal:mergeSortedFiles')],
+        ['-n', translate('terminal:compareNumerically')],
+        ['-r', translate('terminal:reverseSortOrder')],
+        ['-u', translate('terminal:mergeEqualSortKeys')],
+        [
+          '-k',
+          translate('terminal:specifySortKey'),
+          {
+            get name() {
+              return translate('terminal:startFieldEndField');
+            },
+            kind: 'value',
+          },
+        ],
+        ['-o', translate('terminal:writeToSpecifiedFile'), file],
+        [
+          '-t',
+          translate('terminal:setFieldSeparator'),
+          {
+            get name() {
+              return translate('terminal:separator');
+            },
+            kind: 'value',
+          },
+        ],
+      ],
+      operands: [file],
+    };
+  },
+  get uniq(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:uniqCDUFFieldsSCharacters');
+      },
+      examples: ['sort names.txt | uniq -c'],
+      options: [
+        ['-c', translate('terminal:displayOccurrenceCounts')],
+        ['-d', translate('terminal:outputDuplicateLinesOnly'), undefined, ['-d', '-u']],
+        ['-u', translate('terminal:outputUniqueLinesOnly'), undefined, ['-d', '-u']],
+        ['-f', translate('terminal:skipFieldsWhenComparing'), count],
+        ['-s', translate('terminal:skipCharactersWhenComparing'), count],
+      ],
+      operands: [file],
+    };
+  },
+  get cut(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:cutBListCListFListD');
+      },
+      examples: ["cut -d ':' -f 1 /etc/passwd"],
+      options: [
+        [
+          '-b',
+          translate('terminal:selectBytePositions'),
+          {
+            get name() {
+              return translate('terminal:positionList');
+            },
+            kind: 'value',
+          },
+          ['-b', '-c', '-f'],
+        ],
+        [
+          '-c',
+          translate('terminal:selectCharacterPositions'),
+          {
+            get name() {
+              return translate('terminal:positionList');
+            },
+            kind: 'value',
+          },
+          ['-b', '-c', '-f'],
+        ],
+        [
+          '-f',
+          translate('terminal:selectFields'),
+          {
+            get name() {
+              return translate('terminal:fieldList');
+            },
+            kind: 'value',
+          },
+          ['-b', '-c', '-f'],
+        ],
+        [
+          '-d',
+          translate('terminal:setFieldSeparator'),
+          {
+            get name() {
+              return translate('terminal:separator');
+            },
+            kind: 'value',
+          },
+        ],
+        ['-s', translate('terminal:skipLinesWithoutSeparators')],
+        ['-n', translate('terminal:doNotSplitMultibyteCharacters')],
+      ],
+      operands: [file],
+    };
+  },
+  get tr(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:trCCDSSet1Set2');
+      },
+      examples: ["tr '[:lower:]' '[:upper:]'", "tr -s ' '"],
+      options: [
+        ['-c', translate('terminal:useByteSetComplement'), undefined, ['-c', '-C']],
+        ['-C', translate('terminal:useCharacterSetComplement'), undefined, ['-c', '-C']],
+        ['-d', translate('terminal:deleteMatchingCharacters')],
+        ['-s', translate('terminal:squeezeRepeatedCharacters')],
+      ],
+      operands: [
+        {
+          get name() {
+            return translate('terminal:characterSet');
+          },
+          kind: 'value',
+        },
+      ],
+    };
+  },
+  get wc(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:wcCMLwFile');
+      },
+      examples: ['wc -l app.log'],
+      options: [
+        ['-c', translate('terminal:countBytes'), undefined, ['-c', '-m']],
+        ['-m', translate('terminal:countCharacters'), undefined, ['-c', '-m']],
+        ['-l', translate('terminal:countLines')],
+        ['-w', translate('terminal:countWords')],
+      ],
+      operands: [file],
+    };
+  },
+  get du(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:duASHLKxFile');
+      },
+      examples: ['du -sk /var/log'],
+      options: [
+        ['-a', translate('terminal:alsoListFiles'), undefined, ['-a', '-s']],
+        ['-s', translate('terminal:displayTotalsForEachArgumentOnly'), undefined, ['-a', '-s']],
+        ['-H', translate('terminal:followCommandLineSymbolicLinks')],
+        ['-L', translate('terminal:followAllSymbolicLinks')],
+        ['-k', translate('terminal:countInUnitsOf1024Bytes')],
+        ['-x', translate('terminal:stayOnTheSameFilesystem')],
+      ],
+      operands: [file],
+    };
+  },
+  get df(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:dfKPTFile');
+      },
+      examples: ['df -Pk /var'],
+      options: [
+        ['-k', translate('terminal:countInUnitsOf1024Bytes')],
+        ['-P', translate('terminal:usePortableStandardFormat')],
+        ['-t', translate('terminal:displayTotalAllocations')],
+      ],
+      operands: [file],
+    };
+  },
+  get touch(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:touchAcmRReferenceTTimeFile');
+      },
+      examples: ['touch new.txt', 'touch -r source.txt target.txt'],
+      options: [
+        ['-a', translate('terminal:updateAccessTimeOnly')],
+        ['-m', translate('terminal:updateModificationTimeOnly')],
+        ['-c', translate('terminal:doNotCreateMissingFiles')],
+        ['-r', translate('terminal:useReferenceFileTimestamps'), file, ['-r', '-t']],
+        [
+          '-t',
+          translate('terminal:specifyTimeAsCCYYMMDDhhmmSS'),
+          {
+            get name() {
+              return translate('terminal:time');
+            },
+            kind: 'value',
+          },
+          ['-r', '-t'],
+        ],
+      ],
+      operands: [file],
+    };
+  },
+  get tee(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:teeAiFile');
+      },
+      examples: ['printf hello | tee output.txt'],
+      options: [
+        ['-a', translate('terminal:appendToFiles')],
+        ['-i', translate('terminal:ignoreInterruptSignals')],
+      ],
+      operands: [file],
+    };
+  },
+  get xargs(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:xargsOptionsCommandArgument');
+      },
+      examples: ['printf "%s\\n" one two | xargs -n 1 printf "%s\\n"'],
+      options: [
+        [
+          '-E',
+          translate('terminal:setLogicalEndOfInputMarker'),
+          {
+            get name() {
+              return translate('terminal:endMarker');
+            },
+            kind: 'value',
+          },
+        ],
+        [
+          '-I',
+          translate('terminal:replaceTheSpecifiedPlaceholderForEachInputLine'),
+          {
+            get name() {
+              return translate('terminal:placeholder');
+            },
+            kind: 'value',
+          },
+          ['-I', '-L', '-n'],
+        ],
+        ['-L', translate('terminal:nonemptyInputLinesPerInvocation'), count, ['-I', '-L', '-n']],
+        ['-n', translate('terminal:argumentsPassedPerInvocation'), count, ['-I', '-L', '-n']],
+        ['-p', translate('terminal:promptBeforeExecuting')],
+        ['-s', translate('terminal:limitCommandLineBytes'), count],
+        ['-t', translate('terminal:displayCommandsBeforeExecution')],
+        ['-x', translate('terminal:stopWhenLengthLimitIsExceeded')],
+      ],
+      operands: [
+        {
+          get name() {
+            return translate('terminal:commandAndArguments');
+          },
+          kind: 'value',
+        },
+      ],
+    };
+  },
+  get printf(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:printfFormatArgument');
+      },
+      examples: ['printf "%s\\n" hello'],
+      operands: [
+        {
+          get name() {
+            return translate('terminal:format');
+          },
+          kind: 'value',
+        },
+        {
+          get name() {
+            return translate('terminal:parameter');
+          },
+          kind: 'value',
+        },
+      ],
+    };
+  },
+  get echo(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:echoArgument');
+      },
+      examples: ['echo hello'],
+      operands: [
+        {
+          get name() {
+            return translate('terminal:parameter');
+          },
+          kind: 'value',
+        },
+      ],
+    };
+  },
+  get env(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:envINameValueCommandArgument');
+      },
+      examples: ['env', 'env LC_ALL=C sort names.txt'],
+      options: [['-i', translate('terminal:startWithAnEmptyEnvironment')]],
+      operands: [
+        {
+          get name() {
+            return translate('terminal:nameValueOrCommand');
+          },
+          kind: 'value',
+        },
+      ],
+    };
+  },
+  get export(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:exportPNameValue');
+      },
+      examples: ['export EDITOR=vi', 'export -p'],
+      options: [['-p', translate('terminal:listExportedVariables')]],
+      operands: [
+        {
+          get name() {
+            return translate('terminal:nameValue2');
+          },
+          kind: 'value',
+        },
+      ],
+    };
+  },
+  get unset(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:unsetFVName');
+      },
+      examples: ['unset VARIABLE'],
+      options: [
+        ['-f', translate('terminal:removeFunctions'), undefined, ['-f', '-v']],
+        ['-v', translate('terminal:removeVariables'), undefined, ['-f', '-v']],
+      ],
+      operands: [
+        {
+          get name() {
+            return translate('terminal:name');
+          },
+          kind: 'value',
+        },
+      ],
+    };
+  },
+  get command(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:commandPCommandArgumentCommandVVCommand');
+      },
+      examples: ['command -v sh'],
+      options: [
+        ['-p', translate('terminal:useStandardUtilitySearchPath')],
+        ['-v', translate('terminal:displayCommandInterpretation')],
+        ['-V', translate('terminal:displayDetailedInterpretation')],
+      ],
+      operands: [
+        {
+          get name() {
+            return translate('terminal:command');
+          },
+          kind: 'value',
+        },
+      ],
+    };
+  },
+  get type(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:typeName');
+      },
+      examples: ['type ls'],
+      operands: [
+        {
+          get name() {
+            return translate('terminal:commandName');
+          },
+          kind: 'value',
+        },
+      ],
+    };
+  },
+  get sleep(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:sleepSeconds');
+      },
+      examples: ['sleep 5'],
+      operands: [
+        {
+          get name() {
+            return translate('terminal:seconds2');
+          },
+          kind: 'value',
+        },
+      ],
+    };
+  },
+  get basename(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:basenamePathSuffix');
+      },
+      examples: ['basename /var/log/app.log .log'],
+      operands: [
+        file,
+        {
+          get name() {
+            return translate('terminal:suffix');
+          },
+          kind: 'value',
+        },
+      ],
+    };
+  },
+  get dirname(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:dirnamePath');
+      },
+      examples: ['dirname /var/log/app.log'],
+      operands: [file],
+    };
+  },
+  get uname(): Details {
+    return {
+      synopsis: 'uname [-amnrsv]',
+      examples: ['uname -a'],
+      options: [
+        ['-a', translate('terminal:displayAllSystemInformation')],
+        ['-m', translate('terminal:displayHardwareType')],
+        ['-n', translate('terminal:displayNodeName')],
+        ['-r', translate('terminal:displayOSRelease')],
+        ['-s', translate('terminal:displayOSName')],
+        ['-v', translate('terminal:displayOSVersion')],
+      ],
+    };
+  },
+  get id(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:idGGUNrUser');
+      },
+      examples: ['id', 'id -u'],
+      options: [
+        ['-G', translate('terminal:displayAllGroupIDs'), undefined, ['-G', '-g', '-u']],
+        ['-g', translate('terminal:displayEffectiveGroupID'), undefined, ['-G', '-g', '-u']],
+        ['-u', translate('terminal:displayEffectiveUserID'), undefined, ['-G', '-g', '-u']],
+        ['-n', translate('terminal:useNamesInsteadOfNumbers')],
+        ['-r', translate('terminal:displayRealIdentity')],
+      ],
+      operands: [
+        {
+          get name() {
+            return translate('terminal:user');
+          },
+          kind: 'value',
+        },
+      ],
+    };
+  },
+  get kill(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:killSSignalProcessKillLStatus');
+      },
+      examples: ['kill -s TERM 1234', 'kill -l'],
+      options: [
+        [
+          '-s',
+          translate('terminal:selectSignalToSend'),
+          {
+            get name() {
+              return translate('terminal:signal');
+            },
+            kind: 'value',
+            values: [
+              ['TERM', translate('terminal:requestNormalTermination')],
+              ['HUP', translate('terminal:hangUpOrReload')],
+              ['INT', translate('terminal:interrupt')],
+              ['QUIT', translate('terminal:quit')],
+              ['KILL', translate('terminal:forceTermination')],
+              ['STOP', translate('terminal:pause')],
+              ['CONT', translate('terminal:resume')],
+            ],
+          },
+        ],
+        ['-l', translate('terminal:listOrConvertSignalNames')],
+      ],
+      operands: [
+        {
+          get name() {
+            return translate('terminal:processIDOrJob');
+          },
+          kind: 'value',
+        },
+      ],
+    };
+  },
+  get nice(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:niceNAdjustmentCommandArgument');
+      },
+      examples: ['nice -n 10 command'],
+      options: [
+        [
+          '-n',
+          translate('terminal:setSchedulingPriorityAdjustment'),
+          {
+            get name() {
+              return translate('terminal:adjustment');
+            },
+            kind: 'value',
+          },
+        ],
+      ],
+      operands: [
+        {
+          get name() {
+            return translate('terminal:commandAndArguments');
+          },
+          kind: 'value',
+        },
+      ],
+    };
+  },
+  get nohup(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:nohupCommandArgument');
+      },
+      examples: ['nohup command > output.log 2>&1 &'],
+      operands: [
+        {
+          get name() {
+            return translate('terminal:commandAndArguments');
+          },
+          kind: 'value',
+        },
+      ],
+    };
+  },
+  get test(): Details {
+    return {
+      get synopsis() {
+        return translate('terminal:testExpression');
+      },
+      examples: ['test -f config.conf', 'test -d /var/log'],
+      options: [
+        ['-b', translate('terminal:testForBlockDevice'), file],
+        ['-c', translate('terminal:testForCharacterDevice'), file],
+        ['-d', translate('terminal:testForDirectory'), directory],
+        ['-e', translate('terminal:testPathExistence'), file],
+        ['-f', translate('terminal:testForRegularFile'), file],
+        ['-g', translate('terminal:testSetGroupIDBit'), file],
+        ['-h', translate('terminal:testForSymbolicLink'), file],
+        ['-L', translate('terminal:testForSymbolicLink'), file],
+        [
+          '-n',
+          translate('terminal:testNonemptyString'),
+          {
+            get name() {
+              return translate('terminal:string');
+            },
+            kind: 'value',
+          },
+        ],
+        ['-p', translate('terminal:testForNamedPipe'), file],
+        ['-r', translate('terminal:testReadability'), file],
+        ['-S', translate('terminal:testForSocket'), file],
+        ['-s', translate('terminal:testNonemptyFile'), file],
+        [
+          '-t',
+          translate('terminal:testTerminalDescriptor'),
+          {
+            get name() {
+              return translate('terminal:fileDescriptor');
+            },
+            kind: 'value',
+          },
+        ],
+        ['-u', translate('terminal:testSetUserIDBit'), file],
+        ['-w', translate('terminal:testWritability'), file],
+        ['-x', translate('terminal:testExecutability'), file],
+        [
+          '-z',
+          translate('terminal:testEmptyString'),
+          {
+            get name() {
+              return translate('terminal:string');
+            },
+            kind: 'value',
+          },
+        ],
+      ],
+      operands: [
+        {
+          get name() {
+            return translate('terminal:expression');
+          },
+          kind: 'value',
+        },
+      ],
+    };
+  },
 };
 
-export const posixCommands: PosixCommand[] = Object.keys(posixCatalog).map(name => ({
+export const posixCommands: PosixCommand[] = Object.keys(posixCatalog).map((name) => ({
   name,
-  get description() { return posixCatalog[name]; },
-  get synopsis() { return details[name]?.synopsis || name; },
-  get examples() { return details[name]?.examples || []; },
-  get operands() { return details[name]?.operands || []; },
-  get options() { return details[name]?.options?.map(([name, description, argument, exclusive]) => ({ name, description, argument, exclusive })) || []; },
+  get description() {
+    return posixCatalog[name];
+  },
+  get synopsis() {
+    return details[name]?.synopsis || name;
+  },
+  get examples() {
+    return details[name]?.examples || [];
+  },
+  get operands() {
+    return details[name]?.operands || [];
+  },
+  get options() {
+    return (
+      details[name]?.options?.map(([name, description, argument, exclusive]) => ({
+        name,
+        description,
+        argument,
+        exclusive,
+      })) || []
+    );
+  },
 }));
 export const detailedCommandCount = Object.keys(details).length;
-export const commandByName = new Map(posixCommands.map(command => [command.name, command]));
+export const commandByName = new Map(posixCommands.map((command) => [command.name, command]));

@@ -7,21 +7,53 @@ import { deferred } from '../../test/deferred';
 import ConnectionDialog from './ConnectionDialog';
 
 const api = vi.hoisted(() => ({
-  save: vi.fn(), references: vi.fn(), preferences: vi.fn(), preference: vi.fn(), tags: vi.fn(), parse: vi.fn(),
+  save: vi.fn(),
+  references: vi.fn(),
+  preferences: vi.fn(),
+  preference: vi.fn(),
+  tags: vi.fn(),
+  parse: vi.fn(),
 }));
 vi.mock('../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice', () => ({
-  SaveConnection: api.save, ListCredentialReferences: api.references,
-  GetConnectionPreferences: api.preferences, SetConnectionPreference: api.preference, SetConnectionTags: api.tags,
-  ParseQuickConnection: api.parse, GetConnectionPassword: vi.fn(), SetRDPResolution: vi.fn(), SetRDPClient: vi.fn(),
-  SelectPrivateKey: vi.fn(), ReleasePrivateKey: vi.fn(), SaveConnectionWithCredential: vi.fn(), SelectSSHCertificate: vi.fn(),
+  SaveConnection: api.save,
+  ListCredentialReferences: api.references,
+  GetConnectionPreferences: api.preferences,
+  SetConnectionPreference: api.preference,
+  SetConnectionTags: api.tags,
+  ParseQuickConnection: api.parse,
+  GetConnectionPassword: vi.fn(),
+  SetRDPResolution: vi.fn(),
+  SetRDPClient: vi.fn(),
+  SelectPrivateKey: vi.fn(),
+  ReleasePrivateKey: vi.fn(),
+  SaveConnectionWithCredential: vi.fn(),
+  SelectSSHCertificate: vi.fn(),
 }));
 
-const saved: Connection = { id: 'connection-a', group_id: '', name: 'server.example', protocol: 'ssh', host: 'server.example', port: 22, username: 'operator', credential_id: '' };
+const saved: Connection = {
+  id: 'connection-a',
+  group_id: '',
+  name: 'server.example',
+  protocol: 'ssh',
+  host: 'server.example',
+  port: 22,
+  username: 'operator',
+  credential_id: '',
+};
 
 function setupDialog(overrides: Partial<ComponentProps<typeof ConnectionDialog>> = {}) {
   const props: ComponentProps<typeof ConnectionDialog> = {
-    temporary: false, groups: [], connections: [], busy: false, systemRDP: false, connectionError: '',
-    onConnect: vi.fn().mockResolvedValue(false), onSaved: vi.fn(), onClose: vi.fn(), onCancel: vi.fn(), ...overrides,
+    temporary: false,
+    groups: [],
+    connections: [],
+    busy: false,
+    systemRDP: false,
+    connectionError: '',
+    onConnect: vi.fn().mockResolvedValue(false),
+    onSaved: vi.fn(),
+    onClose: vi.fn(),
+    onCancel: vi.fn(),
+    ...overrides,
   };
   return { ...render(<ConnectionDialog {...props} />), props };
 }
@@ -56,7 +88,15 @@ test('required fields and invalid ports prevent a save until the form is valid',
   await user.type(port, '22');
   await user.click(screen.getByRole('button', { name: 'Save' }));
   await waitFor(() => expect(props.onClose).toHaveBeenCalledTimes(1));
-  expect(api.save).toHaveBeenCalledWith(expect.objectContaining({ host: saved.host, port: 22, username: saved.username, protocol: 'ssh' }), expect.objectContaining({ host: saved.host, port: 22 }));
+  expect(api.save).toHaveBeenCalledWith(
+    expect.objectContaining({
+      host: saved.host,
+      port: 22,
+      username: saved.username,
+      protocol: 'ssh',
+    }),
+    expect.objectContaining({ host: saved.host, port: 22 }),
+  );
 });
 
 test('a pending save blocks repeated submission and cancellation', async () => {
@@ -72,7 +112,9 @@ test('a pending save blocks repeated submission and cancellation', async () => {
   expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Cancel' }).disabled).toBe(true);
   await user.keyboard('{Escape}');
   expect(props.onClose).not.toHaveBeenCalled();
-  await act(async () => { pending.resolve(saved); });
+  await act(async () => {
+    pending.resolve(saved);
+  });
   await waitFor(() => expect(props.onClose).toHaveBeenCalledTimes(1));
 });
 
@@ -90,7 +132,10 @@ test('a backend save failure remains visible and the entered target can be corre
   await user.type(host, 'other.example');
   await user.click(screen.getByRole('button', { name: 'Save' }));
   await waitFor(() => expect(props.onClose).toHaveBeenCalledTimes(1));
-  expect(api.save).toHaveBeenLastCalledWith(expect.objectContaining({ host: 'other.example' }), expect.objectContaining({ host: 'other.example' }));
+  expect(api.save).toHaveBeenLastCalledWith(
+    expect.objectContaining({ host: 'other.example' }),
+    expect.objectContaining({ host: 'other.example' }),
+  );
 });
 
 test('a preference failure reports partial success and prevents connecting or closing', async () => {
@@ -111,7 +156,9 @@ test('a failed connection keeps the saved configuration available for another at
   const { props, rerender } = setupDialog();
   await fillTarget(user);
   await user.click(screen.getByRole('button', { name: 'Save and connect' }));
-  await waitFor(() => expect(props.onConnect).toHaveBeenCalledWith(saved, undefined, expect.any(Object)));
+  await waitFor(() =>
+    expect(props.onConnect).toHaveBeenCalledWith(saved, undefined, expect.any(Object)),
+  );
   expect(props.onSaved).toHaveBeenCalled();
   expect(props.onClose).not.toHaveBeenCalled();
   rerender(<ConnectionDialog {...props} connectionError="Authentication failed" />);
@@ -135,9 +182,17 @@ test('quick connect parsing errors remain editable and connecting never saves th
   await user.clear(address);
   await user.type(address, 'operator@server.example:22');
   await user.click(screen.getByRole('button', { name: 'Parse' }));
-  await waitFor(() => expect(screen.getByRole<HTMLInputElement>('textbox', { name: /^Host/ }).value).toBe(saved.host));
+  await waitFor(() =>
+    expect(screen.getByRole<HTMLInputElement>('textbox', { name: /^Host/ }).value).toBe(saved.host),
+  );
   expect(props.onConnect).not.toHaveBeenCalled();
   await user.click(screen.getByRole('button', { name: 'Connect' }));
-  await waitFor(() => expect(props.onConnect).toHaveBeenCalledWith(expect.objectContaining({ host: saved.host }), expect.objectContaining({ host: saved.host }), expect.any(Object)));
+  await waitFor(() =>
+    expect(props.onConnect).toHaveBeenCalledWith(
+      expect.objectContaining({ host: saved.host }),
+      expect.objectContaining({ host: saved.host }),
+      expect.any(Object),
+    ),
+  );
   expect(api.save).not.toHaveBeenCalled();
 });

@@ -11,13 +11,34 @@ export function bytes(value: number) {
 export function remaining(seconds: number) {
   if (seconds < 0) return '—';
   if (seconds < 60) return translate('files:aboutSecondsRemaining', { value1: seconds });
-  if (seconds < 3600) return translate('files:aboutMinutesRemaining', { value1: Math.ceil(seconds / 60) });
+  if (seconds < 3600)
+    return translate('files:aboutMinutesRemaining', { value1: Math.ceil(seconds / 60) });
   return translate('files:aboutHoursRemaining', { value1: Math.ceil(seconds / 3600) });
 }
 
 export function transferState(task: Pick<Transfer, 'state' | 'phase'>) {
-  if (task.state === 'running') return ({ preparing: translate('files:preparing'), copying: translate('files:transferring'), finishing: translate('files:finishing'), cancelling: translate('files:canceling') } as Record<string, string>)[task.phase] || translate('files:transferring');
-  return ({ queued: translate('files:queued'), done: translate('files:stateDone'), cancelled: translate('files:canceled'), failed: translate('files:failed'), skipped: translate('files:skipped') } as Record<string, string>)[task.state] || task.state;
+  if (task.state === 'running')
+    return (
+      (
+        {
+          preparing: translate('files:preparing'),
+          copying: translate('files:transferring'),
+          finishing: translate('files:finishing'),
+          cancelling: translate('files:canceling'),
+        } as Record<string, string>
+      )[task.phase] || translate('files:transferring')
+    );
+  return (
+    (
+      {
+        queued: translate('files:queued'),
+        done: translate('files:stateDone'),
+        cancelled: translate('files:canceled'),
+        failed: translate('files:failed'),
+        skipped: translate('files:skipped'),
+      } as Record<string, string>
+    )[task.state] || task.state
+  );
 }
 
 export function transferSummary(items: Pick<Transfer, 'state'>[]) {
@@ -31,25 +52,48 @@ export function transferSummary(items: Pick<Transfer, 'state'>[]) {
     failed: (count: number) => translate('files:summaryFailed', { count }),
     cancelled: (count: number) => translate('files:summaryCanceled', { count }),
   };
-  return (Object.keys(labels) as (keyof typeof labels)[]).filter(state => counts.has(state)).map(state => labels[state](counts.get(state)!)).join(' · ');
+  return (Object.keys(labels) as (keyof typeof labels)[])
+    .filter((state) => counts.has(state))
+    .map((state) => labels[state](counts.get(state)!))
+    .join(' · ');
 }
 
-export function groupTransfers<T extends Pick<Transfer, 'id' | 'batch_id' | 'target' | 'direction' | 'destination_path' | 'directory'>>(items: T[]) {
+export function groupTransfers<
+  T extends Pick<
+    Transfer,
+    'id' | 'batch_id' | 'target' | 'direction' | 'destination_path' | 'directory'
+  >,
+>(items: T[]) {
   const groups = new Map<string, { id: string; items: T[]; directory: string }>();
   for (const item of items) {
     const id = JSON.stringify([item.batch_id || item.id, item.target, item.direction]);
-    const separator = item.direction === 'download' && /^(?:[a-z]:[\\/]|\\\\)/i.test(item.destination_path) ? '\\' : '/';
-    const destination = separator === '\\' ? item.destination_path.replace(/\//g, '\\') : item.destination_path;
+    const separator =
+      item.direction === 'download' && /^(?:[a-z]:[\\/]|\\\\)/i.test(item.destination_path)
+        ? '\\'
+        : '/';
+    const destination =
+      separator === '\\' ? item.destination_path.replace(/\//g, '\\') : item.destination_path;
     const parent = destination.slice(0, destination.lastIndexOf(separator));
-    const directory = item.directory ? destination : /^[a-z]:$/i.test(parent) ? parent + separator : parent || (destination.startsWith(separator) ? separator : '');
+    const directory = item.directory
+      ? destination
+      : /^[a-z]:$/i.test(parent)
+        ? parent + separator
+        : parent || (destination.startsWith(separator) ? separator : '');
     const group = groups.get(id);
-    if (!group) { groups.set(id, { id, items: [item], directory }); continue; }
+    if (!group) {
+      groups.set(id, { id, items: [item], directory });
+      continue;
+    }
     group.items.push(item);
-    const parts = group.directory.split(separator), other = directory.split(separator);
+    const parts = group.directory.split(separator),
+      other = directory.split(separator);
     let shared = 0;
-    while (shared < parts.length && shared < other.length && parts[shared] === other[shared]) shared++;
+    while (shared < parts.length && shared < other.length && parts[shared] === other[shared])
+      shared++;
     const common = parts.slice(0, shared).join(separator);
-    group.directory = /^[a-z]:$/i.test(common) ? common + separator : common || (shared > 0 ? separator : '');
+    group.directory = /^[a-z]:$/i.test(common)
+      ? common + separator
+      : common || (shared > 0 ? separator : '');
   }
   return [...groups.values()];
 }

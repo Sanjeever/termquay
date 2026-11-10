@@ -6,17 +6,296 @@ import { useTranslation } from 'react-i18next';
 
 import SelectControl from '../../components/SelectControl';
 import KnownHostsImportDialog from '../settings/KnownHostsImportDialog';
-import{useEffect,useState}from'react';import{ Button, ModalContent, ModalHeader, ModalBody, ModalFooter }from'@heroui/react';import{SelectSSHImport,SelectSessionImport,PreviewSSHImport,ConfirmSSHImport,PreviewPuTTYImport,PuTTYImportAvailable}from'../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';import type{SSHImportPreview}from'../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
-export default function ImportConnectionsDialog({onClose,onImported}:{onClose():void;onImported():void}){
-  useTranslation();const[text,setText]=useState('');const[preview,setPreview]=useState<SSHImportPreview>();const[actions,setActions]=useState<Record<string,string>>({});const[error,setError]=useMessageState('');const[busy,setBusy]=useState(false);function accept(p:SSHImportPreview){setPreview(p);setActions(Object.fromEntries((p.rows||[]).map(r=>[r.id,r.conflict||r.warnings?.length?'skip':'new'])));setError('');}
-const[putty,setPutty]=useState(false);useEffect(()=>{PuTTYImportAvailable().then(setPutty).catch(e=>setError(e));},[]);
-const[source,setSource]=useState('OpenSSH');
-const[knownHosts,setKnownHosts]=useState(false);
-async function selectSessions(directory:boolean){setBusy(true);try{accept(await SelectSessionImport(source,directory));}catch(e){setError(e);}finally{setBusy(false);}}
-if(knownHosts)return <KnownHostsImportDialog onClose={()=>setKnownHosts(false)} onImported={onImported}/>;
-return <Modal isOpen onClose={()=>!busy&&onClose()} isDismissable={!busy} isKeyboardDismissDisabled={busy} className="app-dialog directory-sync-dialog" scrollBehavior="inside"><ModalContent><ModalHeader>{translate('connections:importConnections')}</ModalHeader><ModalBody>{!preview?<>
-<div className="button-row"><SelectControl aria-label={translate('connections:importSource')} value={source} disabled={busy} onChange={event=>setSource(event.target.value)}>{['OpenSSH','Xshell','MobaXterm','FinalShell','SecureCRT',...(putty?['PuTTY']:[])].map(name=><option key={name} value={name}>{name}</option>)}</SelectControl><Button size="sm" variant="light" isDisabled={busy} onPress={()=>setKnownHosts(true)}>{translate('connections:importHostFingerprints')}</Button>
-{source==='OpenSSH'?<Button size="sm" isDisabled={busy} onPress={async()=>{setBusy(true);try{accept(await SelectSSHImport());}catch(e){setError(e);}finally{setBusy(false);}}}>{translate('connections:selectConfigurationFile')}</Button>:source==='PuTTY'?<Button size="sm" isDisabled={busy} onPress={async()=>{setBusy(true);try{accept(await PreviewPuTTYImport());}catch(e){setError(e);}finally{setBusy(false);}}}>{translate('connections:readSessions')}</Button>:<><Button size="sm" isDisabled={busy} onPress={()=>void selectSessions(false)}>{translate('connections:selectConfigurationFile')}</Button><Button size="sm" variant="light" isDisabled={busy} onPress={()=>void selectSessions(true)}>{translate('connections:selectConfigurationDirectory')}</Button></>}</div>
-{source==='OpenSSH'&&<><textarea aria-label={translate('connections:openSSHConfigurationContents')} rows={10} value={text} onChange={e=>setText(e.target.value)} spellCheck={false}/><Button size="sm" isDisabled={busy||!text.trim()} onPress={async()=>{setBusy(true);try{accept(await PreviewSSHImport(text));}catch(e){setError(e);}finally{setBusy(false);}}}>{translate('connections:previewPastedContents')}</Button></>}
-</>:<>{(preview.warnings||[]).length>0&&<details><summary>{translate('connections:unsupportedOrUnreadEntries')}</summary>{preview.warnings?.map((w,i)=><p key={i}>{errorMessage(preview.warning_messages?.[i] || w)}</p>)}</details>}<table className="sync-preview"><thead><tr><th>{translate('connections:connect')}</th><th>{translate('connections:destination')}</th><th>{translate('connections:select')}</th></tr></thead><tbody>{(preview.rows||[]).map(r=><tr key={r.id}><td>{r.connection.name}{!!r.group_path?.length&&<small className="file-path">{r.group_path.join(' / ')}</small>}{r.identity_file&&<small className="file-path"> · {r.identity_file}</small>}{r.notes?.map((note,i)=><p className="muted" key={i}>{errorMessage(r.note_messages?.[i] || note)}</p>)}{r.warnings?.map((w,i)=><p className="error" key={i}>{errorMessage(r.warning_messages?.[i] || w)}</p>)}</td><td>{r.connection.protocol.toUpperCase()} · {r.connection.username}@{r.connection.host}:{r.connection.port}{r.jump_alias&&<small> {translate('connections:via')}{r.jump_alias}</small>}</td><td><SelectControl aria-label={translate('connections:import', { value1: r.connection.name })} value={actions[r.id]||'skip'} disabled={busy||!!r.warnings?.length} onChange={e=>setActions({...actions,[r.id]:e.target.value})}><option value="skip">{translate('connections:skip')}</option><option value="new">{translate('connections:add')}</option>{r.conflict&&<option value="replace">{translate('connections:replaceAndRemoveOldCredentials')}</option>}</SelectControl></td></tr>)}</tbody></table><Button size="sm" variant="light" isDisabled={busy} onPress={()=>setPreview(undefined)}>{translate('connections:backToSelection')}</Button></>}{error&&<p role="alert" className="error">{error}</p>}</ModalBody><ModalFooter><Button variant="light" isDisabled={busy} onPress={onClose}>{translate('connections:cancel')}</Button><Button color="primary" isDisabled={!preview||busy} onPress={async()=>{if(!preview)return;setBusy(true);try{await ConfirmSSHImport(preview.id,Object.entries(actions).map(([id,action])=>({id,action})));onImported();onClose();}catch(e){setError(e);}finally{setBusy(false);}}}>{translate('connections:confirmImport')}</Button></ModalFooter></ModalContent></Modal>;
+import { useEffect, useState } from 'react';
+import { Button, ModalContent, ModalHeader, ModalBody, ModalFooter } from '@heroui/react';
+import {
+  SelectSSHImport,
+  SelectSessionImport,
+  PreviewSSHImport,
+  ConfirmSSHImport,
+  PreviewPuTTYImport,
+  PuTTYImportAvailable,
+} from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
+import type { SSHImportPreview } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
+export default function ImportConnectionsDialog({
+  onClose,
+  onImported,
+}: {
+  onClose(): void;
+  onImported(): void;
+}) {
+  useTranslation();
+  const [text, setText] = useState('');
+  const [preview, setPreview] = useState<SSHImportPreview>();
+  const [actions, setActions] = useState<Record<string, string>>({});
+  const [error, setError] = useMessageState('');
+  const [busy, setBusy] = useState(false);
+  function accept(p: SSHImportPreview) {
+    setPreview(p);
+    setActions(
+      Object.fromEntries(
+        (p.rows || []).map((r) => [r.id, r.conflict || r.warnings?.length ? 'skip' : 'new']),
+      ),
+    );
+    setError('');
+  }
+  const [putty, setPutty] = useState(false);
+  useEffect(() => {
+    PuTTYImportAvailable()
+      .then(setPutty)
+      .catch((e) => setError(e));
+  }, []);
+  const [source, setSource] = useState('OpenSSH');
+  const [knownHosts, setKnownHosts] = useState(false);
+  async function selectSessions(directory: boolean) {
+    setBusy(true);
+    try {
+      accept(await SelectSessionImport(source, directory));
+    } catch (e) {
+      setError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+  if (knownHosts)
+    return <KnownHostsImportDialog onClose={() => setKnownHosts(false)} onImported={onImported} />;
+  return (
+    <Modal
+      isOpen
+      onClose={() => !busy && onClose()}
+      isDismissable={!busy}
+      isKeyboardDismissDisabled={busy}
+      className="app-dialog directory-sync-dialog"
+      scrollBehavior="inside"
+    >
+      <ModalContent>
+        <ModalHeader>{translate('connections:importConnections')}</ModalHeader>
+        <ModalBody>
+          {!preview ? (
+            <>
+              <div className="button-row">
+                <SelectControl
+                  aria-label={translate('connections:importSource')}
+                  value={source}
+                  disabled={busy}
+                  onChange={(event) => setSource(event.target.value)}
+                >
+                  {[
+                    'OpenSSH',
+                    'Xshell',
+                    'MobaXterm',
+                    'FinalShell',
+                    'SecureCRT',
+                    ...(putty ? ['PuTTY'] : []),
+                  ].map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </SelectControl>
+                <Button
+                  size="sm"
+                  variant="light"
+                  isDisabled={busy}
+                  onPress={() => setKnownHosts(true)}
+                >
+                  {translate('connections:importHostFingerprints')}
+                </Button>
+                {source === 'OpenSSH' ? (
+                  <Button
+                    size="sm"
+                    isDisabled={busy}
+                    onPress={async () => {
+                      setBusy(true);
+                      try {
+                        accept(await SelectSSHImport());
+                      } catch (e) {
+                        setError(e);
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                  >
+                    {translate('connections:selectConfigurationFile')}
+                  </Button>
+                ) : source === 'PuTTY' ? (
+                  <Button
+                    size="sm"
+                    isDisabled={busy}
+                    onPress={async () => {
+                      setBusy(true);
+                      try {
+                        accept(await PreviewPuTTYImport());
+                      } catch (e) {
+                        setError(e);
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                  >
+                    {translate('connections:readSessions')}
+                  </Button>
+                ) : (
+                  <>
+                    <Button size="sm" isDisabled={busy} onPress={() => void selectSessions(false)}>
+                      {translate('connections:selectConfigurationFile')}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="light"
+                      isDisabled={busy}
+                      onPress={() => void selectSessions(true)}
+                    >
+                      {translate('connections:selectConfigurationDirectory')}
+                    </Button>
+                  </>
+                )}
+              </div>
+              {source === 'OpenSSH' && (
+                <>
+                  <textarea
+                    aria-label={translate('connections:openSSHConfigurationContents')}
+                    rows={10}
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    spellCheck={false}
+                  />
+                  <Button
+                    size="sm"
+                    isDisabled={busy || !text.trim()}
+                    onPress={async () => {
+                      setBusy(true);
+                      try {
+                        accept(await PreviewSSHImport(text));
+                      } catch (e) {
+                        setError(e);
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                  >
+                    {translate('connections:previewPastedContents')}
+                  </Button>
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              {(preview.warnings || []).length > 0 && (
+                <details>
+                  <summary>{translate('connections:unsupportedOrUnreadEntries')}</summary>
+                  {preview.warnings?.map((w, i) => (
+                    <p key={i}>{errorMessage(preview.warning_messages?.[i] || w)}</p>
+                  ))}
+                </details>
+              )}
+              <table className="sync-preview">
+                <thead>
+                  <tr>
+                    <th>{translate('connections:connect')}</th>
+                    <th>{translate('connections:destination')}</th>
+                    <th>{translate('connections:select')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(preview.rows || []).map((r) => (
+                    <tr key={r.id}>
+                      <td>
+                        {r.connection.name}
+                        {!!r.group_path?.length && (
+                          <small className="file-path">{r.group_path.join(' / ')}</small>
+                        )}
+                        {r.identity_file && (
+                          <small className="file-path"> · {r.identity_file}</small>
+                        )}
+                        {r.notes?.map((note, i) => (
+                          <p className="muted" key={i}>
+                            {errorMessage(r.note_messages?.[i] || note)}
+                          </p>
+                        ))}
+                        {r.warnings?.map((w, i) => (
+                          <p className="error" key={i}>
+                            {errorMessage(r.warning_messages?.[i] || w)}
+                          </p>
+                        ))}
+                      </td>
+                      <td>
+                        {r.connection.protocol.toUpperCase()} · {r.connection.username}@
+                        {r.connection.host}:{r.connection.port}
+                        {r.jump_alias && (
+                          <small>
+                            {' '}
+                            {translate('connections:via')}
+                            {r.jump_alias}
+                          </small>
+                        )}
+                      </td>
+                      <td>
+                        <SelectControl
+                          aria-label={translate('connections:import', {
+                            value1: r.connection.name,
+                          })}
+                          value={actions[r.id] || 'skip'}
+                          disabled={busy || !!r.warnings?.length}
+                          onChange={(e) => setActions({ ...actions, [r.id]: e.target.value })}
+                        >
+                          <option value="skip">{translate('connections:skip')}</option>
+                          <option value="new">{translate('connections:add')}</option>
+                          {r.conflict && (
+                            <option value="replace">
+                              {translate('connections:replaceAndRemoveOldCredentials')}
+                            </option>
+                          )}
+                        </SelectControl>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <Button
+                size="sm"
+                variant="light"
+                isDisabled={busy}
+                onPress={() => setPreview(undefined)}
+              >
+                {translate('connections:backToSelection')}
+              </Button>
+            </>
+          )}
+          {error && (
+            <p role="alert" className="error">
+              {error}
+            </p>
+          )}
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="light" isDisabled={busy} onPress={onClose}>
+            {translate('connections:cancel')}
+          </Button>
+          <Button
+            color="primary"
+            isDisabled={!preview || busy}
+            onPress={async () => {
+              if (!preview) return;
+              setBusy(true);
+              try {
+                await ConfirmSSHImport(
+                  preview.id,
+                  Object.entries(actions).map(([id, action]) => ({ id, action })),
+                );
+                onImported();
+                onClose();
+              } catch (e) {
+                setError(e);
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            {translate('connections:confirmImport')}
+          </Button>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
+  );
 }

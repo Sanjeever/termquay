@@ -1,51 +1,138 @@
-@import "tailwindcss";
-@import "./styles/tokens.css";
-@import "./styles/scrollbars.css";
-@import "./styles/workbench.css";
-@import "./styles/connections.css";
-@import "./styles/sessions.css";
-@import "./styles/files.css";
-@import "./styles/monitor-transfers.css";
-@import "./styles/settings-dialogs.css";
-@import "./styles/ai.css";
+@import 'tailwindcss';
+@import './styles/tokens.css';
+@import './styles/scrollbars.css';
+@import './styles/workbench.css';
+@import './styles/connections.css';
+@import './styles/sessions.css';
+@import './styles/files.css';
+@import './styles/monitor-transfers.css';
+@import './styles/settings-dialogs.css';
+@import './styles/ai.css';
 @plugin "../hero.js";
 @source "../node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}";
 @custom-variant dark (&:is(.dark *));
 
 @media (max-width: 1100px) {
-  .file-dock { position: absolute; top: 0; bottom: 0; left: 0; z-index: 5; border-right: 1px solid var(--color-border); box-shadow: 12px 0 32px #0005; }
-  .settings-sidebar { width: 180px; }
-  .connection-groups { width: 180px; }
-  .connection-catalog { padding: 12px; }
+  .file-dock {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 5;
+    border-right: 1px solid var(--color-border);
+    box-shadow: 12px 0 32px #0005;
+  }
+  .settings-sidebar {
+    width: 180px;
+  }
+  .connection-groups {
+    width: 180px;
+  }
+  .connection-catalog {
+    padding: 12px;
+  }
 }
-@media (max-width: 1100px) { .monitor-dock { position: absolute; right: 0; top: 0; bottom: 0; z-index: 5; box-shadow: -12px 0 32px #0005; } }
+@media (max-width: 1100px) {
+  .monitor-dock {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 5;
+    box-shadow: -12px 0 32px #0005;
+  }
+}
 
 @media (prefers-reduced-transparency: reduce) {
-  .workbench-header, .select-popover, .app-dialog { background: var(--color-elevated); backdrop-filter: none; }
+  .workbench-header,
+  .select-popover,
+  .app-dialog {
+    background: var(--color-elevated);
+    backdrop-filter: none;
+  }
 }
-:root[data-platform=mac] { background: transparent; }
-:root[data-platform=mac] .connection-groups, :root[data-platform=mac] .settings-sidebar, :root[data-platform=mac] .workbench-status { background: var(--color-material); }
-.connection-catalog, .workspace, .settings-content { background: var(--color-background); }
+:root[data-platform='mac'] {
+  background: transparent;
+}
+:root[data-platform='mac'] .connection-groups,
+:root[data-platform='mac'] .settings-sidebar,
+:root[data-platform='mac'] .workbench-status {
+  background: var(--color-material);
+}
+.connection-catalog,
+.workspace,
+.settings-content {
+  background: var(--color-background);
+}
 @media (prefers-reduced-transparency: reduce) {
-  :root[data-platform=mac] { background: var(--color-background); }
-  :root[data-platform=mac] .connection-groups, :root[data-platform=mac] .settings-sidebar, :root[data-platform=mac] .workbench-status { background: var(--color-surface); }
+  :root[data-platform='mac'] {
+    background: var(--color-background);
+  }
+  :root[data-platform='mac'] .connection-groups,
+  :root[data-platform='mac'] .settings-sidebar,
+  :root[data-platform='mac'] .workbench-status {
+    background: var(--color-surface);
+  }
 }
 @media (max-width: 760px) {
-  .catalog-toolbar { flex-wrap: wrap; }
-  .catalog-toolbar h1 { flex: 1; max-width: none; }
-  .catalog-toolbar > [data-slot=base] { order: 2; flex-basis: 100%; max-width: none; margin-top: 6px; }
-  .catalog-filters { align-items: flex-start; flex-wrap: wrap; }
-  .catalog-actions { flex-wrap: wrap; }
-  .settings-sidebar { width: 160px; }
-  .settings-section, .settings-panel { padding: 20px; }
-  .workspace-toolbar { flex-wrap: wrap; }
-  .session-target { max-width: 45%; }
+  .catalog-toolbar {
+    flex-wrap: wrap;
+  }
+  .catalog-toolbar h1 {
+    flex: 1;
+    max-width: none;
+  }
+  .catalog-toolbar > [data-slot='base'] {
+    order: 2;
+    flex-basis: 100%;
+    max-width: none;
+    margin-top: 6px;
+  }
+  .catalog-filters {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .catalog-actions {
+    flex-wrap: wrap;
+  }
+  .settings-sidebar {
+    width: 160px;
+  }
+  .settings-section,
+  .settings-panel {
+    padding: 20px;
+  }
+  .workspace-toolbar {
+    flex-wrap: wrap;
+  }
+  .session-target {
+    max-width: 45%;
+  }
 }
 @media (prefers-contrast: more) {
-  :root { --color-border: #ffffff55; --color-border-strong: #ffffff80; --color-muted: #c2c3ca; }
-  :root.light { --color-border: #00000055; --color-border-strong: #00000080; --color-muted: #45464e; }
+  :root {
+    --color-border: #ffffff55;
+    --color-border-strong: #ffffff80;
+    --color-muted: #c2c3ca;
+  }
+  :root.light {
+    --color-border: #00000055;
+    --color-border-strong: #00000080;
+    --color-muted: #45464e;
+  }
 }
 @media (forced-colors: active) {
-  .workspace-tab.active, .inner-tabs .selected, .group-filter.selected, .group-row.selected, .connection-row.selected, .settings-navigation button.selected { outline: 1px solid Highlight; }
-  .icon-button[aria-pressed=true], .session-tool[aria-pressed=true], .protocol-filters button[aria-pressed=true] { outline: 1px solid Highlight; }
+  .workspace-tab.active,
+  .inner-tabs .selected,
+  .group-filter.selected,
+  .group-row.selected,
+  .connection-row.selected,
+  .settings-navigation button.selected {
+    outline: 1px solid Highlight;
+  }
+  .icon-button[aria-pressed='true'],
+  .session-tool[aria-pressed='true'],
+  .protocol-filters button[aria-pressed='true'] {
+    outline: 1px solid Highlight;
+  }
 }

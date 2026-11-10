@@ -17,10 +17,41 @@ export default function useAutomaticBackup(ready: boolean) {
     if (retry) loadErrorActive.current = false;
     const request = ++generation.current;
     clearTimeout(timer.current);
-    try { const value = await GetAutomaticBackupStatus(); if (!mounted.current || request !== generation.current) return; setStatus(value); setError(''); loadErrorActive.current=false; if (value.enabled || value.running) timer.current = setTimeout(() => void refresh(), 5000); }
-    catch (e) { if (mounted.current && request === generation.current) {setError(e);if(!loadErrorActive.current){loadErrorActive.current=true;setLoadFailure(value=>value+1);}} }
+    try {
+      const value = await GetAutomaticBackupStatus();
+      if (!mounted.current || request !== generation.current) return;
+      setStatus(value);
+      setError('');
+      loadErrorActive.current = false;
+      if (value.enabled || value.running) timer.current = setTimeout(() => void refresh(), 5000);
+    } catch (e) {
+      if (mounted.current && request === generation.current) {
+        setError(e);
+        if (!loadErrorActive.current) {
+          loadErrorActive.current = true;
+          setLoadFailure((value) => value + 1);
+        }
+      }
+    }
   }
-  useEffect(() => { mounted.current = true; if (ready) void refresh(); return () => { mounted.current = false; clearTimeout(timer.current); }; }, [ready]);
-  const failure = error ? `load:${loadFailure}` : status?.error ? `backup:${status.failure_id}:${status.error}` : '';
-  return { status, error, refresh, bannerVisible:!!failure && failure!==dismissed, dismiss:()=>setDismissed(failure) };
+  useEffect(() => {
+    mounted.current = true;
+    if (ready) void refresh();
+    return () => {
+      mounted.current = false;
+      clearTimeout(timer.current);
+    };
+  }, [ready]);
+  const failure = error
+    ? `load:${loadFailure}`
+    : status?.error
+      ? `backup:${status.failure_id}:${status.error}`
+      : '';
+  return {
+    status,
+    error,
+    refresh,
+    bannerVisible: !!failure && failure !== dismissed,
+    dismiss: () => setDismissed(failure),
+  };
 }

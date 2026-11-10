@@ -4,12 +4,42 @@ import { captureWorkspaceLayout } from './workspaceLayout.ts';
 import type { Workspace } from './workspace';
 import type { SSHLayout } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 
-const ssh: SSHLayout = { tabs: [{ kind: 'file', path: '/tmp/test-config', pane: 0 }], selected: [0, -1], active_pane: 0, split: false, maximized: false, ratio: 50, directory: '/tmp', files_open: true, files_width: 248, monitor_open: false, focus: false };
-const workspace = (): Workspace => ({ id: 'workspace', connectionID: 'connection', name: '测试工作区', connection: { id: 'connection', group_id: '', credential_id: 'test-credential-reference', name: '测试连接', protocol: 'ssh', host: 'example.invalid', port: 22, username: 'test' }, restore: ssh });
+const ssh: SSHLayout = {
+  tabs: [{ kind: 'file', path: '/tmp/test-config', pane: 0 }],
+  selected: [0, -1],
+  active_pane: 0,
+  split: false,
+  maximized: false,
+  ratio: 50,
+  directory: '/tmp',
+  files_open: true,
+  files_width: 248,
+  monitor_open: false,
+  focus: false,
+};
+const workspace = (): Workspace => ({
+  id: 'workspace',
+  connectionID: 'connection',
+  name: '测试工作区',
+  connection: {
+    id: 'connection',
+    group_id: '',
+    credential_id: 'test-credential-reference',
+    name: '测试连接',
+    protocol: 'ssh',
+    host: 'example.invalid',
+    port: 22,
+    username: 'test',
+  },
+  restore: ssh,
+});
 
 test('布局保留文件入口和活动工作区，排除凭据引用与本地终端', () => {
   const item = workspace();
-  const layout = captureWorkspaceLayout([item, { id: 'local', name: '本地终端', connectionID: '' }], item.id)!;
+  const layout = captureWorkspaceLayout(
+    [item, { id: 'local', name: '本地终端', connectionID: '' }],
+    item.id,
+  )!;
   assert.equal(layout.active, item.id);
   assert.equal(layout.entries?.length, 1);
   assert.deepEqual(layout.entries?.[0].ssh, ssh);

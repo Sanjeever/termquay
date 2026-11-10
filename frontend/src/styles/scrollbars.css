@@ -4,9 +4,18 @@
 }
 
 @supports selector(::-webkit-scrollbar) {
-  * { scrollbar-width: auto; scrollbar-color: auto; }
-  *::-webkit-scrollbar { width: 10px; height: 10px; }
-  *::-webkit-scrollbar-track, *::-webkit-scrollbar-corner { background: transparent; }
+  * {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-track,
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
   *::-webkit-scrollbar-thumb {
     background-color: var(--scrollbar-thumb);
     background-clip: padding-box;
@@ -15,13 +24,29 @@
     min-height: 24px;
     min-width: 24px;
   }
-  *::-webkit-scrollbar-thumb:hover { background-color: var(--scrollbar-thumb-hover); }
-  *::-webkit-scrollbar-thumb:active { background-color: var(--scrollbar-thumb-active); }
-  *::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb-hover);
+  }
+  *::-webkit-scrollbar-thumb:active {
+    background-color: var(--scrollbar-thumb-active);
+  }
+  *::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
+  }
 }
 
 @media (forced-colors: active), (prefers-contrast: more) {
-  * { scrollbar-width: auto; scrollbar-color: auto; }
-  *::-webkit-scrollbar, *::-webkit-scrollbar-track, *::-webkit-scrollbar-thumb,
-  *::-webkit-scrollbar-button, *::-webkit-scrollbar-corner { all: revert; }
+  * {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+  *::-webkit-scrollbar,
+  *::-webkit-scrollbar-track,
+  *::-webkit-scrollbar-thumb,
+  *::-webkit-scrollbar-button,
+  *::-webkit-scrollbar-corner {
+    all: revert;
+  }
 }

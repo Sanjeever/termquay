@@ -44,17 +44,62 @@ function initialPreference(): LanguagePreference {
 }
 
 export function systemLanguages(): readonly string[] {
-  return typeof navigator === 'undefined' ? [] : navigator.languages?.length ? navigator.languages : [navigator.language];
+  return typeof navigator === 'undefined'
+    ? []
+    : navigator.languages?.length
+      ? navigator.languages
+      : [navigator.language];
 }
 
 void i18n.use(initReactI18next).init({
-  resources: { en: { common: en, status: enstatus, backend: enbackend, terminal: enterminal, files: enfiles, workspaces: enworkspaces, tunnels: entunnels, rdp: enrdp, monitor: enmonitor, logs: enlogs, docker: endocker, demo: endemo, connections: enconnections, ai: enai, settings: enSettings }, 'zh-CN': { common: zhCN, status: zhstatus, backend: zhbackend, terminal: zhterminal, files: zhfiles, workspaces: zhworkspaces, tunnels: zhtunnels, rdp: zhrdp, monitor: zhmonitor, logs: zhlogs, docker: zhdocker, demo: zhdemo, connections: zhconnections, ai: zhai, settings: zhSettings } },
+  resources: {
+    en: {
+      common: en,
+      status: enstatus,
+      backend: enbackend,
+      terminal: enterminal,
+      files: enfiles,
+      workspaces: enworkspaces,
+      tunnels: entunnels,
+      rdp: enrdp,
+      monitor: enmonitor,
+      logs: enlogs,
+      docker: endocker,
+      demo: endemo,
+      connections: enconnections,
+      ai: enai,
+      settings: enSettings,
+    },
+    'zh-CN': {
+      common: zhCN,
+      status: zhstatus,
+      backend: zhbackend,
+      terminal: zhterminal,
+      files: zhfiles,
+      workspaces: zhworkspaces,
+      tunnels: zhtunnels,
+      rdp: zhrdp,
+      monitor: zhmonitor,
+      logs: zhlogs,
+      docker: zhdocker,
+      demo: zhdemo,
+      connections: zhconnections,
+      ai: zhai,
+      settings: zhSettings,
+    },
+  },
   lng: resolveLanguage(initialPreference(), systemLanguages()),
-  fallbackLng: 'en', supportedLngs: ['en', 'zh-CN'], load: 'currentOnly',
-  defaultNS: 'common', initAsync: false,
-  interpolation: { escapeValue: false }, react: { useSuspense: false },
+  fallbackLng: 'en',
+  supportedLngs: ['en', 'zh-CN'],
+  load: 'currentOnly',
+  defaultNS: 'common',
+  initAsync: false,
+  interpolation: { escapeValue: false },
+  react: { useSuspense: false },
 });
 
-export function currentLocale() { return i18n.resolvedLanguage === 'zh-CN' ? 'zh-CN' : 'en'; }
+export function currentLocale() {
+  return i18n.resolvedLanguage === 'zh-CN' ? 'zh-CN' : 'en';
+}
 export const t = i18n.t.bind(i18n);
 export default i18n;

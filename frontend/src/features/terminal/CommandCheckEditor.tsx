@@ -3,14 +3,110 @@ import { useTranslation } from 'react-i18next';
 import type { CommandCheck } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import SelectControl from '../../components/SelectControl';
 
-export default function CommandCheckEditor({ check, onChange }: { check?: CommandCheck | null; onChange(check?: CommandCheck): void }) {
+export default function CommandCheckEditor({
+  check,
+  onChange,
+}: {
+  check?: CommandCheck | null;
+  onChange(check?: CommandCheck): void;
+}) {
   useTranslation();
-  return <div className="command-check-editor">
-    <label className="form-field">{translate('terminal:passCondition')}<SelectControl value={check?.kind || 'exit'} onChange={event => { const kind = event.target.value; onChange({ kind, expected: kind === 'exit' ? '0' : kind === 'json' ? 'true' : '', ...(kind === 'json' ? { operator: 'eq', pointer: '' } : {}), ...(kind === 'file' ? { file_path: '' } : {}) }); }}><option value="exit">{translate('terminal:commandExitCodeMatches')}</option><option value="text">{translate('terminal:outputContainsText')}</option><option value="regex">{translate('terminal:outputMatchesRegex')}</option><option value="json">{translate('terminal:jSONFieldMatches')}</option><option value="file">{translate('terminal:fileMatchesBaselineHost')}</option></SelectControl></label>
-    {check?.kind === 'file' ? <label className="form-field">{translate('terminal:remoteFilePath')}<input required maxLength={4096} value={check.file_path || ''} onChange={event => onChange({ ...check, file_path: event.target.value })} /></label> : check && <>
-      {check.kind !== 'exit' && <label className="form-field">{translate('terminal:outputToCheck')}<SelectControl value={check.source || 'stdout'} onChange={event => onChange({ ...check, source: event.target.value })}><option value="stdout">{translate('terminal:standardOutputStdout')}</option><option value="stderr">{translate('terminal:standardErrorStderr')}</option></SelectControl></label>}
-      {check.kind === 'json' && <><label className="form-field">{translate('terminal:jSONFieldPath')}<input maxLength={1024} placeholder="/services/0/healthy" value={check.pointer || ''} onChange={event => onChange({ ...check, pointer: event.target.value })} /></label><label className="form-field">{translate('terminal:comparison')}<SelectControl value={check.operator || 'eq'} onChange={event => onChange({ ...check, operator: event.target.value })}><option value="eq">{translate('terminal:equalTo')}</option><option value="ne">{translate('terminal:notEqualTo')}</option><option value="gt">{translate('terminal:greaterThan')}</option><option value="gte">{translate('terminal:greaterThanOrEqualTo')}</option><option value="lt">{translate('terminal:lessThan')}</option><option value="lte">{translate('terminal:lessThanOrEqualTo')}</option></SelectControl></label></>}
-      <label className="form-field">{check.kind === 'exit' ? translate('terminal:expectedExitCode') : check.kind === 'json' ? translate('terminal:expectedJSONValueQuoteStrings') : check.kind === 'regex' ? translate('terminal:regularExpressionGoSyntax') : translate('terminal:expectedText')}<input maxLength={4096} required type={check.kind === 'exit' ? 'number' : 'text'} min={check.kind === 'exit' ? 0 : undefined} max={check.kind === 'exit' ? 255 : undefined} value={check.expected || ''} onChange={event => onChange({ ...check, expected: event.target.value })} /></label>
-    </>}
-  </div>;
+  return (
+    <div className="command-check-editor">
+      <label className="form-field">
+        {translate('terminal:passCondition')}
+        <SelectControl
+          value={check?.kind || 'exit'}
+          onChange={(event) => {
+            const kind = event.target.value;
+            onChange({
+              kind,
+              expected: kind === 'exit' ? '0' : kind === 'json' ? 'true' : '',
+              ...(kind === 'json' ? { operator: 'eq', pointer: '' } : {}),
+              ...(kind === 'file' ? { file_path: '' } : {}),
+            });
+          }}
+        >
+          <option value="exit">{translate('terminal:commandExitCodeMatches')}</option>
+          <option value="text">{translate('terminal:outputContainsText')}</option>
+          <option value="regex">{translate('terminal:outputMatchesRegex')}</option>
+          <option value="json">{translate('terminal:jSONFieldMatches')}</option>
+          <option value="file">{translate('terminal:fileMatchesBaselineHost')}</option>
+        </SelectControl>
+      </label>
+      {check?.kind === 'file' ? (
+        <label className="form-field">
+          {translate('terminal:remoteFilePath')}
+          <input
+            required
+            maxLength={4096}
+            value={check.file_path || ''}
+            onChange={(event) => onChange({ ...check, file_path: event.target.value })}
+          />
+        </label>
+      ) : (
+        check && (
+          <>
+            {check.kind !== 'exit' && (
+              <label className="form-field">
+                {translate('terminal:outputToCheck')}
+                <SelectControl
+                  value={check.source || 'stdout'}
+                  onChange={(event) => onChange({ ...check, source: event.target.value })}
+                >
+                  <option value="stdout">{translate('terminal:standardOutputStdout')}</option>
+                  <option value="stderr">{translate('terminal:standardErrorStderr')}</option>
+                </SelectControl>
+              </label>
+            )}
+            {check.kind === 'json' && (
+              <>
+                <label className="form-field">
+                  {translate('terminal:jSONFieldPath')}
+                  <input
+                    maxLength={1024}
+                    placeholder="/services/0/healthy"
+                    value={check.pointer || ''}
+                    onChange={(event) => onChange({ ...check, pointer: event.target.value })}
+                  />
+                </label>
+                <label className="form-field">
+                  {translate('terminal:comparison')}
+                  <SelectControl
+                    value={check.operator || 'eq'}
+                    onChange={(event) => onChange({ ...check, operator: event.target.value })}
+                  >
+                    <option value="eq">{translate('terminal:equalTo')}</option>
+                    <option value="ne">{translate('terminal:notEqualTo')}</option>
+                    <option value="gt">{translate('terminal:greaterThan')}</option>
+                    <option value="gte">{translate('terminal:greaterThanOrEqualTo')}</option>
+                    <option value="lt">{translate('terminal:lessThan')}</option>
+                    <option value="lte">{translate('terminal:lessThanOrEqualTo')}</option>
+                  </SelectControl>
+                </label>
+              </>
+            )}
+            <label className="form-field">
+              {check.kind === 'exit'
+                ? translate('terminal:expectedExitCode')
+                : check.kind === 'json'
+                  ? translate('terminal:expectedJSONValueQuoteStrings')
+                  : check.kind === 'regex'
+                    ? translate('terminal:regularExpressionGoSyntax')
+                    : translate('terminal:expectedText')}
+              <input
+                maxLength={4096}
+                required
+                type={check.kind === 'exit' ? 'number' : 'text'}
+                min={check.kind === 'exit' ? 0 : undefined}
+                max={check.kind === 'exit' ? 255 : undefined}
+                value={check.expected || ''}
+                onChange={(event) => onChange({ ...check, expected: event.target.value })}
+              />
+            </label>
+          </>
+        )
+      )}
+    </div>
+  );
 }

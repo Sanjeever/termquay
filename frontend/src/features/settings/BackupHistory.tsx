@@ -1,18 +1,33 @@
 import { t as translate, currentLocale } from '../../i18n/index.ts';
 import { useMessageState } from '../../i18n/useMessageState.ts';
 import { useTranslation } from 'react-i18next';
-import { errorMessage } from "../../lib/errors";
+import { errorMessage } from '../../lib/errors';
 import { useEffect, useRef, useState } from 'react';
 import { Button, Input } from '@heroui/react';
-import { GetBackupDeviceAliases, GetSnapshotDetails, ListSavedSnapshots, SetBackupDeviceAlias } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
+import {
+  GetBackupDeviceAliases,
+  GetSnapshotDetails,
+  ListSavedSnapshots,
+  SetBackupDeviceAlias,
+} from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { SnapshotDetails } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import type { RemoteSnapshot } from '../../../bindings/github.com/Sanjeever/termquay/internal/backup/models';
 import SelectControl from '../../components/SelectControl';
 import ErrorNotice from '../../components/ErrorNotice';
 import SnapshotPruneDialog from './SnapshotPruneDialog';
 
-export default function BackupHistory({ deviceID, deviceName, recoverySaved, revision, onRestore }: {
-  deviceID: string; deviceName: string; recoverySaved: boolean; revision: string; onRestore(path: string): void;
+export default function BackupHistory({
+  deviceID,
+  deviceName,
+  recoverySaved,
+  revision,
+  onRestore,
+}: {
+  deviceID: string;
+  deviceName: string;
+  recoverySaved: boolean;
+  revision: string;
+  onRestore(path: string): void;
 }) {
   useTranslation();
   const [items, setItems] = useState<RemoteSnapshot[]>([]);
@@ -28,25 +43,44 @@ export default function BackupHistory({ deviceID, deviceName, recoverySaved, rev
   const [historyLimits, setHistoryLimits] = useState<Record<string, number>>({});
   const [aliasEdit, setAliasEdit] = useState<{ id: string; name: string }>();
   const [savingAlias, setSavingAlias] = useState(false);
-  const [pruning,setPruning]=useState(false);
+  const [pruning, setPruning] = useState(false);
 
   useEffect(() => {
     let disposed = false;
-    setLoading(true); setError(''); setDetailErrors({});
+    setLoading(true);
+    setError('');
+    setDetailErrors({});
     const listing = ListSavedSnapshots();
     const names = GetBackupDeviceAliases();
-    Promise.all([listing, names]).then(([items, names]) => {
-      if (disposed) return;
-      setItems(items || []); setAliases(names || {});
-    }).catch(error => { if (!disposed) setError(error); }).finally(() => { if (!disposed) setLoading(false); });
-    return () => { disposed = true; listing.cancel(); names.cancel(); };
+    Promise.all([listing, names])
+      .then(([items, names]) => {
+        if (disposed) return;
+        setItems(items || []);
+        setAliases(names || {});
+      })
+      .catch((error) => {
+        if (!disposed) setError(error);
+      })
+      .finally(() => {
+        if (!disposed) setLoading(false);
+      });
+    return () => {
+      disposed = true;
+      listing.cancel();
+      names.cancel();
+    };
   }, [revision, refresh]);
 
   const groups = new Map<string, RemoteSnapshot[]>();
   for (const item of items) {
-    if ((scope === 'other' && item.device_id === deviceID) || (scope === 'local' && item.device_id !== deviceID)) continue;
+    if (
+      (scope === 'other' && item.device_id === deviceID) ||
+      (scope === 'local' && item.device_id !== deviceID)
+    )
+      continue;
     const snapshots = groups.get(item.device_id) || [];
-    snapshots.push(item); groups.set(item.device_id, snapshots);
+    snapshots.push(item);
+    groups.set(item.device_id, snapshots);
   }
   const visible = Array.from(groups.entries()).slice(0, deviceLimit);
   const latestPaths = visible.map(([, snapshots]) => snapshots[0].path).join('\n');
@@ -62,45 +96,230 @@ export default function BackupHistory({ deviceID, deviceName, recoverySaved, rev
           const value = await request;
           if (disposed) return;
           cached.current[path] = value;
-          setDetails(previous => ({ ...previous, [path]: value }));
+          setDetails((previous) => ({ ...previous, [path]: value }));
         } catch (error) {
           if (disposed) return;
-          setDetailErrors(previous => ({ ...previous, [path]: errorMessage(error) }));
+          setDetailErrors((previous) => ({ ...previous, [path]: errorMessage(error) }));
         }
       }
     }
     void readDetails();
-    return () => { disposed = true; request?.cancel(); };
+    return () => {
+      disposed = true;
+      request?.cancel();
+    };
   }, [latestPaths, loading, recoverySaved, revision, refresh]);
 
   async function saveAlias() {
     if (!aliasEdit || savingAlias) return;
-    setSavingAlias(true); setError('');
+    setSavingAlias(true);
+    setError('');
     try {
       await SetBackupDeviceAlias(aliasEdit.id, aliasEdit.name);
-      setAliases(previous => ({ ...previous, [aliasEdit.id]: aliasEdit.name.trim() })); setAliasEdit(undefined);
-    } catch (error) { setError(error); }
-    finally { setSavingAlias(false); }
+      setAliases((previous) => ({ ...previous, [aliasEdit.id]: aliasEdit.name.trim() }));
+      setAliasEdit(undefined);
+    } catch (error) {
+      setError(error);
+    } finally {
+      setSavingAlias(false);
+    }
   }
-  return <section className="backup-section">
-    <div className="backup-section-heading"><h3>{translate('settings:deviceBackups')}</h3><div className="button-row"><SelectControl aria-label={translate('settings:filterBackupDevices')} value={scope} onChange={event => setScope(event.target.value)}><option value="all">{translate('settings:allDevices')}</option><option value="other">{translate('settings:otherDevices')}</option><option value="local">{translate('settings:thisDevice')}</option></SelectControl><Button size="sm" variant="light" onPress={()=>setPruning(true)}>{translate('settings:pruneHistory')}</Button><Button size="sm" variant="light" isDisabled={loading} onPress={() => setRefresh(value => value + 1)}>{translate('settings:refresh')}</Button></div></div>
-    <ErrorNotice message={error}><button className="session-tool" onClick={()=>setRefresh(value=>value+1)}>{translate('settings:reload')}</button></ErrorNotice>
-    {loading ? <p className="muted" role="status">{translate('settings:readingBackups')}</p> : !error && !groups.size && <p className="muted">{scope === 'other' ? translate('settings:noBackupsFromOtherDevices') : translate('settings:noBackups')}</p>}
-    {!loading && <ul className="backup-devices">{visible.map(([id, snapshots]) => {
-      const latest = snapshots[0];
-      const detail = details[latest.path];
-      const name = aliases[id] || detail?.device_name || (id === deviceID ? deviceName : translate('settings:device', { value1: id.slice(0, 8) }));
-      const historyLimit = historyLimits[id] || 10;
-      return <li key={id} className="backup-device">
-        <div className="backup-device-row"><div className="backup-device-info"><div><strong>{name}</strong>{id === deviceID && <span className="muted">{translate('settings:thisDevice')}</span>}</div><time dateTime={detail?.created_at || latest.modified}>{new Date(detail?.created_at || latest.modified).toLocaleString(currentLocale())}</time>
-          {detail ? <span className="muted">{detail.connections} {translate('settings:connections')}{detail.credentials_included === false ? translate('settings:noCredentialsIncluded') : translate('settings:credentials', { value1: detail.credentials })}{detail.credentials_included == null ? translate('settings:credentialScopeUnknown') : ''}</span> : <span className="muted">{detailErrors[latest.path] ? translate('settings:couldNotReadSummaryIndividualRecoveryIsAvailable') : recoverySaved ? translate('settings:unlockingSummary') : translate('settings:enterTheBackupPasswordWhenRestoring')}</span>}
-        </div><div className="button-row"><Button size="sm" variant="light" aria-label={translate('settings:labelDevice', { value1: name })} onPress={() => setAliasEdit({ id, name: aliases[id] || '' })}>{translate('settings:label')}</Button><Button size="sm" variant="bordered" onPress={() => onRestore(latest.path)}>{translate('settings:restore')}</Button></div></div>
-        {detailErrors[latest.path] && <details className="backup-details-error"><summary>{translate('settings:couldNotReadSummary')}</summary><p role="alert" className="error">{detailErrors[latest.path]}</p></details>}
-        {aliasEdit?.id === id && <form className="backup-alias-form" onSubmit={event => { event.preventDefault(); void saveAlias(); }}><Input aria-label={translate('settings:deviceLabel')} placeholder={translate('settings:localDeviceLabel')} size="sm" maxLength={100} value={aliasEdit.name} onValueChange={name => setAliasEdit({ id, name })} isDisabled={savingAlias} autoFocus/><Button size="sm" type="submit" isLoading={savingAlias}>{translate('settings:save')}</Button><Button size="sm" variant="light" isDisabled={savingAlias} onPress={() => setAliasEdit(undefined)}>{translate('settings:cancel')}</Button></form>}
-        <details className="backup-history"><summary>{translate('settings:history')}{snapshots.length} {translate('settings:copies')}</summary><ul className="snapshot-list">{snapshots.slice(0, historyLimit).map(snapshot => <li key={snapshot.path}><div><time dateTime={snapshot.modified}>{new Date(snapshot.modified).toLocaleString(currentLocale())}</time><span>{Math.ceil(snapshot.size / 1024)} KiB</span></div><Button size="sm" variant="light" onPress={() => onRestore(snapshot.path)}>{translate('settings:restore')}</Button></li>)}</ul>{snapshots.length > historyLimit && <Button size="sm" variant="light" onPress={() => setHistoryLimits(previous => ({ ...previous, [id]: historyLimit + 20 }))}>{translate('settings:moreHistory')}</Button>}</details>
-      </li>;
-    })}</ul>}
-    {groups.size > deviceLimit && <Button size="sm" variant="light" onPress={() => setDeviceLimit(value => value + 10)}>{translate('settings:moreDevices')}</Button>}
-    {pruning&&<SnapshotPruneDialog deviceID={deviceID} names={{...aliases,[deviceID]:deviceName}} onClose={()=>setPruning(false)} onChanged={()=>setRefresh(value=>value+1)}/>}
-  </section>;
+  return (
+    <section className="backup-section">
+      <div className="backup-section-heading">
+        <h3>{translate('settings:deviceBackups')}</h3>
+        <div className="button-row">
+          <SelectControl
+            aria-label={translate('settings:filterBackupDevices')}
+            value={scope}
+            onChange={(event) => setScope(event.target.value)}
+          >
+            <option value="all">{translate('settings:allDevices')}</option>
+            <option value="other">{translate('settings:otherDevices')}</option>
+            <option value="local">{translate('settings:thisDevice')}</option>
+          </SelectControl>
+          <Button size="sm" variant="light" onPress={() => setPruning(true)}>
+            {translate('settings:pruneHistory')}
+          </Button>
+          <Button
+            size="sm"
+            variant="light"
+            isDisabled={loading}
+            onPress={() => setRefresh((value) => value + 1)}
+          >
+            {translate('settings:refresh')}
+          </Button>
+        </div>
+      </div>
+      <ErrorNotice message={error}>
+        <button className="session-tool" onClick={() => setRefresh((value) => value + 1)}>
+          {translate('settings:reload')}
+        </button>
+      </ErrorNotice>
+      {loading ? (
+        <p className="muted" role="status">
+          {translate('settings:readingBackups')}
+        </p>
+      ) : (
+        !error &&
+        !groups.size && (
+          <p className="muted">
+            {scope === 'other'
+              ? translate('settings:noBackupsFromOtherDevices')
+              : translate('settings:noBackups')}
+          </p>
+        )
+      )}
+      {!loading && (
+        <ul className="backup-devices">
+          {visible.map(([id, snapshots]) => {
+            const latest = snapshots[0];
+            const detail = details[latest.path];
+            const name =
+              aliases[id] ||
+              detail?.device_name ||
+              (id === deviceID
+                ? deviceName
+                : translate('settings:device', { value1: id.slice(0, 8) }));
+            const historyLimit = historyLimits[id] || 10;
+            return (
+              <li key={id} className="backup-device">
+                <div className="backup-device-row">
+                  <div className="backup-device-info">
+                    <div>
+                      <strong>{name}</strong>
+                      {id === deviceID && (
+                        <span className="muted">{translate('settings:thisDevice')}</span>
+                      )}
+                    </div>
+                    <time dateTime={detail?.created_at || latest.modified}>
+                      {new Date(detail?.created_at || latest.modified).toLocaleString(
+                        currentLocale(),
+                      )}
+                    </time>
+                    {detail ? (
+                      <span className="muted">
+                        {detail.connections} {translate('settings:connections')}
+                        {detail.credentials_included === false
+                          ? translate('settings:noCredentialsIncluded')
+                          : translate('settings:credentials', { value1: detail.credentials })}
+                        {detail.credentials_included == null
+                          ? translate('settings:credentialScopeUnknown')
+                          : ''}
+                      </span>
+                    ) : (
+                      <span className="muted">
+                        {detailErrors[latest.path]
+                          ? translate('settings:couldNotReadSummaryIndividualRecoveryIsAvailable')
+                          : recoverySaved
+                            ? translate('settings:unlockingSummary')
+                            : translate('settings:enterTheBackupPasswordWhenRestoring')}
+                      </span>
+                    )}
+                  </div>
+                  <div className="button-row">
+                    <Button
+                      size="sm"
+                      variant="light"
+                      aria-label={translate('settings:labelDevice', { value1: name })}
+                      onPress={() => setAliasEdit({ id, name: aliases[id] || '' })}
+                    >
+                      {translate('settings:label')}
+                    </Button>
+                    <Button size="sm" variant="bordered" onPress={() => onRestore(latest.path)}>
+                      {translate('settings:restore')}
+                    </Button>
+                  </div>
+                </div>
+                {detailErrors[latest.path] && (
+                  <details className="backup-details-error">
+                    <summary>{translate('settings:couldNotReadSummary')}</summary>
+                    <p role="alert" className="error">
+                      {detailErrors[latest.path]}
+                    </p>
+                  </details>
+                )}
+                {aliasEdit?.id === id && (
+                  <form
+                    className="backup-alias-form"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void saveAlias();
+                    }}
+                  >
+                    <Input
+                      aria-label={translate('settings:deviceLabel')}
+                      placeholder={translate('settings:localDeviceLabel')}
+                      size="sm"
+                      maxLength={100}
+                      value={aliasEdit.name}
+                      onValueChange={(name) => setAliasEdit({ id, name })}
+                      isDisabled={savingAlias}
+                      autoFocus
+                    />
+                    <Button size="sm" type="submit" isLoading={savingAlias}>
+                      {translate('settings:save')}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="light"
+                      isDisabled={savingAlias}
+                      onPress={() => setAliasEdit(undefined)}
+                    >
+                      {translate('settings:cancel')}
+                    </Button>
+                  </form>
+                )}
+                <details className="backup-history">
+                  <summary>
+                    {translate('settings:history')}
+                    {snapshots.length} {translate('settings:copies')}
+                  </summary>
+                  <ul className="snapshot-list">
+                    {snapshots.slice(0, historyLimit).map((snapshot) => (
+                      <li key={snapshot.path}>
+                        <div>
+                          <time dateTime={snapshot.modified}>
+                            {new Date(snapshot.modified).toLocaleString(currentLocale())}
+                          </time>
+                          <span>{Math.ceil(snapshot.size / 1024)} KiB</span>
+                        </div>
+                        <Button size="sm" variant="light" onPress={() => onRestore(snapshot.path)}>
+                          {translate('settings:restore')}
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                  {snapshots.length > historyLimit && (
+                    <Button
+                      size="sm"
+                      variant="light"
+                      onPress={() =>
+                        setHistoryLimits((previous) => ({ ...previous, [id]: historyLimit + 20 }))
+                      }
+                    >
+                      {translate('settings:moreHistory')}
+                    </Button>
+                  )}
+                </details>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {groups.size > deviceLimit && (
+        <Button size="sm" variant="light" onPress={() => setDeviceLimit((value) => value + 10)}>
+          {translate('settings:moreDevices')}
+        </Button>
+      )}
+      {pruning && (
+        <SnapshotPruneDialog
+          deviceID={deviceID}
+          names={{ ...aliases, [deviceID]: deviceName }}
+          onClose={() => setPruning(false)}
+          onChanged={() => setRefresh((value) => value + 1)}
+        />
+      )}
+    </section>
+  );
 }

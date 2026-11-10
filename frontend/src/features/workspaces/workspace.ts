@@ -1,5 +1,8 @@
 import type { RefObject } from 'react';
-import type { SSHLayout, SSHRouteHop } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
+import type {
+  SSHLayout,
+  SSHRouteHop,
+} from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import type { Connection } from '../../../bindings/github.com/Sanjeever/termquay/internal/store/models';
 import type { Grant } from '../../../bindings/github.com/Sanjeever/termquay/internal/rdp/models';
 import type { SSHWorkspaceHandle } from '../files/SSHWorkspace';

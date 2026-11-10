@@ -18,6 +18,22 @@ import settings from './locales/en/settings.json';
 declare module 'i18next' {
   interface CustomTypeOptions {
     defaultNS: 'common';
-    resources: { common: typeof common; status: typeof status; backend: typeof backend; terminal: typeof terminal; files: typeof files; workspaces: typeof workspaces; tunnels: typeof tunnels; rdp: typeof rdp; monitor: typeof monitor; logs: typeof logs; docker: typeof docker; demo: typeof demo; connections: typeof connections; ai: typeof ai; settings: typeof settings };
+    resources: {
+      common: typeof common;
+      status: typeof status;
+      backend: typeof backend;
+      terminal: typeof terminal;
+      files: typeof files;
+      workspaces: typeof workspaces;
+      tunnels: typeof tunnels;
+      rdp: typeof rdp;
+      monitor: typeof monitor;
+      logs: typeof logs;
+      docker: typeof docker;
+      demo: typeof demo;
+      connections: typeof connections;
+      ai: typeof ai;
+      settings: typeof settings;
+    };
   }
 }
