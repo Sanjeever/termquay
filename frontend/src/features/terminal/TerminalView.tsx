@@ -60,6 +60,7 @@ import {
 import {
   EnableCommandNotification,
   NotifyCommandFinished,
+  NotifyTerminalAttention,
 } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import type { TerminalLogStatus } from '../../../bindings/github.com/Sanjeever/termquay/internal/ssh/models';
 import Icon from '../../components/Icon';
@@ -243,6 +244,11 @@ const TerminalView = forwardRef<
   const [runningCommand, setRunningCommand] = useState(false);
   const [reminder, setReminder] = useState(false);
   const [armingReminder, setArmingReminder] = useState(false);
+  const [bellNotifications, setBellNotifications] = useState(false);
+  const [armingBell, setArmingBell] = useState(false);
+  const bellEnabled = useRef(false);
+  bellEnabled.current = bellNotifications;
+  const attentionRequested = useRef(false);
   const currentCommand = useRef(0);
   const running = useRef(false);
   const reminderCommand = useRef<number>();
@@ -391,6 +397,18 @@ const TerminalView = forwardRef<
   const shown = useRef(visible);
   shown.current = visible;
   const appFocused = useRef(document.hasFocus());
+  const acknowledgeAttention = useCallback(() => {
+    if (
+      !shown.current ||
+      !appFocused.current ||
+      terminal.current?.textarea !== document.activeElement
+    )
+      return;
+    if (attentionRequested.current) {
+      attentionRequested.current = false;
+      callbacks.current.onAttention?.(running.current ? 'running' : undefined);
+    } else if (!running.current) callbacks.current.onAttention?.();
+  }, []);
   const focusRequested = useRef(focusOnShow);
   focusRequested.current = focusOnShow;
   const inputStream = useRef<ReturnType<typeof Stream>>();
@@ -429,11 +447,28 @@ const TerminalView = forwardRef<
       if (terminal.current === term) setArmingReminder(false);
     }
   }
+  async function toggleBellNotifications() {
+    if (bellNotifications) {
+      setBellNotifications(false);
+      return;
+    }
+    const term = terminal.current;
+    setArmingBell(true);
+    clearError('notification');
+    try {
+      await EnableCommandNotification();
+      if (terminal.current === term) setBellNotifications(true);
+    } catch (error) {
+      if (terminal.current === term) reportError('notification', error);
+    } finally {
+      if (terminal.current === term) setArmingBell(false);
+    }
+  }
   useEffect(() => {
     if (demoOutput !== undefined) return;
     const clearAttention = () => {
       appFocused.current = true;
-      if (shown.current && !running.current) callbacks.current.onAttention?.();
+      acknowledgeAttention();
     };
     const off = [
       Events.On(Events.Types.Common.WindowFocus, clearAttention),
@@ -460,10 +495,10 @@ const TerminalView = forwardRef<
         : []),
     ];
     return () => off.forEach((dispose) => dispose());
-  }, [id, demoOutput, local]);
+  }, [id, demoOutput, local, acknowledgeAttention]);
   useEffect(() => {
-    if (visible && appFocused.current && !running.current) callbacks.current.onAttention?.();
-  }, [visible]);
+    if (visible) acknowledgeAttention();
+  }, [visible, acknowledgeAttention]);
   function sendFrame(data: string): boolean {
     if (inputLocked.current) {
       reportError('input', translate('terminal:terminalInputLocked'));
@@ -649,6 +684,20 @@ const TerminalView = forwardRef<
       term.onScroll(() => updateUnread()),
       term.onWriteParsed(() => updateUnread(true)),
       term.onTitleChange((title) => callbacks.current.onTitle?.(title.slice(0, 512))),
+      term.onBell(() => {
+        if (
+          demoOutput !== undefined ||
+          attentionRequested.current ||
+          (shown.current && appFocused.current && term.textarea === document.activeElement)
+        )
+          return;
+        attentionRequested.current = true;
+        callbacks.current.onAttention?.('attention');
+        if (bellEnabled.current)
+          NotifyTerminalAttention(id).catch((error) => {
+            if (terminal.current === term) reportError('notification', error);
+          });
+      }),
     ];
     setCommandEntries([]);
     commandToken.current = '';
@@ -671,16 +720,22 @@ const TerminalView = forwardRef<
         const latest = entries[entries.length - 1];
         if (!latest || demoOutput !== undefined) return;
         if (latest.duration === undefined) {
+          attentionRequested.current = false;
           currentCommand.current = latest.id;
           running.current = true;
           setRunningCommand(true);
           callbacks.current.onAttention?.('running');
         } else if (running.current && currentCommand.current === latest.id) {
+          attentionRequested.current = false;
           running.current = false;
           setRunningCommand(false);
           const failed = latest.exitCode !== undefined && latest.exitCode !== '0';
           callbacks.current.onAttention?.(
-            shown.current && appFocused.current ? undefined : failed ? 'failed' : 'completed',
+            shown.current && appFocused.current && term.textarea === document.activeElement
+              ? undefined
+              : failed
+                ? 'failed'
+                : 'completed',
           );
           if (reminderCommand.current === latest.id) {
             reminderCommand.current = undefined;
@@ -702,6 +757,7 @@ const TerminalView = forwardRef<
     const textarea = term.textarea,
       blur = () => complete.current.dismiss();
     textarea?.addEventListener('blur', blur);
+    textarea?.addEventListener('focus', acknowledgeAttention);
     let fitFrame = 0;
     const fitVisible = () => {
       if (fitFrame) return;
@@ -726,6 +782,7 @@ const TerminalView = forwardRef<
         observer.disconnect();
         bufferChange.dispose();
         textarea?.removeEventListener('blur', blur);
+        textarea?.removeEventListener('focus', acknowledgeAttention);
         cancelAnimationFrame(fitFrame);
         requestFit.current = undefined;
         integration.current?.dispose();
@@ -845,6 +902,7 @@ const TerminalView = forwardRef<
       windowsInput.current = undefined;
       bufferChange.dispose();
       textarea?.removeEventListener('blur', blur);
+      textarea?.removeEventListener('focus', acknowledgeAttention);
       integration.current?.dispose();
       integration.current = undefined;
       observer.disconnect();
@@ -1093,6 +1151,19 @@ const TerminalView = forwardRef<
               </DropdownItem>
               <DropdownItem key="commandIndex" onPress={() => setCommandIndexOpen(true)}>
                 {translate('terminal:commandsInThisSession2')}
+              </DropdownItem>
+              <DropdownItem
+                key="bellNotifications"
+                isDisabled={!connected || armingBell || demoOutput !== undefined}
+                onPress={() => {
+                  void toggleBellNotifications();
+                }}
+              >
+                {translate(
+                  bellNotifications
+                    ? 'terminal:disableBellNotifications'
+                    : 'terminal:enableBellNotifications',
+                )}
               </DropdownItem>
               <DropdownItem
                 key="reminder"

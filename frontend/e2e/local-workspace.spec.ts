@@ -5,6 +5,7 @@ async function openWorkspace(page: Page) {
   const closed: string[] = [];
   const inputs = new Map<string, string[]>();
   const launches: unknown[][] = [];
+  const output = new Map<string, (text: string) => void>();
   await page.route('**/wails/runtime*', async (route) => {
     const body = route.request().postDataJSON();
     let value: unknown = null;
@@ -34,13 +35,14 @@ async function openWorkspace(page: Page) {
       if (!id) {
         id = frame.toString('utf8');
         inputs.set(id, []);
+        output.set(id, (text) => socket.send(Buffer.from(text)));
         socket.send(Buffer.from(`\x1b[?25l\x1b[?2004h${id} ready\r\n`));
       } else if (frame[0] === 0) inputs.get(id)!.push(frame.subarray(1).toString('utf8'));
     });
   });
   await page.goto('/e2e/local-workspace.html');
   await expect(page.locator('.xterm canvas').first()).toBeVisible();
-  return { closed, inputs, launches };
+  return { closed, inputs, launches, send: (id: string, text: string) => output.get(id)!(text) };
 }
 
 async function layout(page: Page, name: string) {
@@ -191,4 +193,43 @@ test('closing during creation releases a late PTY instead of reviving the worksp
   await complete!();
   await expect.poll(() => closed.slice().sort()).toEqual(['local-1', 'local-late']);
   await expect(page.locator('.local-workspace')).toHaveCount(0);
+});
+
+test('explicit terminal bells request attention once and focus acknowledges the correct pane', async ({
+  page,
+}) => {
+  const { send } = await openWorkspace(page);
+  const notifications: string[] = [];
+  await page.route('**/wails/runtime*', async (route) => {
+    const body = route.request().postDataJSON();
+    if (body?.args?.methodID === 1304035475) notifications.push(body.args.args[0]);
+    await route.fallback();
+  });
+  await layout(page, 'Two columns');
+  await page.getByRole('button', { name: 'Terminal actions', exact: true }).click();
+  await page
+    .getByRole('menuitem', { name: 'Enable terminal bell notifications', exact: true })
+    .click();
+  await page.getByRole('button', { name: 'Toggle workspace', exact: true }).click();
+  send('local-1', '\x07\x07');
+  await expect.poll(() => notifications).toEqual(['local-1']);
+  send('local-1', '\x07');
+  await page.waitForTimeout(50);
+  expect(notifications).toEqual(['local-1']);
+  await page.evaluate(() =>
+    Reflect.get(window, '_wails').dispatchWailsEvent({ name: 'common:WindowFocus', data: null }),
+  );
+  await page.getByRole('button', { name: 'Toggle workspace', exact: true }).click();
+  await expect(page.locator('.terminal-attention.attention')).toHaveCount(0);
+  send('local-1', '\x1b]2;Codex 中文\x07');
+  await expect(page.locator('[data-terminal-id="local-1"] .local-terminal-pane-title')).toHaveText(
+    'Codex 中文',
+  );
+  send('local-2', '\x07');
+  await expect(
+    page.locator('[data-terminal-id="local-2"] .terminal-attention.attention'),
+  ).toHaveCount(1);
+  expect(notifications).toEqual(['local-1']);
+  await page.locator('[data-terminal-id="local-2"] .local-terminal-pane-title').click();
+  await expect(page.locator('.terminal-attention.attention')).toHaveCount(0);
 });

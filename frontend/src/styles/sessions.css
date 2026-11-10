@@ -1601,6 +1601,9 @@
 .terminal-attention.failed {
   background: var(--color-danger);
 }
+.terminal-attention.attention {
+  background: var(--color-warning);
+}
 .terminal-attention.completed {
   background: var(--color-primary);
 }

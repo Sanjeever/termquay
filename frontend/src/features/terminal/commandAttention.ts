@@ -1,6 +1,9 @@
 import { t as translate } from '../../i18n/index.ts';
-export type CommandAttention = 'running' | 'failed' | 'completed';
+export type CommandAttention = 'running' | 'failed' | 'completed' | 'attention';
 export const commandAttentionLabels = {
+  get attention() {
+    return translate('terminal:needsAttention');
+  },
   get running() {
     return translate('terminal:running');
   },

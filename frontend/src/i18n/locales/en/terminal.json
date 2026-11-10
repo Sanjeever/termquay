@@ -887,5 +887,8 @@
   "confirmPasteBeforeSending": "Confirm multiline paste",
   "allowDirectPaste": "Paste multiline text directly",
   "newOutput": "New output",
-  "imagePasteRequiresLocalTerminal": "Clipboard image paste requires a local terminal"
+  "imagePasteRequiresLocalTerminal": "Clipboard image paste requires a local terminal",
+  "needsAttention": "Needs attention",
+  "enableBellNotifications": "Enable terminal bell notifications",
+  "disableBellNotifications": "Disable terminal bell notifications"
 }

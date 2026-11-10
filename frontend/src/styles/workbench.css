@@ -471,6 +471,9 @@ button:active:not(:disabled):not([role='tab']) {
 .command-attention.failed {
   color: var(--color-danger);
 }
+.command-attention.attention {
+  color: var(--color-warning);
+}
 .icon-button {
   display: inline-flex;
   justify-content: center;

@@ -42,6 +42,18 @@ func (a *AppService) EnableCommandNotification(ctx context.Context) error {
 }
 
 func (a *AppService) NotifyCommandFinished(id string, failed bool) error {
+	body := "命令已完成，点击返回终端。"
+	if failed {
+		body = "命令执行失败，点击返回终端。"
+	}
+	return a.notifyTerminal(id, body)
+}
+
+func (a *AppService) NotifyTerminalAttention(id string) error {
+	return a.notifyTerminal(id, nativeText("Terminal needs attention. Click to return.", "终端需要处理，点击返回。"))
+}
+
+func (a *AppService) notifyTerminal(id, body string) error {
 	a.notificationMu.Lock()
 	defer a.notificationMu.Unlock()
 	if a.notifications == nil {
@@ -58,10 +70,6 @@ func (a *AppService) NotifyCommandFinished(id string, failed bool) error {
 	app := application.Get()
 	if window, ok := app.Window.GetByName("workbench"); !ok || window.IsFocused() {
 		return nil
-	}
-	body := "命令已完成，点击返回终端。"
-	if failed {
-		body = "命令执行失败，点击返回终端。"
 	}
 	return a.notifications.SendNotification(notifications.NotificationOptions{ID: "command:" + id, Title: "TermQuay", Body: body})
 }

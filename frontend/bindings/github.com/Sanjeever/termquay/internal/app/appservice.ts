@@ -620,6 +620,10 @@ export function NotifyCommandFinished(id: string, failed: boolean): $Cancellable
     return $Call.ByID(2465979134, id, failed);
 }
 
+export function NotifyTerminalAttention(id: string): $CancellablePromise<void> {
+    return $Call.ByID(1304035475, id);
+}
+
 export function OpenAIConversation(workspace: string, id: string): $CancellablePromise<void> {
     return $Call.ByID(823861251, workspace, id);
 }

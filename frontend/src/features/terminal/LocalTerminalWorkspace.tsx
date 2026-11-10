@@ -158,13 +158,15 @@ const LocalTerminalWorkspace = forwardRef<
     setSessions(next);
     const states = next.map((session) => session.attention);
     callbacks.current.onAttention(
-      states.includes('failed')
-        ? 'failed'
-        : states.includes('completed')
-          ? 'completed'
-          : states.includes('running')
-            ? 'running'
-            : undefined,
+      states.includes('attention')
+        ? 'attention'
+        : states.includes('failed')
+          ? 'failed'
+          : states.includes('completed')
+            ? 'completed'
+            : states.includes('running')
+              ? 'running'
+              : undefined,
     );
   }
 

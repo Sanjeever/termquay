@@ -887,5 +887,8 @@
   "confirmPasteBeforeSending": "多行粘贴前确认",
   "allowDirectPaste": "直接粘贴多行文本",
   "newOutput": "新输出",
-  "imagePasteRequiresLocalTerminal": "剪贴板图片粘贴需要本地终端"
+  "imagePasteRequiresLocalTerminal": "剪贴板图片粘贴需要本地终端",
+  "needsAttention": "需要处理",
+  "enableBellNotifications": "启用终端响铃通知",
+  "disableBellNotifications": "关闭终端响铃通知"
 }
