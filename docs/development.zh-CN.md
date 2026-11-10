@@ -364,6 +364,10 @@ macOS 菜单栏提供连接、终端、标签关闭、显示、界面缩放和�
 
 ## 已有验收记录与缺口
 
+### 1.4.3 发布验收（2026-11-10）
+
+候选提交、跨平台快捷键修复、三平台 CI、候选包核对及发布结果统一见 [Release 1.4.3 verification](development.md#release-143-verification-2026-11-10)。本轮区分本机自动检查、Chromium 回归与 macOS 候选 CLI 检查，未补做原生 GUI、真实远端、旧版桌面升级或持续资源验收。
+
 ### 本地终端工作流验收（2026-11-10）
 
 提交、环境、自动检查及原生覆盖统一见 [Local terminal workflow verification](development.md#local-terminal-workflow-verification-2026-11-10)。记录包含 macOS 原生目录选择与继承、系统剪贴板、Codex/Claude Code 输入、关闭确认及粘贴后焦点恢复；重复确认粘贴另有先失败后通过的浏览器回归。Windows/Linux 原生界面、WSL、物理输入法组词、图片粘贴及持续资源负载仍需对应环境验证。
