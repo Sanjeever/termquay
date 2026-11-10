@@ -386,6 +386,10 @@ macOS 菜单栏提供连接、终端、标签关闭、显示、界面缩放和�
 
 “终端与编辑器”的“恢复默认”曾遗漏本地终端渲染设置，现已修复，并有先失败后通过的组件回归。触发条件、引入提交和修复范围统一见 [Terminal defaults reset correction](development.md#terminal-defaults-reset-correction)。
 
+### 1.4.4 发布验收（2026-11-10）
+
+提交、环境、自动检查、文件树留白与渲染重置回归统一见 [Release 1.4.4 verification](development.md#release-144-verification-2026-11-10)。两项回归均有修复前失败、修复后通过的证据；记录区分组件测试、浏览器布局与截图检查，以及尚未验证的原生和真实远端范围。
+
 ### 工作台流程与资源测量（2026-11-10）
 
 提交、环境、自动检查和资源采样统一见 [Workbench workflow and resource verification](development.md#workbench-workflow-and-resource-verification-2026-11-10)。记录覆盖窄栏、转发预览、双栏文件传输及保存并验证流程，并区分浏览器替身与隐藏 WKWebView 中的真实本地 PTY。输入测量使用程序注入，RSS 覆盖应用与相关 WebKit 进程；该次诊断不代表前台绘制延迟、真实远端复制或长期资源稳定性。
