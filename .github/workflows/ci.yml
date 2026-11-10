@@ -9,6 +9,34 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  quality:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '26'
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: pnpm --dir frontend install --frozen-lockfile
+      - run: pnpm format:check
+      - run: pnpm lint:frontend
+      - run: pnpm check
+      - run: pnpm --dir frontend exec playwright install --with-deps --no-shell chromium
+      - run: pnpm test:ui
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-test-results
+          path: frontend/test-results/
+          if-no-files-found: ignore
   check:
     strategy:
       fail-fast: false
@@ -38,6 +66,8 @@ jobs:
       - run: pnpm --dir frontend install --frozen-lockfile
       - run: pnpm --dir frontend test
       - run: pnpm --dir frontend build
+      - name: Go static analysis
+        run: pnpm lint:go
       - name: 测试 Go
         run: go test ./...
       - name: 检查竞态

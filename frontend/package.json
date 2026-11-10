@@ -12,6 +12,10 @@
     "test:watch": "vitest --watch",
     "dev": "vite",
     "check": "tsc --noEmit",
+    "lint": "cd .. && node frontend/node_modules/oxlint/bin/oxlint --config .oxlintrc.json frontend scripts",
+    "format": "cd .. && node frontend/node_modules/oxfmt/bin/oxfmt --config .oxfmtrc.json frontend scripts package.json .oxlintrc.json .oxfmtrc.json .github/workflows/ci.yml",
+    "format:check": "cd .. && node frontend/node_modules/oxfmt/bin/oxfmt --check --config .oxfmtrc.json frontend scripts package.json .oxlintrc.json .oxfmtrc.json .github/workflows/ci.yml",
+    "test:ui": "playwright test",
     "build:dev": "tsc && vite build --minify false --mode development",
     "build": "tsc && vite build --mode production",
     "preview": "vite preview --host 127.0.0.1"
@@ -66,6 +70,7 @@
     "yaml": "2.9.1"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.0",
     "@tailwindcss/vite": "4.3.3",
     "@testing-library/dom": "10.4.2",
     "@testing-library/react": "16.3.3",
@@ -76,6 +81,8 @@
     "@vitejs/plugin-react": "6.0.0",
     "fast-xml-parser": "5.11.2",
     "jsdom": "31.0.0",
+    "oxfmt": "0.78.0",
+    "oxlint": "1.93.0",
     "tailwindcss": "4.3.3",
     "typescript": "5.9.3",
     "vite": "8.2.4",

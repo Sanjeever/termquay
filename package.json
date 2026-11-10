@@ -13,6 +13,13 @@
     "dev:frontend": "pnpm --dir frontend dev",
     "build:frontend": "pnpm --dir frontend build",
     "check": "pnpm --dir frontend check",
-    "test": "node scripts/test.mjs"
+    "test": "node scripts/test.mjs",
+    "lint": "pnpm lint:frontend && pnpm lint:go",
+    "lint:frontend": "pnpm --dir frontend lint",
+    "lint:go": "go vet ./...",
+    "format": "pnpm --dir frontend format && node scripts/go-format.mjs --write",
+    "format:check": "pnpm --dir frontend format:check && node scripts/go-format.mjs",
+    "test:ui": "pnpm --dir frontend test:ui",
+    "verify": "pnpm format:check && pnpm lint:frontend && pnpm build:frontend && pnpm lint:go && pnpm test && go test ./... && pnpm test:ui"
   }
 }

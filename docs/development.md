@@ -53,6 +53,10 @@ The root [package.json](../package.json) provides these entry points. Keep its p
 | `pnpm build:frontend` | Type-check and build frontend assets |
 | `pnpm check` | Run the frontend TypeScript check |
 | `pnpm test` | Run the existing frontend and script tests |
+| `pnpm lint` | Run Oxlint and Go vet; build frontend assets first for the root Go package |
+| `pnpm format` / `pnpm format:check` | Format handwritten frontend/scripts and Go source, or check without writing |
+| `pnpm test:ui` | Run the Chromium layout and editor-state regressions |
+| `pnpm verify` | Run formatting, frontend lint/build, Go vet, script/frontend/Go tests and browser regressions |
 
 Arguments are passed through, for example `pnpm build ARCH=arm64` or `pnpm task darwin:package:universal`. Packaging prerequisites still come from the [platform tasks](../build); builds can update Go modules and generated bindings, so inspect the resulting diff. The `frontend` package's `dev` script remains the Vite entry point used by Wails.
 
@@ -79,7 +83,30 @@ go test ./...
 
 The second command includes the root entry point and needs built frontend assets. On a supported platform with CGO and a C compiler, run the relevant race checks, for example `go test -race ./internal/...`. Ordinary tests do not substitute for race detection. Documentation-only changes need content/link/diff checks, not builds.
 
-CI runs the frontend/script suites, builds on three platforms, checks binding consistency and runs the [CLI smoke check](../scripts/cli-smoke.mjs). A workflow definition is not evidence that a check ran for your change.
+CI has one quality job for formatting, Oxlint, TypeScript and Chromium regressions. The existing platform matrix runs the frontend/script suites, Go vet/tests, native builds, binding consistency and the [CLI smoke check](../scripts/cli-smoke.mjs); Linux also runs race detection. A workflow definition is not evidence that a check ran for your change.
+
+### Linting and formatting
+
+Oxlint and Oxfmt are pinned development dependencies in [frontend/package.json](../frontend/package.json). The root commands invoke the same configuration as the frontend package. [Oxlint configuration](../.oxlintrc.json) enables correctness checks and the core React Hooks rules, fails on warnings and reports unused suppressions. The React Compiler-specific rules listed there are disabled for this React application without compiler optimization. TypeScript checking remains `tsc --noEmit` with the existing [compiler settings](../frontend/tsconfig.json); type-aware Oxlint and a TypeScript migration are separate changes.
+
+Inspect Effect dependency findings against the resource owner and cleanup path. Stable `useMessageState` setters can be dependencies, and reusable loading functions should have stable callbacks. Existing document/session identity, serialized-value and translation-cache boundaries have local, reasoned exceptions. Preserve these contracts when changing a dependency list; terminal/editor recreation, repeated requests and clearing pending drafts are behavior changes. Protocol regexes deliberately matching control bytes have narrowly scoped exceptions.
+
+[Oxfmt configuration](../.oxfmtrc.json) keeps existing import, Tailwind class and package-field order. Formatting covers handwritten frontend files, project scripts, package/tool configuration and the CI workflow; generated bindings, lockfiles, build outputs, third-party materials and historical documentation are excluded. The [Go formatter entry point](../scripts/go-format.mjs) checks root Go files and `internal/`; its check mode fails when gofmt reports differences. Keep a formatting migration separate from semantic fixes.
+
+After installing frontend dependencies, install the browser selected by the pinned Playwright package once, then run the aggregate check from the repository root:
+
+```sh
+pnpm --dir frontend exec playwright install --no-shell chromium
+pnpm verify
+```
+
+Linux hosts also need Playwright system libraries; CI installs them with `--with-deps`. `pnpm verify` builds embedded frontend assets before Go vet/tests. It does not run race detection or native packaging; choose those separately for affected behavior. `pnpm lint:frontend` and `pnpm lint:go` run the language-specific checks independently.
+
+### Browser regressions
+
+[Playwright configuration](../frontend/playwright.config.ts) starts an isolated Vite server on loopback port 9246 and runs Chromium with two workers. The [fixture](../frontend/e2e/fixture.tsx) mounts the actual titlebar, workspace tabs, appearance provider and CodeMirror editor with controlled state; [tests](../frontend/e2e/workbench.spec.ts) substitute Wails calls at the HTTP boundary. These development fixtures are outside the production entry point and Vitest projects.
+
+The suite checks tab/action adjacency, overflow, mouse/keyboard access and editor instance/document/selection/undo preservation during language, theme and font changes. Platform variants exercise header styling in Chromium, not native Windows/Linux/macOS WebViews. Browser diagnostics are captured on failure and uploaded by CI. Keep native window dragging, input/IME, remote connections and protocol acceptance in their corresponding verification layers.
 
 ### Frontend tests
 
@@ -216,6 +243,14 @@ The workflow-only command is an alternative to the full SSH selection. Use `-rac
 Report unit tests, local protocol integration, browser substitutes, native desktop, real SSH, real RDP and real WebDAV separately. A browser substitute, local SSH fixture or cross-build cannot establish native/real-remote acceptance.
 
 Historical evidence and unresolved gaps remain in the [Chinese acceptance ledger](development.zh-CN.md#已有验收记录与缺口), including [AI acceptance](development.zh-CN.md#内置-ai-验收2026-11-06) and [Windows SSH AI adaptation](development.zh-CN.md#windows-ssh-ai-适配验收2026-11-09). Platform input/IME, RDP clipboard/concurrency, native menus/dialogs, real multi-hop reconnect, provider behavior and sustained application-wide resource measurements need environment-specific evidence. Do not present historical results as current checks.
+
+### Quality-tool integration verification (2026-11-10)
+
+The formatting baseline is `50c4c0b` and Hook/lifecycle changes are `47382e7`. These source changes and the quality configuration/browser fixtures committed with this record were checked on macOS 26.6.2 / arm64, Go 1.26.10, Node 26.11.0 and pnpm 11.20.0. The aggregate `pnpm verify` passed formatting, Oxlint, the TypeScript/production frontend build, Go vet, 5 script tests, 103 frontend tests, Go package tests and 7 Chromium regressions. An offline frozen-lockfile install and the release audit passed. Temporary unused-variable and formatting probes returned nonzero through the public check commands and the Go formatter; the probes were removed. Existing macOS SDK/deployment-target linker warnings remain.
+
+The browser suite used the pinned Playwright package's Chromium revision and substituted Wails HTTP calls. It checked macOS/Windows/Linux header styles at two widths, zero/one/many workspaces, overflow and mouse/keyboard activation; editor checks retained the real CodeMirror instance, document, selection and undo history across language/theme/font changes. Platform styling in Chromium does not establish native WebView behavior, window dragging, real SSH/RDP/WebDAV/model-provider or upgrade acceptance. The new remote CI job has not run for these local commits. No version bump, tag, publication or remote settings change was performed.
+
+The [dependency review](../build/licenses/review.json) compares the original lockfile at `53cb7cb`: all 588 existing package records and 588 snapshots, production resolutions, Go audit inputs and the RDP patch are unchanged. New records are development-only toolchains and platform bindings. Both README entry points, architecture/development guides, contributor instructions, comments, examples, CLI help and the distributed skill were reviewed for affected instructions; the canonical quality guide and Chinese entry point were updated.
 
 ### Custom font verification for 1.4.2 (2026-11-09)
 

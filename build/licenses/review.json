@@ -2,7 +2,7 @@
   "inputs": {
     "go.mod": "0a951ac612ba5346da42b8a6a1aab560d9c97afdb7bf37e3cb0e5a7d78d14baf",
     "go.sum": "cc5057fd8467af8ee42e503a11552ba4e9ddda40b7550c862cb81d0ad9878b6e",
-    "frontend/pnpm-lock.yaml": "b2d85e5acf75a4badb48529406657415631054eb775f8cd1cce00184f58783ef",
+    "frontend/pnpm-lock.yaml": "c3de7076cb497b378d050e66e126b8c9548b9d19a3439f14253b31a768c938b8",
     "frontend/patches/@devolutions__iron-remote-desktop@0.11.0.patch": "53b4e282385f535f908c6399947350bff05c762c268b5060a9bba9d998fa0168"
   },
   "frontend_test_dependencies": {
@@ -53,5 +53,10 @@
   },
   "mit_text_source": "https://raw.githubusercontent.com/spdx/license-list-data/main/text/MIT.txt",
   "ci_run": "https://github.com/Sanjeever/termquay/actions/runs/41622227287",
-  "candidate_run": "https://github.com/Sanjeever/termquay/actions/runs/41622232151"
+  "candidate_run": "https://github.com/Sanjeever/termquay/actions/runs/41622232151",
+  "frontend_quality_dependencies": {
+    "reviewed_at": "2026-11-10",
+    "baseline": "53cb7cb",
+    "verification": "Parsed both lockfiles with yaml. All 588 existing package records and 588 existing dependency snapshots are unchanged, as are importer production/optional dependency resolutions, lock settings and the RDP patch. The 44 new package records and 44 snapshots belong to the development-only Oxlint 1.93.0, Oxfmt 0.78.0 and Playwright Test 1.64.0 toolchains. Go audit inputs remain unchanged. pnpm added exact-version age exceptions for the newly published Oxc tools and their platform bindings; no wildcard exceptions were added. Existing production license/provenance materials remain applicable. This review covers the dependency delta, not reproducible artifact provenance."
+  }
 }

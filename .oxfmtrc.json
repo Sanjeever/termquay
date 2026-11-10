@@ -1,0 +1,18 @@
+{
+  "$schema": "./frontend/node_modules/oxfmt/configuration_schema.json",
+  "singleQuote": true,
+  "printWidth": 100,
+  "sortImports": false,
+  "sortTailwindcss": false,
+  "sortPackageJson": false,
+  "ignorePatterns": [
+    "frontend/bindings/**",
+    "frontend/dist/**",
+    "frontend/patches/**",
+    "build/**",
+    "docs/**",
+    "skills/**",
+    ".agents/**",
+    "**/*.md"
+  ]
+}

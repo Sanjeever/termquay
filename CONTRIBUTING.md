@@ -20,6 +20,8 @@ Go owns network/authentication/session/transfer/storage logic; React owns views 
 
 Follow [changes and checks](docs/development.md#changes-and-checks) for frontend commands, binding generation and backend/race checks. Choose checks for the affected behavior and inspect generated diffs. Never patch bindings manually.
 
+Use the [quality commands](docs/development.md#linting-and-formatting) for formatting, Oxlint, type checking and aggregate verification. Review Hooks dependency findings against session/editor lifetimes, and keep formatting-only migrations in separate commits. Browser regressions use the [documented fixture and limits](docs/development.md#browser-regressions).
+
 Documentation-only changes need content/link/diff checks. Every PR need not test every platform or real service. Unit/local integration works without maintainer servers. Real SSH/WebDAV tests are optional, require authorization/secure settings and use isolated test directories or collections.
 
 Distinguish unit/local integration, browser substitutes, native desktop and real remote checks. Report skipped tests/unavailable environments. Builds/test doubles do not establish real RDP, native WebView, IME or performance acceptance.
