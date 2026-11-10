@@ -24,10 +24,12 @@ export default function TunnelPanel({
   id,
   visible,
   connectionID,
+  target,
 }: {
   id: string;
   visible: boolean;
   connectionID: string;
+  target: string;
 }) {
   useTranslation();
   const [spec, setSpec] = useState<ForwardSpec>({
@@ -49,6 +51,9 @@ export default function TunnelPanel({
   const [listErrorDismissed, setListErrorDismissed] = useState(false);
   const [retry, setRetry] = useState(0);
   const cancelled = useRef(false);
+  const remote = spec.kind === 'remote';
+  const bindAddress = `${spec.bind_host.includes(':') ? `[${spec.bind_host}]` : spec.bind_host}:${spec.bind_port || translate('tunnels:automaticPort')}`;
+  const destination = `${spec.target_host.includes(':') ? `[${spec.target_host}]` : spec.target_host}:${spec.target_port}`;
   useEffect(() => {
     if (!connectionID) return;
     let ended = false;
@@ -200,6 +205,35 @@ export default function TunnelPanel({
           </Button>
         </div>
       )}
+      <ol className="tunnel-route" aria-label={translate('tunnels:forwardingRoute')}>
+        <li>
+          <span>{translate(remote ? 'tunnels:sSHHost' : 'tunnels:thisComputer')}</span>
+          {remote && <small>{target}</small>}
+          <strong>{bindAddress}</strong>
+          <small>{translate('tunnels:listensHere')}</small>
+        </li>
+        <li className="tunnel-route-link" aria-hidden="true">
+          →
+        </li>
+        <li>
+          <span>{translate(remote ? 'tunnels:thisComputer' : 'tunnels:sSHHost')}</span>
+          {!remote && <strong>{target}</strong>}
+          <small>{translate('tunnels:encryptedTunnel')}</small>
+        </li>
+        <li className="tunnel-route-link" aria-hidden="true">
+          →
+        </li>
+        <li>
+          <span>
+            {translate(
+              remote ? 'tunnels:destinationFromComputer' : 'tunnels:destinationFromServer',
+            )}
+          </span>
+          <strong>
+            {spec.kind === 'dynamic' ? translate('tunnels:socksDestination') : destination}
+          </strong>
+        </li>
+      </ol>
       <form
         className="tunnel-form"
         onSubmit={async (e) => {
@@ -236,7 +270,7 @@ export default function TunnelPanel({
           </SelectControl>
         </label>
         <label>
-          {translate('tunnels:listenIP')}
+          {translate(remote ? 'tunnels:listenOnServer' : 'tunnels:listenOnComputer')}
           <input
             aria-label={translate('tunnels:listenIP')}
             value={spec.bind_host}
@@ -259,7 +293,9 @@ export default function TunnelPanel({
         {spec.kind !== 'dynamic' && (
           <>
             <label>
-              {translate('tunnels:destinationHost')}
+              {translate(
+                remote ? 'tunnels:destinationFromComputer' : 'tunnels:destinationFromServer',
+              )}
               <input
                 aria-label={translate('tunnels:forwardDestinationHost')}
                 required

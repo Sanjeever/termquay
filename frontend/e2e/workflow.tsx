@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { AppearanceProvider } from '../src/features/settings/AppearanceProvider';
 import { appearanceKey, defaultAppearance } from '../src/features/settings/appearance';
 import MonitorPanel from '../src/features/monitor/MonitorPanel';
+import TunnelPanel from '../src/features/tunnels/TunnelPanel';
 import { demoSamples } from '../src/features/demo/data';
 import '../src/style.css';
 
@@ -13,12 +14,14 @@ localStorage.setItem(appearanceKey, JSON.stringify({ ...defaultAppearance, langu
 function Fixture() {
   const { i18n } = useTranslation();
   const [monitor, setMonitor] = useState(true);
+  const [tunnels, setTunnels] = useState(false);
   return (
     <HeroUIProvider disableAnimation disableRipple>
       <main className="app-shell">
         <div className="button-row">
           <button onClick={() => void i18n.changeLanguage('zh-CN')}>Chinese</button>
           <button onClick={() => void i18n.changeLanguage('en')}>English</button>
+          <button onClick={() => setTunnels(!tunnels)}>Port forwarding</button>
         </div>
         <div className="ssh-workspace">
           <div className="workspace-toolbar">
@@ -32,6 +35,14 @@ function Fixture() {
               <button className="session-tool">AI assistant</button>
             </div>
           </div>
+          {tunnels && (
+            <TunnelPanel
+              id="fixture"
+              connectionID=""
+              target="deploy@jump.example.invalid:22"
+              visible
+            />
+          )}
           <div className="ssh-panels">
             <div className="terminal-pane" style={{ flex: 1, minWidth: 0 }} />
             <MonitorPanel

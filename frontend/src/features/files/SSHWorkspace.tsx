@@ -1424,7 +1424,12 @@ const SSHWorkspace = forwardRef<
         </Dropdown>
       </div>
       <div hidden={!tunnelsOpen}>
-        <TunnelPanel id={sessionID} connectionID={connectionID} visible={visible && tunnelsOpen} />
+        <TunnelPanel
+          id={sessionID}
+          connectionID={connectionID}
+          target={target}
+          visible={visible && tunnelsOpen}
+        />
       </div>
       {reconnect.status && (
         <div className="session-status" role="status">
