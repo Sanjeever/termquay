@@ -196,6 +196,7 @@ const TerminalView = forwardRef<
   const requestFit = useRef<() => void>();
   const search = useRef<SearchAddon>();
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [paste, setPaste] = useState<string>();
   const [locked, setLocked] = useState(false);
   const inputLocked = useRef(false);
@@ -506,7 +507,10 @@ const TerminalView = forwardRef<
   function action(name: TerminalAction) {
     const term = terminal.current;
     if (!term) return;
-    if (name === 'find') setSearchOpen(true);
+    if (name === 'find') {
+      setSearchQuery(term.getSelection());
+      setSearchOpen(true);
+    }
     if (name === 'terminalCompletion') {
       clearError('completion');
       term.focus();
@@ -1024,7 +1028,7 @@ const TerminalView = forwardRef<
         </Dropdown>
       </div>
       {searchOpen && search.current && (
-        <TerminalSearch addon={search.current} onClose={closeSearch} />
+        <TerminalSearch addon={search.current} initialQuery={searchQuery} onClose={closeSearch} />
       )}
       {playback && (
         <Suspense fallback={<div role="status">{translate('terminal:loadingPlayback')}</div>}>

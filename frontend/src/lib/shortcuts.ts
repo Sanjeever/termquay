@@ -48,7 +48,7 @@ export const shortcutDefinitions = [
       return translate('common:nextWorkspace');
     },
     scope: 'app',
-    key: 'Mod+Shift+BracketRight',
+    key: 'Ctrl+Tab',
   },
   {
     id: 'previousWorkspace',
@@ -56,7 +56,7 @@ export const shortcutDefinitions = [
       return translate('common:previousWorkspace');
     },
     scope: 'app',
-    key: 'Mod+Shift+BracketLeft',
+    key: 'Ctrl+Shift+Tab',
   },
   {
     id: 'switchPane',
@@ -73,6 +73,22 @@ export const shortcutDefinitions = [
     },
     scope: 'workspace',
     key: 'Mod+Alt+KeyW',
+  },
+  {
+    id: 'newLocalTerminal',
+    get label() {
+      return translate('common:newLocalTerminal');
+    },
+    scope: 'app',
+    key: 'Ctrl+Shift+KeyT',
+  },
+  {
+    id: 'workspaceSearch',
+    get label() {
+      return translate('common:openWorkspaces');
+    },
+    scope: 'app',
+    key: 'Ctrl+Shift+KeyO',
   },
   {
     id: 'newTerminal',
@@ -176,7 +192,27 @@ export type Shortcuts = Record<ShortcutID, string>;
 export const defaultShortcuts = Object.fromEntries(
   shortcutDefinitions.map((d) => [d.id, d.key]),
 ) as Shortcuts;
+export const weztermShortcuts: Shortcuts = {
+  ...defaultShortcuts,
+  palette: 'Ctrl+Shift+KeyP',
+  newTerminal: '',
+  newLocalTerminal: 'Ctrl+Shift+KeyT',
+  closeTab: 'Ctrl+Shift+KeyW',
+  closeWorkspace: '',
+  nextWorkspace: 'Ctrl+Tab',
+  previousWorkspace: 'Ctrl+Shift+Tab',
+  workspaceSearch: 'Ctrl+Shift+KeyO',
+  find: 'Ctrl+Shift+KeyF',
+  copy: 'Ctrl+Shift+KeyC',
+  paste: 'Ctrl+Shift+KeyV',
+  zoomIn: 'Ctrl+Equal',
+  zoomOut: 'Ctrl+Minus',
+  zoomReset: 'Ctrl+Digit0',
+};
 export const shortcutStorageKey = 'termquay.shortcuts';
+export function shortcutKey(key: string) {
+  return mac ? key : key.replace(/^Ctrl\+/, 'Mod+');
+}
 export function mergeShortcuts(stored: Partial<Shortcuts>): Shortcuts {
   const values = { ...defaultShortcuts, ...stored };
   const assigned = shortcutDefinitions.filter((d) =>
@@ -185,7 +221,9 @@ export function mergeShortcuts(stored: Partial<Shortcuts>): Shortcuts {
   for (const d of shortcutDefinitions) {
     if (Object.prototype.hasOwnProperty.call(stored, d.id)) continue;
     values[d.id] = assigned.some(
-      (other) => values[other.id] === d.key && overlappingScopes(other.scope, d.scope),
+      (other) =>
+        shortcutKey(values[other.id]) === shortcutKey(d.key) &&
+        overlappingScopes(other.scope, d.scope),
     )
       ? ''
       : d.key;
@@ -202,21 +240,21 @@ function overlappingScopes(first: string, second: string) {
     second === 'workspace'
   );
 }
-export function eventShortcut(event: KeyboardEvent): string {
+export function eventShortcut(event: KeyboardEvent, platform = navigator.platform): string {
   if (
     event.isComposing ||
     event.key === 'Process' ||
     event.getModifierState('AltGraph') ||
-    !/^(Key[A-Z]|Digit[0-9]|Comma|Period|Slash|Backslash|Semicolon|Quote|BracketLeft|BracketRight|Minus|Equal|Tab|ArrowLeft|ArrowRight|ArrowUp|ArrowDown|F[1-9]|F1[0-2])$/.test(
+    !/^(Key[A-Z]|Digit[0-9]|Comma|Period|Slash|Backslash|Semicolon|Quote|BracketLeft|BracketRight|Minus|Equal|Tab|Space|PageUp|PageDown|ArrowLeft|ArrowRight|ArrowUp|ArrowDown|F[1-9]|F1[0-2])$/.test(
       event.code,
     )
   )
     return '';
-  const mac = /Mac|iPhone|iPad/.test(navigator.platform);
-  if ((mac ? event.ctrlKey : event.metaKey) || !(event.ctrlKey || event.metaKey || event.altKey))
-    return '';
+  const mac = /Mac|iPhone|iPad/.test(platform);
+  if ((!mac && event.metaKey) || !(event.ctrlKey || event.metaKey || event.altKey)) return '';
   return [
-    event.ctrlKey || event.metaKey ? 'Mod' : '',
+    event.metaKey || (!mac && event.ctrlKey) ? 'Mod' : '',
+    mac && event.ctrlKey ? 'Ctrl' : '',
     event.altKey ? 'Alt' : '',
     event.shiftKey ? 'Shift' : '',
     event.code,
@@ -227,6 +265,7 @@ export function eventShortcut(event: KeyboardEvent): string {
 export function shortcutLabel(key: string) {
   const labels: Record<string, string> = {
     Mod: mac ? '⌘' : 'Ctrl',
+    Ctrl: mac ? '⌃' : 'Ctrl',
     Alt: mac ? '⌥' : 'Alt',
     Shift: mac ? '⇧' : 'Shift',
     Comma: ',',
@@ -243,6 +282,7 @@ export function shortcutLabel(key: string) {
     ArrowRight: '→',
     ArrowUp: '↑',
     ArrowDown: '↓',
+    Space: 'Space',
   };
   return (
     key
@@ -254,8 +294,10 @@ export function shortcutLabel(key: string) {
 export function shortcutConflict(id: ShortcutID, key: string, values: Shortcuts): string {
   if (!key) return '';
   const scope = shortcutDefinitions.find((d) => d.id === id)!.scope;
+  const normalized = shortcutKey(key);
   const other = shortcutDefinitions.find(
-    (d) => d.id !== id && values[d.id] === key && overlappingScopes(d.scope, scope),
+    (d) =>
+      d.id !== id && shortcutKey(values[d.id]) === normalized && overlappingScopes(d.scope, scope),
   );
   if (other) return translate('common:conflictsWith', { value1: other.label });
   const assignedInput: Partial<Record<ShortcutID, string>> = {
@@ -265,10 +307,14 @@ export function shortcutConflict(id: ShortcutID, key: string, values: Shortcuts)
     paste: 'Mod+KeyV',
     find: 'Mod+KeyF',
   };
+  const workspaceTab =
+    (id === 'nextWorkspace' && normalized === (mac ? 'Ctrl+Tab' : 'Mod+Tab')) ||
+    (id === 'previousWorkspace' && normalized === (mac ? 'Ctrl+Shift+Tab' : 'Mod+Shift+Tab'));
   if (
-    (/^Mod\+(Key[ACFVXYZS]|KeyW|KeyQ|Tab|Arrow\w+)$/.test(key) ||
-      /^(Alt\+(Tab|F4)|Mod\+Alt\+Tab|Mod\+Shift\+KeyW)$/.test(key)) &&
-    assignedInput[id] !== key
+    (/^Mod\+(Key[ACFVXYZS]|KeyW|KeyQ|Tab|Arrow\w+)$/.test(normalized) ||
+      /^(Alt\+(Tab|F4)|Mod\+Alt\+Tab|Mod\+Shift\+(KeyW|Tab))$/.test(normalized)) &&
+    assignedInput[id] !== normalized &&
+    !workspaceTab
   )
     return translate('common:thisShortcutIsReservedForInputsOrThe');
   return '';

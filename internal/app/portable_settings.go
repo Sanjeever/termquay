@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"regexp"
+	"runtime"
 	"slices"
 	"strings"
 
@@ -65,7 +66,7 @@ func validatePortableUI(values map[string]string) error {
 			}
 			seen := map[string][]string{}
 			terminalActions := []string{"find", "terminalCompletion", "commandHelp", "copy", "paste", "selectAll", "clear", "zoomIn", "zoomOut", "zoomReset"}
-			reserved := regexp.MustCompile(`^Mod\+(Key[ACFVXYZSWQ]|Tab|Arrow\w+)$|^(Alt\+(Tab|F4)|Mod\+Alt\+Tab|Mod\+Shift\+KeyW)$`)
+			reserved := regexp.MustCompile(`^Mod\+(Key[ACFVXYZSWQ]|Tab|Arrow\w+)$|^(Alt\+(Tab|F4)|Mod\+Alt\+Tab|Mod\+Shift\+(KeyW|Tab))$`)
 			assignedInput := map[string]string{"closeTab": "Mod+KeyW", "closeWorkspace": "Mod+Shift+KeyW", "copy": "Mod+KeyC", "paste": "Mod+KeyV", "find": "Mod+KeyF"}
 			for name, shortcut := range shortcuts {
 				if len(name) > 64 || len(shortcut) > 128 {
@@ -74,7 +75,13 @@ func validatePortableUI(values map[string]string) error {
 				if shortcut == "" {
 					continue
 				}
-				if reserved.MatchString(shortcut) && assignedInput[name] != shortcut {
+				control := "Ctrl"
+				if runtime.GOOS != "darwin" {
+					shortcut = strings.Replace(shortcut, "Ctrl+", "Mod+", 1)
+					control = "Mod"
+				}
+				workspaceTab := name == "nextWorkspace" && shortcut == control+"+Tab" || name == "previousWorkspace" && shortcut == control+"+Shift+Tab"
+				if reserved.MatchString(shortcut) && assignedInput[name] != shortcut && !workspaceTab {
 					return appmessage.New("backend:duplicateShortcutOrReservedSystemInputCombination", "快捷键重复或占用了系统和输入组件保留组合")
 				}
 				for _, other := range seen[shortcut] {

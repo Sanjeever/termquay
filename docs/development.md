@@ -165,6 +165,8 @@ Follow the [localization contract](architecture.md#localization-and-collaboratio
 
 AI turns continue beyond a fixed tool-call count while their runtime budget allows. Near budget exhaustion or after repeated identical tool failures, the assistant stops tools and requests a text-only summary within the remaining budget. Review the results before sending a new question. Summary failure is reported; stopping, locking or disconnecting cancels it. Batch parsing limits, output/context/history bounds and individual command approvals still apply. See [AI ownership and budgets](architecture.md#ai-ownership-and-approvals).
 
+**Terminal shortcuts:** **Settings → Keyboard shortcuts → WezTerm** applies the supported Control-based bindings for new local tabs, tab switching/search, copy/paste, close, find and font size. Existing custom bindings stay until explicitly replaced. Control and Command are distinct on macOS. New local terminals and new terminals inside SSH workspaces have separate actions. Terminal search starts with the current selection.
+
 ### Docker containers
 
 Open **Tools → Docker**, **SSH session actions → Docker containers**, or the **Docker container workspace** command. The tool selects the current SSH workspace when opened from it and reads containers automatically. Resize the container list, filter by name/image/project or state, and use **Overview**, **Logs**, **Terminal**, and **Mounts and ports**. Compose labels group existing containers; this is not Compose deployment, image management, or Kubernetes support.

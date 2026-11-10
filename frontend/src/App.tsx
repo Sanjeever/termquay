@@ -106,6 +106,7 @@ import {
   defaultShortcuts,
   mergeShortcuts,
   eventShortcut,
+  shortcutKey,
   shortcutConflict,
   shortcutDefinitions,
   shortcutLabel,
@@ -610,6 +611,10 @@ export default function App() {
       localShells.find((shell) => shell.name === current?.local?.shell) || localShells[0];
     if (shell) void openLocalShell(shell.id);
   }
+  function newLocalTerminal() {
+    const kind = current?.local?.kind || localShells[0]?.id;
+    if (kind) void openLocalShell(kind);
+  }
   function moveWorkspace(id: string, target: string) {
     setWorkspaces((prev) => {
       const from = prev.findIndex((w) => w.id === id);
@@ -940,6 +945,7 @@ export default function App() {
   const shortcutActions = useRef({
     openDialog,
     newTerminal,
+    newLocalTerminal,
     closeCurrentTab,
     closeWorkspace,
     openDocker,
@@ -947,6 +953,7 @@ export default function App() {
   shortcutActions.current = {
     openDialog,
     newTerminal,
+    newLocalTerminal,
     closeCurrentTab,
     closeWorkspace,
     openDocker,
@@ -991,7 +998,7 @@ export default function App() {
         path.some((target) => target instanceof HTMLElement && target.matches('.xterm'));
       const action = shortcutDefinitions.find(
         (d) =>
-          shortcuts[d.id] === key &&
+          shortcutKey(shortcuts[d.id]) === key &&
           (d.scope === 'app' ||
             (d.scope === 'workspace' && !settings && current?.ssh) ||
             (terminal && d.scope === 'terminal')),
@@ -1006,7 +1013,12 @@ export default function App() {
       } else if (action.id === 'settings') setSettings(true);
       else if (action.id === 'newConnection') shortcutActions.current.openDialog(false);
       else if (action.id === 'newTerminal') shortcutActions.current.newTerminal();
-      else if (action.id === 'closeTab') shortcutActions.current.closeCurrentTab();
+      else if (action.id === 'newLocalTerminal') shortcutActions.current.newLocalTerminal();
+      else if (action.id === 'workspaceSearch') {
+        setPaletteScope('workspace');
+        setPaletteQuery('');
+        setPalette(true);
+      } else if (action.id === 'closeTab') shortcutActions.current.closeCurrentTab();
       else if (action.id === 'closeWorkspace') shortcutActions.current.closeWorkspace();
       else if (action.id === 'nextWorkspace' || action.id === 'previousWorkspace') {
         const ids = [
@@ -1902,6 +1914,28 @@ export default function App() {
           },
         ]
       : []),
+    ...(localShells.length
+      ? [
+          {
+            id: 'newLocalTerminal',
+            label: translate('common:newLocalTerminal'),
+            shortcut: shortcutLabel(shortcuts.newLocalTerminal),
+            kind: 'command' as const,
+            run: newLocalTerminal,
+          },
+        ]
+      : []),
+    {
+      id: 'workspaceSearch',
+      label: translate('common:openWorkspaces'),
+      shortcut: shortcutLabel(shortcuts.workspaceSearch),
+      kind: 'command',
+      run: () => {
+        setPaletteScope('workspace');
+        setPaletteQuery('');
+        setPalette(true);
+      },
+    },
     ...(current || settings || commandTasksOpen || logsOpen
       ? [
           {

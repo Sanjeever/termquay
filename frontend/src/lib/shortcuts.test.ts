@@ -2,7 +2,13 @@ import i18n from '../i18n/index.ts';
 await i18n.changeLanguage('zh-CN');
 import { test } from 'vitest';
 import { strict as assert } from 'node:assert';
-import { defaultShortcuts, eventShortcut, shortcutConflict, mergeShortcuts } from './shortcuts.ts';
+import {
+  defaultShortcuts,
+  eventShortcut,
+  shortcutConflict,
+  mergeShortcuts,
+  weztermShortcuts,
+} from './shortcuts.ts';
 
 function key(overrides: Partial<KeyboardEvent> = {}): KeyboardEvent {
   return {
@@ -26,7 +32,25 @@ test('平台修饰键和物理键位保持一致', () => {
   const mac = /Mac|iPhone|iPad/.test(navigator.platform);
   assert.equal(eventShortcut(key({ ctrlKey: !mac, metaKey: mac })), 'Mod+Shift+KeyP');
   assert.equal(eventShortcut(key({ ctrlKey: false, metaKey: false, shiftKey: false })), '');
-  assert.equal(eventShortcut(key({ ctrlKey: mac, metaKey: !mac })), '');
+  assert.equal(eventShortcut(key({ ctrlKey: mac, metaKey: !mac })), mac ? 'Ctrl+Shift+KeyP' : '');
+});
+test('macOS keeps Control separate from Command and accepts terminal navigation keys', () => {
+  assert.equal(eventShortcut(key(), 'MacIntel'), 'Ctrl+Shift+KeyP');
+  assert.equal(eventShortcut(key({ ctrlKey: false, metaKey: true }), 'MacIntel'), 'Mod+Shift+KeyP');
+  for (const code of ['PageUp', 'PageDown', 'Space']) {
+    assert.equal(eventShortcut(key({ code }), 'MacIntel'), `Ctrl+Shift+${code}`);
+  }
+});
+test('WezTerm preset is valid and legacy custom bindings remain explicit', () => {
+  for (const id of Object.keys(weztermShortcuts) as (keyof typeof weztermShortcuts)[]) {
+    assert.equal(shortcutConflict(id, weztermShortcuts[id], weztermShortcuts), '', id);
+  }
+  const previous = mergeShortcuts({
+    nextWorkspace: 'Mod+Shift+BracketRight',
+    newLocalTerminal: '',
+  });
+  assert.equal(previous.nextWorkspace, 'Mod+Shift+BracketRight');
+  assert.equal(previous.newLocalTerminal, '');
 });
 test('冲突不能覆盖其他动作和基本输入按键', () => {
   assert.match(shortcutConflict('palette', defaultShortcuts.find, defaultShortcuts), /冲突/);

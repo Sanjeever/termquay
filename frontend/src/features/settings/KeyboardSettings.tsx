@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button } from '@heroui/react';
 import {
   defaultShortcuts,
+  weztermShortcuts,
   eventShortcut,
   shortcutConflict,
   shortcutDefinitions,
@@ -27,6 +28,30 @@ export default function KeyboardSettings({
   return (
     <div className="settings-section">
       <h2>{translate('settings:keyboardShortcuts')}</h2>
+      <div className="button-row">
+        <Button
+          size="sm"
+          variant="bordered"
+          onPress={() => {
+            onChange({ ...defaultShortcuts });
+            setConflict('');
+            setRecording(undefined);
+          }}
+        >
+          {translate('settings:defaultShortcutPreset')}
+        </Button>
+        <Button
+          size="sm"
+          variant="bordered"
+          onPress={() => {
+            onChange({ ...weztermShortcuts });
+            setConflict('');
+            setRecording(undefined);
+          }}
+        >
+          WezTerm
+        </Button>
+      </div>
       {(conflict || error) && (
         <p role="alert" className="error">
           {conflict || error}
@@ -81,17 +106,6 @@ export default function KeyboardSettings({
           </div>
         </div>
       ))}
-      <Button
-        size="sm"
-        variant="bordered"
-        onPress={() => {
-          onChange({ ...defaultShortcuts });
-          setConflict('');
-          setRecording(undefined);
-        }}
-      >
-        {translate('settings:resetShortcuts')}
-      </Button>
     </div>
   );
 }

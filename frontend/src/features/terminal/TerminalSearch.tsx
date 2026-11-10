@@ -9,13 +9,15 @@ export const searchHighlightLimit = 1000;
 
 export default function TerminalSearch({
   addon,
+  initialQuery = '',
   onClose,
 }: {
   addon: SearchAddon;
+  initialQuery?: string;
   onClose(): void;
 }) {
   useTranslation();
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(initialQuery);
   const [caseSensitive, setCaseSensitive] = useState(false);
   const [found, setFound] = useState(true);
   const [regex, setRegex] = useState(false);
