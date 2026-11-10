@@ -7,6 +7,7 @@
 }
 .workspace-toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 4px;
   min-height: 38px;
@@ -16,7 +17,8 @@
   background: var(--color-background);
 }
 .session-target {
-  min-width: 80px;
+  flex: 1 1 160px;
+  min-width: 0;
   max-width: 360px;
   overflow: hidden;
   text-overflow: ellipsis;

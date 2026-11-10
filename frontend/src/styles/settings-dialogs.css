@@ -369,10 +369,28 @@
   justify-content: space-between;
 }
 .monitor-panel .sidebar-heading {
-  height: 36px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  height: auto;
+  min-height: 36px;
+  gap: 4px 8px;
+  padding: 4px 0;
 }
 .monitor-panel .sidebar-heading h2 {
   font-size: 12px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.monitor-panel .sidebar-heading > .session-tool {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  justify-self: start;
+  white-space: normal;
+  text-align: left;
+}
+.monitor-panel .sidebar-heading > .icon-button {
+  grid-column: 2;
+  grid-row: 1;
 }
 .rdp-canvas {
   flex: 1;
