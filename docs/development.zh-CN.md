@@ -384,6 +384,10 @@ macOS 菜单栏提供连接、终端、标签关闭、显示、界面缩放和�
 
 候选提交、跨平台快捷键修复、三平台 CI、候选包核对及发布结果统一见 [Release 1.4.3 verification](development.md#release-143-verification-2026-11-10)。本轮区分本机自动检查、Chromium 回归与 macOS 候选 CLI 检查，未补做原生 GUI、真实远端、旧版桌面升级或持续资源验收。
 
+### 本地多窗格与 TUI 验收（2026-11-10）
+
+`1b9e831` 通过完整检查、116 项前端测试、30 项 Chromium 回归、相关 Go race 检查和 Windows amd64 生产交叉构建，生成绑定无差异。macOS 隐藏原生 WKWebView 中使用实际 Wails Stream、Go PTY 与终端组件，验证四路输出共 8000 行、中文输入、中断、六种布局与实例保留，并观察 Codex、Claude Code 启动界面。npm 原生字节诊断确认擦除与动画字符分开写入，原生组件也解析到 spinner 字符；隐藏原生窗口未采到 spinner 绘制帧，不能据此认定前台动画观感通过。画布 backing store 与 GPU viewport 不一致造成的缩放、偏移另有先失败后通过的回归及修复后视觉检查。原生测试使用临时入口、会话存储、无用户配置的 Shell 包装器与测试调度，未提交模型回合。完整环境、覆盖范围与剩余验收缺口统一记录在[英文验收记录](development.md#local-terminal-workspaces-and-tui-verification-2026-11-10)。
+
 ### 本地终端工作流验收（2026-11-10）
 
 提交、环境、自动检查及原生覆盖统一见 [Local terminal workflow verification](development.md#local-terminal-workflow-verification-2026-11-10)。记录包含 macOS 原生目录选择与继承、系统剪贴板、Codex/Claude Code 输入、关闭确认及粘贴后焦点恢复；重复确认粘贴另有先失败后通过的浏览器回归。Windows/Linux 原生界面、WSL、物理输入法组词、图片粘贴及持续资源负载仍需对应环境验证。
