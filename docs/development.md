@@ -157,6 +157,8 @@ Follow the [localization contract](architecture.md#localization-and-collaboratio
 <a id="内置-ai-助手"></a>
 ## Using the workbench
 
+The remote file tree shows its batch action bar when files are selected and collapses it when the selection is cleared. Keyboard selection and select-all remain available from the tree.
+
 The remote editor's **Save and validate** action opens the existing file workflow and saves the draft before running its configured validation command. A missing command opens configuration without saving or guessing a command. Ordinary Save and opening **History and validation** do not execute commands. Reload still requires successful validation and a separate confirmation; a configured health check follows successful reload. The request belongs to the current SSH instance: reconnecting never replays the action, and closing its owner during a save/refresh prevents late validation. See [the workflow](../frontend/src/features/files/FileHistoryDialog.tsx).
 
 The SSH port-forwarding panel previews the route as you edit: listener → SSH tunnel → destination. Local and dynamic forwards listen on this computer; remote forwards listen on the SSH host. Destination labels identify which side resolves and reaches the target. Port `0` is shown as automatically assigned until startup returns the actual listening address. The preview does not start a tunnel. See [the panel](../frontend/src/features/tunnels/TunnelPanel.tsx) for effective fields.
@@ -287,9 +289,10 @@ Report unit tests, local protocol integration, browser substitutes, native deskt
 
 Historical evidence and unresolved gaps remain in the [Chinese acceptance ledger](development.zh-CN.md#已有验收记录与缺口), including [AI acceptance](development.zh-CN.md#内置-ai-验收2026-11-06) and [Windows SSH AI adaptation](development.zh-CN.md#windows-ssh-ai-适配验收2026-11-09). Platform input/IME, RDP clipboard/concurrency, native menus/dialogs, real multi-hop reconnect, provider behavior and sustained application-wide resource measurements need environment-specific evidence. Do not present historical results as current checks.
 
-### Known settings reset defect
+### Terminal defaults reset correction
 
-Source inspection at `efa0a1c` found that selecting basic rendering for local terminals, then choosing **Restore defaults** under **Terminal and editor**, retains that selection instead of restoring the WebGL default. The reset handler in [AppearanceSettings](../frontend/src/features/settings/AppearanceSettings.tsx) spreads the current appearance but omits `localTerminalRenderer`; its expected default is in [appearance.ts](../frontend/src/features/settings/appearance.ts). Commit `be8115c` added the independent preference without extending the reset handler. This is an unresolved reset omission, not an intentional exception to **Restore defaults**. Existing [preference tests](../frontend/src/features/settings/appearance.test.ts) cover defaults/parsing, and [renderer browser tests](../frontend/e2e/terminal-rendering.spec.ts) cover rendering lifetimes; neither exercises this reset action. No runtime reproduction was performed during this documentation audit.
+<a id="known-settings-reset-defect"></a>
+Source inspection at `efa0a1c` found that selecting basic rendering for local terminals, then choosing **Restore defaults** under **Terminal and editor**, retained that selection instead of restoring the WebGL default. Commit `be8115c` added the independent preference without extending the [reset handler](../frontend/src/features/settings/AppearanceSettings.tsx). The handler now restores both renderer preferences from [appearance.ts](../frontend/src/features/settings/appearance.ts). The [component regression](../frontend/src/features/settings/AppearanceProvider.test.tsx) failed before the correction and passed afterward, including persistence across remounts and retention of unrelated appearance settings. This fixes the omission without changing the renderer defaults.
 
 ### Workbench workflow and resource verification (2026-11-10)
 

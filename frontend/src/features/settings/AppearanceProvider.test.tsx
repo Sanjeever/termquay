@@ -5,7 +5,7 @@ import { undoDepth } from '@codemirror/commands';
 import { useEffect, useRef, useState } from 'react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import type { Document } from '../../../bindings/github.com/Sanjeever/termquay/internal/files/models';
-import { appearanceKey } from './appearance';
+import { appearanceKey, defaultAppearance } from './appearance';
 import { AppearanceProvider, useAppearance } from './AppearanceProvider';
 import { deferred } from '../../test/deferred';
 import useFileDrafts from '../files/useFileDrafts';
@@ -280,4 +280,41 @@ test('custom font editing updates the preview and editors, persists across remou
     customMonoFont: '',
   });
   expect(fontSize).toHaveBeenCalledWith(14);
+});
+
+test('terminal defaults restore both renderers and retain appearance preferences after remounting', async () => {
+  const user = userEvent.setup();
+  localStorage.setItem(
+    appearanceKey,
+    JSON.stringify({
+      ...defaultAppearance,
+      language: 'en',
+      theme: 'dark',
+      uiZoom: 1.25,
+      terminalRenderer: 'webgl',
+      localTerminalRenderer: 'dom',
+    }),
+  );
+  const settings = (
+    <AppearanceProvider>
+      <AppearanceSettings section="terminal" fontSize={18} onFontSize={() => {}} />
+    </AppearanceProvider>
+  );
+  const mounted = render(settings);
+  await user.click(screen.getByRole('button', { name: 'Restore defaults' }));
+  expect(JSON.parse(localStorage.getItem(appearanceKey)!)).toMatchObject({
+    language: 'en',
+    theme: 'dark',
+    uiZoom: 1.25,
+    terminalRenderer: 'dom',
+    localTerminalRenderer: 'webgl',
+  });
+  mounted.unmount();
+  render(settings);
+  expect(
+    screen.getByLabelText('Local terminal renderer', { selector: 'button' }).textContent,
+  ).toContain('WebGL');
+  expect(screen.getByLabelText('Terminal renderer', { selector: 'button' }).textContent).toContain(
+    'Basic renderer',
+  );
 });

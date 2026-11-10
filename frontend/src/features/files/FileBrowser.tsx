@@ -873,10 +873,7 @@ export default function FileBrowser({
           {translate('files:reading')}
         </p>
       )}
-      <div
-        className="file-selection"
-        style={{ visibility: selectedEntries.length ? 'visible' : 'hidden' }}
-      >
+      <div className="file-selection" hidden={!selectedEntries.length}>
         <label>
           <input
             type="checkbox"

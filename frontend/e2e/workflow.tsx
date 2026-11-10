@@ -9,7 +9,8 @@ import TunnelPanel from '../src/features/tunnels/TunnelPanel';
 import TransferBrowser from '../src/features/files/TransferBrowser';
 import CodeEditor from '../src/features/files/CodeEditor';
 import FileHistoryDialog from '../src/features/files/FileHistoryDialog';
-import { demoSamples } from '../src/features/demo/data';
+import FileBrowser from '../src/features/files/FileBrowser';
+import { demoDirectories, demoSamples } from '../src/features/demo/data';
 import '../src/style.css';
 
 localStorage.setItem(appearanceKey, JSON.stringify({ ...defaultAppearance, language: 'en' }));
@@ -26,6 +27,7 @@ function Fixture() {
   const [content, setContent] = useState('original');
   const [saved, setSaved] = useState('original');
   const [history, setHistory] = useState<'history' | 'validate'>();
+  const [fileTree, setFileTree] = useState(false);
   return (
     <HeroUIProvider disableAnimation disableRipple>
       <main className="app-shell">
@@ -44,6 +46,7 @@ function Fixture() {
           <button onClick={() => setFiles(false)}>Terminal workspace</button>
           <button onClick={() => setFilesCreated(false)}>Close files</button>
           <button onClick={() => setConnected(false)}>Disconnect</button>
+          <button onClick={() => setFileTree(!fileTree)}>File tree</button>
           <button
             onClick={() => {
               setEditor(true);
@@ -135,6 +138,19 @@ function Fixture() {
             />
           )}
           <div className="ssh-panels">
+            {fileTree && (
+              <div className="file-dock" style={{ width: 300 }}>
+                <FileBrowser
+                  id="fixture-files"
+                  connectionID=""
+                  visible
+                  initialDirectory="/srv/termquay/config"
+                  demoDirectories={demoDirectories}
+                  onOpen={async () => {}}
+                  onClose={() => setFileTree(false)}
+                />
+              </div>
+            )}
             <div className="terminal-pane" style={{ flex: 1, minWidth: 0 }} />
             <MonitorPanel
               id="fixture"

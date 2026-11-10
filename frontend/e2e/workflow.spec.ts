@@ -1,5 +1,50 @@
 import { expect, test, type Page } from '@playwright/test';
 
+test('file selection actions collapse without leaving a gap above the directory tree', async ({
+  page,
+}) => {
+  await page.route('**/wails/runtime*', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: 'null' }),
+  );
+  await page.goto('/e2e/workflow.html');
+  await page.getByRole('button', { name: 'File tree', exact: true }).click();
+  const panel = page.locator('.file-panel');
+  const actions = panel.locator('.file-selection');
+  const tree = panel.getByRole('tree');
+  const file = tree.getByRole('treeitem', { name: 'nginx.conf', exact: true });
+  await expect(file).toBeVisible();
+  for (const [language, colorScheme] of [
+    ['English', 'light'],
+    ['Chinese', 'dark'],
+  ] as const) {
+    await page.getByRole('button', { name: language, exact: true }).click();
+    await page.emulateMedia({ colorScheme });
+    for (const width of [220, 300, 420]) {
+      await page.locator('.file-dock').evaluate((element, width) => {
+        element.style.width = `${width}px`;
+      }, width);
+      await expect(actions).toBeHidden();
+      const path = await panel.locator('.path-bar').boundingBox();
+      expect((await tree.boundingBox())!.y - path!.y - path!.height).toBeLessThanOrEqual(8);
+      await file.focus();
+      await page.keyboard.press('Space');
+      await expect(actions).toBeVisible();
+      await expect(file).toHaveAttribute('aria-selected', 'true');
+      await page.keyboard.press('Space');
+      await expect(actions).toBeHidden();
+      await expect(file).toHaveAttribute('aria-selected', 'false');
+      expect(await panel.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+        true,
+      );
+    }
+  }
+  await file.focus();
+  await page.keyboard.press('ControlOrMeta+a');
+  await expect(actions.getByRole('checkbox')).toBeChecked();
+  await actions.getByRole('checkbox').uncheck();
+  await expect(actions).toBeHidden();
+});
+
 test('narrow monitoring and workspace controls remain readable in both languages', async ({
   page,
 }) => {

@@ -293,6 +293,7 @@ export default function AppearanceSettings({
               terminalLogHighlight: defaultAppearance.terminalLogHighlight,
               terminalCopyOnSelect: defaultAppearance.terminalCopyOnSelect,
               terminalRenderer: defaultAppearance.terminalRenderer,
+              localTerminalRenderer: defaultAppearance.localTerminalRenderer,
             });
             onFontSize(14);
           }
