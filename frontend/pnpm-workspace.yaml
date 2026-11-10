@@ -47,3 +47,4 @@ overrides:
   motion-utils: 12.23.6
 patchedDependencies:
   '@devolutions/iron-remote-desktop@0.11.0': patches/@devolutions__iron-remote-desktop@0.11.0.patch
+  '@xterm/addon-webgl@0.19.0': patches/@xterm__addon-webgl@0.19.0.patch

@@ -22,6 +22,63 @@ test('WebGL retains its canvas and terminal while settings are open', async ({ p
   expect(await terminal!.evaluate((node) => node === document.querySelector('.xterm'))).toBe(true);
 });
 
+test('WebGL viewport follows device-pixel backing size changes', async ({ page }) => {
+  await page.addInitScript(() => {
+    const Observer = window.ResizeObserver;
+    window.ResizeObserver = class extends Observer {
+      constructor(callback: ResizeObserverCallback) {
+        super((entries, observer) =>
+          callback(
+            entries.map((entry) =>
+              entry.target instanceof HTMLCanvasElement
+                ? new Proxy(entry, {
+                    get(target, key) {
+                      if (key === 'devicePixelContentBoxSize')
+                        return [
+                          {
+                            inlineSize: Math.round(target.contentRect.width * 2),
+                            blockSize: Math.round(target.contentRect.height * 2),
+                          },
+                        ];
+                      return Reflect.get(target, key, target);
+                    },
+                  })
+                : entry,
+            ),
+            observer,
+          ),
+        );
+      }
+    };
+  });
+  await page.route('**/wails/runtime*', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: 'null' }),
+  );
+  await page.routeWebSocket('**/terminal-fixture', (socket) => {
+    socket.onMessage(() => {});
+    socket.send(Buffer.from('\x1b[?25lbacking size\r\n'));
+  });
+  await page.goto('/e2e/terminal.html?renderer=webgl');
+  await expect(page.locator('.xterm canvas').first()).toBeVisible();
+  await expect
+    .poll(() =>
+      page.locator('.xterm-screen').evaluate((screen) => {
+        for (const canvas of screen.querySelectorAll('canvas')) {
+          const gl = canvas.getContext('webgl2');
+          if (!gl) continue;
+          const viewport = gl.getParameter(gl.VIEWPORT) as Int32Array;
+          return (
+            canvas.width > canvas.clientWidth &&
+            viewport[2] === gl.drawingBufferWidth &&
+            viewport[3] === gl.drawingBufferHeight
+          );
+        }
+        return false;
+      }),
+    )
+    .toBe(true);
+});
+
 test('synchronized WebGL output keeps the previous frame until the update ends', async ({
   page,
 }) => {
