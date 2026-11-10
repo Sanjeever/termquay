@@ -883,5 +883,8 @@
   "focusTerminalLeft": "Focus terminal on the left",
   "focusTerminalRight": "Focus terminal on the right",
   "focusTerminalUp": "Focus terminal above",
-  "focusTerminalDown": "Focus terminal below"
+  "focusTerminalDown": "Focus terminal below",
+  "confirmPasteBeforeSending": "Confirm multiline paste",
+  "allowDirectPaste": "Paste multiline text directly",
+  "newOutput": "New output"
 }

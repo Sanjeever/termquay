@@ -131,6 +131,7 @@ const TerminalView = forwardRef<
     onSnippets(): void;
     onDirectory?(path: string, host: string): void;
     onFile?(path: string, line: number): void;
+    onTitle?(title: string): void;
   }
 >(function TerminalView(
   {
@@ -157,6 +158,7 @@ const TerminalView = forwardRef<
     onSnippets,
     onDirectory,
     onFile,
+    onTitle,
   },
   ref,
 ) {
@@ -213,6 +215,8 @@ const TerminalView = forwardRef<
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [paste, setPaste] = useState<string>();
+  const [confirmMultilinePaste, setConfirmMultilinePaste] = useState(true);
+  const [unreadOutput, setUnreadOutput] = useState(false);
   const pendingPaste = useRef<string>();
   const [locked, setLocked] = useState(false);
   const inputLocked = useRef(false);
@@ -381,8 +385,8 @@ const TerminalView = forwardRef<
     [shell, host, setupToken],
   );
   const integration = useRef<ReturnType<typeof addShellIntegration>>();
-  const callbacks = useRef({ onDirectory, onFile, onAttention, onActivate });
-  callbacks.current = { onDirectory, onFile, onAttention, onActivate };
+  const callbacks = useRef({ onDirectory, onFile, onAttention, onActivate, onTitle });
+  callbacks.current = { onDirectory, onFile, onAttention, onActivate, onTitle };
   const shown = useRef(visible);
   shown.current = visible;
   const appFocused = useRef(document.hasFocus());
@@ -495,7 +499,7 @@ const TerminalView = forwardRef<
     setPaste(undefined);
     terminal.current?.focus();
   }
-  function insert(text: string): boolean {
+  function insert(text: string, confirm = !local || confirmMultilinePaste): boolean {
     if (inputLocked.current) {
       reportError('input', translate('terminal:terminalInputLocked'));
       return false;
@@ -520,7 +524,7 @@ const TerminalView = forwardRef<
     }
     clearError('input');
     completion.dismiss();
-    if (/[\r\n]/.test(text)) {
+    if (/[\r\n]/.test(text) && confirm) {
       pendingPaste.current = text;
       setPaste(text);
     } else terminal.current?.paste(text);
@@ -609,6 +613,21 @@ const TerminalView = forwardRef<
       }),
     );
     terminal.current = term;
+    let unread = false;
+    const updateUnread = (written = false) => {
+      const buffer = term.buffer.active;
+      const behind = buffer.type === 'normal' && buffer.viewportY < buffer.baseY;
+      const next = behind && (unread || written);
+      if (next !== unread) {
+        unread = next;
+        setUnreadOutput(next);
+      }
+    };
+    const outputEvents = [
+      term.onScroll(() => updateUnread()),
+      term.onWriteParsed(() => updateUnread(true)),
+      term.onTitleChange((title) => callbacks.current.onTitle?.(title.slice(0, 512))),
+    ];
     setCommandEntries([]);
     commandToken.current = '';
     integration.current = addShellIntegration(
@@ -681,6 +700,7 @@ const TerminalView = forwardRef<
       const observer = new ResizeObserver(fitVisible);
       observer.observe(container.current!);
       return () => {
+        outputEvents.forEach((event) => event.dispose());
         observer.disconnect();
         bufferChange.dispose();
         textarea?.removeEventListener('blur', blur);
@@ -797,6 +817,7 @@ const TerminalView = forwardRef<
     });
     return () => {
       disposed = true;
+      outputEvents.forEach((event) => event.dispose());
       ime.dispose();
       windows?.dispose();
       windowsInput.current = undefined;
@@ -993,6 +1014,7 @@ const TerminalView = forwardRef<
                 )
                   return;
                 if (key === 'keyword') setKeywordOpen((value) => !value);
+                else if (key === 'confirmPaste') setConfirmMultilinePaste((value) => !value);
                 else if (key === 'export') void exportBuffer();
                 else if (key === 'tmux') setTmuxOpen(true);
                 else if (key === 'integration') openIntegration();
@@ -1003,6 +1025,15 @@ const TerminalView = forwardRef<
             >
               <DropdownItem key="copy">{translate('terminal:copy')}</DropdownItem>
               <DropdownItem key="paste">{translate('terminal:paste')}</DropdownItem>
+              {local ? (
+                <DropdownItem key="confirmPaste" closeOnSelect={false}>
+                  {translate(
+                    confirmMultilinePaste
+                      ? 'terminal:allowDirectPaste'
+                      : 'terminal:confirmPasteBeforeSending',
+                  )}
+                </DropdownItem>
+              ) : null}
               <DropdownItem key="selectAll">{translate('terminal:selectAll')}</DropdownItem>
               <DropdownItem key="find" showDivider>
                 {translate('terminal:find')}
@@ -1265,6 +1296,18 @@ const TerminalView = forwardRef<
           </DropdownMenu>
         </Dropdown>
       )}
+      {unreadOutput && (
+        <button
+          className="terminal-new-output"
+          onClick={() => {
+            terminal.current?.scrollToBottom();
+            terminal.current?.focus();
+          }}
+        >
+          <Icon name="up" width="12" style={{ transform: 'rotate(180deg)' }} />
+          {translate('terminal:newOutput')}
+        </button>
+      )}
       <TerminalCompletion
         completion={completion}
         onHelp={(command) => {
@@ -1522,7 +1565,7 @@ const TerminalView = forwardRef<
             <Button
               color="primary"
               onPress={() => {
-                if (insert(shellSetup + '\n')) {
+                if (insert(shellSetup + '\n', true)) {
                   nextIntegration.current = {
                     token: setupToken,
                     paths: pathCompletion && !containerConsole && !(local && System.IsWindows()),

@@ -50,6 +50,7 @@ type Session = LocalTerminalSession & {
   terminal: ReturnType<typeof createRef<TerminalHandle>>;
   ended?: boolean;
   attention?: CommandAttention;
+  title?: string;
 };
 
 export type LocalTerminalWorkspaceHandle = TerminalHandle & {
@@ -396,7 +397,7 @@ const LocalTerminalWorkspace = forwardRef<
                 textValue={`${session.shell} ${session.directory}`}
                 description={session.directory}
               >
-                {session.shell} · {localDirectoryName(session.directory)}
+                {session.title || session.shell} · {localDirectoryName(session.directory)}
                 {session.ended ? ` · ${t('terminal:sessionExited')}` : ''}
               </DropdownItem>
             ))}
@@ -460,7 +461,7 @@ const LocalTerminalWorkspace = forwardRef<
                   className="local-terminal-pane-title"
                   draggable={!busy}
                   aria-label={t('terminal:moveTerminal', {
-                    name: localDirectoryName(session.directory),
+                    name: session.title || localDirectoryName(session.directory),
                   })}
                   title={session.directory}
                   onClick={() => select(session.id)}
@@ -486,7 +487,7 @@ const LocalTerminalWorkspace = forwardRef<
                   }}
                 >
                   <Icon name="terminal" width="13" />
-                  <span>{localDirectoryName(session.directory)}</span>
+                  <span>{session.title || localDirectoryName(session.directory)}</span>
                   {session.attention && (
                     <span
                       className={`terminal-attention ${session.attention}`}
@@ -499,7 +500,7 @@ const LocalTerminalWorkspace = forwardRef<
                 <button
                   className="icon-button"
                   aria-label={t('terminal:closePane', {
-                    name: localDirectoryName(session.directory),
+                    name: session.title || localDirectoryName(session.directory),
                   })}
                   disabled={busy}
                   onClick={() => closeTerminal(session.id)}
@@ -518,6 +519,14 @@ const LocalTerminalWorkspace = forwardRef<
                 toolbarHost={toolbar}
                 showTools={active === session.id}
                 onSnippets={onSnippets}
+                onTitle={(title) => {
+                  if (latest.current.find((value) => value.id === session.id)?.title === title)
+                    return;
+                  latest.current = latest.current.map((value) =>
+                    value.id === session.id ? { ...value, title } : value,
+                  );
+                  setSessions(latest.current);
+                }}
                 onDirectory={(path, host) => {
                   const directory = localDirectoryReport(
                     path,

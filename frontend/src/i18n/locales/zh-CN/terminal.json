@@ -883,5 +883,8 @@
   "focusTerminalLeft": "聚焦左侧终端",
   "focusTerminalRight": "聚焦右侧终端",
   "focusTerminalUp": "聚焦上方终端",
-  "focusTerminalDown": "聚焦下方终端"
+  "focusTerminalDown": "聚焦下方终端",
+  "confirmPasteBeforeSending": "多行粘贴前确认",
+  "allowDirectPaste": "直接粘贴多行文本",
+  "newOutput": "新输出"
 }
