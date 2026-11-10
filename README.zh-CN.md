@@ -13,7 +13,7 @@ TermQuay 是使用 Go、Wails v3 和 React 构建的开源远程连接工作台�
 ## 当前能力
 
 - [连接管理](docs/development.zh-CN.md#连接与工作区)：分组与筛选、配置导入、操作手册、加密凭据与主密码保护。
-- [SSH 与本地终端](docs/development.zh-CN.md#ssh-工作区与本地终端)：多种认证、跳板与代理、端口转发、重连与连接诊断。本地工作区提供六种布局，最多同时展示四个终端，支持调整比例、拖动交换与 WebGL 渲染。
+- [SSH 与本地终端](docs/development.zh-CN.md#ssh-工作区与本地终端)：多种认证、跳板与代理、端口转发、重连与连接诊断。本地工作区支持窗格布局、调整比例、拖动交换与独立渲染设置。
 - [文件管理与传输](docs/development.zh-CN.md#远端文件与传输)：独立双栏传输标签，支持本地与远端、跨主机复制，以及搜索、批量传输、显式续传、目录同步与文件对比。
 - [文件编辑](docs/development.zh-CN.md#文件编辑)：多编码、补全、冲突合并、版本历史与配置验证；[文件预览](docs/development.zh-CN.md#文件预览) 支持 Markdown 与常见图片。
 - [终端工具与多主机操作](docs/development.zh-CN.md#终端工具与命令片段)：片段与补全、tmux、录制回放、后台执行、巡检与结果比较。
@@ -21,7 +21,7 @@ TermQuay 是使用 Go、Wails v3 和 React 构建的开源远程连接工作台�
 - [Docker 容器](docs/development.zh-CN.md#docker-containers)：“工具 → Docker”打开独立标签，通过 SSH 查看容器状态、资源、日志、终端、挂载和端口，确认后启动、停止或重启。
 - [内置 AI 助手](docs/development.zh-CN.md#内置-ai-助手)：SSH 工作区对话、终端选文引用、按远端能力查询与执行脚本、命令批准及本机加密历史。
 - [远程桌面](docs/development.zh-CN.md#远程桌面)：内嵌 RDP、SSH 网关与 Windows 系统客户端。
-- [本机工作环境](docs/development.zh-CN.md#本地草稿与布局恢复)：命名工作集、布局与草稿恢复，以及[外观和快捷键](docs/development.zh-CN.md#设置与演示模式)。
+- [工作区恢复](docs/development.zh-CN.md#本地草稿与布局恢复)：SSH/RDP 命名工作集、断开布局与加密文件草稿，以及[外观和快捷键](docs/development.zh-CN.md#设置与演示模式)。
 - [加密备份](docs/development.zh-CN.md#备份与恢复)：本地文件与 WebDAV 快照、预览恢复与配置迁移。
 
 操作方式与限制见 [使用说明](docs/development.zh-CN.md#使用说明)，内嵌 RDP 的 TLS 兼容边界见 [RDP 设计说明](docs/architecture.zh-CN.md#内嵌-rdp)。
@@ -48,7 +48,7 @@ TermQuay 面向多主机日常管理，将配置编辑、日志排查、任务�
 
 ### FinalShell
 
-[FinalShell](https://www.hostbuf.com/t/988.html) 整合 SSH、文件管理、监控与远程桌面。TermQuay 注重配置编辑流程，支持处理编辑冲突、从加密版本历史恢复草稿，以及显式执行配置验证、重载与健康检查。本地加密备份和自选 WebDAV 存储中的快照支持恢复预览与选择性导入连接。
+[FinalShell](https://www.hostbuf.com/) 整合 SSH、文件管理、监控与远程桌面加速。TermQuay 注重配置编辑流程，支持处理编辑冲突、从加密版本历史恢复草稿，以及显式执行配置验证、重载与健康检查。本地加密备份和自选 WebDAV 存储中的快照支持恢复预览与选择性导入连接。
 
 ### XTerminal / motty
 

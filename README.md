@@ -14,7 +14,7 @@ Choose **Settings → Appearance → Language** to follow the system, use Englis
 ## Features
 
 - **Connections** — groups, filters, configuration imports, connection playbooks, encrypted credentials and master password protection.
-- **SSH and local terminals** — multiple authentication methods, jump hosts, SOCKS5 proxies, port forwarding, reconnect and connection diagnostics. Local workspaces offer six layouts with up to four visible terminal panes, resizing, drag-to-swap and WebGL rendering.
+- **SSH and local terminals** — multiple authentication methods, jump hosts, SOCKS5 proxies, port forwarding, reconnect and connection diagnostics. [Local workspaces](docs/development.md#using-the-workbench) support pane layouts, resizing, drag-to-swap and independent renderer settings.
 - **Files and transfers** — a dedicated dual-pane transfer tab for local/remote and cross-host copies, search, batch transfers, explicit resume, directory sync and comparisons.
 - **Remote editing** — encodings and line endings, completion, conflict merging, encrypted version history and explicit validation/reload commands. Preview Markdown and common image formats.
 - **Terminal tools** — snippets, shell completion, tmux, recording/playback, background multi-host tasks, inspections and result comparisons.
@@ -22,7 +22,7 @@ Choose **Settings → Appearance → Language** to follow the system, use Englis
 - **Docker containers** — [Tools → Docker](docs/development.md#docker-containers) opens a dedicated tab for container status, resources, logs, terminals, mounts, ports and confirmed start/stop/restart operations over SSH.
 - **AI assistant** — workspace conversations, explicit terminal references, capability-based remote queries, command approval and encrypted local history.
 - **Remote desktop** — embedded RDP, SSH gateways and the Windows system client.
-- **Local workspace** — named working sets, layout and draft recovery, appearance and keyboard shortcuts.
+- **Workspace recovery** — named SSH/RDP working sets, disconnected layouts and encrypted file drafts; appearance and keyboard shortcuts.
 - **Encrypted backups** — local files and WebDAV snapshots with previewed recovery and selective configuration migration.
 
 See [usage and boundaries](docs/development.md#using-the-workbench), including the [RDP TLS compatibility boundary](docs/architecture.md#embedded-rdp).
@@ -49,7 +49,7 @@ TermQuay is built for managing multiple hosts: edit configurations, inspect logs
 
 ### FinalShell
 
-[FinalShell](https://www.hostbuf.com/t/988.html) combines SSH, file management, monitoring and remote desktop access. TermQuay emphasizes the configuration editing workflow: handle conflicting edits, recover drafts from encrypted version history, and explicitly run validation, reload and health checks. Local encrypted backups and snapshots on your chosen WebDAV storage support recovery previews and selective connection imports.
+[FinalShell](https://www.hostbuf.com/) combines SSH, file management, monitoring and remote desktop acceleration. TermQuay emphasizes the configuration editing workflow: handle conflicting edits, recover drafts from encrypted version history, and explicitly run validation, reload and health checks. Local encrypted backups and snapshots on your chosen WebDAV storage support recovery previews and selective connection imports.
 
 ### XTerminal / motty
 
