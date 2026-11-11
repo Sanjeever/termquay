@@ -47,6 +47,7 @@ import {
 import type { CommandAttention } from './commandAttention';
 import { programAttention } from './commandAttention';
 import { addProgramStatus, type ProgramStatus } from './programStatus';
+import { addLocalFileLinks, absoluteLocalPath, type LocalFileReference } from './localFileLinks';
 import { parseCompletionMessage, parseRecordedCommand } from './shellCompletionProtocol';
 import { shellCompletionSetup } from './shellCompletionSetup';
 import useTerminalCompletion from './useTerminalCompletion';
@@ -82,6 +83,7 @@ import {
   CloseLocalTerminal,
   LocalTerminalHasClipboardImage,
   OpenLocalTerminalFile,
+  ChooseLocalTerminalFileDirectory,
   ResizeLocalTerminal,
 } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import {
@@ -122,6 +124,7 @@ const TerminalView = forwardRef<
     workspace: string;
     host?: string;
     local?: boolean;
+    localContext?: { hostname: string; kind: string };
     container?: boolean;
     visible: boolean;
     fontSize: number;
@@ -151,6 +154,7 @@ const TerminalView = forwardRef<
     workspace,
     host = 'localhost',
     local = false,
+    localContext,
     container: containerConsole = false,
     visible,
     fontSize,
@@ -760,14 +764,7 @@ const TerminalView = forwardRef<
         callbacks.current.onDirectory?.(path, host);
       },
       setExitCode,
-      (path, line) => {
-        if (demoOutput !== undefined) return;
-        if (local)
-          OpenLocalTerminalFile(id, path, '', line, 1, localEditor.current)
-            .then(() => clearError('link'))
-            .catch((error) => reportError('link', error));
-        else callbacks.current.onFile?.(path, line);
-      },
+      local ? undefined : (path, line) => callbacks.current.onFile?.(path, line),
       (kind) => complete.current.command(kind),
       (data) => {
         const setup = parseCompletionMessage(data, directorySetupToken.current);
@@ -818,6 +815,38 @@ const TerminalView = forwardRef<
         }
       },
     );
+    const openLocalFile = async (reference: LocalFileReference) => {
+      try {
+        let directory = reference.directory ?? '';
+        if (!absoluteLocalPath(reference.path) && !directory && localContext?.kind !== 'wsl') {
+          directory = await ChooseLocalTerminalFileDirectory(id);
+          if (!directory) return;
+        }
+        if (terminal.current !== term) return;
+        await OpenLocalTerminalFile(
+          id,
+          reference.path,
+          directory,
+          reference.line,
+          reference.column,
+          localEditor.current,
+        );
+        if (terminal.current === term) clearError('link');
+      } catch (error) {
+        if (terminal.current === term) reportError('link', error);
+      }
+    };
+    const localFiles =
+      local && demoOutput === undefined
+        ? addLocalFileLinks(
+            term,
+            localContext?.hostname ?? host,
+            localContext?.kind ?? 'shell',
+            (reference) => {
+              void openLocalFile(reference);
+            },
+          )
+        : undefined;
     if (local && demoOutput === undefined)
       programIntegration.current = addProgramStatus(term, (status) => {
         const previous = program.current;
@@ -1010,6 +1039,7 @@ const TerminalView = forwardRef<
       integration.current?.dispose();
       integration.current = undefined;
       programIntegration.current?.dispose();
+      localFiles?.dispose();
       programIntegration.current = undefined;
       program.current = undefined;
       observer.disconnect();

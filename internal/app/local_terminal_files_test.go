@@ -4,13 +4,18 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
 
 func TestLocalTerminalFileURL(t *testing.T) {
 	directory := t.TempDir()
-	path := filepath.Join(directory, "中文 space#?% file.go")
+	name := "中文 space#% file.go"
+	if runtime.GOOS != "windows" {
+		name = "中文 space#?% file.go"
+	}
+	path := filepath.Join(directory, name)
 	if err := os.WriteFile(path, []byte("package example\n"), 0600); err != nil {
 		t.Fatal(err)
 	}

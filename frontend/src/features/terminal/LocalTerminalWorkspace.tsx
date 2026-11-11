@@ -511,6 +511,7 @@ const LocalTerminalWorkspace = forwardRef<
               </div>
               <TerminalView
                 local
+                localContext={{ hostname: session.hostname, kind: session.kind }}
                 id={session.id}
                 workspace={session.id}
                 ref={session.terminal}

@@ -116,6 +116,10 @@ export function ChooseLocalTerminalDirectory(): $CancellablePromise<string> {
     return $Call.ByID(3975122069);
 }
 
+export function ChooseLocalTerminalFileDirectory(id: string): $CancellablePromise<string> {
+    return $Call.ByID(1404667819, id);
+}
+
 export function ChooseTerminalRecording(): $CancellablePromise<$models.TerminalRecording> {
     return $Call.ByID(828706094);
 }

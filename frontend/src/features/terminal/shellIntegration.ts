@@ -77,7 +77,7 @@ export function addShellIntegration(
   term: Terminal,
   onDirectory: (path: string, host: string) => void,
   onExit: (code: string) => void,
-  onFile: (path: string, line: number) => void,
+  onFile: ((path: string, line: number) => void) | undefined,
   onCommand?: (kind: string) => void,
   onCompletion?: (data: string) => void,
   onIndex?: (entries: CommandIndexEntry[]) => void,
@@ -169,44 +169,46 @@ export function addShellIntegration(
     if (term.buffer.active.type === 'normal') onCompletion?.(data);
     return true;
   });
-  const files = term.registerLinkProvider({
-    provideLinks(y, callback) {
-      const line = term.buffer.active.getLine(y - 1);
-      if (!line || term.buffer.active.type !== 'normal') {
-        callback(undefined);
-        return;
-      }
-      const text = line.translateToString(true);
-      const cellColumn = (offset: number) => {
-        let consumed = 0;
-        for (let x = 0; x < line.length; x++) {
-          const cell = line.getCell(x);
-          if (!cell?.getWidth()) continue;
-          if (consumed >= offset) return x + 1;
-          consumed += cell.getChars().length || 1;
-        }
-        return line.length + 1;
-      };
-      const matches = Array.from(
-        text.matchAll(/(?:^|[\s("'])((?:\/[^\s:"'<>|()]+)+):(\d+)(?::\d+)?/g),
-      ).slice(0, 32);
-      callback(
-        matches.map((match) => {
-          const start = match.index! + match[0].indexOf(match[1]);
-          return {
-            text: match[1],
-            range: {
-              start: { x: cellColumn(start), y },
-              end: { x: cellColumn(start + match[1].length + match[2].length + 1) - 1, y },
-            },
-            activate(event: MouseEvent) {
-              if (event.ctrlKey || event.metaKey) onFile(match[1], Number(match[2]));
-            },
+  const files = onFile
+    ? term.registerLinkProvider({
+        provideLinks(y, callback) {
+          const line = term.buffer.active.getLine(y - 1);
+          if (!line || term.buffer.active.type !== 'normal') {
+            callback(undefined);
+            return;
+          }
+          const text = line.translateToString(true);
+          const cellColumn = (offset: number) => {
+            let consumed = 0;
+            for (let x = 0; x < line.length; x++) {
+              const cell = line.getCell(x);
+              if (!cell?.getWidth()) continue;
+              if (consumed >= offset) return x + 1;
+              consumed += cell.getChars().length || 1;
+            }
+            return line.length + 1;
           };
-        }),
-      );
-    },
-  });
+          const matches = Array.from(
+            text.matchAll(/(?:^|[\s("'])((?:\/[^\s:"'<>|()]+)+):(\d+)(?::\d+)?/g),
+          ).slice(0, 32);
+          callback(
+            matches.map((match) => {
+              const start = match.index! + match[0].indexOf(match[1]);
+              return {
+                text: match[1],
+                range: {
+                  start: { x: cellColumn(start), y },
+                  end: { x: cellColumn(start + match[1].length + match[2].length + 1) - 1, y },
+                },
+                activate(event: MouseEvent) {
+                  if (event.ctrlKey || event.metaKey) onFile(match[1], Number(match[2]));
+                },
+              };
+            }),
+          );
+        },
+      })
+    : undefined;
   return {
     recordCommand(text: string) {
       pendingCommand = text;
@@ -248,7 +250,7 @@ export function addShellIntegration(
       cwd.dispose();
       command.dispose();
       completion.dispose();
-      files.dispose();
+      files?.dispose();
       marks.forEach((m) => m.dispose());
     },
   };

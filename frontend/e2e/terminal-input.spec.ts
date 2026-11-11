@@ -111,6 +111,83 @@ test('local absolute file links open the selected editor after a modifier click'
   expect(opened[1]).toEqual(['terminal-fixture', path, '', 42, 1, 'vscode-insiders']);
 });
 
+async function fileLinkTerminal(page: Page, output: string) {
+  await openTerminal(page, output);
+  const opened: unknown[][] = [];
+  let directories = 0;
+  await page.route('**/wails/runtime*', (route) => {
+    const body = route.request().postDataJSON();
+    const method = body?.args?.methodID;
+    if (method === 3880128751) opened.push(body.args.args);
+    if (method === 1404667819) directories++;
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(method === 1404667819 ? '/chosen/base' : null),
+    });
+  });
+  return { opened, directories: () => directories };
+}
+
+test('relative file links retain the directory of their output after a later directory change', async ({
+  page,
+}) => {
+  const { opened, directories } = await fileLinkTerminal(
+    page,
+    '\x1b]7;file://localhost/work/first\x07src/old.ts:10:2\r\n' +
+      '\x1b]7;file://localhost/work/second\x07src/new.ts:20\r\n',
+  );
+  const screen = page.locator('.xterm-screen');
+  await screen.hover({ position: { x: 24, y: 8 } });
+  await expect(screen).toHaveClass(/xterm-cursor-pointer/);
+  await screen.click({ position: { x: 24, y: 8 }, modifiers: ['Control'] });
+  await expect
+    .poll(() => opened)
+    .toEqual([['terminal-fixture', 'src/old.ts', '/work/first', 10, 2, 'vscode']]);
+  await screen.hover({ position: { x: 40, y: 26 } });
+  await expect(screen).toHaveClass(/xterm-cursor-pointer/);
+  await screen.click({ position: { x: 40, y: 26 }, modifiers: ['Control'] });
+  await expect.poll(() => opened.length).toBe(2);
+  expect(opened[1]).toEqual(['terminal-fixture', 'src/new.ts', '/work/second', 20, 1, 'vscode']);
+  expect(directories()).toBe(0);
+});
+
+test('wrapped alternate-screen links preserve Unicode cell positions and line/column', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 460, height: 650 });
+  const path = `src/${'directory/'.repeat(8)}component.tsx`;
+  const { opened, directories } = await fileLinkTerminal(
+    page,
+    `\x1b]7;file://localhost/work/project\x07\x1b[?1049h中文🙂 ${path}:33:7`,
+  );
+  const screen = page.locator('.xterm-screen');
+  await screen.hover({ position: { x: 100, y: 8 } });
+  await expect(screen).toHaveClass(/xterm-cursor-pointer/);
+  await screen.click({ position: { x: 100, y: 8 }, modifiers: ['Control'] });
+  await expect
+    .poll(() => opened)
+    .toEqual([['terminal-fixture', path, '/work/project', 33, 7, 'vscode']]);
+  expect(directories()).toBe(0);
+});
+
+test('relative references with unknown or remote directories require an explicit base directory', async ({
+  page,
+}) => {
+  const { opened, directories } = await fileLinkTerminal(
+    page,
+    '\x1b]7;file://localhost/work/first\x07\x1b]7;file://another-host/remote\x07src/app.ts:12\r\n',
+  );
+  const screen = page.locator('.xterm-screen');
+  await screen.hover({ position: { x: 24, y: 8 } });
+  await expect(screen).toHaveClass(/xterm-cursor-pointer/);
+  await screen.click({ position: { x: 24, y: 8 }, modifiers: ['Control'] });
+  await expect
+    .poll(() => opened)
+    .toEqual([['terminal-fixture', 'src/app.ts', '/chosen/base', 12, 1, 'vscode']]);
+  expect(directories()).toBe(1);
+});
+
 test('direct IME punctuation is sent once across keyup and repeated keydown events', async ({
   page,
 }) => {

@@ -41,20 +41,34 @@ func localTerminalFileURL(path, directory string, line, column int, editor strin
 	return uri.String(), nil
 }
 
-func (a *AppService) prepareLocalTerminalFile(id, path, directory string, line, column int, editor string) (string, error) {
+func (a *AppService) localTerminalFileOwner(id string) error {
 	if !a.applicationInputAllowed() {
-		return "", appmessage.New("backend:applicationLocked", "应用已锁定")
+		return appmessage.New("backend:applicationLocked", "应用已锁定")
 	}
 	a.mu.Lock()
 	session := a.locals[id]
 	a.mu.Unlock()
 	if session == nil {
-		return "", appmessage.New("backend:localTerminalClosed", "本地终端已关闭")
+		return appmessage.New("backend:localTerminalClosed", "本地终端已关闭")
 	}
 	if session.kind == "wsl" {
-		return "", appmessage.New("backend:localFileMappingUnsupported", "This terminal's filesystem is not mapped to local editor paths")
+		return appmessage.New("backend:localFileMappingUnsupported", "This terminal's filesystem is not mapped to local editor paths")
+	}
+	return nil
+}
+
+func (a *AppService) prepareLocalTerminalFile(id, path, directory string, line, column int, editor string) (string, error) {
+	if err := a.localTerminalFileOwner(id); err != nil {
+		return "", err
 	}
 	return localTerminalFileURL(path, directory, line, column, editor)
+}
+
+func (a *AppService) ChooseLocalTerminalFileDirectory(id string) (string, error) {
+	if err := a.localTerminalFileOwner(id); err != nil {
+		return "", err
+	}
+	return application.Get().Dialog.OpenFile().SetTitle(nativeText("Choose file link base directory", "选择文件链接基准目录")).CanChooseFiles(false).CanChooseDirectories(true).PromptForSingleSelection()
 }
 
 func (a *AppService) OpenLocalTerminalFile(id, path, directory string, line, column int, editor string) error {
