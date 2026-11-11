@@ -292,6 +292,8 @@ macOS 菜单栏提供连接、终端、标签关闭、显示、界面缩放和�
 
 外观设置支持深色、浅色、跟随系统，首次使用跟随系统，已有主题偏好保留。界面缩放同时调整字号与操作区域，可选倍率由 [外观设置](../frontend/src/features/settings/AppearanceSettings.tsx) 定义；主题、字体和缩放偏好可随界面设置备份。支持界面字体、终端与编辑器等宽字体，以及跟随主题、独立深浅、One Dark 和 Tokyo Night 终端配色。本机未安装所选字体时使用后备字体，不下载远程字体。设置保存在本机，可复位；主题与字体切换保留会话、文档和撤销记录。动效跟随系统“减少动态效果”，界面适配增加对比度与减少透明度偏好；原生系统设置向各平台 WebView 的映射仍需按平台验收。
 
+[终端配色](../frontend/src/features/settings/appearance.ts)在经典深色及跟随深色界面时，使用较暗的 ANSI 亮黑色，降低 TUI 面板背景亮度。[终端视图](../frontend/src/features/terminal/TerminalView.tsx)在两种渲染器中启用 xterm 文字最小对比度调整，使灰色文字保持可读；显式弱化的文字和背景字符遵循 xterm 自身的对比度规则。
+
 “设置 → 终端与编辑器 → 等宽字体 → 自定义”支持输入本机已安装的字体名称，例如 `JetBrainsMono Nerd Font Mono`。Powerlevel10k 等提示符建议使用 Nerd Font Mono 字体显示等宽图标。该设置应用于终端、编辑器和设置预览，并随界面设置备份；详细行为见 [Terminal fonts](development.md#using-the-workbench)。
 
 日志级别高亮默认开启，可在“终端与编辑器”设置关闭；识别 ERROR/FATAL、WARN/WARNING、INFO、DEBUG/TRACE，保留远端程序已有颜色及选区显示。高亮仅处理普通终端缓冲区的可见区域，并限制扫描范围和装饰数量，隐藏终端及全屏程序的备用缓冲区停止处理。高亮不改写远端输出或 Shell 配置；提示符及输入语法颜色仍由远端 Shell 提供。

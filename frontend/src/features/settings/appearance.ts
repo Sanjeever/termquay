@@ -171,7 +171,7 @@ export function terminalTheme(palette: Appearance['terminalPalette'], dark: bool
         magenta: '#cf9fe8',
         cyan: '#7ed1d9',
         white: '#d7dce5',
-        brightBlack: '#808a9d',
+        brightBlack: '#3a414d',
         brightRed: '#ffaaaa',
         brightGreen: '#b0eacb',
         brightYellow: '#f4d9a5',

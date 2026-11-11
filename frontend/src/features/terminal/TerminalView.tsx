@@ -644,6 +644,7 @@ const TerminalView = forwardRef<
       fontFamily: monospaceFont(appearance),
       fontSize,
       lineHeight: 1.3,
+      minimumContrastRatio: 4.5,
       scrollback: 5000,
       cursorBlink: demoOutput === undefined,
       disableStdin: demoOutput !== undefined,
