@@ -82,7 +82,7 @@ import {
   ResizeContainerTerminal,
 } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import '@xterm/xterm/css/xterm.css';
-import { addIMEInput } from './terminalInput';
+import { addIMEInput, terminalCopyText } from './terminalInput';
 import { addWindowsInput } from './windowsInput';
 import { addWebGLRenderer } from './webglRenderer';
 
@@ -605,13 +605,12 @@ const TerminalView = forwardRef<
       setHelp({ command });
       return;
     }
-    if (name === 'copy' && term.hasSelection())
-      (demoOutput === undefined
-        ? Clipboard.SetText(term.getSelection())
-        : navigator.clipboard.writeText(term.getSelection())
-      )
+    if (name === 'copy' && term.hasSelection()) {
+      const text = terminalCopyText(term.getSelection());
+      (demoOutput === undefined ? Clipboard.SetText(text) : navigator.clipboard.writeText(text))
         .then(() => clearError('clipboard'))
         .catch((e) => reportError('clipboard', e));
+    }
     if (name === 'paste' && demoOutput === undefined)
       Clipboard.Text()
         .then(async (value) => {
@@ -942,7 +941,11 @@ const TerminalView = forwardRef<
       frame = requestAnimationFrame(() => {
         const text = term.getSelection();
         if (!text) return;
-        (demoOutput === undefined ? Clipboard.SetText(text) : navigator.clipboard.writeText(text))
+        const copied = terminalCopyText(text);
+        (demoOutput === undefined
+          ? Clipboard.SetText(copied)
+          : navigator.clipboard.writeText(copied)
+        )
           .then(() =>
             setError((previous) => (previous?.source === 'clipboard' ? undefined : previous)),
           )
@@ -1039,6 +1042,13 @@ const TerminalView = forwardRef<
         local && visible && connected && !locked && demoOutput === undefined ? true : undefined
       }
       data-local-terminal-id={local ? id : undefined}
+      onCopyCapture={(e) => {
+        const term = terminal.current;
+        if (!(e.target as HTMLElement).closest('.xterm') || !term?.hasSelection()) return;
+        e.preventDefault();
+        e.stopPropagation();
+        e.clipboardData.setData('text/plain', terminalCopyText(term.getSelection()));
+      }}
       onPasteCapture={(e) => {
         if (!(e.target as HTMLElement).closest('.xterm')) return;
         e.preventDefault();
@@ -1386,7 +1396,7 @@ const TerminalView = forwardRef<
               setAIContext(undefined);
               if (key === 'ai' && snapshot) onAIReference?.(snapshot.reference);
               else if (key === 'copy' && snapshot)
-                Clipboard.SetText(snapshot.reference.text).catch((e) =>
+                Clipboard.SetText(terminalCopyText(snapshot.reference.text)).catch((e) =>
                   reportError('clipboard', e),
                 );
               else if (key === 'paste') action('paste');

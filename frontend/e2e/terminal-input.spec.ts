@@ -221,3 +221,65 @@ test('selection release outside the terminal copies and clipboard failures remai
   await page.locator('.xterm-screen').click({ clickCount: 3, position: { x: 20, y: 8 } });
   await expect(page.getByRole('alert')).toContainText('clipboard denied');
 });
+
+for (const method of ['selection', 'menu', 'browser'] as const)
+  test(`terminal copying removes line padding and preserves indentation and wrapped content (${method})`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    const wrapped = `  ${'ab'.repeat(150)}  END`;
+    const output = [
+      `  已完成。${' '.repeat(160)}`,
+      ' '.repeat(187),
+      `    mysql  --version${' '.repeat(120)}`,
+      wrapped,
+    ].join('\r\n');
+    let sendOutput: () => void;
+    let resized = false;
+    const copies: string[] = [];
+    await page.route('**/wails/runtime*', (route) => {
+      const body = route.request().postDataJSON();
+      if (body?.object === 1 && body?.method === 0) copies.push(body.args.text);
+      if (body?.args?.methodID === 2615775029) resized = true;
+      return route.fulfill({ status: 200, contentType: 'application/json', body: 'null' });
+    });
+    await page.routeWebSocket('**/terminal-fixture', (socket) => {
+      sendOutput = () => socket.send(Buffer.from(output));
+    });
+    await page.goto('/e2e/terminal.html');
+    await expect.poll(() => resized).toBe(true);
+    sendOutput!();
+    if (method === 'selection') {
+      await page.getByRole('button', { name: 'Terminal settings', exact: true }).click();
+      await page.getByRole('switch', { name: 'Copy terminal selection on mouse release' }).click();
+      await page.getByRole('button', { name: 'Terminal settings', exact: true }).click();
+    }
+    const rows = page.locator('.xterm-rows > div');
+    await expect(rows.filter({ hasText: 'END' })).toBeVisible();
+    const screen = (await page.locator('.xterm-screen').boundingBox())!;
+    const first = (await rows.first().boundingBox())!;
+    const last = (await rows.filter({ hasText: 'END' }).boundingBox())!;
+    await page.mouse.move(screen.x + 1, first.y + first.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(screen.x + screen.width - 1, last.y + last.height / 2, { steps: 5 });
+    await page.mouse.up();
+    const eol = await page.evaluate(() => (navigator.platform.startsWith('Win') ? '\r\n' : '\n'));
+    const expected = ['  已完成。', '', '    mysql  --version', wrapped].join(eol);
+    if (method === 'menu') {
+      await page.getByRole('button', { name: 'Terminal actions', exact: true }).click();
+      await page.getByRole('menuitem', { name: 'Copy', exact: true }).click();
+    }
+    if (method === 'browser') {
+      const copied = await page.locator('.xterm-helper-textarea').evaluate((element) => {
+        const data = new DataTransfer();
+        element.dispatchEvent(
+          new ClipboardEvent('copy', { clipboardData: data, bubbles: true, cancelable: true }),
+        );
+        return data.getData('text/plain');
+      });
+      expect(copied).toBe(expected);
+    } else {
+      await expect.poll(() => copies.length).toBe(1);
+      expect(copies[0]).toBe(expected);
+    }
+  });

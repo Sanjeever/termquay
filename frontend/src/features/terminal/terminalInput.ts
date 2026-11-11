@@ -1,5 +1,9 @@
 import type { Terminal } from '@xterm/xterm';
 
+export function terminalCopyText(text: string) {
+  return text.replace(/ +(?=\r?$)/gm, '');
+}
+
 export function addIMEInput(term: Terminal) {
   const textarea = term.textarea!;
   const element = term.element!;
