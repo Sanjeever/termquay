@@ -28,6 +28,8 @@ import Tooltip from '../../components/Tooltip';
 import ResizeHandle from '../../components/layout/ResizeHandle';
 import TerminalView, { type TerminalHandle } from './TerminalView';
 import type { CommandAttention } from './commandAttention';
+import { aggregateAttention, programAttention } from './commandAttention';
+import type { ProgramStatus } from './programStatus';
 import { commandAttentionLabels } from './commandAttention';
 import { localDirectoryName, localDirectoryReport } from './localTerminal';
 import {
@@ -51,6 +53,7 @@ type Session = LocalTerminalSession & {
   terminal: ReturnType<typeof createRef<TerminalHandle>>;
   ended?: boolean;
   attention?: CommandAttention;
+  program?: ProgramStatus;
   title?: string;
 };
 
@@ -150,17 +153,7 @@ const LocalTerminalWorkspace = forwardRef<
     latest.current = next;
     setSessions(next);
     const states = next.map((session) => session.attention);
-    callbacks.current.onAttention(
-      states.includes('attention')
-        ? 'attention'
-        : states.includes('failed')
-          ? 'failed'
-          : states.includes('completed')
-            ? 'completed'
-            : states.includes('running')
-              ? 'running'
-              : undefined,
-    );
+    callbacks.current.onAttention(aggregateAttention(states));
   }
 
   async function createSession(kind: string, source: Session): Promise<Session | undefined> {
@@ -483,7 +476,20 @@ const LocalTerminalWorkspace = forwardRef<
                 >
                   <Icon name="terminal" width="13" />
                   <span>{session.title || localDirectoryName(session.directory)}</span>
-                  {session.attention && (
+                  {session.program && (
+                    <span
+                      className={`terminal-program-state ${session.attention ?? ''}`}
+                      title={[session.program.app, session.program.title, session.program.message]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    >
+                      {commandAttentionLabels[programAttention(session.program)!]}
+                      {session.program.progress !== undefined
+                        ? ` ${session.program.progress}%`
+                        : ''}
+                    </span>
+                  )}
+                  {session.attention && !session.program && (
                     <span
                       className={`terminal-attention ${session.attention}`}
                       aria-label={commandAttentionLabels[session.attention]}
@@ -538,6 +544,12 @@ const LocalTerminalWorkspace = forwardRef<
                   if (active === session.id) callbacks.current.onSelected(next);
                 }}
                 onAttention={(value) => attention(session.id, value)}
+                onProgramStatus={(value) => {
+                  latest.current = latest.current.map((item) =>
+                    item.id === session.id ? { ...item, program: value } : item,
+                  );
+                  setSessions(latest.current);
+                }}
                 onActivate={() => {
                   if (!panes.includes(session.id))
                     setPanes((previous) =>

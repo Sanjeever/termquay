@@ -1667,6 +1667,23 @@
 .terminal-attention.completed {
   background: var(--color-primary);
 }
+.terminal-program-state {
+  flex-shrink: 0;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11px;
+  color: var(--color-muted);
+}
+.terminal-program-state.permission,
+.terminal-program-state.question,
+.terminal-program-state.auth,
+.terminal-program-state.attention {
+  color: var(--color-warning);
+}
+.terminal-program-state.failed {
+  color: var(--color-danger);
+}
 .sync-preview {
   width: 100%;
   font-size: 12px;

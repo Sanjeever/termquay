@@ -45,6 +45,8 @@ import {
   type CommandIndexEntry,
 } from './shellIntegration';
 import type { CommandAttention } from './commandAttention';
+import { programAttention } from './commandAttention';
+import { addProgramStatus, type ProgramStatus } from './programStatus';
 import { parseCompletionMessage, parseRecordedCommand } from './shellCompletionProtocol';
 import { shellCompletionSetup } from './shellCompletionSetup';
 import useTerminalCompletion from './useTerminalCompletion';
@@ -133,6 +135,7 @@ const TerminalView = forwardRef<
     onTmuxUnbind?(): void;
     onConnectionChange?(): void;
     onAttention?(state?: CommandAttention): void;
+    onProgramStatus?(status?: ProgramStatus): void;
     onActivate?(): void;
     onAIReference?(reference: Reference): void;
     onSnippets(): void;
@@ -161,6 +164,7 @@ const TerminalView = forwardRef<
     onTmuxUnbind,
     onConnectionChange,
     onAttention,
+    onProgramStatus,
     onActivate,
     onAIReference,
     onSnippets,
@@ -255,6 +259,8 @@ const TerminalView = forwardRef<
   const bellEnabled = useRef(false);
   bellEnabled.current = bellNotifications;
   const attentionRequested = useRef(false);
+  const program = useRef<ProgramStatus>();
+  const programIntegration = useRef<ReturnType<typeof addProgramStatus>>();
   const currentCommand = useRef(0);
   const running = useRef(false);
   const reminderCommand = useRef<number>();
@@ -408,6 +414,7 @@ const TerminalView = forwardRef<
     onDirectoryStatus,
     onFile,
     onAttention,
+    onProgramStatus,
     onActivate,
     onTitle,
     insert,
@@ -417,6 +424,7 @@ const TerminalView = forwardRef<
     onDirectoryStatus,
     onFile,
     onAttention,
+    onProgramStatus,
     onActivate,
     onTitle,
     insert,
@@ -424,6 +432,9 @@ const TerminalView = forwardRef<
   const shown = useRef(visible);
   shown.current = visible;
   const appFocused = useRef(document.hasFocus());
+  const publishAttention = useCallback((state?: CommandAttention) => {
+    callbacks.current.onAttention?.(programAttention(program.current) ?? state);
+  }, []);
   const acknowledgeAttention = useCallback(() => {
     if (
       !shown.current ||
@@ -431,11 +442,12 @@ const TerminalView = forwardRef<
       terminal.current?.textarea !== document.activeElement
     )
       return;
+    programIntegration.current?.acknowledge();
     if (attentionRequested.current) {
       attentionRequested.current = false;
-      callbacks.current.onAttention?.(running.current ? 'running' : undefined);
-    } else if (!running.current) callbacks.current.onAttention?.();
-  }, []);
+      publishAttention(running.current ? 'running' : undefined);
+    } else if (!running.current) publishAttention();
+  }, [publishAttention]);
   const focusRequested = useRef(focusOnShow);
   focusRequested.current = focusOnShow;
   const inputStream = useRef<ReturnType<typeof Stream>>();
@@ -726,7 +738,7 @@ const TerminalView = forwardRef<
         )
           return;
         attentionRequested.current = true;
-        callbacks.current.onAttention?.('attention');
+        publishAttention('attention');
         if (bellEnabled.current)
           NotifyTerminalAttention(id).catch((error) => {
             if (terminal.current === term) reportError('notification', error);
@@ -773,13 +785,13 @@ const TerminalView = forwardRef<
           currentCommand.current = latest.id;
           running.current = true;
           setRunningCommand(true);
-          callbacks.current.onAttention?.('running');
+          publishAttention('running');
         } else if (running.current && currentCommand.current === latest.id) {
           attentionRequested.current = false;
           running.current = false;
           setRunningCommand(false);
           const failed = latest.exitCode !== undefined && latest.exitCode !== '0';
-          callbacks.current.onAttention?.(
+          publishAttention(
             shown.current && appFocused.current && term.textarea === document.activeElement
               ? undefined
               : failed
@@ -796,6 +808,29 @@ const TerminalView = forwardRef<
         }
       },
     );
+    if (local && demoOutput === undefined)
+      programIntegration.current = addProgramStatus(term, (status) => {
+        const previous = program.current;
+        program.current = status;
+        if (!status || status.state === 'idle' || status.state === 'working')
+          attentionRequested.current = false;
+        callbacks.current.onProgramStatus?.(status);
+        publishAttention(
+          attentionRequested.current ? 'attention' : running.current ? 'running' : undefined,
+        );
+        if (
+          status &&
+          ['blocked', 'done', 'error'].includes(status.state) &&
+          (previous?.state !== status.state || previous.kind !== status.kind) &&
+          !(shown.current && appFocused.current && term.textarea === document.activeElement)
+        ) {
+          attentionRequested.current = true;
+          if (bellEnabled.current)
+            NotifyTerminalAttention(id).catch((error) => {
+              if (terminal.current === term) reportError('notification', error);
+            });
+        }
+      });
     const ime = addIMEInput(term);
     const windows = local ? addWindowsInput(term) : undefined;
     windowsInput.current = windows;
@@ -878,7 +913,8 @@ const TerminalView = forwardRef<
         reminderCommand.current = undefined;
         setRunningCommand(false);
         setReminder(false);
-        callbacks.current.onAttention?.();
+        programIntegration.current?.exited();
+        publishAttention();
         complete.current.invalidate();
         setupPending.current = false;
         setSetupInserted(false);
@@ -963,6 +999,9 @@ const TerminalView = forwardRef<
       textarea?.removeEventListener('focus', acknowledgeAttention);
       integration.current?.dispose();
       integration.current = undefined;
+      programIntegration.current?.dispose();
+      programIntegration.current = undefined;
+      program.current = undefined;
       observer.disconnect();
       cancelAnimationFrame(fitFrame);
       requestFit.current = undefined;

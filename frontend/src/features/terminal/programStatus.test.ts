@@ -1,6 +1,14 @@
 import { expect, test, vi } from 'vitest';
 import type { Terminal } from '@xterm/xterm';
 import { addProgramStatus, parseProgramStatus, programStatusReply } from './programStatus';
+import { aggregateAttention, programAttention } from './commandAttention';
+
+test('workspace status prioritizes user intervention and keeps ready distinct from completed', () => {
+  expect(programAttention({ state: 'idle', id: '' })).toBe('idle');
+  expect(aggregateAttention(['completed', 'running'])).toBe('running');
+  expect(aggregateAttention(['running', 'permission'])).toBe('permission');
+  expect(aggregateAttention(['failed', 'question'])).toBe('question');
+});
 
 test('program status validates reports atomically and preserves explicit state semantics', () => {
   expect(parseProgramStatus('state=idle:app=codex')).toEqual({

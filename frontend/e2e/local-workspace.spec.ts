@@ -207,9 +207,7 @@ test('explicit terminal bells request attention once and focus acknowledges the 
   });
   await layout(page, 'Two columns');
   await page.getByRole('button', { name: 'Terminal actions', exact: true }).click();
-  await page
-    .getByRole('menuitem', { name: 'Enable terminal bell notifications', exact: true })
-    .click();
+  await page.getByRole('menuitem', { name: 'Enable terminal notifications', exact: true }).click();
   await page.getByRole('button', { name: 'Toggle workspace', exact: true }).click();
   send('local-1', '\x07\x07');
   await expect.poll(() => notifications).toEqual(['local-1']);
@@ -232,4 +230,62 @@ test('explicit terminal bells request attention once and focus acknowledges the 
   expect(notifications).toEqual(['local-1']);
   await page.locator('[data-terminal-id="local-2"] .local-terminal-pane-title').click();
   await expect(page.locator('.terminal-attention.attention')).toHaveCount(0);
+});
+
+test('program status survives focus, hiding and alternate screens and answers probes in order', async ({
+  page,
+}) => {
+  const { inputs, send } = await openWorkspace(page);
+  const pane = page.locator('[data-terminal-id="local-1"]');
+  send('local-1', '\x1b]7501;?\x07\x1b[c');
+  await expect.poll(() => inputs.get('local-1')!.length).toBe(2);
+  expect(inputs.get('local-1')![0]).toBe(
+    '\x1b]7501;?:states=idle,working,done,blocked,error:kinds=permission,question,auth\x1b\\',
+  );
+  expect(inputs.get('local-1')![1].startsWith('\x1b[?')).toBe(true);
+  await layout(page, 'Two columns');
+  send('local-1', '\x1b[?1049h\x1b]7501;state=working:app=codex\x07');
+  await expect(pane.locator('.terminal-program-state')).toHaveText('Running');
+  send('local-1', '\x1b]7501;state=blocked:kind=permission:app=codex:msg=QXBwcm92ZSBjb21tYW5k\x07');
+  await expect(pane.locator('.terminal-program-state')).toHaveText('Awaiting approval');
+  await pane.locator('.local-terminal-pane-title').click();
+  await expect(pane.locator('.terminal-program-state')).toHaveText('Awaiting approval');
+  await page.getByRole('button', { name: 'Toggle workspace', exact: true }).click();
+  await page.getByRole('button', { name: 'Toggle workspace', exact: true }).click();
+  await expect(pane.locator('.terminal-program-state')).toHaveText('Awaiting approval');
+  await page.getByRole('button', { name: 'Toggle language', exact: true }).click();
+  await expect(pane.locator('.terminal-program-state')).toHaveText('等待授权');
+  send('local-1', '\x1b]7501;state=idle:app=codex\x07');
+  await expect(pane.locator('.terminal-program-state')).toHaveText('就绪');
+  send('local-1', '\x1b[?1049l\x1b]133;A\x07');
+  await expect(pane.locator('.terminal-program-state')).toHaveCount(0);
+  send('local-1', '\x1b]7501;state=done:app=codex\x07');
+  await expect(pane.locator('.terminal-program-state')).toHaveCount(1);
+  await page.locator('[data-terminal-id="local-2"] .local-terminal-pane-title').click();
+  await pane.locator('.local-terminal-pane-title').click();
+  await expect(pane.locator('.terminal-program-state')).toHaveCount(0);
+});
+
+test('background program notifications report transitions once without inferring completion from idle', async ({
+  page,
+}) => {
+  const { send } = await openWorkspace(page);
+  const notifications: string[] = [];
+  await page.route('**/wails/runtime*', async (route) => {
+    const body = route.request().postDataJSON();
+    if (body?.args?.methodID === 1304035475) notifications.push(body.args.args[0]);
+    await route.fallback();
+  });
+  await page.getByRole('button', { name: 'Terminal actions', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Enable terminal notifications', exact: true }).click();
+  await page.getByRole('button', { name: 'Toggle workspace', exact: true }).click();
+  send(
+    'local-1',
+    '\x1b]7501;state=blocked:kind=question\x07\x1b]7501;state=blocked:kind=question\x07\x07',
+  );
+  await expect.poll(() => notifications).toEqual(['local-1']);
+  send('local-1', '\x1b]7501;state=idle\x07');
+  await page.getByRole('button', { name: 'Toggle workspace', exact: true }).click();
+  await expect(page.locator('.terminal-program-state')).toHaveText('Ready');
+  expect(notifications).toEqual(['local-1']);
 });
