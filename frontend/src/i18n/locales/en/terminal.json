@@ -890,5 +890,11 @@
   "imagePasteRequiresLocalTerminal": "Clipboard image paste requires a local terminal",
   "needsAttention": "Needs attention",
   "enableBellNotifications": "Enable terminal bell notifications",
-  "disableBellNotifications": "Disable terminal bell notifications"
+  "disableBellNotifications": "Disable terminal bell notifications",
+  "enableDirectoryReporting": "Enable directory reporting",
+  "directoryReportingDescription": "Report this shell’s directory to the file panel for this session.",
+  "integrationInsertHint": "Insert at an empty shell prompt, then press Enter to run.",
+  "setupScript": "Script",
+  "insertIntoTerminal": "Insert into terminal",
+  "setupInserted": "Script inserted · press Enter to run"
 }

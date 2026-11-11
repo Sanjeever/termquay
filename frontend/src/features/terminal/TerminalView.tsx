@@ -39,9 +39,13 @@ import { WebLinksAddon } from '@xterm/addon-web-links';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import TerminalSearch, { searchHighlightLimit } from './TerminalSearch';
 import { addLogHighlights } from './logHighlights';
-import { addShellIntegration, type CommandIndexEntry } from './shellIntegration';
+import {
+  addShellIntegration,
+  shellDirectorySetup,
+  type CommandIndexEntry,
+} from './shellIntegration';
 import type { CommandAttention } from './commandAttention';
-import { parseRecordedCommand } from './shellCompletionProtocol';
+import { parseCompletionMessage, parseRecordedCommand } from './shellCompletionProtocol';
 import { shellCompletionSetup } from './shellCompletionSetup';
 import useTerminalCompletion from './useTerminalCompletion';
 import TerminalCompletion from './TerminalCompletionPanel';
@@ -93,6 +97,7 @@ export type TerminalAction =
   | 'lineBreak'
   | 'find'
   | 'terminalCompletion'
+  | 'directoryReporting'
   | 'commandHelp'
   | 'copy'
   | 'paste'
@@ -132,6 +137,7 @@ const TerminalView = forwardRef<
     onAIReference?(reference: Reference): void;
     onSnippets(): void;
     onDirectory?(path: string, host: string): void;
+    onDirectoryStatus?(status: 'waiting' | 'inserted'): void;
     onFile?(path: string, line: number): void;
     onTitle?(title: string): void;
   }
@@ -159,6 +165,7 @@ const TerminalView = forwardRef<
     onAIReference,
     onSnippets,
     onDirectory,
+    onDirectoryStatus,
     onFile,
     onTitle,
   },
@@ -230,12 +237,11 @@ const TerminalView = forwardRef<
     if (terminal.current)
       terminal.current.options.disableStdin =
         locked || connected !== true || demoOutput !== undefined;
-    if (locked) {
+    if (locked || connected === false) {
       complete.current.dismiss();
       pendingPaste.current = undefined;
       setPaste(undefined);
       setIntegrationOpen(false);
-      nextIntegration.current = undefined;
     }
   }, [locked, connected, id, demoOutput]);
   const [zoom, setZoom] = useState(0);
@@ -253,6 +259,11 @@ const TerminalView = forwardRef<
   const running = useRef(false);
   const reminderCommand = useRef<number>();
   const [integrationOpen, setIntegrationOpen] = useState(false);
+  const [integrationMode, setIntegrationMode] = useState<'full' | 'directory'>('full');
+  const setupConsumed = useRef(false);
+  const [setupInserted, setSetupInserted] = useState(false);
+  const setupPending = useRef(false);
+  const directorySetupToken = useRef('');
   const [help, setHelp] = useState<{ command?: string }>();
   const [pathCompletion, setPathCompletion] = useState(false);
   const [setupToken, setSetupToken] = useState(() =>
@@ -260,7 +271,6 @@ const TerminalView = forwardRef<
       byte.toString(16).padStart(2, '0'),
     ).join(''),
   );
-  const nextIntegration = useRef<{ token: string; paths: boolean }>();
   const [tmuxOpen, setTmuxOpen] = useState(false);
   const [commandIndexOpen, setCommandIndexOpen] = useState(false);
   const [commandEntries, setCommandEntries] = useState<CommandIndexEntry[]>([]);
@@ -388,12 +398,29 @@ const TerminalView = forwardRef<
   }, [id, log?.recording, connected, setLogError]);
   const [shell, setShell] = useState<'bash' | 'zsh'>(local && System.IsMac() ? 'zsh' : 'bash');
   const shellSetup = useMemo(
-    () => shellCompletionSetup(shell, host, setupToken),
-    [shell, host, setupToken],
+    () =>
+      `{\n${integrationMode === 'directory' ? shellDirectorySetup(shell, host, setupToken) : shellCompletionSetup(shell, host, setupToken)}\n}`,
+    [shell, host, setupToken, integrationMode],
   );
   const integration = useRef<ReturnType<typeof addShellIntegration>>();
-  const callbacks = useRef({ onDirectory, onFile, onAttention, onActivate, onTitle, insert });
-  callbacks.current = { onDirectory, onFile, onAttention, onActivate, onTitle, insert };
+  const callbacks = useRef({
+    onDirectory,
+    onDirectoryStatus,
+    onFile,
+    onAttention,
+    onActivate,
+    onTitle,
+    insert,
+  });
+  callbacks.current = {
+    onDirectory,
+    onDirectoryStatus,
+    onFile,
+    onAttention,
+    onActivate,
+    onTitle,
+    insert,
+  };
   const shown = useRef(visible);
   shown.current = visible;
   const appFocused = useRef(document.hasFocus());
@@ -522,8 +549,10 @@ const TerminalView = forwardRef<
     }
     return true;
   }
-  function openIntegration() {
+  function openIntegration(mode: 'full' | 'directory' = 'full') {
     completion.dismiss();
+    setupConsumed.current = false;
+    setIntegrationMode(mode);
     setPathCompletion(false);
     setSetupToken(
       Array.from(crypto.getRandomValues(new Uint8Array(32)), (byte) =>
@@ -537,15 +566,6 @@ const TerminalView = forwardRef<
     const text = pendingPaste.current;
     if (text === undefined) return;
     pendingPaste.current = undefined;
-    if (nextIntegration.current) {
-      clearError('completion');
-      commandToken.current = nextIntegration.current.token;
-      completion.activate(
-        nextIntegration.current.token,
-        nextIntegration.current.paths && !containerConsole,
-      );
-      nextIntegration.current = undefined;
-    }
     terminal.current?.paste(text);
     setPaste(undefined);
     terminal.current?.focus();
@@ -584,6 +604,10 @@ const TerminalView = forwardRef<
   function action(name: TerminalAction) {
     const term = terminal.current;
     if (!term) return;
+    if (name === 'directoryReporting') {
+      openIntegration('directory');
+      return;
+    }
     if (name === 'lineBreak' && local) {
       sendFrame(windowsInput.current?.newline() ?? '\x1b[13;2u');
       term.focus();
@@ -704,6 +728,9 @@ const TerminalView = forwardRef<
     integration.current = addShellIntegration(
       term,
       (path, host) => {
+        setupPending.current = false;
+        setSetupInserted(false);
+        directorySetupToken.current = '';
         setCwd(path);
         callbacks.current.onDirectory?.(path, host);
       },
@@ -711,6 +738,18 @@ const TerminalView = forwardRef<
       (path, line) => callbacks.current.onFile?.(path, line),
       (kind) => complete.current.command(kind),
       (data) => {
+        const setup = parseCompletionMessage(data, directorySetupToken.current);
+        if (setup?.kind === 'error') {
+          reportError(
+            'directory',
+            setup.messageCode ? uiMessage(setup.messageCode) : setup.message,
+          );
+          directorySetupToken.current = '';
+          setupPending.current = false;
+          setSetupInserted(false);
+          callbacks.current.onDirectoryStatus?.('waiting');
+          return;
+        }
         const command = parseRecordedCommand(data, commandToken.current);
         if (command !== undefined) integration.current?.recordCommand(command);
         else complete.current.receive(data);
@@ -831,6 +870,10 @@ const TerminalView = forwardRef<
         setReminder(false);
         callbacks.current.onAttention?.();
         complete.current.invalidate();
+        setupPending.current = false;
+        setSetupInserted(false);
+        directorySetupToken.current = '';
+        callbacks.current.onDirectoryStatus?.('waiting');
         setConnected(false);
         setLog((previous) =>
           previous ? { ...previous, recording: false, finished: true } : previous,
@@ -844,6 +887,11 @@ const TerminalView = forwardRef<
     };
     const input = term.onData((data) => {
       if (inputLocked.current) return;
+      if (setupPending.current && (data === '\r' || data === '\n' || data === '\x03')) {
+        setupPending.current = false;
+        setSetupInserted(false);
+        callbacks.current.onDirectoryStatus?.('waiting');
+      }
       complete.current.input(data);
       const bytes = new TextEncoder().encode(data);
       if (stream.readyState !== stream.OPEN) return;
@@ -1613,8 +1661,13 @@ const TerminalView = forwardRef<
       {logError && !logErrorDismissed && (
         <ErrorNotice message={logError} onDismiss={() => setLogErrorDismissed(true)} />
       )}
-      {(connected !== true || cwd || (exitCode && exitCode !== '0') || streamError) && (
+      {(connected !== true ||
+        setupInserted ||
+        cwd ||
+        (exitCode && exitCode !== '0') ||
+        streamError) && (
         <div className="session-status">
+          {setupInserted && <span role="status">{translate('terminal:setupInserted')}</span>}
           {connected !== true && (
             <span role="status">
               {connected === null
@@ -1647,7 +1700,13 @@ const TerminalView = forwardRef<
         className="app-dialog"
       >
         <ModalContent>
-          <ModalHeader>{translate('terminal:currentShellIntegration')}</ModalHeader>
+          <ModalHeader>
+            {translate(
+              integrationMode === 'directory'
+                ? 'terminal:enableDirectoryReporting'
+                : 'terminal:currentShellIntegration',
+            )}
+          </ModalHeader>
           <ModalBody>
             <label className="form-field">
               Shell
@@ -1655,12 +1714,20 @@ const TerminalView = forwardRef<
                 value={shell}
                 onChange={(event) => setShell(event.target.value as 'bash' | 'zsh')}
               >
-                <option value="bash">Bash 4.4+</option>
+                <option value="bash">
+                  {integrationMode === 'directory' ? 'Bash' : 'Bash 4.4+'}
+                </option>
                 <option value="zsh">Zsh</option>
               </SelectControl>
             </label>
-            <p className="muted">{translate('terminal:executeAtTheCurrentShellPromptItExpires')}</p>
-            {!containerConsole && (
+            <p className="muted">
+              {translate(
+                integrationMode === 'directory'
+                  ? 'terminal:directoryReportingDescription'
+                  : 'terminal:executeAtTheCurrentShellPromptItExpires',
+              )}
+            </p>
+            {integrationMode === 'full' && !containerConsole && (
               <label className="terminal-path-confirm">
                 <input
                   type="checkbox"
@@ -1671,7 +1738,12 @@ const TerminalView = forwardRef<
                 {translate('terminal:confirmThisShellUsesTheSameFilesystemAs')}
               </label>
             )}
-            <pre className="paste-preview">{shellSetup}</pre>
+            <p className="muted">{translate('terminal:integrationInsertHint')}</p>
+            <details ref={pastePreviewRef}>
+              <summary>{translate('terminal:setupScript')}</summary>
+              <pre className="paste-preview">{shellSetup}</pre>
+            </details>
+            {error?.source === 'input' && <ErrorNotice message={errorMessage(error.message)} />}
           </ModalBody>
           <ModalFooter>
             <Button variant="light" onPress={() => setIntegrationOpen(false)}>
@@ -1680,16 +1752,27 @@ const TerminalView = forwardRef<
             <Button
               color="primary"
               onPress={() => {
-                if (insert(shellSetup + '\n', true)) {
-                  nextIntegration.current = {
-                    token: setupToken,
-                    paths: pathCompletion && !containerConsole && !(local && System.IsWindows()),
-                  };
+                if (setupConsumed.current) return;
+                if (insert(shellSetup, false)) {
+                  setupConsumed.current = true;
+                  clearError('directory');
+                  clearError('completion');
+                  if (integrationMode === 'directory') directorySetupToken.current = setupToken;
+                  else {
+                    commandToken.current = setupToken;
+                    completion.activate(
+                      setupToken,
+                      pathCompletion && !containerConsole && !(local && System.IsWindows()),
+                    );
+                  }
+                  setupPending.current = true;
+                  setSetupInserted(true);
+                  callbacks.current.onDirectoryStatus?.('inserted');
                   setIntegrationOpen(false);
                 }
               }}
             >
-              {translate('terminal:insertAndPreview')}
+              {translate('terminal:insertIntoTerminal')}
             </Button>
           </ModalFooter>
         </ModalContent>
@@ -1697,7 +1780,6 @@ const TerminalView = forwardRef<
       <Modal
         isOpen={paste !== undefined}
         onClose={() => {
-          nextIntegration.current = undefined;
           pendingPaste.current = undefined;
           setPaste(undefined);
           terminal.current?.focus();
@@ -1716,7 +1798,6 @@ const TerminalView = forwardRef<
             <Button
               variant="light"
               onPress={() => {
-                nextIntegration.current = undefined;
                 pendingPaste.current = undefined;
                 setPaste(undefined);
                 terminal.current?.focus();

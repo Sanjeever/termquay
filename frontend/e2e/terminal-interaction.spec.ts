@@ -31,6 +31,43 @@ async function paste(page: Page, text: string) {
   }, text);
 }
 
+for (const bracketed of [false, true]) {
+  test(`shell integration uses one preview and waits for Enter (bracketed paste ${bracketed})`, async ({
+    page,
+  }) => {
+    const { inputs } = await terminal(page, bracketed ? '\x1b[?2004hready\r\n' : 'ready\r\n');
+    await page.getByRole('button', { name: 'Terminal actions', exact: true }).click();
+    await page
+      .getByRole('menuitem', { name: 'Enable current shell integration…', exact: true })
+      .click();
+    const dialog = page.getByRole('dialog', { name: 'Current shell integration', exact: true });
+    await expect(dialog.locator('details')).not.toHaveAttribute('open');
+    const script = (await dialog.locator('pre').textContent()) || '';
+    expect(script).toContain('__termquay_directory_prompt');
+    expect(script).toContain('__termquay_record');
+    expect(script.startsWith('{\n')).toBe(true);
+    expect(script.endsWith('\n}')).toBe(true);
+    await dialog
+      .getByRole('button', { name: 'Insert into terminal', exact: true })
+      .evaluate((element) => {
+        (element as HTMLButtonElement).click();
+        (element as HTMLButtonElement).click();
+      });
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    const input = script.replace(/\n/g, '\r');
+    await expect.poll(() => inputs.join('')).toBe(bracketed ? `\x1b[200~${input}\x1b[201~` : input);
+    await expect(
+      page.getByText('Script inserted · press Enter to run', { exact: true }),
+    ).toBeVisible();
+    await expect(page.locator('.xterm-helper-textarea')).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect.poll(() => inputs.join('').endsWith('\r')).toBe(true);
+    await expect(
+      page.getByText('Script inserted · press Enter to run', { exact: true }),
+    ).toHaveCount(0);
+  });
+}
+
 test('direct multiline paste is opt-in per session and retains bracketed paste across hiding', async ({
   page,
 }) => {
