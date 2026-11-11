@@ -15,7 +15,7 @@ The release archives contain the application, without requiring Go, Node, pnpm o
 
 - Use the Go language/toolchain in [go.mod](../go.mod). Keep the Wails CLI aligned with its module version.
 - Use the matching pnpm declarations in [package.json](../package.json) and [frontend/package.json](../frontend/package.json), the checked-in [frontend lockfile](../frontend/pnpm-lock.yaml), and a Node version compatible with pnpm/Vite. [CI](../.github/workflows/ci.yml) defines the build matrix; actual verification environments are recorded in the [verification ledger](#verification-and-known-gaps).
-- Source builds need platform tools: macOS Command Line Tools, the [Windows build tools](../build/windows/Taskfile.yml), and a C compiler plus the appropriate GTK/WebKit development libraries on Linux. [CI](../.github/workflows/ci.yml) lists Ubuntu development packages; runtime requirements are [above](#packaged-desktop). Cross-compilation does not verify a native WebView.
+- Source builds need macOS Command Line Tools, or a C compiler and GTK/WebKit development libraries on Linux. The [Windows tasks](../build/windows/Taskfile.yml) default to `CGO_ENABLED=0`; race detection or explicitly enabling CGO needs a compatible C compiler. Installer tools are separate [packaging prerequisites](#build-and-local-packaging). [CI](../.github/workflows/ci.yml) lists Ubuntu development packages; runtime requirements are [above](#packaged-desktop). Cross-compilation does not verify a native WebView.
 - Keep toolchain changes project-local. Do not change global package manager configuration, dependency mirrors or another project's tools.
 
 [Taskfile.yml](../Taskfile.yml), [build/config.yml](../build/config.yml) and [platform tasks](../build) define ports, resources and build flags. Template server/Docker/iOS tasks do not imply supported product deployment modes: this is a desktop application.
@@ -44,7 +44,7 @@ Development tasks generate bindings and start the desktop and Vite server. Brows
 
 ### Development commands
 
-The root [package.json](../package.json) provides these entry points. Keep its pnpm declaration aligned with [frontend/package.json](../frontend/package.json).
+The root [package.json](../package.json) provides these entry points. This table explains their purpose; the manifest defines their current command expansions. Keep its pnpm declaration aligned with [frontend/package.json](../frontend/package.json).
 
 | Command | Action |
 | --- | --- |
@@ -199,7 +199,7 @@ Terminal selection copying removes trailing ASCII spaces from each logical line 
 
 In a local terminal's actions menu, **Paste multiline text directly** disables multiline confirmation for that PTY until it closes. **Confirm multiline paste** restores it. The default remains confirmation. Shell-integration setup uses one preview with an expandable script; **Insert into terminal** inserts a grouped script without a final newline. At an empty shell prompt, press Enter to execute it. This also applies when bracketed paste is unavailable. Integration expires when that shell exits. Direct paste preserves the application's bracketed-paste mode. While browsing normal-buffer history, new output leaves the viewport in place and **New output** returns to the live position. Pane titles follow bounded terminal title reports; directory tracking remains separate.
 
-Local paste reads text through the native clipboard. If there is no text and the native clipboard advertises an image, it sends Ctrl+V to the TUI, preserving negotiated ConPTY key records. The local CLI owns image retrieval and attachment; image bytes are not sent as terminal text. Image-only browser paste events follow the same shortcut path. This requires a CLI with native clipboard-image support; remote terminals cannot read the host clipboard this way. Native file drops insert quoted absolute paths without Enter, using the target PTY's actual shell kind. [Input preparation](../internal/app/local_terminal_input.go) bounds file count/input bytes and rejects unavailable paths, control characters, unsafe cmd.exe expansion and unconfigured WSL path mapping.
+Local paste reads text through the native clipboard. If there is no text and the native clipboard advertises an image, it sends Ctrl+V to the TUI, preserving negotiated ConPTY key records. The application running inside that terminal owns image retrieval and attachment; image bytes are not sent as terminal text. Image-only browser paste events follow the same shortcut path. This requires a terminal application with native clipboard-image support; remote terminals cannot read the host clipboard this way. Native file drops insert quoted absolute paths without Enter, using the target PTY's actual shell kind. [Input preparation](../internal/app/local_terminal_input.go) bounds file count/input bytes and rejects unavailable paths, control characters, unsafe cmd.exe expansion and unconfigured WSL path mapping.
 
 A BEL from an unfocused terminal marks that pane/workspace **Needs attention**. Focusing that terminal acknowledges it; focusing a different pane does not. **Enable terminal bell notifications** explicitly requests system notification permission for the session. Repeated bells coalesce until acknowledgement, and notification activation returns to the owning terminal. Bell handling does not infer completion or approval requests from output text. Existing shell-integration completion states/reminders remain available independently.
 
@@ -236,20 +236,14 @@ Enable **Settings → Local CLI**, unlock the desktop, then discover exact live 
 termquay --version
 termquay --help
 termquay status --json --no-input
-termquay connection list --json --no-input
 termquay workspace list --json --no-input
 termquay file list --workspace '<exact-workspace-id>' --path /tmp --json --no-input
 termquay file read --workspace '<exact-workspace-id>' --path '<absolute-text-file-path>' --json --no-input
-termquay service inspect --workspace '<exact-workspace-id>' --unit '<full-name.service>' --json --no-input
-termquay port list --workspace '<exact-workspace-id>' --json --no-input
-termquay container list --workspace '<exact-workspace-id>' --json --no-input
-termquay task list --json --no-input
-termquay run list --json --no-input
-termquay run show --id '<exact-run-id>' --json --no-input
+termquay exec --help
 termquay exec --workspace '<exact-workspace-id>' --script-file '<local-script-path>' --timeout 30s --json --no-input
 ```
 
-Use the installed program's help as the command contract; repository definitions are in [CLI help](../internal/cli/help.go) and the [IPC protocol](../internal/localapi/protocol.go). On macOS it is inside `.app/Contents/MacOS/termquay`; Windows retains `.exe` and callers must wait and collect its exit code. IPC supports the same OS user/environment, not a container/WSL/remote-development proxy.
+Use `termquay --help` to discover catalog, service, port, container, task and run queries, then `<command> --help` for arguments. The installed program's help is the command contract; repository definitions are in [CLI help](../internal/cli/help.go) and the [IPC protocol](../internal/localapi/protocol.go). On macOS it is inside `.app/Contents/MacOS/termquay`; Windows retains `.exe` and callers must wait and collect its exit code. IPC supports the same OS user/environment, not a container/WSL/remote-development proxy.
 
 Before business commands, check the status response has no `error`, `data.running=true`, `data.compatible=true`, `data.enabled=true` and `data.locked=false`. Status remains readable with exit code zero when CLI access is disabled or the application is locked; process success alone does not establish authorization. Handle setup/unlock in the desktop.
 
@@ -298,6 +292,16 @@ The [historical SSH run](development.zh-CN.md#ssh-verification-2026-11-05) recor
 Report unit tests, local protocol integration, browser substitutes, native desktop, real SSH, real RDP and real WebDAV separately. A browser substitute, local SSH fixture or cross-build cannot establish native/real-remote acceptance.
 
 Historical evidence and unresolved gaps remain in the [Chinese acceptance ledger](development.zh-CN.md#已有验收记录与缺口), including [AI acceptance](development.zh-CN.md#内置-ai-验收2026-11-06) and [Windows SSH AI adaptation](development.zh-CN.md#windows-ssh-ai-适配验收2026-11-09). Platform input/IME, RDP clipboard/concurrency, native menus/dialogs, real multi-hop reconnect, provider behavior and sustained application-wide resource measurements need environment-specific evidence. Do not present historical results as current checks.
+
+### Release 1.4.5 verification (2026-11-11)
+
+The documentation audit started at `cd6c4f5`. It checked both README entry points, architecture/development guides, AGENTS.md, affected comments, CLI help/examples and the distributed Agent skill against manifests, tasks, schemas, direct callers and effective tests. README comparisons now link to operational guidance; CLI argument details stay in executable help. The audit corrected tool-rail placement, clarified Windows CGO prerequisites, distinguished SFTP module versions from protocol versions, and separated terminal-application clipboard handling from TermQuay's local CLI. Identity, backpressure, recovery and the explicit unbounded ordinary-directory exception retain their design rationale. The [historical SSH deadline failures](#known-ssh-test-deadline-failures) remain unresolved; this audit did not rerun those real-server cases or change their contracts.
+
+On Windows 11 build 26100 / amd64, Go 1.26.10, Node 22.17.0 and pnpm 11.20.0, the initial `pnpm verify` passed formatting, frontend lint/build, Go vet/package tests, 5 script tests, 129 frontend tests and 52 Chromium regressions. Three frontend tests were skipped by platform conditions. Real-service opt-ins were removed from the check process; real SSH/WebDAV and saved-connection integration were not exercised. A separate TypeScript check passed.
+
+The preceding [CI run at cd6c4f5](https://github.com/Sanjeever/termquay/actions/runs/42952805989) failed two test fixtures. The narrow Chinese workspace assertion sampled a translated panel during its entrance animation; it now polls the same geometry bound rather than accepting greater overlap. The Windows PowerShell Unicode case returned the expected output but exited nonzero after 20.34 seconds, exceeding its 15-second test context. That timing is consistent with process-startup pressure, but the old failure omitted context/stderr evidence. The local-process fixture now allows one minute and includes both in failures; production command deadlines and exit/output assertions are unchanged. All native PowerShell cases passed locally before and after this adjustment. After the fixture changes, formatting, frontend lint and TypeScript checks passed; both language variants of the geometry regression passed three consecutive runs each.
+
+These are local automated checks, not native workbench, physical input/IME, real SSH/RDP/WebDAV, desktop upgrade or sustained resource acceptance. Candidate and publication outcomes are recorded below when available.
 
 ### Terminal defaults reset correction
 
