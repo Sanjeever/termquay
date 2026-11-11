@@ -53,6 +53,12 @@ func validatePortableUI(values map[string]string) error {
 					return errors.New("Invalid language preference")
 				}
 			}
+			if raw, ok := settings["localEditor"]; ok {
+				var editor string
+				if err := json.Unmarshal(raw, &editor); err != nil || !slices.Contains([]string{"vscode", "vscode-insiders"}, editor) {
+					return appmessage.New("backend:unsupportedLocalEditor", "Unsupported local editor")
+				}
+			}
 			for _, field := range []string{"terminalRenderer", "localTerminalRenderer"} {
 				if raw, ok := settings[field]; ok {
 					var renderer string

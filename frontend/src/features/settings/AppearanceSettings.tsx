@@ -133,6 +133,22 @@ export default function AppearanceSettings({
                 <option value="custom">{translate('settings:customFont')}</option>
               </SelectControl>
             </div>
+            <div className="settings-row">
+              <label htmlFor="local-file-editor">{translate('settings:localFileEditor')}</label>
+              <SelectControl
+                id="local-file-editor"
+                value={appearance.localEditor}
+                onChange={(event) =>
+                  update({
+                    ...appearance,
+                    localEditor: event.target.value as Appearance['localEditor'],
+                  })
+                }
+              >
+                <option value="vscode">Visual Studio Code</option>
+                <option value="vscode-insiders">Visual Studio Code Insiders</option>
+              </SelectControl>
+            </div>
             {appearance.monoFont === 'custom' && (
               <div className="settings-row">
                 <label htmlFor="appearance-custom-mono-font">
@@ -294,6 +310,7 @@ export default function AppearanceSettings({
               terminalCopyOnSelect: defaultAppearance.terminalCopyOnSelect,
               terminalRenderer: defaultAppearance.terminalRenderer,
               localTerminalRenderer: defaultAppearance.localTerminalRenderer,
+              localEditor: defaultAppearance.localEditor,
             });
             onFontSize(14);
           }

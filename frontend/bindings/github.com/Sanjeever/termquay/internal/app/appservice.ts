@@ -636,6 +636,10 @@ export function OpenLocalTerminal(kind: string, directory: string, cols: number,
     return $Call.ByID(2099865801, kind, directory, cols, rows);
 }
 
+export function OpenLocalTerminalFile(id: string, path: string, directory: string, line: number, column: number, editor: string): $CancellablePromise<void> {
+    return $Call.ByID(3880128751, id, path, directory, line, column, editor);
+}
+
 export function OpenRDP(host: string, port: number): $CancellablePromise<rdp$0.Grant> {
     return $Call.ByID(657644600, host, port);
 }

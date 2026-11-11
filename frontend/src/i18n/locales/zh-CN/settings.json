@@ -1,4 +1,6 @@
 {
+  "localFileEditor": "本地文件编辑器",
+  "invalidLocalEditor": "本地文件编辑器设置无效",
   "defaultShortcutPreset": "TermQuay 默认",
   "restartImpact": "重启将关闭 {{workspaces}} 并停止 {{transfers}}。",
   "importImpact": "将新增 {{connections}} 和 {{credentials}}，包含依赖跳板。重复导入会产生新副本。",

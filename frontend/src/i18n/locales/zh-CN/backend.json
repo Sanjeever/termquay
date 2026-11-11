@@ -1,4 +1,9 @@
 {
+  "invalidLocalFileLink": "本地文件链接无效",
+  "unsupportedLocalEditor": "不支持此本地编辑器",
+  "localFileDirectoryUnknown": "无法确认文件链接原始目录，请选择基准目录。",
+  "localFileLinkNotRegular": "文件链接必须指向普通文件",
+  "localFileMappingUnsupported": "此终端文件系统尚未映射到本地编辑器路径",
   "searchCanceledOrTimedOut": "搜索已取消或超时",
   "searchDirectoryLimit": "已达到目录扫描上限，请缩小搜索范围",
   "searchReadLimit": "已达到内容读取上限，请缩小搜索范围",

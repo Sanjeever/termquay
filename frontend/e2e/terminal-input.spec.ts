@@ -80,6 +80,37 @@ test('repeated local newline shortcuts cannot fall through as ordinary Enter', a
   await expect.poll(() => inputs.join('')).toBe('\x1b[13;2uaa\r');
 });
 
+test('local absolute file links open the selected editor after a modifier click', async ({
+  page,
+}) => {
+  const path = '/work/project/main.go';
+  await openTerminal(page, `${path}:42\r\n`);
+  const opened: unknown[][] = [];
+  await page.route('**/wails/runtime*', (route) => {
+    const body = route.request().postDataJSON();
+    if (body?.args?.methodID === 3880128751) opened.push(body.args.args);
+    return route.fulfill({ status: 200, contentType: 'application/json', body: 'null' });
+  });
+  const row = page.locator('.xterm-rows > div').filter({ hasText: path });
+  await expect(row).toBeVisible();
+  const screen = page.locator('.xterm-screen');
+  await screen.click({ position: { x: 24, y: 8 } });
+  expect(opened).toEqual([]);
+  await screen.hover({ position: { x: 24, y: 8 } });
+  await expect(screen).toHaveClass(/xterm-cursor-pointer/);
+  await screen.click({ position: { x: 24, y: 8 }, modifiers: ['Control'] });
+  await expect.poll(() => opened).toEqual([['terminal-fixture', path, '', 42, 1, 'vscode']]);
+  await page.getByRole('button', { name: 'Terminal settings', exact: true }).click();
+  await page.getByRole('button', { name: 'Visual Studio Code', exact: true }).click();
+  await page.getByRole('option', { name: 'Visual Studio Code Insiders', exact: true }).click();
+  await page.getByRole('button', { name: 'Terminal settings', exact: true }).click();
+  await screen.hover({ position: { x: 40, y: 8 } });
+  await expect(screen).toHaveClass(/xterm-cursor-pointer/);
+  await screen.click({ position: { x: 40, y: 8 }, modifiers: ['Control'] });
+  await expect.poll(() => opened.length).toBe(2);
+  expect(opened[1]).toEqual(['terminal-fixture', path, '', 42, 1, 'vscode-insiders']);
+});
+
 test('direct IME punctuation is sent once across keyup and repeated keydown events', async ({
   page,
 }) => {

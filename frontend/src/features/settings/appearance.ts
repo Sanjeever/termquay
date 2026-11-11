@@ -28,6 +28,7 @@ export type Appearance = {
   terminalCopyOnSelect: boolean;
   terminalRenderer: 'dom' | 'webgl';
   localTerminalRenderer: 'dom' | 'webgl';
+  localEditor: 'vscode' | 'vscode-insiders';
 };
 export const defaultAppearance: Appearance = {
   language: 'auto',
@@ -41,6 +42,7 @@ export const defaultAppearance: Appearance = {
   terminalCopyOnSelect: false,
   terminalRenderer: 'dom',
   localTerminalRenderer: 'webgl',
+  localEditor: 'vscode',
 };
 export const uiFonts = {
   system:
@@ -93,6 +95,11 @@ export function parseAppearance(value: string | null): Appearance {
     throw uiMessage('settings:invalidTerminalRendererSettings');
   if (settings.language !== undefined && !['auto', 'zh-CN', 'en'].includes(settings.language))
     throw uiMessage('invalidLanguage');
+  if (
+    settings.localEditor !== undefined &&
+    !['vscode', 'vscode-insiders'].includes(settings.localEditor)
+  )
+    throw uiMessage('settings:invalidLocalEditor');
   return {
     language: settings.language ?? 'auto',
     theme: settings.theme,
@@ -106,6 +113,7 @@ export function parseAppearance(value: string | null): Appearance {
     terminalRenderer: settings.terminalRenderer ?? defaultAppearance.terminalRenderer,
     localTerminalRenderer:
       settings.localTerminalRenderer ?? defaultAppearance.localTerminalRenderer,
+    localEditor: settings.localEditor ?? defaultAppearance.localEditor,
   };
 }
 

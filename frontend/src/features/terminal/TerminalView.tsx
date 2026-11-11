@@ -81,6 +81,7 @@ import {
 import {
   CloseLocalTerminal,
   LocalTerminalHasClipboardImage,
+  OpenLocalTerminalFile,
   ResizeLocalTerminal,
 } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 import {
@@ -220,6 +221,8 @@ const TerminalView = forwardRef<
     if (canAI && text) onAIReference?.({ workspace, terminal: id, text });
   }
   const { appearance, dark } = useAppearance();
+  const localEditor = useRef(appearance.localEditor);
+  localEditor.current = appearance.localEditor;
   const fontFamily = monospaceFont(appearance);
   const colors = terminalTheme(appearance.terminalPalette, dark);
   const renderer = local ? appearance.localTerminalRenderer : appearance.terminalRenderer;
@@ -757,7 +760,14 @@ const TerminalView = forwardRef<
         callbacks.current.onDirectory?.(path, host);
       },
       setExitCode,
-      (path, line) => callbacks.current.onFile?.(path, line),
+      (path, line) => {
+        if (demoOutput !== undefined) return;
+        if (local)
+          OpenLocalTerminalFile(id, path, '', line, 1, localEditor.current)
+            .then(() => clearError('link'))
+            .catch((error) => reportError('link', error));
+        else callbacks.current.onFile?.(path, line);
+      },
       (kind) => complete.current.command(kind),
       (data) => {
         const setup = parseCompletionMessage(data, directorySetupToken.current);

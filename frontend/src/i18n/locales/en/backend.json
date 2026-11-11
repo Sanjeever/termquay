@@ -1,4 +1,9 @@
 {
+  "invalidLocalFileLink": "Invalid local file link",
+  "unsupportedLocalEditor": "Unsupported local editor",
+  "localFileDirectoryUnknown": "The file link's original directory is unknown. Choose its base directory.",
+  "localFileLinkNotRegular": "The file link must refer to a regular file",
+  "localFileMappingUnsupported": "This terminal's filesystem is not mapped to local editor paths",
   "searchCanceledOrTimedOut": "Search canceled or timed out",
   "searchDirectoryLimit": "Directory scan limit reached. Narrow the search scope.",
   "searchReadLimit": "Content read limit reached. Narrow the search scope.",

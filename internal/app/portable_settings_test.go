@@ -2,6 +2,20 @@ package app
 
 import "testing"
 
+func TestPortableLocalEditor(t *testing.T) {
+	base := `"theme":"system","uiFont":"system","monoFont":"system","terminalPalette":"theme"`
+	for _, value := range []string{`"vscode"`, `"vscode-insiders"`} {
+		if err := validatePortableUI(map[string]string{"appearance": "{" + base + `,"localEditor":` + value + "}"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, value := range []string{`null`, `42`, `"https"`, `""`} {
+		if err := validatePortableUI(map[string]string{"appearance": "{" + base + `,"localEditor":` + value + "}"}); err == nil {
+			t.Fatalf("accepted editor %s", value)
+		}
+	}
+}
+
 func TestPortableTerminalShortcuts(t *testing.T) {
 	valid := `{"nextWorkspace":"Ctrl+Tab","previousWorkspace":"Ctrl+Shift+Tab","newLocalTerminal":"Ctrl+Shift+KeyT","workspaceSearch":"Ctrl+Shift+KeyO","copy":"Ctrl+Shift+KeyC","paste":"Ctrl+Shift+KeyV","closeTab":"Ctrl+Shift+KeyW"}`
 	if err := validatePortableUI(map[string]string{"shortcuts": valid}); err != nil {

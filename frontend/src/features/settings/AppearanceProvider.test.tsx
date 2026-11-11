@@ -293,6 +293,7 @@ test('terminal defaults restore both renderers and retain appearance preferences
       uiZoom: 1.25,
       terminalRenderer: 'webgl',
       localTerminalRenderer: 'dom',
+      localEditor: 'vscode-insiders',
     }),
   );
   const settings = (
@@ -308,6 +309,7 @@ test('terminal defaults restore both renderers and retain appearance preferences
     uiZoom: 1.25,
     terminalRenderer: 'dom',
     localTerminalRenderer: 'webgl',
+    localEditor: 'vscode',
   });
   mounted.unmount();
   render(settings);

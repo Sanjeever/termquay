@@ -9,6 +9,16 @@ import {
   terminalTheme,
 } from './appearance.ts';
 
+test('local editor defaults migrate and invalid editor identifiers are rejected', () => {
+  const { localEditor, ...legacy } = defaultAppearance;
+  assert.equal(parseAppearance(JSON.stringify(legacy)).localEditor, localEditor);
+  assert.equal(
+    parseAppearance(JSON.stringify({ ...legacy, localEditor: 'vscode-insiders' })).localEditor,
+    'vscode-insiders',
+  );
+  assert.throws(() => parseAppearance(JSON.stringify({ ...legacy, localEditor: 'https' })));
+});
+
 test('外观设置缺省跟随系统，非法值明确拒绝', () => {
   assert.deepEqual(parseAppearance(null), defaultAppearance);
   assert.throws(() => parseAppearance('{'));
