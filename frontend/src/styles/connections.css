@@ -30,7 +30,7 @@
   color: var(--color-muted);
 }
 .connection-catalog {
-  --catalog-grid: 18px minmax(130px, 1.4fr) minmax(120px, 1fr) minmax(64px, 0.55fr) 44px;
+  --catalog-grid: 18px minmax(130px, 1.4fr) minmax(120px, 1fr) minmax(64px, 0.55fr) 38px 104px;
   container-type: inline-size;
   flex: 1;
   min-width: 0;
@@ -353,7 +353,7 @@
 }
 .connection-row {
   align-items: center;
-  height: 44px;
+  min-height: 44px;
   border-radius: var(--radius);
   margin-bottom: 2px;
 }
@@ -395,7 +395,7 @@
 @container (max-width: 800px) {
   .connection-name,
   .connection-name-columns {
-    grid-template-columns: 18px minmax(0, 1fr);
+    grid-template-columns: 18px minmax(0, 1fr) 104px;
   }
   .connection-row {
     height: 56px;
@@ -418,6 +418,10 @@
   }
   .connection-inline-user {
     display: inline;
+  }
+  .connection-session-state {
+    grid-column: 3;
+    grid-row: 1 / 3;
   }
   .catalog-toolbar h1 {
     font-size: 15px;
@@ -454,9 +458,10 @@
 }
 .connection-session-state {
   display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  padding-block: 6px;
+  line-height: 1.5;
 }
 .row-menu {
   opacity: 0;

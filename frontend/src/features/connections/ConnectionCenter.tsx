@@ -846,6 +846,7 @@ export default function ConnectionCenter({
               )}
               {sortHeading('username', translate('connections:username'), 'connection-user')}
               {sortHeading('protocol', translate('connections:protocol'), 'connection-protocol')}
+              <span className="connection-state-heading">{translate('connections:status')}</span>
             </div>
             <Tooltip
               content={
@@ -984,10 +985,10 @@ export default function ConnectionCenter({
                     {c.host}:{c.port}
                   </span>
                   <span className="connection-user">{c.username}</span>
-                  <small className="connection-protocol">
-                    {c.protocol.toUpperCase()}
+                  <small className="connection-protocol">{c.protocol.toUpperCase()}</small>
+                  <small className="connection-session-state">
                     {sessions[c.id]?.length ? (
-                      <span className="connection-session-state">
+                      <span>
                         {[...new Set(sessions[c.id])]
                           .map(
                             (state) =>

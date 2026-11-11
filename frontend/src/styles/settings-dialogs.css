@@ -713,7 +713,10 @@
   width: fit-content;
   padding: 0;
   text-align: left;
-  color: var(--color-muted);
+  color: var(--color-text);
+}
+.metric-inspect:disabled {
+  opacity: 1;
 }
 .metric-inspect:hover:not(:disabled) {
   color: var(--color-text);

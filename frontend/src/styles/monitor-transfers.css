@@ -47,6 +47,7 @@
   padding: 0 16px 16px;
   overflow: auto;
   background: var(--color-surface);
+  overflow-wrap: anywhere;
 }
 .monitor-error {
   display: flex;
@@ -170,9 +171,13 @@
 }
 .metric {
   display: grid;
+  min-width: 0;
   gap: 8px;
   font-size: 12px;
   margin: 18px 0;
+}
+.metric > * {
+  min-width: 0;
 }
 .metric > span {
   color: var(--color-muted);
