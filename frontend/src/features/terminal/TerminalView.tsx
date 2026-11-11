@@ -644,6 +644,16 @@ const TerminalView = forwardRef<
           else if (await LocalTerminalHasClipboardImage(id)) {
             if (terminal.current === term) sendFrame(windowsInput.current?.imagePaste() ?? '\x16');
           }
+          requestAnimationFrame(() => {
+            if (
+              terminal.current === term &&
+              shown.current &&
+              focusRequested.current &&
+              pendingPaste.current === undefined &&
+              !document.querySelector('[role=dialog]')
+            )
+              term.focus();
+          });
         })
         .catch((e) => {
           if (terminal.current === term) reportError('clipboard', e);

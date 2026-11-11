@@ -130,6 +130,37 @@ test('interrupt, escape, tab navigation and modified input reach the PTY unchang
   await expect.poll(() => inputs.join('')).toBe('\x03\x1b\x1b\t\x1b[Z\n');
 });
 
+for (const multiline of [false, true]) {
+  test(`menu paste restores terminal focus for direct ${multiline ? 'multiline' : 'single-line'} input`, async ({
+    page,
+  }) => {
+    const { inputs } = await terminal(page);
+    const text = multiline ? 'first\nsecond' : 'single-line prompt';
+    await page.route('**/wails/runtime*', (route) => {
+      const body = route.request().postDataJSON();
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(body?.object === 1 && body?.method === 1 ? text : null),
+      });
+    });
+    if (multiline) {
+      await page.getByRole('button', { name: 'Terminal actions', exact: true }).click();
+      await page
+        .getByRole('menuitem', { name: 'Paste multiline text directly', exact: true })
+        .click();
+      await page.keyboard.press('Escape');
+    }
+    await page.getByRole('button', { name: 'Terminal actions', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Paste', exact: true }).click();
+    const pasted = `\x1b[200~${text.replace(/\n/g, '\r')}\x1b[201~`;
+    await expect.poll(() => inputs.join('')).toBe(pasted);
+    await expect(page.locator('.xterm-helper-textarea')).toBeFocused();
+    await page.keyboard.type('next');
+    await expect.poll(() => inputs.join('')).toBe(`${pasted}next`);
+  });
+}
+
 for (const windows of [false, true]) {
   test(`native image paste sends the TUI clipboard shortcut (${windows ? 'ConPTY' : 'legacy'})`, async ({
     page,
@@ -158,6 +189,7 @@ for (const windows of [false, true]) {
       .poll(() => inputs.join(''))
       .toBe(windows ? '\x1b[86;47;22;1;8;1_\x1b[86;47;22;0;8;1_' : '\x16');
     await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.locator('.xterm-helper-textarea')).toBeFocused();
   });
 }
 
