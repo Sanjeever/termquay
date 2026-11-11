@@ -298,6 +298,16 @@ Report unit tests, local protocol integration, browser substitutes, native deskt
 
 Historical evidence and unresolved gaps remain in the [Chinese acceptance ledger](development.zh-CN.md#已有验收记录与缺口), including [AI acceptance](development.zh-CN.md#内置-ai-验收2026-11-06) and [Windows SSH AI adaptation](development.zh-CN.md#windows-ssh-ai-适配验收2026-11-09). Platform input/IME, RDP clipboard/concurrency, native menus/dialogs, real multi-hop reconnect, provider behavior and sustained application-wide resource measurements need environment-specific evidence. Do not present historical results as current checks.
 
+### Release 1.4.6 verification (2026-11-11)
+
+Release preparation started from `3f3213c` on macOS 26.6.2 / arm64, Go 1.26.10, Node 26.11.0 and pnpm 11.20.0. The version log covers changes since `v1.4.5`; the version tool synchronized platform resources, and version consistency and the dependency/license release audit passed. Both README entry points, architecture/development guides, contributor instructions and the preceding terminal verification record were reviewed against the release diff. No dependency, CLI, protocol or backup-format change is part of this release preparation.
+
+The initial aggregate check passed formatting, frontend lint/build, Go vet/package tests, 5 script tests and 137 frontend tests, with three Bash-hook cases skipped by their shell-availability guard. Its Chromium suite passed 60 cases and failed the directory-setup cancellation regression. The unchanged regression then failed all three isolated repetitions: Ctrl+C was sent before the closing dialog released focus. The test now waits for dialog removal and terminal focus before keyboard input, and verifies the transmitted interrupt. All three corrected repetitions passed without changing product behavior.
+
+After the test correction, local `pnpm verify` passed formatting, frontend lint/build and TypeScript compilation, Go vet/package tests, 5 script tests, 137 frontend tests and all 61 Chromium regressions. The same three Bash-hook cases remained skipped. Existing macOS SDK/deployment-target linker and frontend bundle-size warnings remain.
+
+Current release checks do not establish native workbench interaction, physical input/IME, real SSH/RDP/WebDAV or model-provider behavior, actual external-editor activation, old-to-new desktop upgrade or sustained resource acceptance. Earlier dated native and browser evidence remains separate.
+
 ### Release 1.4.5 verification (2026-11-11)
 
 The documentation audit started at `cd6c4f5`. It checked both README entry points, architecture/development guides, AGENTS.md, affected comments, CLI help/examples and the distributed Agent skill against manifests, tasks, schemas, direct callers and effective tests. README comparisons now link to operational guidance; CLI argument details stay in executable help. The audit corrected tool-rail placement, clarified Windows CGO prerequisites, distinguished SFTP module versions from protocol versions, and separated terminal-application clipboard handling from TermQuay's local CLI. Identity, backpressure, recovery and the explicit unbounded ordinary-directory exception retain their design rationale. The [historical SSH deadline failures](#known-ssh-test-deadline-failures) remain unresolved; this audit did not rerun those real-server cases or change their contracts.

@@ -392,6 +392,10 @@ macOS 菜单栏提供连接、终端、标签关闭、显示、界面缩放和�
 
 “终端与编辑器”的“恢复默认”曾遗漏本地终端渲染设置，现已修复，并有先失败后通过的组件回归。触发条件、引入提交和修复范围统一见 [Terminal defaults reset correction](development.md#terminal-defaults-reset-correction)。
 
+### 1.4.6 发布验收（2026-11-11）
+
+提交、环境、版本与许可核对、目录设置取消回归的失败及修正证据统一见 [Release 1.4.6 verification](development.md#release-146-verification-2026-11-11)。记录区分本次检查与历史证据，并保留原生工作台、真实服务、编辑器调用和升级验收缺口。
+
 ### 1.4.5 发布验收（2026-11-11）
 
 文档核对范围、本机环境、自动检查和两项 CI 夹具修正统一见 [Release 1.4.5 verification](development.md#release-145-verification-2026-11-11)。记录包含三平台 CI、候选与标签流水线、公开附件校验、Windows 程序入口及正式发布结果，并区分尚未执行的真实服务和桌面验收；历史 SSH 时限缺口继续保留。
