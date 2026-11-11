@@ -14,7 +14,7 @@
   background: var(--color-selected) !important;
 }
 .file-panel::after {
-  content: '上传到 ' attr(data-drop-directory) '\a松开后确认';
+  content: attr(data-drop-label);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   position: absolute;
@@ -942,4 +942,10 @@
 }
 .file-browse-mode[aria-pressed='true'] {
   color: var(--color-warning);
+}
+.file-follow-toggle {
+  flex-shrink: 0;
+  margin-bottom: 4px;
+  text-align: left;
+  white-space: normal;
 }

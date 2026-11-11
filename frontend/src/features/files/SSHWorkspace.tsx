@@ -125,6 +125,7 @@ const SSHWorkspace = forwardRef<
     automaticReconnect: boolean;
     onCancelReconnect(): void;
     onDocker?(): void;
+    onTransfers?(directory: string, selected: string[]): void;
     onSnippets(): void;
     busy: boolean;
   }
@@ -150,6 +151,7 @@ const SSHWorkspace = forwardRef<
     automaticReconnect,
     onCancelReconnect,
     onDocker,
+    onTransfers,
     onSnippets,
     busy,
   },
@@ -537,16 +539,27 @@ const SSHWorkspace = forwardRef<
   const active = paneSelected[activePane];
   useEffect(() => {
     const path = terminalDirectories.current.get(active);
-    if (followDirectory && path) setDirectoryRequest({ path, sequence: Date.now() });
-  }, [active, followDirectory]);
+    if (
+      followDirectory &&
+      path &&
+      state === 'connected' &&
+      terminalOwners.current.get(active) === sessionID
+    )
+      setDirectoryRequest((previous) => ({ path, sequence: (previous?.sequence || 0) + 1 }));
+  }, [active, followDirectory, sessionID, state]);
   function terminalDirectory(terminal: string, path: string, host: string) {
     const targetHost = target
       .slice(target.lastIndexOf('@') + 1, target.lastIndexOf(':'))
       .replace(/^\[|\]$/g, '')
       .toLowerCase();
-    if (host && host.replace(/^\[|\]$/g, '').toLowerCase() !== targetHost) return;
+    if (host && host.replace(/^\[|\]$/g, '').toLowerCase() !== targetHost) {
+      terminalDirectories.current.delete(terminal);
+      return;
+    }
+    if (state !== 'connected' || terminalOwners.current.get(terminal) !== sessionID) return;
     terminalDirectories.current.set(terminal, path);
-    if (followDirectory && terminal === active) setDirectoryRequest({ path, sequence: Date.now() });
+    if (followDirectory && terminal === active && directory !== path)
+      setDirectoryRequest((previous) => ({ path, sequence: (previous?.sequence || 0) + 1 }));
   }
   function locateInTerminal(path: string) {
     const terminal = terminals.includes(active)
@@ -1434,6 +1447,7 @@ const SSHWorkspace = forwardRef<
             followDirectory={followDirectory}
             onFollowDirectory={() => setFollowDirectory((value) => !value)}
             onTerminalDirectory={locateInTerminal}
+            onTransfers={onTransfers}
             visible={visible && filesShown}
             onOpen={open}
             onOpenFile={openTerminalFile}
@@ -2014,10 +2028,22 @@ const SSHWorkspace = forwardRef<
               active: tunnelsOpen,
               onClick: () => setTunnelsOpen((value) => !value),
             },
+            ...(onTransfers
+              ? [
+                  {
+                    id: 'transfers',
+                    label: translate('files:fileTransfers'),
+                    icon: 'transfer' as const,
+                    disabled: state !== 'connected',
+                    onClick: () => onTransfers(directory, []),
+                  },
+                ]
+              : []),
             {
               id: 'snippets',
               label: translate('common:insertSnippet2').trim(),
               icon: 'code',
+              disabled: state !== 'connected' || !terminals.includes(active),
               onClick: onSnippets,
             },
             ...(onDocker

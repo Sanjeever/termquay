@@ -22,6 +22,7 @@ import { bytes } from './transferFormat';
 import '../../styles/file-compare.css';
 
 type Location = { workspace: string; directory: string; selected: string[] };
+export type TransferBrowserRequest = Location & { sequence: number };
 type Target = { id: string; name: string };
 function Pane({
   side,
@@ -204,6 +205,7 @@ function Pane({
 export default function TransferBrowser({
   targets,
   initial,
+  request,
   onTransfer,
   onCompare,
   onClose,
@@ -212,6 +214,7 @@ export default function TransferBrowser({
 }: {
   targets: Target[];
   initial?: string;
+  request?: TransferBrowserRequest;
   onTransfer(value: Transfer): void;
   onCompare(): void;
   onClose(): void;
@@ -219,9 +222,13 @@ export default function TransferBrowser({
   visible?: boolean;
 }) {
   useTranslation();
-  const [sides, setSides] = useState<[Location, Location]>([
+  const [sides, setSides] = useState<[Location, Location]>(() => [
     { workspace: '', directory: '', selected: [] },
-    { workspace: initial || targets[0]?.id || '', directory: '', selected: [] },
+    {
+      workspace: request?.workspace ?? initial ?? targets[0]?.id ?? '',
+      directory: request?.directory || '',
+      selected: request?.selected || [],
+    },
   ]);
   const [preview, setPreview] = useState<DirectorySyncPreview>();
   const [selected, setSelected] = useState(new Set<string>());
@@ -232,6 +239,23 @@ export default function TransferBrowser({
   const pending = useRef<{ cancel(): void }>();
   const latest = useRef(preview);
   latest.current = preview;
+  const handledRequest = useRef(request?.sequence || 0);
+  useEffect(() => {
+    if (!request || !visible || busy || handledRequest.current === request.sequence) return;
+    handledRequest.current = request.sequence;
+    if (latest.current) CancelDirectorySyncPreview(latest.current.id).catch(setError);
+    setPreview(undefined);
+    setSelected(new Set());
+    setError('');
+    setSides((previous) => [
+      previous[0],
+      {
+        workspace: request.workspace,
+        directory: request.directory,
+        selected: request.selected,
+      },
+    ]);
+  }, [request, visible, busy, setError]);
   const mounted = useRef(true);
   const endpointsAvailable = sides.every(
     (side) => !side.workspace || targets.some((target) => target.id === side.workspace),

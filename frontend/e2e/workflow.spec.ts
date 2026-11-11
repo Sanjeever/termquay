@@ -1,10 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
 
-test('connection states remain readable in compact and wide catalogs', async ({ page }) => {
-  await page.route('**/wails/runtime*', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: 'null' }),
-  );
-  for (const language of ['en', 'zh-CN']) {
+for (const language of ['en', 'zh-CN']) {
+  test(`connection states remain readable in compact and wide catalogs (${language})`, async ({
+    page,
+  }) => {
+    await page.route('**/wails/runtime*', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: 'null' }),
+    );
     await page.goto(`/e2e/workflow.html?scene=connections&language=${language}`);
     for (const width of [1440, 900, 620]) {
       await page.setViewportSize({ width, height: 900 });
@@ -22,16 +24,14 @@ test('connection states remain readable in compact and wide catalogs', async ({ 
         true,
       );
     }
-  }
-});
+  });
 
-test('workspace tools retain editor content and remain reachable beside narrow panels', async ({
-  page,
-}) => {
-  await page.route('**/wails/runtime*', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: 'null' }),
-  );
-  for (const language of ['en', 'zh-CN']) {
+  test(`workspace tools retain editor content and remain reachable beside narrow panels (${language})`, async ({
+    page,
+  }) => {
+    await page.route('**/wails/runtime*', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: 'null' }),
+    );
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(
       `/e2e/workflow.html?scene=editor&language=${language}&theme=${language === 'en' ? 'dark' : 'light'}`,
@@ -65,8 +65,8 @@ test('workspace tools retain editor content and remain reachable beside narrow p
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
-  }
-});
+  });
+}
 
 test('file selection actions collapse without leaving a gap above the directory tree', async ({
   page,
@@ -206,6 +206,145 @@ async function fileWorkspace(page: Page) {
   ).toBeVisible();
   return calls;
 }
+
+async function sshWorkflow(page: Page) {
+  const calls: { method: number; args: unknown[] }[] = [];
+  const sockets: { send(data: Buffer): void }[] = [];
+  await page.routeWebSocket('**/ssh-fixture', (socket) => {
+    sockets.push(socket);
+  });
+  await page.route('**/wails/runtime*', async (route) => {
+    const body = route.request().postDataJSON();
+    const method = body?.args?.methodID;
+    const args = body?.args?.args || [];
+    let value: unknown = null;
+    if (body?.object === 0) calls.push({ method, args });
+    if (method === 504709045 || method === 2404688278) {
+      const path = args[1] || (method === 504709045 ? '/' : args[0] ? '/remote' : '/local');
+      const prefix = path === '/' ? '' : path;
+      value = {
+        path,
+        parent: path.slice(0, path.lastIndexOf('/')) || '/',
+        truncated: false,
+        entries: [
+          ...['config', 'subdir'].map((name) => ({
+            name,
+            path: `${prefix}/${name}`,
+            directory: true,
+            symlink: false,
+            mode: 'drwxr-xr-x',
+            size: 0,
+            modified: 1700000000000,
+          })),
+          {
+            name: 'release.conf',
+            path: `${prefix}/release.conf`,
+            directory: false,
+            symlink: false,
+            mode: '-rw-r--r--',
+            size: 2048,
+            modified: 1700000000000,
+          },
+        ],
+      };
+    } else if (method === 1375116584)
+      value = {
+        id: 'preview-ssh',
+        direction: 'download',
+        local: args[3],
+        remote: args[1],
+        entries: [],
+      };
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(value),
+    });
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/e2e/workflow.html?scene=ssh');
+  await expect(page.locator('.file-panel [data-tree-path="/config"]')).toBeVisible();
+  await expect.poll(() => sockets.length).toBe(2);
+  return {
+    calls,
+    directory(path: string, host = 'app.example.invalid') {
+      for (const socket of sockets) socket.send(Buffer.from(`\x1b]7;file://${host}${path}\x07`));
+    },
+  };
+}
+
+test('directory following is explicit, pauses when disabled and rejects another host', async ({
+  page,
+}) => {
+  const ssh = await sshWorkflow(page);
+  const follow = page.getByRole('button', { name: 'Follow terminal directory', exact: true });
+  const cwd = page.locator('.terminal-view .session-status .file-path');
+  const breadcrumbs = page.locator('.breadcrumbs');
+  await expect(follow).toHaveAttribute('aria-pressed', 'false');
+  ssh.directory('/config');
+  await expect(cwd).toHaveText('/config');
+  await expect(breadcrumbs).toHaveAttribute('aria-label', '/');
+  await follow.click();
+  await expect(breadcrumbs).toHaveAttribute('aria-label', '/config');
+  await follow.click();
+  ssh.directory('/config/subdir');
+  await expect(cwd).toHaveText('/config/subdir');
+  await expect(breadcrumbs).toHaveAttribute('aria-label', '/config');
+  await follow.click();
+  await expect(breadcrumbs).toHaveAttribute('aria-label', '/config/subdir');
+  ssh.directory('/other-host', 'other.example.invalid');
+  await expect(cwd).toHaveText('/other-host');
+  await expect(breadcrumbs).toHaveAttribute('aria-label', '/config/subdir');
+  expect(
+    ssh.calls
+      .filter((call) => call.method === 504709045)
+      .some((call) => call.args[1] === '/other-host'),
+  ).toBe(false);
+});
+
+test('selected remote files open in transfers without replacing the other location', async ({
+  page,
+}) => {
+  const ssh = await sshWorkflow(page);
+  const follow = page.getByRole('button', { name: 'Follow terminal directory', exact: true });
+  ssh.directory('/config');
+  await expect(page.locator('.terminal-view .session-status .file-path')).toHaveText('/config');
+  await follow.click();
+  const file = page.locator('[data-tree-path="/config/release.conf"]');
+  await expect(file).toBeVisible();
+  await file.click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Open in file transfers', exact: true }).click();
+  const right = page.getByRole('region', { name: 'Right location' });
+  const left = page.getByRole('region', { name: 'Left location' });
+  await expect(right.getByRole('textbox', { name: 'Directory path' })).toHaveValue('/config');
+  await expect(right.getByRole('checkbox', { name: 'Select release.conf' })).toBeChecked();
+  await left.getByRole('textbox', { name: 'Directory path' }).fill('/local/destination');
+  await left.getByRole('button', { name: 'Open / Refresh' }).click();
+  await page.getByRole('button', { name: 'Back to SSH', exact: true }).click();
+  await expect(page.locator('.file-panel')).toBeVisible();
+  ssh.directory('/config/subdir');
+  await expect(page.locator('.breadcrumbs')).toHaveAttribute('aria-label', '/config/subdir');
+  await page
+    .locator('.workspace-tool-rail')
+    .getByRole('button', { name: 'File transfers', exact: true })
+    .click();
+  await expect(right.getByRole('textbox', { name: 'Directory path' })).toHaveValue(
+    '/config/subdir',
+  );
+  await expect(left.getByRole('textbox', { name: 'Directory path' })).toHaveValue(
+    '/local/destination',
+  );
+  await right.getByRole('checkbox', { name: 'Select release.conf' }).check();
+  await page.getByRole('button', { name: /Preview right → left/i }).click();
+  await expect.poll(() => ssh.calls.filter((call) => call.method === 1375116584).length).toBe(1);
+  expect(ssh.calls.find((call) => call.method === 1375116584)?.args.slice(0, 5)).toEqual([
+    'host-a',
+    '/config/subdir',
+    '',
+    '/local/destination',
+    ['release.conf'],
+  ]);
+});
 
 test('file workspace keeps location and selection across tabs and languages, and submits the selected remote pair', async ({
   page,

@@ -10,6 +10,8 @@ import TransferBrowser from '../src/features/files/TransferBrowser';
 import CodeEditor from '../src/features/files/CodeEditor';
 import FileHistoryDialog from '../src/features/files/FileHistoryDialog';
 import FileBrowser from '../src/features/files/FileBrowser';
+import SSHWorkspace from '../src/features/files/SSHWorkspace';
+import type { TransferBrowserRequest } from '../src/features/files/TransferBrowser';
 import DemoWorkbench from '../src/features/demo/DemoWorkbench';
 import { defaultShortcuts } from '../src/lib/shortcuts';
 import { demoDirectories, demoSamples } from '../src/features/demo/data';
@@ -17,6 +19,15 @@ import '../src/style.css';
 
 const parameters = new URLSearchParams(location.search);
 const demoScene = parameters.get('scene');
+if (demoScene === 'ssh') {
+  Reflect.get(window, '_wails').streamFactory = () => {
+    const socket = new WebSocket(`ws://${location.host}/ssh-fixture`);
+    socket.binaryType = 'arraybuffer';
+    return socket;
+  };
+  localStorage.setItem('termquay.layout.monitor', 'false');
+  localStorage.setItem('termquay.layout.files-open', 'true');
+}
 localStorage.setItem(
   appearanceKey,
   JSON.stringify({
@@ -176,6 +187,61 @@ function Fixture() {
   );
 }
 
+function SSHFixture() {
+  const [files, setFiles] = useState(false);
+  const [request, setRequest] = useState<TransferBrowserRequest>();
+  return (
+    <HeroUIProvider disableAnimation disableRipple>
+      <main className="app-shell">
+        <div className="workspace" hidden={files}>
+          <SSHWorkspace
+            id="ssh-view"
+            sessionID="host-a"
+            connectionID="connection-a"
+            target="deploy@app.example.invalid:22"
+            environment="production"
+            state="connected"
+            shortcuts={defaultShortcuts}
+            visible={!files}
+            automaticReconnect={false}
+            busy={false}
+            onDirtyChange={() => {}}
+            onState={() => {}}
+            onStateChange={() => {}}
+            onReconnect={() => {}}
+            onAutomaticReconnect={async () => ({ ok: false, retryable: false })}
+            onCancelReconnect={() => {}}
+            onSnippets={() => {}}
+            onTransfers={(directory, selected) => {
+              setRequest((previous) => ({
+                workspace: 'host-a',
+                directory,
+                selected,
+                sequence: (previous?.sequence || 0) + 1,
+              }));
+              setFiles(true);
+            }}
+          />
+        </div>
+        {request && (
+          <div className="workspace" hidden={!files}>
+            <button onClick={() => setFiles(false)}>Back to SSH</button>
+            <TransferBrowser
+              embedded
+              visible={files}
+              targets={[{ id: 'host-a', name: 'Host A' }]}
+              request={request}
+              onTransfer={() => {}}
+              onCompare={() => {}}
+              onClose={() => setFiles(false)}
+            />
+          </div>
+        )}
+      </main>
+    </HeroUIProvider>
+  );
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <AppearanceProvider>
     {demoScene === 'connections' || demoScene === 'editor' || demoScene === 'terminal' ? (
@@ -188,6 +254,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           fontSize={14}
         />
       </HeroUIProvider>
+    ) : demoScene === 'ssh' ? (
+      <SSHFixture />
     ) : (
       <Fixture />
     )}

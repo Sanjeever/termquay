@@ -398,7 +398,7 @@
     grid-template-columns: 18px minmax(0, 1fr) 104px;
   }
   .connection-row {
-    height: 56px;
+    min-height: 56px;
   }
   .connection-name {
     gap: 2px 10px;

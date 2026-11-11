@@ -1,4 +1,6 @@
 {
+  "dropUploadTarget": "Upload to {{path}}\nRelease to review",
+  "openInFileTransfers": "Open in file transfers",
   "validationNotConfigured": "Configure and save a validation command for this file before running Save and validate.",
   "fileTransfers": "File transfers",
   "leftLocation": "Left location",

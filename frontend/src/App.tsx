@@ -132,6 +132,7 @@ import useWorkbenchClose from './features/workspaces/useWorkbenchClose';
 import WorkbenchCloseDialog from './features/workspaces/WorkbenchCloseDialog';
 import useApplicationLock from './features/settings/useApplicationLock';
 import ApplicationLockScreen from './features/settings/ApplicationLockScreen';
+import type { TransferBrowserRequest } from './features/files/TransferBrowser';
 
 const loadSSHWorkspace = () => import('./features/files/SSHWorkspace');
 const loadLocalTerminalWorkspace = () => import('./features/terminal/LocalTerminalWorkspace');
@@ -250,6 +251,8 @@ export default function App() {
   const [fileCompareOpen, setFileCompareOpen] = useState(false);
   const [filesTab, setFilesTab] = useState(false);
   const [filesInitial, setFilesInitial] = useState<string>();
+  const [filesRequest, setFilesRequest] = useState<TransferBrowserRequest>();
+  const filesRequestSequence = useRef(0);
   const filesOpen =
     filesTab && active === filesTabID && !settings && !demoScene && !appLock.status?.locked;
   const [recordingOpen, setRecordingOpen] = useState(false);
@@ -595,7 +598,10 @@ export default function App() {
   }
   function closeWorkspace(id = active, keyboard = true) {
     if ([logsTabID, commandTasksTabID, dockerTabID, filesTabID].includes(id)) {
-      if (id === filesTabID) setFilesTab(false);
+      if (id === filesTabID) {
+        setFilesTab(false);
+        setFilesRequest(undefined);
+      }
       if (id === logsTabID) {
         setLogsTab(false);
         setLogsRequest(undefined);
@@ -653,7 +659,9 @@ export default function App() {
     setDockerTab(true);
     select(dockerTabID);
   }
-  function openFileTransfers() {
+  function openFileTransfers(workspace?: string, directory = '', selected: string[] = []) {
+    if (workspace)
+      setFilesRequest({ workspace, directory, selected, sequence: ++filesRequestSequence.current });
     if (!filesTab) setFilesInitial(current?.ssh ? current.sessionID : undefined);
     setFilesTab(true);
     setTransfersOpen(true);
@@ -2424,6 +2432,7 @@ export default function App() {
                     .filter((w) => w.ssh && w.sessionID && w.state === 'connected')
                     .map((w) => ({ id: w.sessionID!, name: w.name }))}
                   initial={filesInitial}
+                  request={filesRequest}
                   onTransfer={(item) => {
                     transfers.accept([item]);
                     setTransferReveal(item.id);
@@ -2662,6 +2671,9 @@ export default function App() {
                 ) : w.sessionID ? (
                   <SSHWorkspace
                     onDocker={() => openDocker(w.sessionID)}
+                    onTransfers={(directory, selected) =>
+                      openFileTransfers(w.sessionID, directory, selected)
+                    }
                     onSnippets={() => {
                       setPaletteScope('command');
                       setPaletteQuery(translate('common:insertSnippet2'));

@@ -76,6 +76,7 @@ export default function FileBrowser({
   followDirectory,
   onFollowDirectory,
   onTerminalDirectory,
+  onTransfers,
   demoDirectories,
 }: {
   id: string;
@@ -93,6 +94,7 @@ export default function FileBrowser({
   followDirectory?: boolean;
   onFollowDirectory?(): void;
   onTerminalDirectory?(path: string): void;
+  onTransfers?(directory: string, selected: string[]): void;
   demoDirectories?: Record<string, Entry[]>;
 }) {
   useTranslation();
@@ -179,6 +181,7 @@ export default function FileBrowser({
       if (target) {
         const directory = target.dataset.remoteDirectory || '';
         element.dataset.dropDirectory = directory;
+        element.dataset.dropLabel = translate('files:dropUploadTarget', { path: directory });
         const row = element.querySelector<HTMLElement>(
           `[data-tree-path="${CSS.escape(directory)}"]`,
         );
@@ -188,6 +191,7 @@ export default function FileBrowser({
         } else delete element.dataset.dropRow;
       } else {
         delete element.dataset.dropDirectory;
+        delete element.dataset.dropLabel;
         delete element.dataset.dropRow;
       }
     });
@@ -301,6 +305,20 @@ export default function FileBrowser({
       });
   }
   const selectedEntries = visibleEntries.filter((entry) => selection.includes(entry.path));
+  function transferSelection(entry: Entry) {
+    const entries = selection.includes(entry.path) ? selectedEntries : [entry];
+    const directory = entry.path.slice(0, entry.path.lastIndexOf('/')) || '/';
+    if (
+      entries.some(
+        (item) =>
+          item.symlink ||
+          (!item.directory && !item.mode.startsWith('-')) ||
+          (item.path.slice(0, item.path.lastIndexOf('/')) || '/') !== directory,
+      )
+    )
+      return;
+    return { directory, selected: entries.map((item) => item.name) };
+  }
   function pick(path: string, toggle = false, range = false) {
     setSelected(path);
     setSelection((prev) =>
@@ -600,7 +618,7 @@ export default function FileBrowser({
             aria-label={translate('files:fileViewOptions')}
             disabledKeys={
               demoDirectories
-                ? ['upload', 'follow', 'terminal', 'sync']
+                ? ['upload', 'transfers', 'terminal', 'sync']
                 : readOnly || !directory
                   ? ['upload']
                   : []
@@ -610,7 +628,7 @@ export default function FileBrowser({
                 window.dispatchEvent(
                   new CustomEvent('termquay:choose-upload', { detail: { id, directory } }),
                 );
-              if (key === 'follow') onFollowDirectory?.();
+              if (key === 'transfers') onTransfers?.(directory, []);
               if (key === 'terminal') onTerminalDirectory?.(directory);
               if (key === 'sync') setSyncOpen(true);
               if (key === 'copy')
@@ -659,12 +677,8 @@ export default function FileBrowser({
             >
               {translate('files:showHiddenFiles2')}
             </DropdownItem>
-            <DropdownItem
-              key="follow"
-              closeOnSelect={false}
-              endContent={followDirectory ? '✓' : null}
-            >
-              {translate('files:followTerminalDirectory')}
+            <DropdownItem key="transfers" isDisabled={!directory || !onTransfers}>
+              {translate('files:fileTransfers')}
             </DropdownItem>
             <DropdownItem key="terminal" isDisabled={!directory}>
               {translate('files:locateDirectoryInTerminal')}
@@ -687,6 +701,17 @@ export default function FileBrowser({
           </button>
         </Tooltip>
       </div>
+      {onFollowDirectory && (
+        <button
+          className="session-tool file-follow-toggle"
+          aria-pressed={!!followDirectory}
+          disabled={!!demoDirectories}
+          onClick={onFollowDirectory}
+        >
+          <Icon name="tunnel" width="15" />
+          {translate('files:followTerminalDirectory')}
+        </button>
+      )}
       <div className="file-toolbar">
         <Tooltip content={translate('files:previousDirectory')}>
           <button
@@ -1144,6 +1169,10 @@ export default function FileBrowser({
                           if (key === 'open') void open(entry);
                           if (key === 'image') void open(entry, 'image');
                           if (key === 'text') void open(entry, 'text');
+                          if (key === 'transfers') {
+                            const request = transferSelection(entry);
+                            if (request) onTransfers?.(request.directory, request.selected);
+                          }
                           if (key === 'download') {
                             if (multiple) batchAction('download', entry);
                             else StartDownload(id, entry.path).catch((e) => setError(e));
@@ -1155,6 +1184,12 @@ export default function FileBrowser({
                         }}
                       >
                         <DropdownItem key="open">{translate('files:open')}</DropdownItem>
+                        <DropdownItem
+                          key="transfers"
+                          isDisabled={!onTransfers || !transferSelection(entry)}
+                        >
+                          {translate('files:openInFileTransfers')}
+                        </DropdownItem>
                         <DropdownItem key="image" className={entry.directory ? 'hidden' : ''}>
                           {translate('files:previewAsImage')}
                         </DropdownItem>

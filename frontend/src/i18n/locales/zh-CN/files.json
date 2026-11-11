@@ -1,4 +1,6 @@
 {
+  "dropUploadTarget": "上传到 {{path}}\n松开后确认",
+  "openInFileTransfers": "在文件传输中打开",
   "validationNotConfigured": "请先为此文件配置并保存验证命令，再执行保存并验证。",
   "fileTransfers": "文件传输",
   "leftLocation": "左侧位置",

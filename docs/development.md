@@ -157,9 +157,11 @@ Follow the [localization contract](architecture.md#localization-and-collaboratio
 <a id="内置-ai-助手"></a>
 ## Using the workbench
 
-The SSH workspace's right tool rail opens files, monitoring, the enabled AI assistant, port forwarding, snippets and Docker. Use Tab or the arrow keys to reach its buttons. Docker opens an independent tool tab with the current SSH workspace selected. Layout, focus mode and reconnect actions remain in the workspace header.
+The SSH workspace's right tool rail opens files, monitoring, the enabled AI assistant, port forwarding, file transfers, snippets and Docker. Use Tab or the arrow keys to reach its buttons. Docker opens an independent tool tab with the current SSH workspace selected. Layout, focus mode and reconnect actions remain in the workspace header.
 
 The remote file tree shows its batch action bar when files are selected and collapses it when the selection is cleared. Keyboard selection and select-all remain available from the tree.
+
+**Follow terminal directory** is an explicit toggle in the file panel and starts off. It follows directory reports from the active terminal on the current SSH instance; reports naming another host are ignored. Enable the terminal's shell integration if the shell does not report its directory. Turning following off retains the current browsing location. The file menu's **Open in file transfers** carries selected files from one directory into the transfer tool's right pane. The rail's transfer button carries the current directory. Both retain the left location and require an explicit copy preview and execution; opening the tool does not transfer files.
 
 The remote editor's **Save and validate** action opens the existing file workflow and saves the draft before running its configured validation command. A missing command opens configuration without saving or guessing a command. Ordinary Save and opening **History and validation** do not execute commands. Reload still requires successful validation and a separate confirmation; a configured health check follows successful reload. The request belongs to the current SSH instance: reconnecting never replays the action, and closing its owner during a save/refresh prevents late validation. See [the workflow](../frontend/src/features/files/FileHistoryDialog.tsx).
 
@@ -213,7 +215,7 @@ The pinned xterm version supports synchronized output (DEC 2026), allowing parti
 
 ### Docker containers
 
-Open **Tools → Docker**, **SSH session actions → Docker containers**, or the **Docker container workspace** command. The tool selects the current SSH workspace when opened from it and reads containers automatically. Resize the container list, filter by name/image/project or state, and use **Overview**, **Logs**, **Terminal**, and **Mounts and ports**. Compose labels group existing containers; this is not Compose deployment, image management, or Kubernetes support.
+Open **Tools → Docker**, **Docker containers** on the SSH workspace's right tool rail, or the **Docker container workspace** command. The tool selects the current SSH workspace when opened from it and reads containers automatically. Resize the container list, filter by name/image/project or state, and use **Overview**, **Logs**, **Terminal**, and **Mounts and ports**. Compose labels group existing containers; this is not Compose deployment, image management, or Kubernetes support.
 
 The SSH server must allow Unix socket forwarding and the login user must already have socket permissions. **Connection settings** applies a custom/rootless socket explicitly. Saved SSH connections retain it in local [connection preferences](../internal/store/preferences.go); temporary connection changes apply to the current selection. Connection preferences are ordinary local settings, not credential storage. No Docker TCP listener, remote dependency installation, or automatic elevation is needed.
 
