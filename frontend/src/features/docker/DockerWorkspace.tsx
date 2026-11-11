@@ -127,6 +127,7 @@ export default function DockerWorkspace({
   const current = useRef({ owner, selection, targets });
   current.current = { owner, selection, targets };
   const requestedContainer = useRef(request?.container);
+  const handledRequest = useRef<typeof request>();
   const lastList = useRef('');
   const lastDetail = useRef('');
   const consoleOpening = useRef(false);
@@ -157,9 +158,11 @@ export default function DockerWorkspace({
     return () => off.forEach((dispose) => dispose());
   }, []);
   useEffect(() => {
-    if (!request?.workspace) return;
+    if (!request?.workspace || handledRequest.current === request) return;
     const next = targets.find((item) => item.id === request.workspace);
-    if (next) setTarget(next);
+    if (!next) return;
+    handledRequest.current = request;
+    setTarget(next);
     requestedContainer.current = request.container;
     setView('overview');
     setRefresh((value) => value + 1);
