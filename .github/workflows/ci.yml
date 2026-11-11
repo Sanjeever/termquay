@@ -29,6 +29,8 @@ jobs:
       - run: pnpm format:check
       - run: pnpm lint:frontend
       - run: pnpm check
+      - name: Use the official Ubuntu archive for browser dependencies
+        run: printf '%s\n' 'https://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt > /dev/null
       - run: pnpm --dir frontend exec playwright install --with-deps --no-shell chromium
       - run: pnpm test:ui
       - uses: actions/upload-artifact@v4
@@ -62,7 +64,10 @@ jobs:
           cache-dependency-path: frontend/pnpm-lock.yaml
       - name: 安装 Linux 原生依赖
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libxkbcommon-dev
+        run: |
+          printf '%s\n' 'https://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libxkbcommon-dev
       - run: pnpm --dir frontend install --frozen-lockfile
       - run: pnpm --dir frontend test
       - run: pnpm --dir frontend build

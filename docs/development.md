@@ -306,6 +306,10 @@ The initial aggregate check passed formatting, frontend lint/build, Go vet/packa
 
 After the test correction, local `pnpm verify` passed formatting, frontend lint/build and TypeScript compilation, Go vet/package tests, 5 script tests, 137 frontend tests and all 61 Chromium regressions. The same three Bash-hook cases remained skipped. Existing macOS SDK/deployment-target linker and frontend bundle-size warnings remain.
 
+Initial candidate commit `872f479` was packaged locally with formal-release linker flags into `bin/termquay.app`. The executable contains x86_64 and arm64, both plist version fields report 1.4.6, and strict signature-integrity verification passed with an ad-hoc signature. The CLI smoke suite passed version, help, redirected standard streams and unavailable-desktop status checks on the arm64 host. Generated bindings and Go module files remained unchanged. These CLI checks do not establish GUI behavior or execution on x86_64.
+
+The initial [CI](https://github.com/Sanjeever/termquay/actions/runs/43048736184) and [candidate workflow](https://github.com/Sanjeever/termquay/actions/runs/43048737522) were cancelled after Linux dependency installation stalled. CI logs confirm repeated DNS failures for `azure.archive.ubuntu.com` in both native and browser dependency installation; Windows CI and Windows/macOS candidate builds had passed. The downloaded Windows candidate contained one amd64 executable. The downloaded macOS candidate passed universal-architecture, signature-integrity and executable-version checks on the arm64 host. The workflows now select the official HTTPS Ubuntu archive through the hosted runner's APT mirror list. Workflow YAML, shell syntax and repository formatting checks passed locally; this configuration change requires fresh hosted runs.
+
 Current release checks do not establish native workbench interaction, physical input/IME, real SSH/RDP/WebDAV or model-provider behavior, actual external-editor activation, old-to-new desktop upgrade or sustained resource acceptance. Earlier dated native and browser evidence remains separate.
 
 ### Release 1.4.5 verification (2026-11-11)
