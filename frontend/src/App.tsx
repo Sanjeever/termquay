@@ -1047,7 +1047,6 @@ export default function App() {
         demoScene ||
         event.isComposing ||
         event.keyCode === 229 ||
-        event.repeat ||
         dialog ||
         attempt.trust ||
         closing ||
@@ -1090,6 +1089,7 @@ export default function App() {
       if (!action) return;
       event.preventDefault();
       event.stopImmediatePropagation();
+      if (event.repeat) return;
       if (action.id === 'palette') {
         setPaletteScope('all');
         setPaletteQuery('');

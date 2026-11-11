@@ -17,6 +17,69 @@ async function openTerminal(page: Page, output = 'ready\r\n') {
   return inputs;
 }
 
+test('repeated local newline shortcuts cannot fall through as ordinary Enter', async ({ page }) => {
+  const inputs: string[] = [];
+  let attached = false;
+  await page.addInitScript(() => {
+    localStorage.setItem('termquay.shortcuts', JSON.stringify({ lineBreak: 'Shift+Enter' }));
+  });
+  await page.route('**/wails/runtime*', (route) => {
+    const method = route.request().postDataJSON()?.args?.methodID;
+    const values: Record<number, unknown> = {
+      3198086081: { groups: [], connections: [], session_only: true },
+      3288919527: { locked: false, available: false, idle_minutes: 0 },
+      1509178199: { enabled: false, drafts: [] },
+      2326168153: {},
+      2007269789: {},
+      841988121: { entries: [], active: '' },
+      706236747: 0,
+      3912183842: [{ id: 'shell', name: 'Shell' }],
+      1947497108: [],
+      2099865801: {
+        id: 'local-shortcut-test',
+        name: 'Shell',
+        directory: '/work/project',
+        hostname: 'computer',
+      },
+    };
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(values[method] ?? null),
+    });
+  });
+  await page.routeWebSocket('**/local-shortcut-fixture', (socket) => {
+    socket.onMessage((data) => {
+      const frame = Buffer.isBuffer(data) ? data : Buffer.from(data);
+      if (frame[0] === 0) inputs.push(frame.subarray(1).toString('utf8'));
+      else if (frame.toString('utf8') === 'local-shortcut-test') attached = true;
+    });
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'New local terminal', exact: true }).waitFor();
+  await page.evaluate(() => {
+    Reflect.get(window, '_wails').streamFactory = () => {
+      const socket = new WebSocket(`ws://${location.host}/local-shortcut-fixture`);
+      socket.binaryType = 'arraybuffer';
+      return socket;
+    };
+  });
+  await page.getByRole('button', { name: 'New local terminal', exact: true }).click();
+  await expect.poll(() => attached).toBe(true);
+  await page.locator('.xterm-helper-textarea').focus();
+  await page.keyboard.down('Shift');
+  await page.keyboard.down('Enter');
+  await page.keyboard.down('Enter');
+  await page.keyboard.up('Enter');
+  await page.keyboard.up('Shift');
+  await page.keyboard.down('a');
+  await page.keyboard.down('a');
+  await page.keyboard.up('a');
+  await expect.poll(() => inputs.join('')).toBe('\x1b[13;2uaa');
+  await page.keyboard.press('Enter');
+  await expect.poll(() => inputs.join('')).toBe('\x1b[13;2uaa\r');
+});
+
 test('direct IME punctuation is sent once across keyup and repeated keydown events', async ({
   page,
 }) => {
