@@ -373,6 +373,8 @@ test('directory setup errors require the current token and allow retry after exe
   const script = (await dialog.locator('pre').textContent()) || '';
   const token = /termquay;([a-f0-9]{64});E/.exec(script)![1];
   await dialog.getByRole('button', { name: 'Insert into terminal', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.locator('.xterm-helper-textarea')).toBeFocused();
   await expect(page.locator('.file-follow-status')).toContainText('Waiting for execution');
   ssh.send(
     `\x1b]777;termquay;${'0'.repeat(64)};E;Shell type mismatch;terminal:completionShellMismatch\x07`,
@@ -385,7 +387,10 @@ test('directory setup errors require the current token and allow retry after exe
   await enable.click();
   dialog = page.getByRole('dialog');
   await dialog.getByRole('button', { name: 'Insert into terminal', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.locator('.xterm-helper-textarea')).toBeFocused();
   await page.keyboard.press('Control+c');
+  await expect.poll(() => ssh.inputs.join('').endsWith('\x03')).toBe(true);
   await expect(enable).toBeVisible();
 });
 
