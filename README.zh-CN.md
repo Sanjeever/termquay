@@ -10,6 +10,13 @@ TermQuay 是使用 Go、Wails v3 和 React 构建的开源远程连接工作台�
 
 在“设置 → 外观 → 语言”选择跟随系统、简体中文或 English。语言资源随应用离线分发，解锁本机数据前即可生效。切换语言保留活动工作区、连接、传输与编辑草稿。
 
+<a id="对比其他工具"></a>
+<a id="openssh--putty"></a>
+<a id="mstsc"></a>
+<a id="xshell--securecrt"></a>
+<a id="mobaxterm"></a>
+<a id="finalshell"></a>
+<a id="xterminal--motty"></a>
 ## 当前能力
 
 - [连接管理](docs/development.zh-CN.md#连接与工作区)：分组与筛选、配置导入、操作手册、加密凭据与主密码保护。
@@ -25,26 +32,6 @@ TermQuay 是使用 Go、Wails v3 和 React 构建的开源远程连接工作台�
 - [加密备份](docs/development.zh-CN.md#备份与恢复)：本地文件与 WebDAV 快照、预览恢复与配置迁移。
 
 操作方式与限制见 [使用说明](docs/development.zh-CN.md#使用说明)，内嵌 RDP 的 TLS 兼容边界见 [RDP 设计说明](docs/architecture.zh-CN.md#内嵌-rdp)。
-
-## 对比其他工具
-
-同时评估以下工具时，可从表中查看 TermQuay 对应流程。其他产品的当前能力与版本限制以各自文档为准。
-
-<a id="openssh--putty"></a>
-<a id="mstsc"></a>
-<a id="xshell--securecrt"></a>
-<a id="mobaxterm"></a>
-<a id="finalshell"></a>
-<a id="xterminal--motty"></a>
-
-| 工具 | TermQuay 对应流程 |
-| --- | --- |
-| OpenSSH / PuTTY | [连接分组、SSH 分屏、文件浏览与工作区恢复](docs/development.zh-CN.md#连接与工作区) |
-| MSTSC | [内嵌 RDP、SSH 网关与 Windows 系统客户端](docs/development.zh-CN.md#远程桌面) |
-| Xshell / SecureCRT | [会话导入](docs/development.zh-CN.md#连接与工作区)、[片段与多主机任务](docs/development.zh-CN.md#终端工具与命令片段) |
-| MobaXterm | [跨平台运行环境](docs/development.zh-CN.md#发行包运行环境)与[加密配置迁移](docs/development.zh-CN.md#备份与恢复) |
-| FinalShell | [远程编辑、冲突合并、验证与重载](docs/development.zh-CN.md#文件编辑) |
-| XTerminal / motty | [Docker 工具](docs/development.zh-CN.md#docker-containers)、[AI 批准](docs/architecture.zh-CN.md#内置-ai-助手)与[本机 Agent 访问](#cli-与-agent-skill) |
 
 ## CLI 与 Agent Skill
 
@@ -76,9 +63,7 @@ SSH 工作区
 
 ## 运行与开发
 
-准备 Go、Node 和 pnpm。工具链及依赖版本以 [go.mod](go.mod)、[frontend/package.json](frontend/package.json) 和锁文件为准，原生桌面还需要对应平台的构建工具与 WebView。
-
-首次运行按 [开发说明](docs/development.zh-CN.md#首次运行) 准备依赖，然后在仓库根目录启动：
+贡献流程见 [CONTRIBUTING.md](CONTRIBUTING.md)，接受中英文贡献。首次运行按 [开发说明](docs/development.zh-CN.md#首次运行) 准备工具链、原生依赖和前端资源，然后在仓库根目录启动：
 
 ```sh
 pnpm dev

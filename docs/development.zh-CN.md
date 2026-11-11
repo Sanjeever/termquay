@@ -15,19 +15,11 @@
 ### 源码开发
 
 - Go 最低版本与建议工具链由 [go.mod](../go.mod) 的 `go`、`toolchain` 声明决定。允许自动工具链下载的环境会按需选择工具链；使用更高版本时仍需验证兼容性。
-- pnpm 版本由 [frontend/package.json](../frontend/package.json) 的 `packageManager` 声明决定，Node 需满足锁定 pnpm/Vite 的要求。使用 [锁文件](../frontend/pnpm-lock.yaml) 安装，不改其他项目或全局工具配置。
+- pnpm 版本由根目录与 [frontend/package.json](../frontend/package.json) 中一致的 `packageManager` 声明决定，Node 需满足锁定 pnpm/Vite 的要求。使用 [锁文件](../frontend/pnpm-lock.yaml) 安装，不改其他项目或全局工具配置。
 - Wails CLI 与 `go.mod` 中 Wails 模块版本保持一致。根目录启动脚本读取模块版本，缺失或版本不匹配时自动安装。
 - 构建工具随目标平台准备：macOS 使用 Command Line Tools；Windows [平台任务](../build/windows/Taskfile.yml) 默认使用 `CGO_ENABLED=0`，竞态检查或显式启用 CGO 时需要兼容的 C 编译器；Linux 构建需要 C 编译器及 Wails 对应的 GTK/WebKit 开发库。安装器工具另见 [打包要求](development.md#build-and-local-packaging)。包名随发行版和构建选项核对，不把交叉编译结果当作原生验证。
 
-| 内容 | 定义入口 |
-| --- | --- |
-| 日常开发命令与 Wails CLI 安装 | [package.json](../package.json)、[启动脚本](../scripts/wails.mjs) |
-| 前端脚本、依赖和 Node 包管理器 | [frontend/package.json](../frontend/package.json) 与锁文件 |
-| 开发服务器和端口 | [frontend/vite.config.ts](../frontend/vite.config.ts)、[Taskfile.yml](../Taskfile.yml) |
-| 热重载、产品元数据与资源生成 | [build/config.yml](../build/config.yml) |
-| 通用绑定与前端构建 | [build/Taskfile.yml](../build/Taskfile.yml) |
-| 平台构建、包格式和签名参数 | [macOS](../build/darwin/Taskfile.yml)、[Windows](../build/windows/Taskfile.yml)、[Linux](../build/linux/Taskfile.yml) 的任务定义 |
-| 版本校验、日常检查与标签发布 | [版本工具](../scripts/version.mjs)、[CI](../.github/workflows/ci.yml)、[发布工作流](../.github/workflows/release.yml) |
+命令、构建配置与平台任务的共用入口见 [Development commands](development.md#development-commands) 和 [Code navigation](architecture.md#code-navigation)。
 
 Taskfile 保留 Wails 模板任务。出现 server、Docker 或 iOS 任务不表示产品支持相应部署形态；当前交付范围是桌面应用。自定义开发端口使用 `WAILS_VITE_PORT`；[RDP 服务](../internal/app/rdp.go) 根据 Wails 注入的 `FRONTEND_DEVSERVER_URL` 生成精确回环来源白名单，回归见 [rdp_test.go](../internal/app/rdp_test.go)。自定义启动方式也须保持该地址与实际开发服务器一致，不得放开为任意来源。
 
@@ -294,9 +286,9 @@ Markdown 默认预览，可切换源码或分栏；首次进入源码才创建�
 
 非当前焦点终端发出 BEL 时，将窗格与工作区标为“需要处理”。聚焦对应终端后确认该提示，聚焦其他窗格不会清除。“启用终端通知”显式请求系统通知权限，对当前会话生效。确认前的重复响铃合并，点击通知返回对应终端。响铃处理不根据输出文字猜测完成或审批状态；既有 Shell 集成的命令状态和完成提醒独立保留。
 
-本地终端在普通屏与备用屏中接收 [OSC 7501 程序状态](https://www.superlogical.com/rex/docs/build/program-status)。支持该协议的 Codex、Claude Code 等程序可报告处理中、等待授权或回答或登录、就绪、完成与失败。窗格标题显示状态与可选进度，悬停查看程序原始消息；外层工作区优先显示等待、失败和运行状态。“就绪”不代表本轮任务完成。聚焦窗格会确认完成或失败记录，仍在阻塞的状态继续保留。清除报告、终端重置及 Shell 提示符或进程生命周期按协议清理对应记录；切换窗格、布局和语言保留状态。记录仅保存在内存，每个 PTY 上限 64 条。相同通知开关覆盖后台阻塞、完成与失败状态变化，未上报程序状态的工具继续沿用响铃行为。
+本地终端在普通屏与备用屏中接收 [OSC 7501 程序状态](https://www.superlogical.com/rex/docs/build/program-status)。支持该协议的 Codex、Claude Code 等程序可报告处理中、等待授权或回答或登录、就绪、完成与失败。窗格标题显示状态与可选进度，悬停查看程序原始消息；外层工作区优先显示等待、失败和运行状态。“就绪”不代表本轮任务完成。聚焦窗格会确认完成或失败记录，仍在阻塞的状态继续保留。清除报告、终端重置及 Shell 提示符或进程生命周期按协议清理对应记录；切换窗格、布局和语言保留状态。记录仅保存在内存，字段、限额与清理规则以 [programStatus.ts](../frontend/src/features/terminal/programStatus.ts) 为准。相同通知开关覆盖后台阻塞、完成与失败状态变化，未上报程序状态的工具继续沿用响铃行为。
 
-在本地终端按住 Ctrl/Command 点击文件引用，可在外部编辑器中打开已存在的本地文件。支持本机绝对路径、相对路径、可选的 `:行号:列号` 或 `#L行号C列号`，以及带引号的空格路径；普通屏、备用屏、软换行和 Unicode 字符列均可使用。相对路径采用该段输出对应的本地 OSC 7 目录，不使用点击时目录；缺少已确认目录时，通过原生选择器指定基准目录。其他主机的报告会使该目录上下文失效。链接打开本地文件，嵌套 SSH 或容器路径需要明确选择对应本地目录；WSL 缺少文件系统映射时拒绝打开。“设置 → 终端与编辑器 → 本地文件编辑器”支持选择 Visual Studio Code 或 Insiders。Go 校验 PTY 归属、文件与行列号后，通过编辑器注册的系统 URL 入口打开，无需将命令行启动器加入 PATH。文件不存在和系统启动错误显示在终端内。编辑器选择随可迁移外观设置保存，编辑器安装仍属于当前设备。链接识别最多处理 64 个软换行行、8,192 个字符与 32 个引用，每个 PTY 最多保留 128 个目录标记。目录上下文依赖显式报告，无法推断子进程内部未报告的目录变化。
+在本地终端按住 Ctrl/Command 点击文件引用，可在外部编辑器中打开已存在的本地文件。支持本机绝对路径、相对路径、可选的 `:行号:列号` 或 `#L行号C列号`，以及带引号的空格路径。相对路径采用该段输出对应的本地 OSC 7 目录，缺少已确认目录时由原生选择器指定基准目录；其他主机的报告使上下文失效。嵌套 SSH 或容器路径需明确选择对应本地目录，WSL 文件链接当前不支持。“设置 → 终端与编辑器 → 本地文件编辑器”支持 Visual Studio Code 或 Insiders，无需命令行启动器加入 PATH。文件不存在和系统启动错误在终端显示；编辑器安装属于当前设备，选择可随外观设置迁移。缓冲区支持、目录上下文限制、校验与限额的实现入口统一见 [Local terminal file links](development.md#local-terminal-file-links)。
 
 macOS 菜单栏提供连接、终端、标签关闭、显示、界面缩放和工作区切换入口，操作复用前端命令及草稿确认流程。应用命令的按键统一由 WebView 按焦点与归属分发，原生菜单显示当前键位，避免原生快捷键抢走 RDP 输入。原生导航和标题栏采用系统材质，终端、编辑器与桌面内容保持不透明。
 

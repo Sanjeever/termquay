@@ -11,6 +11,13 @@ Available for macOS, Windows and Linux. Download the appropriate archive from [G
 Choose **Settings → Appearance → Language** to follow the system, use English or use Simplified Chinese. Both languages are bundled for offline use. Language selection is available before unlocking local data. Switching languages preserves open workspaces, connections, transfers and editor drafts.
 
 <a id="当前能力"></a>
+<a id="comparison-with-other-tools"></a>
+<a id="openssh--putty"></a>
+<a id="mstsc"></a>
+<a id="xshell--securecrt"></a>
+<a id="mobaxterm"></a>
+<a id="finalshell"></a>
+<a id="xterminal--motty"></a>
 ## Features
 
 - **Connections** — groups, filters, configuration imports, connection playbooks, encrypted credentials and master password protection.
@@ -26,26 +33,6 @@ Choose **Settings → Appearance → Language** to follow the system, use Englis
 - **Encrypted backups** — local files and WebDAV snapshots with previewed recovery and selective configuration migration.
 
 See [usage and boundaries](docs/development.md#using-the-workbench), including the [RDP TLS compatibility boundary](docs/architecture.md#embedded-rdp).
-
-## Comparison with other tools
-
-For users evaluating TermQuay alongside these tools, the relevant workflows are below. Other products' current capabilities and edition limits belong in their own documentation.
-
-<a id="openssh--putty"></a>
-<a id="mstsc"></a>
-<a id="xshell--securecrt"></a>
-<a id="mobaxterm"></a>
-<a id="finalshell"></a>
-<a id="xterminal--motty"></a>
-
-| Tools | TermQuay workflow |
-| --- | --- |
-| OpenSSH / PuTTY | [Connection groups, SSH panes, file browsing and workspace recovery](docs/development.zh-CN.md#连接与工作区) |
-| MSTSC | [Embedded RDP, SSH gateways and the Windows system client](docs/development.zh-CN.md#远程桌面) |
-| Xshell / SecureCRT | [Session imports](docs/development.zh-CN.md#连接与工作区), [snippets and multi-host tasks](docs/development.zh-CN.md#终端工具与命令片段) |
-| MobaXterm | [Cross-platform desktop prerequisites](docs/development.md#packaged-desktop) and [encrypted configuration migration](docs/development.zh-CN.md#备份与恢复) |
-| FinalShell | [Remote editing, conflict merging, validation and reload](docs/development.zh-CN.md#文件编辑) |
-| XTerminal / motty | [Docker tools](docs/development.md#docker-containers), [AI approvals](docs/architecture.md#ai-ownership-and-approvals) and [local Agent access](#cli-and-agent-skill) |
 
 <a id="cli-与-agent-skill"></a>
 ## CLI and Agent skill
