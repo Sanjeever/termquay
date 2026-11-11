@@ -20,8 +20,8 @@ import '../src/style.css';
 const parameters = new URLSearchParams(location.search);
 const demoScene = parameters.get('scene');
 if (demoScene === 'ssh') {
-  Reflect.get(window, '_wails').streamFactory = () => {
-    const socket = new WebSocket(`ws://${location.host}/ssh-fixture`);
+  Reflect.get(window, '_wails').streamFactory = (name: string) => {
+    const socket = new WebSocket(`ws://${location.host}/ssh-fixture/${name}`);
     socket.binaryType = 'arraybuffer';
     return socket;
   };
@@ -189,18 +189,31 @@ function Fixture() {
 
 function SSHFixture() {
   const [files, setFiles] = useState(false);
+  const [sessionID, setSessionID] = useState('host-a');
+  const [state, setState] = useState('connected');
   const [request, setRequest] = useState<TransferBrowserRequest>();
   return (
     <HeroUIProvider disableAnimation disableRipple>
       <main className="app-shell">
+        <div className="button-row">
+          <button onClick={() => setState('disconnected')}>Disconnect SSH</button>
+          <button
+            onClick={() => {
+              setSessionID((value) => `${value}-next`);
+              setState('connected');
+            }}
+          >
+            Reconnect SSH
+          </button>
+        </div>
         <div className="workspace" hidden={files}>
           <SSHWorkspace
             id="ssh-view"
-            sessionID="host-a"
+            sessionID={sessionID}
             connectionID="connection-a"
             target="deploy@app.example.invalid:22"
             environment="production"
-            state="connected"
+            state={state}
             shortcuts={defaultShortcuts}
             visible={!files}
             automaticReconnect={false}

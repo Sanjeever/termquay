@@ -309,6 +309,9 @@ const SSHWorkspace = forwardRef<
   }>();
   const [fileJump, setFileJump] = useState<{ path: string; line: number; sequence: number }>();
   const terminalDirectories = useRef(new Map<string, string>());
+  const [directorySetups, setDirectorySetups] = useState<
+    Record<string, 'waiting' | 'inserted' | 'ready'>
+  >({});
   const [preparing, setPreparing] = useState(false);
   const [tunnelsOpen, setTunnelsOpen] = useState(false);
   const [closing, setClosing] = useState('');
@@ -531,12 +534,21 @@ const SSHWorkspace = forwardRef<
       if (!live.has(key)) terminalOwners.current.delete(key);
     for (const key of terminalDirectories.current.keys())
       if (!live.has(key)) terminalDirectories.current.delete(key);
+    setDirectorySetups((previous) =>
+      Object.fromEntries(Object.entries(previous).filter(([key]) => live.has(key))),
+    );
     setSecondary((previous) => {
       const next = previous.filter((path) => live.has(path) || fileOrder.includes(path));
       return next.length === previous.length ? previous : next;
     });
   }, [terminals, fileOrder]);
   const active = paneSelected[activePane];
+  const activeTerminal =
+    state === 'connected' &&
+    terminals.includes(active) &&
+    terminalOwners.current.get(active) === sessionID &&
+    !terminalHandles.current.get(active)?.ended();
+  const directoryFollowStatus = !activeTerminal ? 'inactive' : directorySetups[active] || 'waiting';
   useEffect(() => {
     const path = terminalDirectories.current.get(active);
     if (
@@ -547,17 +559,26 @@ const SSHWorkspace = forwardRef<
     )
       setDirectoryRequest((previous) => ({ path, sequence: (previous?.sequence || 0) + 1 }));
   }, [active, followDirectory, sessionID, state]);
+  function terminalDirectoryStatus(terminal: string, status: 'waiting' | 'inserted') {
+    terminalDirectories.current.delete(terminal);
+    setDirectorySetups((previous) =>
+      previous[terminal] === status ? previous : { ...previous, [terminal]: status },
+    );
+  }
   function terminalDirectory(terminal: string, path: string, host: string) {
     const targetHost = target
       .slice(target.lastIndexOf('@') + 1, target.lastIndexOf(':'))
       .replace(/^\[|\]$/g, '')
       .toLowerCase();
     if (host && host.replace(/^\[|\]$/g, '').toLowerCase() !== targetHost) {
-      terminalDirectories.current.delete(terminal);
+      terminalDirectoryStatus(terminal, 'waiting');
       return;
     }
     if (state !== 'connected' || terminalOwners.current.get(terminal) !== sessionID) return;
     terminalDirectories.current.set(terminal, path);
+    setDirectorySetups((previous) =>
+      previous[terminal] === 'ready' ? previous : { ...previous, [terminal]: 'ready' },
+    );
     if (followDirectory && terminal === active && directory !== path)
       setDirectoryRequest((previous) => ({ path, sequence: (previous?.sequence || 0) + 1 }));
   }
@@ -1446,6 +1467,12 @@ const SSHWorkspace = forwardRef<
             directoryRequest={directoryRequest}
             followDirectory={followDirectory}
             onFollowDirectory={() => setFollowDirectory((value) => !value)}
+            directoryFollowStatus={directoryFollowStatus}
+            onEnableDirectoryReporting={
+              activeTerminal
+                ? () => terminalHandles.current.get(active)?.action('directoryReporting')
+                : undefined
+            }
             onTerminalDirectory={locateInTerminal}
             onTransfers={onTransfers}
             visible={visible && filesShown}
@@ -1576,6 +1603,7 @@ const SSHWorkspace = forwardRef<
                       .slice(target.lastIndexOf('@') + 1, target.lastIndexOf(':'))
                       .replace(/^\[|\]$/g, '')}
                     onDirectory={(path, host) => terminalDirectory(terminal, path, host)}
+                    onDirectoryStatus={(status) => terminalDirectoryStatus(terminal, status)}
                     onFile={openTerminalFile}
                     onSnippets={() => {
                       setActive(terminal);

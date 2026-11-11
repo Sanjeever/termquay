@@ -671,5 +671,8 @@
   "parentDirectories": "上级目录",
   "selectedFileActions": "所选文件操作",
   "toggleTransferBatch": "展开或收起已结束传输：{{value1}} · {{value2}}",
-  "auxiliaryPanels": "辅助面板"
+  "auxiliaryPanels": "辅助面板",
+  "selectTerminalToFollow": "请选择已连接的终端",
+  "directorySetupInserted": "等待执行 · 在终端按 Enter",
+  "waitingForTerminalDirectory": "等待终端目录"
 }

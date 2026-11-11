@@ -75,6 +75,8 @@ export default function FileBrowser({
   directoryRequest,
   followDirectory,
   onFollowDirectory,
+  directoryFollowStatus,
+  onEnableDirectoryReporting,
   onTerminalDirectory,
   onTransfers,
   demoDirectories,
@@ -93,6 +95,8 @@ export default function FileBrowser({
   directoryRequest?: { path: string; sequence: number; locate?: boolean };
   followDirectory?: boolean;
   onFollowDirectory?(): void;
+  directoryFollowStatus?: 'waiting' | 'inserted' | 'ready' | 'inactive';
+  onEnableDirectoryReporting?(): void;
   onTerminalDirectory?(path: string): void;
   onTransfers?(directory: string, selected: string[]): void;
   demoDirectories?: Record<string, Entry[]>;
@@ -711,6 +715,24 @@ export default function FileBrowser({
           <Icon name="tunnel" width="15" />
           {translate('files:followTerminalDirectory')}
         </button>
+      )}
+      {followDirectory && directoryFollowStatus && directoryFollowStatus !== 'ready' && (
+        <div className="file-follow-status">
+          <span role="status">
+            {translate(
+              directoryFollowStatus === 'inactive'
+                ? 'files:selectTerminalToFollow'
+                : directoryFollowStatus === 'inserted'
+                  ? 'files:directorySetupInserted'
+                  : 'files:waitingForTerminalDirectory',
+            )}
+          </span>
+          {onEnableDirectoryReporting && directoryFollowStatus === 'waiting' && (
+            <button className="session-tool" onClick={onEnableDirectoryReporting}>
+              {translate('terminal:enableDirectoryReporting')}
+            </button>
+          )}
+        </div>
       )}
       <div className="file-toolbar">
         <Tooltip content={translate('files:previousDirectory')}>

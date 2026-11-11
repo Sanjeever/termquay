@@ -207,11 +207,23 @@ async function fileWorkspace(page: Page) {
   return calls;
 }
 
-async function sshWorkflow(page: Page) {
+async function sshWorkflow(page: Page, language = 'en') {
   const calls: { method: number; args: unknown[] }[] = [];
-  const sockets: { send(data: Buffer): void }[] = [];
-  await page.routeWebSocket('**/ssh-fixture', (socket) => {
-    sockets.push(socket);
+  const inputs: string[] = [];
+  const sockets: { send(data: Buffer): void; id: string; terminal: boolean }[] = [];
+  await page.routeWebSocket('**/ssh-fixture/*', (socket) => {
+    const entry = {
+      send: (data: Buffer) => socket.send(data),
+      id: '',
+      terminal: socket.url().endsWith('/terminal'),
+    };
+    sockets.push(entry);
+    socket.onMessage((data) => {
+      const frame = Buffer.isBuffer(data) ? data : Buffer.from(data);
+      if (frame[0] === 0) inputs.push(frame.subarray(1).toString('utf8'));
+      else if (frame[0] !== 1) entry.id = frame.toString('utf8');
+    });
+    socket.send(Buffer.from('\x1b[?2004h'));
   });
   await page.route('**/wails/runtime*', async (route) => {
     const body = route.request().postDataJSON();
@@ -247,7 +259,8 @@ async function sshWorkflow(page: Page) {
           },
         ],
       };
-    } else if (method === 1375116584)
+    } else if (method === 272076810) value = { id: 'host-a-terminal-2' };
+    else if (method === 1375116584)
       value = {
         id: 'preview-ssh',
         direction: 'download',
@@ -262,13 +275,22 @@ async function sshWorkflow(page: Page) {
     });
   });
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('/e2e/workflow.html?scene=ssh');
+  await page.goto(`/e2e/workflow.html?scene=ssh&language=${language}`);
   await expect(page.locator('.file-panel [data-tree-path="/config"]')).toBeVisible();
   await expect.poll(() => sockets.length).toBe(2);
   return {
     calls,
-    directory(path: string, host = 'app.example.invalid') {
-      for (const socket of sockets) socket.send(Buffer.from(`\x1b]7;file://${host}${path}\x07`));
+    inputs,
+    send(data: string) {
+      for (const socket of sockets) {
+        if (socket.terminal) socket.send(Buffer.from(data));
+      }
+    },
+    directory(path: string, host = 'app.example.invalid', terminal?: string) {
+      for (const socket of sockets) {
+        if (socket.terminal && (!terminal || socket.id === terminal))
+          socket.send(Buffer.from(`\x1b]7;file://${host}${path}\x07`));
+      }
     },
   };
 }
@@ -300,6 +322,67 @@ test('directory following is explicit, pauses when disabled and rejects another 
       .filter((call) => call.method === 504709045)
       .some((call) => call.args[1] === '/other-host'),
   ).toBe(false);
+});
+
+test('directory setup uses one preview, waits for Enter and follows only confirmed reports', async ({
+  page,
+}) => {
+  const ssh = await sshWorkflow(page);
+  await page.getByRole('button', { name: 'Follow terminal directory', exact: true }).click();
+  const status = page.locator('.file-follow-status');
+  await expect(status).toContainText('Waiting for terminal directory');
+  await status.getByRole('button', { name: 'Enable directory reporting', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Enable directory reporting', exact: true });
+  await expect(dialog.getByRole('checkbox')).toHaveCount(0);
+  await expect(dialog.locator('details')).not.toHaveAttribute('open');
+  await dialog.locator('summary').click();
+  const script = await dialog.locator('pre').innerText();
+  expect(script).not.toContain('bind -x');
+  expect(script).not.toContain('__termquay_record');
+  expect(script).not.toContain('133;');
+  expect(script).not.toMatch(/[\r\n]$/);
+  await dialog.getByRole('button', { name: 'Insert into terminal', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(status).toContainText('Waiting for execution');
+  await expect
+    .poll(() => ssh.inputs.join(''))
+    .toBe(`\x1b[200~${script.replace(/\n/g, '\r')}\x1b[201~`);
+  const input = page.locator('.xterm-helper-textarea');
+  await expect(input).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(status).toContainText('Waiting for terminal directory');
+  ssh.directory('/config/subdir');
+  await expect(status).toHaveCount(0);
+  await expect(page.locator('.breadcrumbs')).toHaveAttribute('aria-label', '/config/subdir');
+});
+
+test('directory setup errors require the current token and allow retry after execution or cancellation', async ({
+  page,
+}) => {
+  const ssh = await sshWorkflow(page);
+  await page.getByRole('button', { name: 'Follow terminal directory', exact: true }).click();
+  const enable = page.getByRole('button', { name: 'Enable directory reporting', exact: true });
+  await enable.click();
+  let dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: 'Bash Shell', exact: true }).click();
+  await page.getByRole('option', { name: 'Zsh', exact: true }).click();
+  const script = (await dialog.locator('pre').textContent()) || '';
+  const token = /termquay;([a-f0-9]{64});E/.exec(script)![1];
+  await dialog.getByRole('button', { name: 'Insert into terminal', exact: true }).click();
+  await expect(page.locator('.file-follow-status')).toContainText('Waiting for execution');
+  ssh.send(
+    `\x1b]777;termquay;${'0'.repeat(64)};E;Shell type mismatch;terminal:completionShellMismatch\x07`,
+  );
+  await expect(page.locator('.file-follow-status')).toContainText('Waiting for execution');
+  await page.keyboard.press('Enter');
+  ssh.send(`\x1b]777;termquay;${token};E;Shell type mismatch;terminal:completionShellMismatch\x07`);
+  await expect(page.locator('.terminal-view')).toContainText('Current shell does not match');
+  await expect(enable).toBeVisible();
+  await enable.click();
+  dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: 'Insert into terminal', exact: true }).click();
+  await page.keyboard.press('Control+c');
+  await expect(enable).toBeVisible();
 });
 
 test('selected remote files open in transfers without replacing the other location', async ({
@@ -344,6 +427,53 @@ test('selected remote files open in transfers without replacing the other locati
     '/local/destination',
     ['release.conf'],
   ]);
+});
+
+test('directory readiness belongs to the active terminal and SSH instance', async ({ page }) => {
+  const ssh = await sshWorkflow(page);
+  const follow = page.getByRole('button', { name: 'Follow terminal directory', exact: true });
+  await follow.click();
+  ssh.directory('/config', 'app.example.invalid', 'host-a');
+  await expect(page.locator('.file-follow-status')).toHaveCount(0);
+  await page.getByRole('button', { name: 'New terminal in Main pane', exact: true }).click();
+  await expect(page.getByRole('tab', { name: 'Terminal 2', exact: true })).toBeVisible();
+  await expect(page.locator('.file-follow-status')).toContainText('Waiting for terminal directory');
+  ssh.directory('/config/subdir', 'app.example.invalid', 'host-a');
+  await expect(page.locator('.file-follow-status')).toContainText('Waiting for terminal directory');
+  await expect(page.locator('.breadcrumbs')).toHaveAttribute('aria-label', '/config');
+  await page.getByRole('tab', { name: 'Terminal 1', exact: true }).click();
+  await expect(page.locator('.file-follow-status')).toHaveCount(0);
+  await expect(page.locator('.breadcrumbs')).toHaveAttribute('aria-label', '/config/subdir');
+  await page.getByRole('button', { name: 'Disconnect SSH', exact: true }).click();
+  await expect(page.locator('.file-follow-status')).toContainText('Select a connected terminal');
+  await expect(
+    page.getByRole('button', { name: 'Enable directory reporting', exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole('button', { name: 'Reconnect SSH', exact: true }).click();
+  await expect(page.locator('.file-follow-status')).toContainText('Waiting for terminal directory');
+  ssh.directory('/config', 'app.example.invalid', 'host-a');
+  await expect(page.locator('.file-follow-status')).toContainText('Waiting for terminal directory');
+  ssh.directory('/config', 'app.example.invalid', 'host-a-next');
+  await expect(page.locator('.file-follow-status')).toHaveCount(0);
+});
+
+test('directory setup stays compact in Chinese at narrow widths', async ({ page }) => {
+  await sshWorkflow(page, 'zh-CN');
+  await page.getByRole('button', { name: '跟随终端目录', exact: true }).click();
+  await expect(page.locator('.file-follow-status')).toContainText('等待终端目录');
+  await page.getByRole('button', { name: '启用目录上报', exact: true }).click();
+  for (const width of [760, 620]) {
+    await page.setViewportSize({ width, height: 650 });
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByRole('button', { name: '插入终端', exact: true })).toBeVisible();
+    expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+      true,
+    );
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+  }
+  await page.screenshot({ path: test.info().outputPath('directory-reporting-zh-CN.png') });
 });
 
 test('file workspace keeps location and selection across tabs and languages, and submits the selected remote pair', async ({

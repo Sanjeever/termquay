@@ -671,5 +671,8 @@
   "parentDirectories": "Parent directories",
   "selectedFileActions": "Selected file actions",
   "toggleTransferBatch": "Show or hide finished transfers: {{value1}} · {{value2}}",
-  "auxiliaryPanels": "Auxiliary panels"
+  "auxiliaryPanels": "Auxiliary panels",
+  "selectTerminalToFollow": "Select a connected terminal",
+  "directorySetupInserted": "Waiting for execution · press Enter in the terminal",
+  "waitingForTerminalDirectory": "Waiting for terminal directory"
 }
