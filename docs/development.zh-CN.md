@@ -420,6 +420,10 @@ macOS 菜单栏提供连接、终端、标签关闭、显示、界面缩放和�
 
 提交、环境、自动检查及逐项覆盖统一见 [Local terminal workspaces and TUI verification](development.md#local-terminal-workspaces-and-tui-verification-2026-11-10)。记录区分浏览器渲染回归、macOS 隐藏原生 WKWebView 与真实 PTY 字节诊断，并保留画布尺寸修复的先失败后通过证据。隐藏窗口的解析结果不能证明前台动画观感，Windows 交叉构建也不能证明原生界面行为。
 
+### 本地程序状态与文件链接验收（2026-11-11）
+
+提交、环境、自动检查、浏览器覆盖及原生验证缺口统一见 [Local program status and file links verification](development.md#local-program-status-and-file-links-verification-2026-11-11)。本轮覆盖状态协议、标签与通知、相对目录历史、跨行与 Unicode 链接及编辑器设置；真实 Agent 上报、系统通知和编辑器实际定位仍需原生环境验收。
+
 ### 本地终端工作流验收（2026-11-10）
 
 提交、环境、自动检查及原生覆盖统一见 [Local terminal workflow verification](development.md#local-terminal-workflow-verification-2026-11-10)。记录包含 macOS 原生目录选择与继承、系统剪贴板、Codex/Claude Code 输入、关闭确认及粘贴后焦点恢复；重复确认粘贴另有先失败后通过的浏览器回归。Windows/Linux 原生界面、WSL、物理输入法组词、图片粘贴及持续资源负载仍需对应环境验证。
