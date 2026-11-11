@@ -74,8 +74,9 @@ jobs:
       - name: 安装 Linux 原生依赖
         if: runner.os == 'Linux'
         run: |
-          printf '%s\n' 'https://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt > /dev/null
-          sudo apt-get update
+          getent ahostsv4 mirrors.kernel.org
+          printf '%s\n' 'https://mirrors.kernel.org/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt > /dev/null
+          sudo apt-get update --error-on=any
           sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libxkbcommon-dev
       - run: pnpm --dir frontend install --frozen-lockfile
       - run: pnpm --dir frontend build
