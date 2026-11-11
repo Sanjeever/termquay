@@ -18,14 +18,14 @@ export function shellQuote(value: string) {
 
 export const shellSetup = {
   bash: `if [ -n "$BASH_VERSION" ] && [ -z "\${__termquay_enabled-}" ]; then
-  __termquay_prompt() { local code=$?; printf '\\033]133;D;%s\\007\\033]7;file://%s%s\\007\\033]133;A\\007' "$code" "$HOSTNAME" "$PWD"; return "$code"; }
+  __termquay_prompt() { local code=$?; printf '\\033]133;D;%s\\007\\033]133;A\\007' "$code"; return "$code"; }
   if declare -p PROMPT_COMMAND 2>/dev/null | grep -q 'declare -a'; then PROMPT_COMMAND=(__termquay_prompt "\${PROMPT_COMMAND[@]}"); else PROMPT_COMMAND=$'__termquay_prompt\\n'"\${PROMPT_COMMAND-}"; fi
   PS0=$'\\e]133;C\\a'"$PS0"
   PS1="$PS1"$'\\[\\e]133;B\\a\\]'
   __termquay_enabled=1
 fi`,
   zsh: `if [ -n "$ZSH_VERSION" ] && [ -z "\${__termquay_enabled-}" ]; then
-  __termquay_prompt() { local code=$?; printf '\\033]133;D;%s\\007\\033]7;file://%s%s\\007\\033]133;A\\007' "$code" "$HOST" "$PWD"; }
+  __termquay_prompt() { local code=$?; printf '\\033]133;D;%s\\007\\033]133;A\\007' "$code"; return "$code"; }
   __termquay_preexec() { printf '\\033]133;C\\007'; }
   precmd_functions=(__termquay_prompt \${precmd_functions[@]})
   preexec_functions+=(__termquay_preexec)
@@ -34,23 +34,43 @@ fi`,
 fi`,
 };
 
-export function shellSetupForHost(shell: 'bash' | 'zsh', host: string) {
+export function directorySetupForHost(shell: 'bash' | 'zsh', host: string) {
   const authority = host.includes(':') && !host.startsWith('[') ? `[${host}]` : host;
-  const prompt = [
-    'local code=$?;',
-    'local __termquay_path="$PWD";',
-    '__termquay_path=${__termquay_path//%/%25};',
-    '__termquay_path=${__termquay_path//#/%23};',
-    '__termquay_path=${__termquay_path//"?"/%3F};',
-  ].join(' ');
-  return shellSetup[shell]
-    .replace(
-      '__termquay_enabled=1',
-      `__termquay_enabled=1\n  __termquay_host=${shellQuote(authority)}`,
-    )
-    .replace(/"\$HOSTNAME"|"\$HOST"/g, '"$__termquay_host"')
-    .replace('"$PWD";', '"$__termquay_path";')
-    .replace('local code=$?;', prompt);
+  const hooks =
+    shell === 'bash'
+      ? `if declare -p PROMPT_COMMAND 2>/dev/null | grep -q 'declare -a'; then
+    PROMPT_COMMAND=(__termquay_directory_prompt "\${PROMPT_COMMAND[@]}")
+  else
+    PROMPT_COMMAND=$'__termquay_directory_prompt\\n'"\${PROMPT_COMMAND-}"
+  fi`
+      : 'precmd_functions=(__termquay_directory_prompt ${precmd_functions[@]})';
+  return `if [ -z "\${__termquay_directory_enabled-}" ]; then
+  __termquay_directory_host=${shellQuote(authority)}
+  __termquay_directory_prompt() {
+    local code=$? __termquay_path="$PWD"
+    __termquay_path=\${__termquay_path//%/%25}
+    __termquay_path=\${__termquay_path//#/%23}
+    __termquay_path=\${__termquay_path//"?"/%3F}
+    printf '\\033]7;file://%s%s\\007' "$__termquay_directory_host" "$__termquay_path"
+    return "$code"
+  }
+  ${hooks}
+  __termquay_directory_enabled=1
+fi`;
+}
+
+export function shellDirectorySetup(shell: 'bash' | 'zsh', host: string, token: string) {
+  if (!/^[a-f0-9]{64}$/.test(token)) throw uiMessage('terminal:invalidShellIntegrationIdentifier');
+  const version = shell === 'bash' ? 'BASH_VERSION' : 'ZSH_VERSION';
+  return `if [ -n "\${${version}-}" ]; then
+${directorySetupForHost(shell, host)}
+else
+  printf '\\033]777;termquay;${token};E;Shell type mismatch;terminal:completionShellMismatch\\007'
+fi`;
+}
+
+export function shellSetupForHost(shell: 'bash' | 'zsh', host: string) {
+  return `${directorySetupForHost(shell, host)}\n${shellSetup[shell]}`;
 }
 
 export function addShellIntegration(
