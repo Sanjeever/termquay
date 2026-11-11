@@ -1,5 +1,73 @@
 import { expect, test, type Page } from '@playwright/test';
 
+test('connection states remain readable in compact and wide catalogs', async ({ page }) => {
+  await page.route('**/wails/runtime*', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: 'null' }),
+  );
+  for (const language of ['en', 'zh-CN']) {
+    await page.goto(`/e2e/workflow.html?scene=connections&language=${language}`);
+    for (const width of [1440, 900, 620]) {
+      await page.setViewportSize({ width, height: 900 });
+      const states = page
+        .locator('.connection-session-state')
+        .filter({ hasText: /Connected|已连接/ });
+      await expect(states).toHaveCount(2);
+      for (const state of await states.all()) {
+        await expect(state).toBeVisible();
+        expect(await state.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+          true,
+        );
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+        true,
+      );
+    }
+  }
+});
+
+test('workspace tools retain editor content and remain reachable beside narrow panels', async ({
+  page,
+}) => {
+  await page.route('**/wails/runtime*', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: 'null' }),
+  );
+  for (const language of ['en', 'zh-CN']) {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(
+      `/e2e/workflow.html?scene=editor&language=${language}&theme=${language === 'en' ? 'dark' : 'light'}`,
+    );
+    const editor = page.locator('.cm-editor:visible');
+    await expect(editor).toBeVisible();
+    const instance = await editor.elementHandle();
+    const content = editor.locator('.cm-content');
+    await content.click();
+    await page.keyboard.press('ControlOrMeta+Home');
+    await page.keyboard.type('# unsaved\n');
+    const rail = page.locator('.workspace-tool-rail:visible');
+    const files = rail.getByRole('button').nth(0);
+    const monitor = rail.getByRole('button').nth(1);
+    await files.focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(monitor).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(monitor).toHaveAttribute('aria-pressed', 'true');
+    await page.setViewportSize({ width: 760, height: 650 });
+    await monitor.click();
+    await expect(page.locator('.monitor-dock:visible')).toBeVisible();
+    const dock = await page.locator('.monitor-dock:visible').boundingBox();
+    const tools = await rail.boundingBox();
+    expect(dock!.x + dock!.width).toBeLessThanOrEqual(tools!.x + 1);
+    await files.click();
+    await expect(page.locator('.file-dock:visible')).toBeVisible();
+    await files.click();
+    expect(await editor.evaluate((element, original) => element === original, instance)).toBe(true);
+    await expect(content).toContainText('# unsaved');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+  }
+});
+
 test('file selection actions collapse without leaving a gap above the directory tree', async ({
   page,
 }) => {

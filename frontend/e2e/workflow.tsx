@@ -10,10 +10,21 @@ import TransferBrowser from '../src/features/files/TransferBrowser';
 import CodeEditor from '../src/features/files/CodeEditor';
 import FileHistoryDialog from '../src/features/files/FileHistoryDialog';
 import FileBrowser from '../src/features/files/FileBrowser';
+import DemoWorkbench from '../src/features/demo/DemoWorkbench';
+import { defaultShortcuts } from '../src/lib/shortcuts';
 import { demoDirectories, demoSamples } from '../src/features/demo/data';
 import '../src/style.css';
 
-localStorage.setItem(appearanceKey, JSON.stringify({ ...defaultAppearance, language: 'en' }));
+const parameters = new URLSearchParams(location.search);
+const demoScene = parameters.get('scene');
+localStorage.setItem(
+  appearanceKey,
+  JSON.stringify({
+    ...defaultAppearance,
+    language: parameters.get('language') === 'zh-CN' ? 'zh-CN' : 'en',
+    theme: parameters.get('theme') === 'dark' ? 'dark' : 'light',
+  }),
+);
 
 function Fixture() {
   const { i18n } = useTranslation();
@@ -167,6 +178,18 @@ function Fixture() {
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <AppearanceProvider>
-    <Fixture />
+    {demoScene === 'connections' || demoScene === 'editor' || demoScene === 'terminal' ? (
+      <HeroUIProvider disableAnimation disableRipple>
+        <DemoWorkbench
+          scene={demoScene}
+          onScene={() => {}}
+          onExit={() => {}}
+          shortcuts={defaultShortcuts}
+          fontSize={14}
+        />
+      </HeroUIProvider>
+    ) : (
+      <Fixture />
+    )}
   </AppearanceProvider>,
 );

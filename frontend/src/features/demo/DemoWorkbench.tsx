@@ -11,6 +11,7 @@ import { Events, System } from '@wailsio/runtime';
 import Workbench from '../../components/layout/Workbench';
 import WorkspaceTabs from '../../components/layout/WorkspaceTabs';
 import ResizeHandle from '../../components/layout/ResizeHandle';
+import WorkspaceToolRail from '../../components/layout/WorkspaceToolRail';
 import CommandPalette, { type WorkbenchCommand } from '../../components/CommandPalette';
 import Icon from '../../components/Icon';
 import ConnectionCenter from '../connections/ConnectionCenter';
@@ -532,14 +533,6 @@ export default function DemoWorkbench({
                 }
               </span>
             )}
-            <button className="session-tool" aria-pressed={filesShown} onClick={toggleFiles}>
-              <Icon name="files" width="15" />
-              {translate('demo:files')}
-            </button>
-            <button className="session-tool" aria-pressed={monitorShown} onClick={toggleMonitor}>
-              <Icon name="monitor" width="15" />
-              {translate('demo:monitoring')}
-            </button>
             <Dropdown>
               <DropdownTrigger>
                 <button className="icon-button" aria-label={translate('demo:paneLayout')}>
@@ -724,6 +717,24 @@ export default function DemoWorkbench({
                 if (narrow) setNarrowPanel(null);
                 else setMonitorOpen(false);
               }}
+            />
+            <WorkspaceToolRail
+              tools={[
+                {
+                  id: 'files',
+                  label: translate('demo:files'),
+                  icon: 'files',
+                  active: filesShown,
+                  onClick: toggleFiles,
+                },
+                {
+                  id: 'monitor',
+                  label: translate('demo:monitoring'),
+                  icon: 'monitor',
+                  active: monitorShown,
+                  onClick: toggleMonitor,
+                },
+              ]}
             />
           </div>
         </div>

@@ -157,6 +157,8 @@ Follow the [localization contract](architecture.md#localization-and-collaboratio
 <a id="内置-ai-助手"></a>
 ## Using the workbench
 
+The SSH workspace's right tool rail opens files, monitoring, the enabled AI assistant, port forwarding, snippets and Docker. Use Tab or the arrow keys to reach its buttons. Docker opens an independent tool tab with the current SSH workspace selected. Layout, focus mode and reconnect actions remain in the workspace header.
+
 The remote file tree shows its batch action bar when files are selected and collapses it when the selection is cleared. Keyboard selection and select-all remain available from the tree.
 
 The remote editor's **Save and validate** action opens the existing file workflow and saves the draft before running its configured validation command. A missing command opens configuration without saving or guessing a command. Ordinary Save and opening **History and validation** do not execute commands. Reload still requires successful validation and a separate confirmation; a configured health check follows successful reload. The request belongs to the current SSH instance: reconnecting never replays the action, and closing its owner during a save/refresh prevents late validation. See [the workflow](../frontend/src/features/files/FileHistoryDialog.tsx).

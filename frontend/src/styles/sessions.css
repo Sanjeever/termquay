@@ -79,6 +79,38 @@
   display: flex;
   position: relative;
 }
+.workspace-tool-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  width: 42px;
+  flex-shrink: 0;
+  padding: 8px 4px;
+  overflow-y: auto;
+  border-left: 1px solid var(--color-border);
+  background: var(--color-surface);
+  z-index: 6;
+}
+.workspace-tool-rail .workspace-tool {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+.workspace-tool[aria-pressed='true'] {
+  color: var(--color-primary);
+  background: var(--color-selected);
+}
+.workspace-tool[aria-pressed='true']::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: var(--color-primary);
+}
 .panel-scrim {
   position: absolute;
   inset: 0;

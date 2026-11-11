@@ -32,6 +32,8 @@ const paths = {
   console: 'M3 4h18v16H3zM7 9l3 3-3 3m6 0h4',
   monitor: 'M3 13h4l3-8 4 14 3-6h4',
   transfer: 'M7 3v16M3 15l4 4 4-4M17 21V5M13 9l4-4 4 4',
+  tunnel: 'M3 7h14l-4-4m4 4-4 4M21 17H7l4-4m-4 4 4 4',
+  container: 'M3 7h18v13H3zM7 7V4h10v3M7 11v5M12 11v5M17 11v5',
   focus: 'M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5',
   sidebar: 'M3 4h18v16H3zM8 4v16',
   chevron: 'M9 5l7 7-7 7',

@@ -41,6 +41,14 @@
     z-index: 5;
     box-shadow: -12px 0 32px #0005;
   }
+  .ssh-panels:has(> .workspace-tool-rail) > .monitor-dock,
+  .ssh-panels:has(> .workspace-tool-rail) > .ai-dock {
+    right: 42px;
+    max-width: calc(100% - 74px);
+  }
+  .ssh-panels:has(> .workspace-tool-rail) > .file-dock {
+    max-width: calc(100% - 42px);
+  }
 }
 
 @media (prefers-reduced-transparency: reduce) {

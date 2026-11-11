@@ -52,6 +52,7 @@ import MonitorPanel from '../monitor/MonitorPanel';
 import Icon from '../../components/Icon';
 import ErrorNotice from '../../components/ErrorNotice';
 import ResizeHandle from '../../components/layout/ResizeHandle';
+import WorkspaceToolRail from '../../components/layout/WorkspaceToolRail';
 import type {
   RecoveryDraftInput,
   SSHLayout,
@@ -1304,41 +1305,6 @@ const SSHWorkspace = forwardRef<
             {connectionStateLabel(state)}
           </span>
         )}
-        <button
-          ref={filesToggle}
-          className="session-tool"
-          aria-pressed={filesShown}
-          onClick={toggleFiles}
-        >
-          <Icon name="files" width="15" />
-          {translate('files:files')}
-        </button>
-        <div
-          className="workspace-auxiliary"
-          role="group"
-          aria-label={translate('files:auxiliaryPanels')}
-        >
-          <button
-            ref={monitorToggle}
-            className="session-tool"
-            aria-pressed={monitorShown}
-            onClick={toggleMonitor}
-          >
-            <Icon name="monitor" width="15" />
-            {translate('files:monitoring')}
-          </button>
-          {aiEnabled && (
-            <button
-              ref={aiToggle}
-              className="session-tool"
-              aria-pressed={aiShown}
-              disabled={state !== 'connected'}
-              onClick={toggleAI}
-            >
-              {translate('files:aIAssistant')}
-            </button>
-          )}
-        </div>
         {state === 'disconnected' && (
           <Button size="sm" variant="light" isDisabled={busy || preparing} onPress={onReconnect}>
             {translate('files:reconnect')}
@@ -1405,21 +1371,14 @@ const SSHWorkspace = forwardRef<
             disabledKeys={[
               ...(busy || preparing ? ['reconnect'] : []),
               ...(!automaticReconnect ? ['automatic'] : []),
-              ...(state !== 'connected' || !onDocker ? ['docker'] : []),
             ]}
             onAction={(key) => {
-              if (key === 'docker') onDocker?.();
-              else if (key === 'tunnels') setTunnelsOpen((v) => !v);
-              else if (key === 'automatic') {
+              if (key === 'automatic') {
                 reconnect.toggle();
                 if (reconnect.enabled) onCancelReconnect();
               } else onReconnect();
             }}
           >
-            <DropdownItem key="docker">{translate('docker:dockerContainers')}</DropdownItem>
-            <DropdownItem key="tunnels" showDivider endContent={tunnelsOpen ? '✓' : null}>
-              {translate('files:portForwarding')}
-            </DropdownItem>
             <DropdownItem key="reconnect">{translate('files:reconnect')}</DropdownItem>
             <DropdownItem key="automatic" endContent={reconnect.enabled ? '✓' : null}>
               {translate('files:reconnectAutomaticallyAfterDisconnecting')}
@@ -2017,6 +1976,63 @@ const SSHWorkspace = forwardRef<
             </Suspense>
           </div>
         )}
+        <WorkspaceToolRail
+          tools={[
+            {
+              id: 'files',
+              label: translate('files:files'),
+              icon: 'files',
+              active: filesShown,
+              buttonRef: filesToggle,
+              onClick: toggleFiles,
+            },
+            {
+              id: 'monitor',
+              label: translate('files:monitoring'),
+              icon: 'monitor',
+              active: monitorShown,
+              buttonRef: monitorToggle,
+              onClick: toggleMonitor,
+            },
+            ...(aiEnabled
+              ? [
+                  {
+                    id: 'ai',
+                    label: translate('files:aIAssistant'),
+                    icon: 'sparkles' as const,
+                    active: aiShown,
+                    disabled: state !== 'connected',
+                    buttonRef: aiToggle,
+                    onClick: toggleAI,
+                  },
+                ]
+              : []),
+            {
+              id: 'tunnels',
+              label: translate('files:portForwarding'),
+              icon: 'tunnel',
+              active: tunnelsOpen,
+              onClick: () => setTunnelsOpen((value) => !value),
+            },
+            {
+              id: 'snippets',
+              label: translate('common:insertSnippet2').trim(),
+              icon: 'code',
+              onClick: onSnippets,
+            },
+            ...(onDocker
+              ? [
+                  {
+                    id: 'docker',
+                    label: translate('docker:dockerContainers'),
+                    icon: 'container' as const,
+                    disabled: state !== 'connected',
+                    onClick: onDocker,
+                  },
+                ]
+              : []),
+          ]}
+        />
       </div>
       {conflict && drafts.find((d) => d.path === conflict) && (
         <Suspense
