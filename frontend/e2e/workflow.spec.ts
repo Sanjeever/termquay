@@ -54,9 +54,13 @@ for (const language of ['en', 'zh-CN']) {
     await page.setViewportSize({ width: 760, height: 650 });
     await monitor.click();
     await expect(page.locator('.monitor-dock:visible')).toBeVisible();
-    const dock = await page.locator('.monitor-dock:visible').boundingBox();
-    const tools = await rail.boundingBox();
-    expect(dock!.x + dock!.width).toBeLessThanOrEqual(tools!.x + 1);
+    await expect
+      .poll(async () => {
+        const dock = await page.locator('.monitor-dock:visible').boundingBox();
+        const tools = await rail.boundingBox();
+        return dock!.x + dock!.width - tools!.x;
+      })
+      .toBeLessThanOrEqual(1);
     await files.click();
     await expect(page.locator('.file-dock:visible')).toBeVisible();
     await files.click();

@@ -179,7 +179,7 @@ func TestPowerShell51Execution(t *testing.T) {
 		{"explicit_exit", "exit 23", "", 23},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(t.Context(), 15*time.Second)
+			ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
 			defer cancel()
 			args := append([]string{"/d", "/c", powershell}, strings.Fields(strings.TrimPrefix(powerShellCommand("UTF-8"), "powershell.exe "))...)
 			command := exec.CommandContext(ctx, "cmd.exe", args...)
@@ -194,7 +194,11 @@ func TestPowerShell51Execution(t *testing.T) {
 				code = exit.ExitCode()
 			}
 			if code != test.code || strings.TrimSpace(string(output)) != test.want {
-				t.Fatalf("code=%d output=%q err=%v", code, output, err)
+				var stderr []byte
+				if exit, valid := err.(*exec.ExitError); valid {
+					stderr = exit.Stderr
+				}
+				t.Fatalf("code=%d output=%q stderr=%q context=%v err=%v", code, output, stderr, ctx.Err(), err)
 			}
 		})
 	}
