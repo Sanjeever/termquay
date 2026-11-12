@@ -302,6 +302,12 @@ Report unit tests, local protocol integration, browser substitutes, native deskt
 
 Historical evidence and unresolved gaps remain in the [Chinese acceptance ledger](development.zh-CN.md#已有验收记录与缺口), including [AI acceptance](development.zh-CN.md#内置-ai-验收2026-11-06) and [Windows SSH AI adaptation](development.zh-CN.md#windows-ssh-ai-适配验收2026-11-09). Platform input/IME, RDP clipboard/concurrency, native menus/dialogs, real multi-hop reconnect, provider behavior and sustained application-wide resource measurements need environment-specific evidence. Do not present historical results as current checks.
 
+### Fractional DPI terminal glyph alignment (2026-11-12)
+
+On Windows Chromium at DPR 1.25, a 32-row WebGL terminal produced an 833-pixel backing canvas for an 832-pixel cell grid. Normalizing row positions by row count distributed the extra pixel across the grid, moving glyphs off pixel boundaries. The WebGL dependency patch now normalizes glyph positions and sizes against the actual backing dimensions while preserving integer cell coordinates. Identical Chinese text at rows 1, 11 and 21 differed before the correction and produced identical, nonempty GPU pixel samples afterward.
+
+All six terminal-rendering browser checks passed, covering this pixel regression, Windows font selection, retained terminal instances, backing-size changes and synchronized output. This is Chromium evidence; the user's live Codex session and physical native WebView output still require visual confirmation. No settings defaults or application version changed.
+
 ### Chinese terminal font fallback verification (2026-11-12)
 
 Font fix `4f67f69` was checked on the Windows host described in [local terminal interaction verification](#local-terminal-interaction-verification-2026-11-12). Cascadia, Consolas and JetBrains presets previously ended at generic `monospace` without an explicit CJK family. A local Chromium font probe selected NSimSun for their Chinese text; the English-language terminal fixtures selected Noto Sans SC. Font selection therefore depended on the browser's implicit fallback rather than the application's font chain.

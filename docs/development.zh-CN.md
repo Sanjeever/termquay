@@ -396,6 +396,10 @@ macOS 菜单栏提供连接、终端、标签关闭、显示、界面缩放和�
 
 “终端与编辑器”的“恢复默认”曾遗漏本地终端渲染设置，现已修复，并有先失败后通过的组件回归。触发条件、引入提交和修复范围统一见 [Terminal defaults reset correction](development.md#terminal-defaults-reset-correction)。
 
+### 分数缩放终端像素对齐（2026-11-12）
+
+125% 缩放下，WebGL 画布可能比字符网格多出 1 个物理像素，原来的行位置计算将其分摊到整屏，造成中文字形偏离像素边界。修复后，同一段中文在第 1、11、21 行的实际 GPU 像素完全一致，六项终端渲染浏览器检查通过。复现条件、修复与验证边界见 [Fractional DPI terminal glyph alignment](development.md#fractional-dpi-terminal-glyph-alignment-2026-11-12)。用户实际 Codex 会话与原生窗口效果仍待目视确认。
+
 ### 中文终端字体后备验收（2026-11-12）
 
 字体后备修复、实际字形选择、修复前失败与修复后通过的证据统一见 [Chinese terminal font fallback verification](development.md#chinese-terminal-font-fallback-verification-2026-11-12)。记录覆盖三个字体预设、基础与 WebGL 渲染、英文等宽字体保留、实例保留和模拟 125% 缩放；浏览器证据不代表物理显示器或原生 WebView 验收。本次未修改版本号或发版。

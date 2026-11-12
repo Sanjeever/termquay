@@ -1,5 +1,68 @@
 import { expect, test } from '@playwright/test';
 
+test.describe('fractional DPI glyph alignment', () => {
+  test.use({ deviceScaleFactor: 1.25 });
+
+  test('Chinese glyphs retain identical pixels across terminal rows', async ({ page }) => {
+    await page.goto('/e2e/terminal.html');
+    const pixels = await page.evaluate(async () => {
+      const xtermModule = '/node_modules/.vite/deps/@xterm_xterm.js';
+      const webglModule = '/node_modules/.vite/deps/@xterm_addon-webgl.js';
+      const appearanceModule = '/src/features/settings/appearance.ts';
+      const { Terminal } = await import(xtermModule);
+      const { WebglAddon } = await import(webglModule);
+      const { monoFonts } = await import(appearanceModule);
+      const host = document.createElement('div');
+      host.style.cssText = 'position:fixed;inset:0;padding:8px;z-index:10000';
+      document.body.append(host);
+      const terminal = new Terminal({
+        cols: 120,
+        rows: 32,
+        fontFamily: monoFonts.system,
+        fontSize: 14,
+        lineHeight: 1.3,
+        cursorBlink: false,
+      });
+      terminal.open(host);
+      const addon = new WebglAddon(true);
+      terminal.loadAddon(addon);
+      try {
+        await new Promise<void>((resolve) =>
+          terminal.write('\x1b[?25l' + Array(31).fill('还是很模糊 ABC123').join('\r\n'), resolve),
+        );
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        const renderer = Reflect.get(addon, '_renderer');
+        const gl = Reflect.get(renderer, '_gl') as WebGL2RenderingContext;
+        renderer.renderRows(0, terminal.rows - 1);
+        const height = renderer.dimensions.device.cell.height as number;
+        const samples = [0, 10, 20].map((row) => {
+          const sample = new Uint8Array(70 * height * 4);
+          gl.readPixels(
+            0,
+            gl.drawingBufferHeight - (row + 1) * height,
+            70,
+            height,
+            gl.RGBA,
+            gl.UNSIGNED_BYTE,
+            sample,
+          );
+          return Array.from(sample);
+        });
+        return {
+          ink: samples[0].filter((value, index) => index % 4 !== 3 && value > 60).length,
+          samples,
+        };
+      } finally {
+        terminal.dispose();
+        host.remove();
+      }
+    });
+    expect(pixels.ink).toBeGreaterThan(100);
+    expect(pixels.samples[1]).toEqual(pixels.samples[0]);
+    expect(pixels.samples[2]).toEqual(pixels.samples[0]);
+  });
+});
+
 for (const renderer of ['dom', 'webgl']) {
   test(`Windows ${renderer} terminal presets use explicit Chinese fallback fonts`, async ({
     page,
