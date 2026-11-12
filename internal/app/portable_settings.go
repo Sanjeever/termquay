@@ -75,7 +75,7 @@ func validatePortableUI(values map[string]string) error {
 			}
 		case "shortcuts":
 			var shortcuts map[string]string
-			if err := json.Unmarshal([]byte(value), &shortcuts); err != nil || shortcuts == nil || len(shortcuts) > 32 {
+			if err := json.Unmarshal([]byte(value), &shortcuts); err != nil || shortcuts == nil || len(shortcuts) > 64 {
 				return appmessage.New("backend:invalidShortcutSettings", "快捷键设置无效")
 			}
 			seen := map[string][]string{}

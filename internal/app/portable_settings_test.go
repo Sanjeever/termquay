@@ -1,6 +1,31 @@
 package app
 
-import "testing"
+import (
+	"encoding/json"
+	"strconv"
+	"testing"
+)
+
+func TestPortableShortcutCapacity(t *testing.T) {
+	shortcuts := map[string]string{}
+	for index := range 65 {
+		shortcuts["action"+strconv.Itoa(index)] = ""
+		if index != 32 && index != 64 {
+			continue
+		}
+		data, err := json.Marshal(shortcuts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = validatePortableUI(map[string]string{"shortcuts": string(data)})
+		if index == 32 && err != nil {
+			t.Fatalf("current terminal shortcut set rejected: %v", err)
+		}
+		if index == 64 && err == nil {
+			t.Fatal("unbounded shortcut set accepted")
+		}
+	}
+}
 
 func TestPortableLocalEditor(t *testing.T) {
 	base := `"theme":"system","uiFont":"system","monoFont":"system","terminalPalette":"theme"`
