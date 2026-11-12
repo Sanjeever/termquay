@@ -389,6 +389,15 @@ const LocalTerminalWorkspace = forwardRef<
             <div
               className={`local-terminal-tab ${active === session.id ? 'active' : ''}`}
               key={session.id}
+              onMouseDown={(event) => {
+                if (event.button === 1) event.preventDefault();
+              }}
+              onAuxClick={(event) => {
+                if (event.button !== 1) return;
+                event.preventDefault();
+                event.stopPropagation();
+                if (!busy) closeTerminal(session.id);
+              }}
             >
               <button
                 className="local-terminal-tab-select"
@@ -585,7 +594,18 @@ const LocalTerminalWorkspace = forwardRef<
               }}
             >
               {count > 1 && !maximized && (
-                <div className="local-terminal-pane-header">
+                <div
+                  className="local-terminal-pane-header"
+                  onMouseDown={(event) => {
+                    if (event.button === 1) event.preventDefault();
+                  }}
+                  onAuxClick={(event) => {
+                    if (event.button !== 1) return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (!busy) closeTerminal(session.id);
+                  }}
+                >
                   <button
                     className="local-terminal-pane-title"
                     draggable={!busy}

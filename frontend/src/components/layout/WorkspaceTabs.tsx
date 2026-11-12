@@ -90,6 +90,15 @@ export default function WorkspaceTabs({
             className={`workspace-tab ${index === 0 ? 'connection-center-tab' : ''} ${active === item.id ? 'active' : ''}`}
             key={item.id}
             data-workspace-id={item.id}
+            onMouseDown={(event) => {
+              if (event.button === 1 && renaming !== item.id) event.preventDefault();
+            }}
+            onAuxClick={(event) => {
+              if (event.button !== 1 || renaming === item.id) return;
+              event.preventDefault();
+              event.stopPropagation();
+              if (index !== 0) onClose(item.id, false);
+            }}
             draggable={index !== 0 && !item.tool && renaming !== item.id}
             onDragStart={(e) => {
               e.dataTransfer.setData('application/x-termquay-workspace', item.id);

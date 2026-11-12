@@ -70,7 +70,19 @@ export default function PaneTabs({
       }}
     >
       {items.map((item) => (
-        <div key={item.id} className={selected === item.id ? 'selected' : ''}>
+        <div
+          key={item.id}
+          className={selected === item.id ? 'selected' : ''}
+          onMouseDown={(event) => {
+            if (event.button === 1) event.preventDefault();
+          }}
+          onAuxClick={(event) => {
+            if (event.button !== 1) return;
+            event.preventDefault();
+            event.stopPropagation();
+            if (!item.closingDisabled) onClose(item.id);
+          }}
+        >
           <Tooltip content={item.terminal ? item.label : item.id}>
             <button
               role="tab"

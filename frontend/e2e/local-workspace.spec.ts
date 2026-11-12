@@ -153,6 +153,40 @@ test('closing a pane confirms once, preserves other terminals and releases the w
   await expect.poll(() => closed.slice().sort()).toEqual(['local-1', 'local-2']);
 });
 
+for (const target of ['tab', 'pane title']) {
+  test(`middle clicking a background terminal ${target} preserves close confirmation and the active terminal`, async ({
+    page,
+  }) => {
+    const { closed, inputs } = await openWorkspace(page);
+    await layout(page, 'Split right');
+    await expect(page.getByLabel('Active terminal')).toHaveText('local-2');
+    const terminal =
+      target === 'tab'
+        ? page.locator('.local-terminal-tab-select').first()
+        : page.locator('[data-terminal-id="local-1"] .local-terminal-pane-title');
+    await terminal.click({ button: 'right' });
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await page.locator('.local-terminal-tab-select').last().click();
+    await expect(page.getByLabel('Active terminal')).toHaveText('local-2');
+    await terminal.click({ button: 'middle' });
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await expect(page.getByLabel('Active terminal')).toHaveText('local-2');
+    expect(closed).toEqual([]);
+    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(page.locator('.local-terminal-tab')).toHaveCount(2);
+    await terminal.click({ button: 'middle' });
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Close terminal', exact: true })
+      .click();
+    await expect.poll(() => closed).toEqual(['local-1']);
+    await expect(page.locator('.local-terminal-tab')).toHaveCount(1);
+    await page.locator('[data-terminal-id="local-2"] .xterm-helper-textarea').focus();
+    await page.keyboard.type('alive');
+    await expect.poll(() => inputs.get('local-2')?.join('')).toBe('alive');
+  });
+}
+
 test('a failed split keeps the existing layout and exposes the operation error', async ({
   page,
 }) => {
@@ -193,6 +227,9 @@ test('closing during creation releases a late PTY instead of reviving the worksp
   });
   await page.getByRole('button', { name: 'New terminal in workspace', exact: true }).click();
   await expect.poll(() => !!complete).toBe(true);
+  await page.locator('.local-terminal-tab-select').first().click({ button: 'middle' });
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  expect(closed).toEqual([]);
   await page.getByRole('button', { name: 'Remove workspace', exact: true }).click();
   await complete!();
   await expect.poll(() => closed.slice().sort()).toEqual(['local-1', 'local-late']);
