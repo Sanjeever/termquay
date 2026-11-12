@@ -396,6 +396,10 @@ macOS 菜单栏提供连接、终端、标签关闭、显示、界面缩放和�
 
 “终端与编辑器”的“恢复默认”曾遗漏本地终端渲染设置，现已修复，并有先失败后通过的组件回归。触发条件、引入提交和修复范围统一见 [Terminal defaults reset correction](development.md#terminal-defaults-reset-correction)。
 
+### 中文终端字体后备验收（2026-11-12）
+
+字体后备修复、实际字形选择、修复前失败与修复后通过的证据统一见 [Chinese terminal font fallback verification](development.md#chinese-terminal-font-fallback-verification-2026-11-12)。记录覆盖三个字体预设、基础与 WebGL 渲染、英文等宽字体保留、实例保留和模拟 125% 缩放；浏览器证据不代表物理显示器或原生 WebView 验收。本次未修改版本号或发版。
+
 ### 本地终端交互验收（2026-11-12）
 
 提交、Windows 环境、全量检查、界面检查及两次超时诊断统一见 [Local terminal interaction verification](development.md#local-terminal-interaction-verification-2026-11-12)。记录区分 Chromium 中的真实组件与替代原生边界、真实 PowerShell 脚本测试和交互式 Windows ConPTY；保留原生 WebView、物理输入法、图片附件、多显示器 DPI、WSL、其他平台与持续资源验收缺口。本次未修改版本号或发版。
