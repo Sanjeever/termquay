@@ -61,6 +61,64 @@ for (const platform of ['darwin', 'windows', 'linux']) {
   }
 }
 
+test('mouse and keyboard selections remain visible on the active editor line in both themes', async ({
+  page,
+}) => {
+  await page.goto('/e2e/fixture.html');
+  const editor = page.locator('.cm-content');
+  await editor.fill('Sample text selection\nSecond line');
+  const view = await editor.evaluateHandle(async (element) => {
+    const path = '/node_modules/.vite/deps/@codemirror_view.js';
+    const { EditorView } = await import(path);
+    return EditorView.findFromDOM(element);
+  });
+  for (const dark of [false, true]) {
+    if (dark) await page.getByRole('button', { name: 'Switch theme', exact: true }).click();
+    await editor.focus();
+    await page.keyboard.press('ControlOrMeta+Home');
+    const points = await view.evaluate((view) => [view.coordsAtPos(2), view.coordsAtPos(9)]);
+    await page.mouse.move(points[0]!.left, (points[0]!.top + points[0]!.bottom) / 2);
+    await page.mouse.down();
+    await page.mouse.move(points[1]!.left, (points[1]!.top + points[1]!.bottom) / 2, {
+      steps: 10,
+    });
+    await page.mouse.up();
+    await expect
+      .poll(() =>
+        view.evaluate((view) =>
+          view.state.sliceDoc(view.state.selection.main.from, view.state.selection.main.to),
+        ),
+      )
+      .toBe('mple te');
+    await expect(page.locator('.cm-selectionBackground')).toBeVisible();
+    const background = await page
+      .locator('.cm-activeLine')
+      .evaluate((element) => getComputedStyle(element).backgroundColor);
+    expect(background).toMatch(/^rgba\(/);
+    const alpha = Number(background.slice(background.lastIndexOf(',') + 1, -1));
+    expect(alpha).toBeGreaterThan(0);
+    expect(alpha).toBeLessThan(1);
+    await page.keyboard.press('Shift+ArrowRight');
+    await expect
+      .poll(() =>
+        view.evaluate((view) => view.state.selection.main.to - view.state.selection.main.from),
+      )
+      .toBe(8);
+    await page.getByRole('tab', { name: 'Shell 1', exact: true }).click();
+    await expect(page.locator('.cm-selectionBackground')).toBeVisible();
+    await editor.click();
+    await page.keyboard.press('ControlOrMeta+Home');
+    await page.keyboard.press('ControlOrMeta+Shift+End');
+    await expect
+      .poll(() =>
+        view.evaluate((view) =>
+          view.state.sliceDoc(view.state.selection.main.from, view.state.selection.main.to),
+        ),
+      )
+      .toBe('Sample text selection\nSecond line');
+  }
+});
+
 test('language, theme and custom font changes preserve the editor instance, selection and undo', async ({
   page,
 }) => {

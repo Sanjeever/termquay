@@ -18,7 +18,7 @@ export function editorTheme(dark: boolean) {
           color: 'var(--color-muted)',
           borderRight: '1px solid var(--color-border)',
         },
-        '.cm-activeLine': { background: 'var(--color-surface)' },
+        '.cm-activeLine': { background: 'var(--color-selection-muted)' },
         '.cm-activeLineGutter': { background: 'var(--color-hover)' },
         '.cm-cursor': { borderLeftColor: 'var(--color-primary)' },
         '.cm-selectionBackground': { background: 'var(--color-selected) !important' },
