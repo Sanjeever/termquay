@@ -300,7 +300,7 @@ macOS 菜单栏提供连接、终端、标签关闭、显示、界面缩放和�
 
 [终端配色](../frontend/src/features/settings/appearance.ts)在经典深色及跟随深色界面时，使用较暗的 ANSI 亮黑色，降低 TUI 面板背景亮度。[终端视图](../frontend/src/features/terminal/TerminalView.tsx)在两种渲染器中启用 xterm 文字最小对比度调整，使灰色文字保持可读；显式弱化的文字和背景字符遵循 xterm 自身的对比度规则。
 
-“设置 → 终端与编辑器 → 等宽字体 → 自定义”支持输入本机已安装的字体名称，例如 `JetBrainsMono Nerd Font Mono`。Powerlevel10k 等提示符建议使用 Nerd Font Mono 字体显示等宽图标。该设置应用于终端、编辑器和设置预览，并随界面设置备份；详细行为见 [Terminal fonts](development.md#using-the-workbench)。
+“设置 → 终端与编辑器 → 等宽字体 → 自定义”支持输入本机已安装的字体名称，例如 `JetBrainsMono Nerd Font Mono`。Powerlevel10k 等提示符建议使用 Nerd Font Mono 字体显示等宽图标。全部预设与自定义字体的后备链均明确提供本机中文字体，在所选字体缺少中文字形时使用，保留已选择的英文等宽字体。各平台后备链见[字体定义](../frontend/src/features/settings/appearance.ts)，应用不下载字体。该设置应用于终端、编辑器和设置预览，并随界面设置备份；详细行为见 [Terminal fonts](development.md#using-the-workbench)。
 
 日志级别高亮默认开启，可在“终端与编辑器”设置关闭；识别 ERROR/FATAL、WARN/WARNING、INFO、DEBUG/TRACE，保留远端程序已有颜色及选区显示。高亮仅处理普通终端缓冲区的可见区域，并限制扫描范围和装饰数量，隐藏终端及全屏程序的备用缓冲区停止处理。高亮不改写远端输出或 Shell 配置；提示符及输入语法颜色仍由远端 Shell 提供。
 

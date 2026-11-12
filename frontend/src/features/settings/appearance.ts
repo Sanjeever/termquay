@@ -50,12 +50,13 @@ export const uiFonts = {
   yahei: '"Microsoft YaHei UI", "Microsoft YaHei", sans-serif',
   pingfang: '"PingFang SC", -apple-system, sans-serif',
 };
+const cjkFontFallbacks =
+  '"Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Noto Sans Mono CJK SC", "Noto Sans CJK SC"';
 export const monoFonts = {
-  system:
-    '"Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", "Microsoft YaHei", monospace',
-  cascadia: '"Cascadia Mono", "SFMono-Regular", Consolas, monospace',
-  consolas: 'Consolas, "SFMono-Regular", monospace',
-  jetbrains: '"JetBrains Mono", "SFMono-Regular", Consolas, monospace',
+  system: `"Cascadia Mono", "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", ${cjkFontFallbacks}, monospace`,
+  cascadia: `"Cascadia Mono", "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", ${cjkFontFallbacks}, monospace`,
+  consolas: `Consolas, "SFMono-Regular", Menlo, Monaco, "Liberation Mono", ${cjkFontFallbacks}, monospace`,
+  jetbrains: `"JetBrains Mono", "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", ${cjkFontFallbacks}, monospace`,
 };
 
 export function monospaceFont(appearance: Appearance): string {
