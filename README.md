@@ -21,7 +21,7 @@ Choose **Settings → Appearance → Language** to follow the system, use Englis
 ## Features
 
 - **Connections** — groups, filters, configuration imports, connection playbooks, encrypted credentials and master password protection.
-- **SSH and local terminals** — multiple authentication methods, jump hosts, SOCKS5 proxies, port forwarding, reconnect and connection diagnostics. [Local workspaces](docs/development.md#using-the-workbench) support pane layouts, resizing, drag-to-swap, program status, local editor links and independent renderer settings.
+- **SSH and local terminals** — multiple authentication methods, jump hosts, SOCKS5 proxies, port forwarding, reconnect and connection diagnostics. [Local workspaces](docs/development.md#using-the-workbench) offer a compact session strip, directional splits, pane layouts, PowerShell integration, program status, local editor links and independent renderer settings.
 - **Files and transfers** — a dedicated dual-pane transfer tab for local/remote and cross-host copies, search, batch transfers, explicit resume, directory sync and comparisons.
 - **Remote editing** — encodings and line endings, completion, conflict merging, encrypted version history and explicit validation/reload commands. Preview Markdown and common image formats.
 - **Terminal tools** — snippets, shell completion, tmux, recording/playback, background multi-host tasks, inspections and result comparisons.
