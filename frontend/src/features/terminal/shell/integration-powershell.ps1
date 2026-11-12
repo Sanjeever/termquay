@@ -24,8 +24,8 @@ if (-not (Test-Path variable:global:__TermQuay)) {
     }
     function global:prompt {
         $succeeded = $global:?
-        $nativeExitCode = $global:LASTEXITCODE
         Set-StrictMode -Off
+        $nativeExitCode = $global:LASTEXITCODE
         $state = $global:__TermQuay
         $esc = [char]27
         $bel = [char]7

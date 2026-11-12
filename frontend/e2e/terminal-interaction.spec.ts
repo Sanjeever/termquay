@@ -68,6 +68,24 @@ for (const bracketed of [false, true]) {
   });
 }
 
+test('canceling a shell choice leaves the active completion behavior unchanged', async ({
+  page,
+}) => {
+  const { inputs } = await terminal(page);
+  await page.getByRole('button', { name: 'Terminal actions', exact: true }).click();
+  await page
+    .getByRole('menuitem', { name: 'Enable current shell integration…', exact: true })
+    .click();
+  const dialog = page.getByRole('dialog', { name: 'Current shell integration', exact: true });
+  await dialog.getByRole('button', { name: /Shell/ }).click();
+  await page.getByRole('option', { name: 'PowerShell', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await page.getByRole('button', { name: 'Terminal actions', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Command completion', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  expect(inputs).toEqual([]);
+});
+
 test('PowerShell integration confirms setup, records commands and uses native completion', async ({
   page,
 }) => {

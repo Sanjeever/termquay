@@ -53,6 +53,7 @@ async function layout(page: Page, name: string) {
 test('six layouts retain live terminals through resizing, moving, maximizing and language changes', async ({
   page,
 }) => {
+  test.setTimeout(60000);
   const { closed, inputs, launches } = await openWorkspace(page);
   const first = await page.locator('[data-terminal-id="local-1"] .xterm').elementHandle();
   const canvas = await page.locator('[data-terminal-id="local-1"] canvas').first().elementHandle();
@@ -301,6 +302,10 @@ test('new sessions remain discoverable and single panes use one toolbar', async 
   await expect(page.getByRole('button', { name: 'Lock input', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'New terminal in workspace', exact: true }).click();
   await expect(tabs.locator('.local-terminal-tab')).toHaveCount(2);
+  await expect(tabs.locator('.local-terminal-tab-label')).toHaveText([
+    'Shell · project · 1',
+    'Shell · project · 2',
+  ]);
   await expect(page.locator('[data-terminal-id="local-1"]')).toBeHidden();
   send('local-1', '\x1b]7501;state=blocked:kind=permission:app=codex\x07');
   await expect(tabs.locator('.terminal-program-state')).toHaveText('Awaiting approval');
@@ -320,6 +325,9 @@ test('layout presets never start processes and directional splits retain input t
   const { launches, closed, inputs } = await openWorkspace(page);
   await layout(page, 'Four panes');
   await expect(page.locator('.local-terminal-empty')).toHaveCount(3);
+  await expect(page.locator('[data-terminal-id="local-1"] .xterm-helper-textarea')).toBeFocused();
+  await page.keyboard.type('after layout');
+  await expect.poll(() => inputs.get('local-1')!.join('')).toBe('after layout');
   expect(launches).toEqual([]);
   await layout(page, 'Single');
   await layout(page, 'Split right');

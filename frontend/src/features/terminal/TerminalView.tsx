@@ -414,6 +414,7 @@ const TerminalView = forwardRef<
   const [shell, setShell] = useState<'bash' | 'zsh' | 'powershell'>(
     localContext?.kind === 'powershell' ? 'powershell' : local && System.IsMac() ? 'zsh' : 'bash',
   );
+  const integratedShell = useRef(shell);
   const shellSetup = useMemo(
     () =>
       shell === 'powershell'
@@ -645,7 +646,7 @@ const TerminalView = forwardRef<
     if (name === 'terminalCompletion') {
       clearError('completion');
       term.focus();
-      if (shell === 'powershell') sendFrame('\t');
+      if (integratedShell.current === 'powershell') sendFrame('\t');
       else completion.request();
       return;
     }
@@ -1869,6 +1870,7 @@ const TerminalView = forwardRef<
               onPress={() => {
                 if (setupConsumed.current) return;
                 if (insert(shellSetup, false)) {
+                  integratedShell.current = shell;
                   setupConsumed.current = true;
                   clearError('directory');
                   clearError('completion');

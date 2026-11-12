@@ -48,7 +48,8 @@ for (const shell of ['pwsh', ...(process.platform === 'win32' ? ['powershell'] :
       try {
         mkdirSync(directory);
         const output = run(
-          `function global:prompt { 'original-prompt' }
+          `Set-StrictMode -Version Latest
+function global:prompt { 'original-prompt' }
 ${powerShellIntegrationSetup('localhost', token, true)}
 ${powerShellIntegrationSetup('localhost', token, true)}
 Set-Location -LiteralPath ${quote(directory)}

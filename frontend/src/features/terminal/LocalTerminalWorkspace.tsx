@@ -124,6 +124,29 @@ const LocalTerminalWorkspace = forwardRef<
   const count = localPaneCount(layout);
   const dimensions = localWorkspaceLayouts[layout];
   const current = sessions.find((session) => session.id === active) ?? sessions[0];
+  const selected = useRef(current);
+  selected.current = current;
+  const labels = sessions.map(
+    (session) => session.title || `${session.shell} · ${localDirectoryName(session.directory)}`,
+  );
+  const sessionLabels = labels.map((label, index) =>
+    labels.indexOf(label) !== labels.lastIndexOf(label) ? `${label} · ${index + 1}` : label,
+  );
+
+  function restoreTerminalFocus() {
+    requestAnimationFrame(() => {
+      const element = document.activeElement;
+      const returnedToTrigger =
+        tabs.current?.parentElement?.contains(element) &&
+        element?.getAttribute('aria-expanded') === 'false';
+      if (
+        !disposed.current &&
+        grid.current?.getClientRects().length &&
+        (element === document.body || returnedToTrigger)
+      )
+        selected.current.terminal.current?.focus();
+    });
+  }
 
   useEffect(() => {
     tabs.current
@@ -234,7 +257,6 @@ const LocalTerminalWorkspace = forwardRef<
     setRows(equalPaneBoundaries(localWorkspaceLayouts[nextLayout].rows));
     setMaximized(false);
     setPanes(next);
-    current.terminal.current?.focus();
   }
 
   async function splitTerminal(direction: 'Right' | 'Down') {
@@ -386,9 +408,7 @@ const LocalTerminalWorkspace = forwardRef<
                 }}
               >
                 <Icon name="terminal" width="13" />
-                <span className="local-terminal-tab-label">
-                  {session.title || `${session.shell} · ${localDirectoryName(session.directory)}`}
-                </span>
+                <span className="local-terminal-tab-label">{sessionLabels[index]}</span>
                 {session.attention && (
                   <span
                     className={`terminal-program-state ${session.attention}`}
@@ -405,7 +425,7 @@ const LocalTerminalWorkspace = forwardRef<
               <button
                 className="icon-button local-terminal-tab-close"
                 aria-label={t('terminal:closePane', {
-                  name: session.title || localDirectoryName(session.directory),
+                  name: sessionLabels[index],
                 })}
                 disabled={busy}
                 onClick={() => closeTerminal(session.id)}
@@ -415,7 +435,7 @@ const LocalTerminalWorkspace = forwardRef<
             </div>
           ))}
         </div>
-        <Dropdown>
+        <Dropdown onClose={restoreTerminalFocus}>
           <DropdownTrigger>
             <button
               className="icon-button"
@@ -488,7 +508,7 @@ const LocalTerminalWorkspace = forwardRef<
             <Icon name="plus" width="14" />
           </button>
         </Tooltip>
-        <Dropdown>
+        <Dropdown onClose={restoreTerminalFocus}>
           <DropdownTrigger>
             <button
               className="icon-button"
