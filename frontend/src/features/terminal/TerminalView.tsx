@@ -42,6 +42,7 @@ import { addLogHighlights } from './logHighlights';
 import {
   addShellIntegration,
   shellDirectorySetup,
+  powerShellIntegrationSetup,
   type CommandIndexEntry,
 } from './shellIntegration';
 import type { CommandAttention } from './commandAttention';
@@ -287,6 +288,7 @@ const TerminalView = forwardRef<
   const [tmuxOpen, setTmuxOpen] = useState(false);
   const [commandIndexOpen, setCommandIndexOpen] = useState(false);
   const [commandEntries, setCommandEntries] = useState<CommandIndexEntry[]>([]);
+  const [powerShellReady, setPowerShellReady] = useState(false);
   const commandToken = useRef('');
   const [logConfirm, setLogConfirm] = useState(false);
   const [log, setLog] = useState<TerminalLogStatus>();
@@ -409,10 +411,14 @@ const TerminalView = forwardRef<
       clearTimeout(timer);
     };
   }, [id, log?.recording, connected, setLogError]);
-  const [shell, setShell] = useState<'bash' | 'zsh'>(local && System.IsMac() ? 'zsh' : 'bash');
+  const [shell, setShell] = useState<'bash' | 'zsh' | 'powershell'>(
+    localContext?.kind === 'powershell' ? 'powershell' : local && System.IsMac() ? 'zsh' : 'bash',
+  );
   const shellSetup = useMemo(
     () =>
-      `{\n${integrationMode === 'directory' ? shellDirectorySetup(shell, host, setupToken) : shellCompletionSetup(shell, host, setupToken)}\n}`,
+      shell === 'powershell'
+        ? powerShellIntegrationSetup(host, setupToken, integrationMode === 'directory')
+        : `{\n${integrationMode === 'directory' ? shellDirectorySetup(shell, host, setupToken) : shellCompletionSetup(shell, host, setupToken)}\n}`,
     [shell, host, setupToken, integrationMode],
   );
   const integration = useRef<ReturnType<typeof addShellIntegration>>();
@@ -639,7 +645,8 @@ const TerminalView = forwardRef<
     if (name === 'terminalCompletion') {
       clearError('completion');
       term.focus();
-      completion.request();
+      if (shell === 'powershell') sendFrame('\t');
+      else completion.request();
       return;
     }
     if (name === 'commandHelp') {
@@ -753,6 +760,7 @@ const TerminalView = forwardRef<
       }),
     ];
     setCommandEntries([]);
+    setPowerShellReady(false);
     commandToken.current = '';
     integration.current = addShellIntegration(
       term,
@@ -767,6 +775,12 @@ const TerminalView = forwardRef<
       local ? undefined : (path, line) => callbacks.current.onFile?.(path, line),
       (kind) => complete.current.command(kind),
       (data) => {
+        if (commandToken.current && data === `termquay;${commandToken.current};P;powershell`) {
+          setPowerShellReady(true);
+          setupPending.current = false;
+          setSetupInserted(false);
+          return;
+        }
         const setup = parseCompletionMessage(data, directorySetupToken.current);
         if (setup?.kind === 'error') {
           reportError(
@@ -1303,6 +1317,11 @@ const TerminalView = forwardRef<
               <DropdownItem key="integration" isDisabled={!connected}>
                 {translate('terminal:enableCurrentShellIntegration2')}
               </DropdownItem>
+              {local ? (
+                <DropdownItem key="directoryReporting" isDisabled={!connected}>
+                  {translate('terminal:enableDirectoryReporting')}
+                </DropdownItem>
+              ) : null}
               <DropdownItem key="commandIndex" onPress={() => setCommandIndexOpen(true)}>
                 {translate('terminal:commandsInThisSession2')}
               </DropdownItem>
@@ -1413,7 +1432,7 @@ const TerminalView = forwardRef<
         >
           <CommandIndexDialog
             entries={commandEntries}
-            enabled={completion.enabled}
+            enabled={completion.enabled || powerShellReady}
             pending={!!commandToken.current}
             canEnable={!!connected && !locked && demoOutput === undefined}
             onEnable={() => {
@@ -1758,7 +1777,7 @@ const TerminalView = forwardRef<
       )}
       {(connected !== true ||
         setupInserted ||
-        cwd ||
+        (cwd && !local) ||
         (exitCode && exitCode !== '0') ||
         streamError) && (
         <div className="session-status">
@@ -1770,7 +1789,7 @@ const TerminalView = forwardRef<
                 : translate('terminal:disconnected')}
             </span>
           )}
-          {cwd && (
+          {cwd && !local && (
             <Tooltip content={cwd}>
               <span className="file-path">{cwd}</span>
             </Tooltip>
@@ -1807,12 +1826,13 @@ const TerminalView = forwardRef<
               Shell
               <SelectControl
                 value={shell}
-                onChange={(event) => setShell(event.target.value as 'bash' | 'zsh')}
+                onChange={(event) => setShell(event.target.value as 'bash' | 'zsh' | 'powershell')}
               >
                 <option value="bash">
                   {integrationMode === 'directory' ? 'Bash' : 'Bash 4.4+'}
                 </option>
                 <option value="zsh">Zsh</option>
+                <option value="powershell">PowerShell</option>
               </SelectControl>
             </label>
             <p className="muted">
@@ -1822,7 +1842,7 @@ const TerminalView = forwardRef<
                   : 'terminal:executeAtTheCurrentShellPromptItExpires',
               )}
             </p>
-            {integrationMode === 'full' && !containerConsole && (
+            {integrationMode === 'full' && shell !== 'powershell' && !containerConsole && (
               <label className="terminal-path-confirm">
                 <input
                   type="checkbox"
@@ -1855,10 +1875,12 @@ const TerminalView = forwardRef<
                   if (integrationMode === 'directory') directorySetupToken.current = setupToken;
                   else {
                     commandToken.current = setupToken;
-                    completion.activate(
-                      setupToken,
-                      pathCompletion && !containerConsole && !(local && System.IsWindows()),
-                    );
+                    setPowerShellReady(false);
+                    if (shell !== 'powershell')
+                      completion.activate(
+                        setupToken,
+                        pathCompletion && !containerConsole && !(local && System.IsWindows()),
+                      );
                   }
                   setupPending.current = true;
                   setSetupInserted(true);

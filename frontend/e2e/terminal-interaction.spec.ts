@@ -68,6 +68,44 @@ for (const bracketed of [false, true]) {
   });
 }
 
+test('PowerShell integration confirms setup, records commands and uses native completion', async ({
+  page,
+}) => {
+  const { inputs, send } = await terminal(page);
+  await page.getByRole('button', { name: 'Terminal actions', exact: true }).click();
+  await page
+    .getByRole('menuitem', { name: 'Enable current shell integration…', exact: true })
+    .click();
+  const dialog = page.getByRole('dialog', { name: 'Current shell integration', exact: true });
+  await dialog.getByRole('button', { name: /Shell/ }).click();
+  await page.getByRole('option', { name: 'PowerShell', exact: true }).click();
+  const script = (await dialog.locator('pre').textContent())!;
+  const token = /-Token '([a-f0-9]{64})'/.exec(script)![1];
+  expect(script).toContain('function global:PSConsoleHostReadLine');
+  expect(script).not.toContain('__termquay_apply');
+  await dialog.getByRole('button', { name: 'Insert into terminal', exact: true }).click();
+  await expect(page.locator('.xterm-helper-textarea')).toBeFocused();
+  await page.keyboard.press('Enter');
+  send(
+    `\x1b]7;file://localhost/C:/work/project\x07\x1b]777;termquay;${token};P;powershell\x07\x1b]133;A\x07PS> \x1b]133;B\x07`,
+  );
+  const command = "Write-Output 'hello'";
+  send(
+    `\x1b]777;termquay;${token};R;${Buffer.from(command).toString('hex')}\x07\x1b]133;C\x07hello\r\n\x1b]133;D;0\x07`,
+  );
+  await page.getByRole('button', { name: 'Terminal actions', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Commands in this session…', exact: true }).click();
+  const index = page.getByRole('dialog', { name: 'Commands in this session', exact: true });
+  await expect(index.getByRole('button', { name: command, exact: true })).toBeVisible();
+  await expect(
+    index.getByRole('button', { name: 'Enable command recording…', exact: true }),
+  ).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Terminal actions', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Command completion', exact: true }).click();
+  await expect.poll(() => inputs.join('').endsWith('\t')).toBe(true);
+});
+
 test('direct multiline paste is opt-in per session and retains bracketed paste across hiding', async ({
   page,
 }) => {

@@ -3,10 +3,15 @@
 package app
 
 import (
+	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 	"unsafe"
@@ -14,6 +19,109 @@ import (
 	pty "github.com/aymanbagabas/go-pty"
 	"golang.org/x/sys/windows"
 )
+
+func TestLocalPowerShellIntegrationPTY(t *testing.T) {
+	path, err := exec.LookPath("pwsh.exe")
+	if err != nil {
+		path, err = exec.LookPath("powershell.exe")
+	}
+	if err != nil {
+		t.Skip("PowerShell is not installed")
+	}
+	script, err := filepath.Abs("../../frontend/src/features/terminal/shell/integration-powershell.ps1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	directory := t.TempDir()
+	quote := func(value string) string { return "'" + strings.ReplaceAll(value, "'", "''") + "'" }
+	token := strings.Repeat("a", 64)
+	console, err := pty.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := console.Resize(100, 30); err != nil {
+		console.Close()
+		t.Fatal(err)
+	}
+	command := console.Command(path, "-NoLogo", "-NoProfile", "-NoExit", "-Command",
+		"Import-Module PSReadLine -ErrorAction Stop; . "+quote(script)+" -Token "+quote(token)+" -HostName localhost")
+	command.Dir = directory
+	if err := command.Start(); err != nil {
+		console.Close()
+		t.Fatal(err)
+	}
+	var mu sync.Mutex
+	var output []byte
+	readDone := make(chan struct{})
+	go func() {
+		defer close(readDone)
+		buffer := make([]byte, 4096)
+		for {
+			n, err := console.Read(buffer)
+			if n > 0 {
+				mu.Lock()
+				output = append(output, buffer[:n]...)
+				if len(output) > 128*1024 {
+					output = output[len(output)-128*1024:]
+				}
+				mu.Unlock()
+				if bytes.Contains(buffer[:n], []byte("\x1b[6n")) {
+					console.Write([]byte("\x1b[1;1R"))
+				}
+			}
+			if err != nil {
+				return
+			}
+		}
+	}()
+	done := make(chan error, 1)
+	go func() { done <- command.Wait() }()
+	defer func() {
+		command.Process.Kill()
+		console.Close()
+		<-readDone
+	}()
+	waitFor := func(want string) {
+		t.Helper()
+		deadline := time.NewTimer(10 * time.Second)
+		defer deadline.Stop()
+		tick := time.NewTicker(10 * time.Millisecond)
+		defer tick.Stop()
+		for {
+			mu.Lock()
+			found := bytes.Contains(output, []byte(want))
+			mu.Unlock()
+			if found {
+				return
+			}
+			select {
+			case <-tick.C:
+			case err := <-done:
+				t.Fatalf("PowerShell exited before protocol marker: %v", err)
+			case <-deadline.C:
+				t.Fatalf("PowerShell did not report %q", want)
+			}
+		}
+	}
+	waitFor("\x1b]777;termquay;" + token + ";P;powershell")
+	child := filepath.Join(directory, "中文 #%'folder")
+	if err := os.Mkdir(child, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := console.Write([]byte("Set-Location -LiteralPath " + quote(child) + "\r")); err != nil {
+		t.Fatal(err)
+	}
+	waitFor("%E4%B8%AD%E6%96%87%20%23%25")
+	for _, text := range []string{"Write-Output 'termquay-pty-verified'", "Get-Item -LiteralPath 'termquay-missing' -ErrorAction Ignore"} {
+		if _, err := console.Write([]byte(text + "\r")); err != nil {
+			t.Fatal(err)
+		}
+		waitFor(";R;" + hex.EncodeToString([]byte(text)))
+	}
+	waitFor("\x1b]133;D;0")
+	waitFor("\x1b]133;D;1")
+	waitFor("\x1b]7;file://localhost/")
+}
 
 type consoleKeyRecord struct {
 	Down   int32

@@ -1,5 +1,11 @@
 import { message as uiMessage } from '../../i18n/messages.ts';
 import type { IMarker, Terminal } from '@xterm/xterm';
+import powershell from './shell/integration-powershell.ps1?raw';
+
+export function powerShellIntegrationSetup(host: string, token: string, directoryOnly: boolean) {
+  if (!/^[a-f0-9]{64}$/.test(token)) throw uiMessage('terminal:invalidShellIntegrationIdentifier');
+  return `& {\n${powershell}\n} -Token '${token}' -HostName '${host.replace(/'/g, "''")}'${directoryOnly ? ' -DirectoryOnly' : ''}`;
+}
 
 export type CommandIndexEntry = {
   id: number;
