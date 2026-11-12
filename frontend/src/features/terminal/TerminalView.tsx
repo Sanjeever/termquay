@@ -1203,7 +1203,7 @@ const TerminalView = forwardRef<
     >
       <TerminalTools host={toolbarHost} visible={showTools}>
         <div className="terminal-tools">
-          {demoOutput === undefined && (
+          {demoOutput === undefined && (!local || locked) && (
             <button className="session-tool" aria-pressed={locked} onClick={toggleInputLock}>
               {locked ? translate('terminal:inputLockedUnlock') : translate('terminal:lockInput')}
             </button>
@@ -1252,7 +1252,8 @@ const TerminalView = forwardRef<
                   )
                 )
                   return;
-                if (key === 'keyword') setKeywordOpen((value) => !value);
+                if (key === 'lock') toggleInputLock();
+                else if (key === 'keyword') setKeywordOpen((value) => !value);
                 else if (key === 'confirmPaste') setConfirmMultilinePaste((value) => !value);
                 else if (key === 'export') void exportBuffer();
                 else if (key === 'tmux') setTmuxOpen(true);
@@ -1262,6 +1263,11 @@ const TerminalView = forwardRef<
                 else action(key as TerminalAction);
               }}
             >
+              {local && demoOutput === undefined ? (
+                <DropdownItem key="lock">
+                  {translate(locked ? 'terminal:inputLockedUnlock' : 'terminal:lockInput')}
+                </DropdownItem>
+              ) : null}
               <DropdownItem key="copy">{translate('terminal:copy')}</DropdownItem>
               <DropdownItem key="paste">{translate('terminal:paste')}</DropdownItem>
               {local ? (

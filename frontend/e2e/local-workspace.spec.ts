@@ -98,8 +98,8 @@ test('six layouts retain live terminals through resizing, moving, maximizing and
   await layout(page, 'Single');
   await expect(page.locator('.local-terminal-pane:visible')).toHaveCount(1);
   await expect(
-    page.getByRole('button', { name: 'Workspace terminals', exact: true }),
-  ).toContainText('4 terminals');
+    page.getByRole('group', { name: 'Workspace terminals' }).locator('.local-terminal-tab'),
+  ).toHaveCount(4);
   await layout(page, 'Four panes');
   await page.getByRole('button', { name: 'Toggle workspace', exact: true }).click();
   await page.getByRole('button', { name: 'Toggle workspace', exact: true }).click();
@@ -286,6 +286,26 @@ test('background program notifications report transitions once without inferring
   await expect.poll(() => notifications).toEqual(['local-1']);
   send('local-1', '\x1b]7501;state=idle\x07');
   await page.getByRole('button', { name: 'Toggle workspace', exact: true }).click();
-  await expect(page.locator('.terminal-program-state')).toHaveText('Ready');
+  await expect(page.locator('.local-terminal-tabs .terminal-program-state')).toHaveText('Ready');
   expect(notifications).toEqual(['local-1']);
+});
+
+test('new sessions remain discoverable and single panes use one toolbar', async ({ page }) => {
+  const { inputs, closed, send } = await openWorkspace(page);
+  const tabs = page.getByRole('group', { name: 'Workspace terminals' });
+  await expect(page.locator('.local-terminal-pane-header')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Lock input', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'New terminal in workspace', exact: true }).click();
+  await expect(tabs.locator('.local-terminal-tab')).toHaveCount(2);
+  await expect(page.locator('[data-terminal-id="local-1"]')).toBeHidden();
+  send('local-1', '\x1b]7501;state=blocked:kind=permission:app=codex\x07');
+  await expect(tabs.locator('.terminal-program-state')).toHaveText('Awaiting approval');
+  await tabs.locator('.local-terminal-tab-select').first().click();
+  await expect(page.locator('[data-terminal-id="local-1"] .xterm-helper-textarea')).toBeFocused();
+  await page.keyboard.type('still here');
+  await expect.poll(() => inputs.get('local-1')!.join('')).toBe('still here');
+  await tabs.locator('.local-terminal-tab-select').first().focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('[data-terminal-id="local-2"] .xterm-helper-textarea')).toBeFocused();
+  expect(closed).toEqual([]);
 });

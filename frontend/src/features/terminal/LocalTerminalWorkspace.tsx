@@ -116,12 +116,25 @@ const LocalTerminalWorkspace = forwardRef<
   const [closing, setClosing] = useState('');
   const [toolbar, setToolbar] = useState<HTMLDivElement | null>(null);
   const grid = useRef<HTMLDivElement>(null);
+  const tabs = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 1, height: 1 });
   const drag = useRef('');
   const [dropTarget, setDropTarget] = useState('');
   const count = localPaneCount(layout);
   const dimensions = localWorkspaceLayouts[layout];
   const current = sessions.find((session) => session.id === active) ?? sessions[0];
+
+  useEffect(() => {
+    tabs.current
+      ?.querySelector('[aria-pressed="true"]')
+      ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [active]);
+
+  function showSession(terminal: string) {
+    if (!panes.includes(terminal))
+      setPanes((previous) => previous.map((value) => (value === active ? terminal : value)));
+    select(terminal);
+  }
 
   useEffect(() => {
     disposed.current = false;
@@ -312,20 +325,80 @@ const LocalTerminalWorkspace = forwardRef<
   return (
     <div className="local-workspace">
       <div className="local-workspace-toolbar">
-        <SelectControl
-          aria-label={t('terminal:workspaceLayout')}
-          value={layout}
-          disabled={busy}
-          onChange={(event) => {
-            void changeLayout(event.target.value as LocalWorkspaceLayout);
-          }}
+        <div
+          ref={tabs}
+          className="local-terminal-tabs"
+          role="group"
+          aria-label={t('terminal:workspaceTerminals')}
         >
-          {(Object.keys(localWorkspaceLayouts) as LocalWorkspaceLayout[]).map((value) => (
-            <option key={value} value={value}>
-              {t(`terminal:layout_${value}`)}
-            </option>
+          {sessions.map((session, index) => (
+            <div
+              className={`local-terminal-tab ${active === session.id ? 'active' : ''}`}
+              key={session.id}
+            >
+              <button
+                className="local-terminal-tab-select"
+                aria-pressed={active === session.id}
+                title={`${session.shell} · ${session.directory}`}
+                onClick={() => showSession(session.id)}
+                onKeyDown={(event) => {
+                  let target = index;
+                  if (event.key === 'ArrowRight') target = (index + 1) % sessions.length;
+                  else if (event.key === 'ArrowLeft')
+                    target = (index + sessions.length - 1) % sessions.length;
+                  else if (event.key === 'Home') target = 0;
+                  else if (event.key === 'End') target = sessions.length - 1;
+                  else return;
+                  event.preventDefault();
+                  showSession(sessions[target].id);
+                }}
+              >
+                <Icon name="terminal" width="13" />
+                <span className="local-terminal-tab-label">
+                  {session.title || `${session.shell} · ${localDirectoryName(session.directory)}`}
+                </span>
+                {session.attention && (
+                  <span
+                    className={`terminal-program-state ${session.attention}`}
+                    title={[session.program?.app, session.program?.title, session.program?.message]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  >
+                    {commandAttentionLabels[session.attention]}
+                    {session.program?.progress !== undefined ? ` ${session.program.progress}%` : ''}
+                  </span>
+                )}
+                {session.ended && <span>{t('terminal:sessionExited')}</span>}
+              </button>
+              <button
+                className="icon-button local-terminal-tab-close"
+                aria-label={t('terminal:closePane', {
+                  name: session.title || localDirectoryName(session.directory),
+                })}
+                disabled={busy}
+                onClick={() => closeTerminal(session.id)}
+              >
+                <Icon name="close" width="12" />
+              </button>
+            </div>
           ))}
-        </SelectControl>
+        </div>
+        <span className="local-layout-control">
+          <SelectControl
+            aria-label={t('terminal:workspaceLayout')}
+            value={layout}
+            disabled={busy}
+            onChange={(event) => {
+              void changeLayout(event.target.value as LocalWorkspaceLayout);
+            }}
+          >
+            {(Object.keys(localWorkspaceLayouts) as LocalWorkspaceLayout[]).map((value) => (
+              <option key={value} value={value}>
+                {t(`terminal:layout_${value}`)}
+              </option>
+            ))}
+          </SelectControl>
+        </span>
         <Tooltip content={t('terminal:newTerminalInWorkspace')}>
           <button
             className="icon-button"
@@ -359,50 +432,20 @@ const LocalTerminalWorkspace = forwardRef<
             ))}
           </DropdownMenu>
         </Dropdown>
-        <Dropdown>
-          <DropdownTrigger>
-            <button className="session-tool" aria-label={t('terminal:workspaceTerminals')}>
-              {t('terminal:terminalCount', { count: sessions.length })}
-              <Icon name="chevron" width="12" style={{ transform: 'rotate(90deg)' }} />
-            </button>
-          </DropdownTrigger>
-          <DropdownMenu
-            aria-label={t('terminal:workspaceTerminals')}
-            selectionMode="single"
-            selectedKeys={[active]}
-            onAction={(key) => {
-              const terminal = String(key);
-              if (!panes.includes(terminal))
-                setPanes((previous) =>
-                  previous.map((value) => (value === active ? terminal : value)),
-                );
-              select(terminal);
-            }}
-          >
-            {sessions.map((session) => (
-              <DropdownItem
-                key={session.id}
-                textValue={`${session.shell} ${session.directory}`}
-                description={session.directory}
-              >
-                {session.title || session.shell} · {localDirectoryName(session.directory)}
-                {session.ended ? ` · ${t('terminal:sessionExited')}` : ''}
-              </DropdownItem>
-            ))}
-          </DropdownMenu>
-        </Dropdown>
         <div className="local-terminal-tools" ref={setToolbar} />
-        <Tooltip content={t(maximized ? 'terminal:restorePanes' : 'terminal:maximizePane')}>
-          <button
-            className="icon-button"
-            aria-label={t(maximized ? 'terminal:restorePanes' : 'terminal:maximizePane')}
-            aria-pressed={maximized}
-            disabled={count === 1}
-            onClick={() => setMaximized((value) => !value)}
-          >
-            <Icon name="focus" width="14" />
-          </button>
-        </Tooltip>
+        {count > 1 && (
+          <Tooltip content={t(maximized ? 'terminal:restorePanes' : 'terminal:maximizePane')}>
+            <button
+              className="icon-button"
+              aria-label={t(maximized ? 'terminal:restorePanes' : 'terminal:maximizePane')}
+              aria-pressed={maximized}
+              disabled={count === 1}
+              onClick={() => setMaximized((value) => !value)}
+            >
+              <Icon name="focus" width="14" />
+            </button>
+          </Tooltip>
+        )}
       </div>
       <ErrorNotice message={error} onDismiss={() => setError('')} />
       <div
@@ -444,71 +487,73 @@ const LocalTerminalWorkspace = forwardRef<
                 setDropTarget('');
               }}
             >
-              <div className="local-terminal-pane-header">
-                <button
-                  className="local-terminal-pane-title"
-                  draggable={!busy}
-                  aria-label={t('terminal:moveTerminal', {
-                    name: session.title || localDirectoryName(session.directory),
-                  })}
-                  title={session.directory}
-                  onClick={() => select(session.id)}
-                  onDragStart={(event) => {
-                    drag.current = session.id;
-                    event.dataTransfer.setData(
-                      'application/x-termquay-terminal-pane',
-                      `${id}:${session.id}`,
-                    );
-                    event.dataTransfer.effectAllowed = 'move';
-                  }}
-                  onDragEnd={() => {
-                    drag.current = '';
-                    setDropTarget('');
-                  }}
-                  onKeyDown={(event) => {
-                    if (!event.key.startsWith('Arrow')) return;
-                    const target = panes[localPaneNeighbor(layout, index, event.key.slice(5))];
-                    if (!target || target === session.id) return;
-                    event.preventDefault();
-                    if (event.shiftKey) exchange(session.id, target);
-                    else select(target);
-                  }}
-                >
-                  <Icon name="terminal" width="13" />
-                  <span>{session.title || localDirectoryName(session.directory)}</span>
-                  {session.program && (
-                    <span
-                      className={`terminal-program-state ${session.attention ?? ''}`}
-                      title={[session.program.app, session.program.title, session.program.message]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    >
-                      {commandAttentionLabels[programAttention(session.program)!]}
-                      {session.program.progress !== undefined
-                        ? ` ${session.program.progress}%`
-                        : ''}
-                    </span>
-                  )}
-                  {session.attention && !session.program && (
-                    <span
-                      className={`terminal-attention ${session.attention}`}
-                      aria-label={commandAttentionLabels[session.attention]}
-                      title={commandAttentionLabels[session.attention]}
-                    />
-                  )}
-                  {session.ended && <span>{t('terminal:sessionExited')}</span>}
-                </button>
-                <button
-                  className="icon-button"
-                  aria-label={t('terminal:closePane', {
-                    name: session.title || localDirectoryName(session.directory),
-                  })}
-                  disabled={busy}
-                  onClick={() => closeTerminal(session.id)}
-                >
-                  <Icon name="close" width="12" />
-                </button>
-              </div>
+              {count > 1 && !maximized && (
+                <div className="local-terminal-pane-header">
+                  <button
+                    className="local-terminal-pane-title"
+                    draggable={!busy}
+                    aria-label={t('terminal:moveTerminal', {
+                      name: session.title || localDirectoryName(session.directory),
+                    })}
+                    title={session.directory}
+                    onClick={() => select(session.id)}
+                    onDragStart={(event) => {
+                      drag.current = session.id;
+                      event.dataTransfer.setData(
+                        'application/x-termquay-terminal-pane',
+                        `${id}:${session.id}`,
+                      );
+                      event.dataTransfer.effectAllowed = 'move';
+                    }}
+                    onDragEnd={() => {
+                      drag.current = '';
+                      setDropTarget('');
+                    }}
+                    onKeyDown={(event) => {
+                      if (!event.key.startsWith('Arrow')) return;
+                      const target = panes[localPaneNeighbor(layout, index, event.key.slice(5))];
+                      if (!target || target === session.id) return;
+                      event.preventDefault();
+                      if (event.shiftKey) exchange(session.id, target);
+                      else select(target);
+                    }}
+                  >
+                    <Icon name="terminal" width="13" />
+                    <span>{session.title || localDirectoryName(session.directory)}</span>
+                    {session.program && (
+                      <span
+                        className={`terminal-program-state ${session.attention ?? ''}`}
+                        title={[session.program.app, session.program.title, session.program.message]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      >
+                        {commandAttentionLabels[programAttention(session.program)!]}
+                        {session.program.progress !== undefined
+                          ? ` ${session.program.progress}%`
+                          : ''}
+                      </span>
+                    )}
+                    {session.attention && !session.program && (
+                      <span
+                        className={`terminal-attention ${session.attention}`}
+                        aria-label={commandAttentionLabels[session.attention]}
+                        title={commandAttentionLabels[session.attention]}
+                      />
+                    )}
+                    {session.ended && <span>{t('terminal:sessionExited')}</span>}
+                  </button>
+                  <button
+                    className="icon-button"
+                    aria-label={t('terminal:closePane', {
+                      name: session.title || localDirectoryName(session.directory),
+                    })}
+                    disabled={busy}
+                    onClick={() => closeTerminal(session.id)}
+                  >
+                    <Icon name="close" width="12" />
+                  </button>
+                </div>
+              )}
               <TerminalView
                 local
                 localContext={{ hostname: session.hostname, kind: session.kind }}

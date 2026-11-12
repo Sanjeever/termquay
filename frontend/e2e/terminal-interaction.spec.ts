@@ -216,7 +216,8 @@ test('native file drops preserve quoted paths, target identity and input locking
     text,
   );
   await expect.poll(() => inputs.join('')).toBe(`\x1b[200~${text}\x1b[201~`);
-  await page.getByRole('button', { name: 'Lock input', exact: true }).click();
+  await page.getByRole('button', { name: 'Terminal actions', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Lock input', exact: true }).click();
   await expect(page.locator('.terminal-view')).not.toHaveAttribute('data-file-drop-target');
   await page.evaluate(
     (text) =>
