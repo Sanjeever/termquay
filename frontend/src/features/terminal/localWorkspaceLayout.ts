@@ -25,6 +25,41 @@ export function localPaneNeighbor(layout: LocalWorkspaceLayout, index: number, d
   return index;
 }
 
+export function localSplitPlan(
+  layout: LocalWorkspaceLayout,
+  panes: string[],
+  active: string,
+  direction: 'Right' | 'Down',
+) {
+  const index = panes.indexOf(active);
+  const neighbor = localPaneNeighbor(layout, index, direction);
+  if (neighbor !== index && !panes[neighbor])
+    return { layout, panes: [...panes], position: neighbor };
+  const expansions: Partial<Record<LocalWorkspaceLayout, LocalWorkspaceLayout>> =
+    direction === 'Right'
+      ? { single: 'columns2', columns2: 'columns3', rows2: 'grid' }
+      : { single: 'rows2', rows2: 'rows3', columns2: 'grid' };
+  const nextLayout = expansions[layout];
+  if (!nextLayout) return;
+  const next = Array<string>(localPaneCount(nextLayout)).fill('');
+  const oldColumns = localWorkspaceLayouts[layout].columns;
+  const nextColumns = localWorkspaceLayouts[nextLayout].columns;
+  const position =
+    nextLayout === 'grid'
+      ? Math.floor(index / oldColumns) * nextColumns +
+        (index % oldColumns) +
+        (direction === 'Right' ? 1 : nextColumns)
+      : index + 1;
+  panes.forEach((pane, offset) => {
+    const target =
+      nextLayout === 'grid'
+        ? Math.floor(offset / oldColumns) * nextColumns + (offset % oldColumns)
+        : offset + (offset > index ? 1 : 0);
+    next[target] = pane;
+  });
+  return { layout: nextLayout, panes: next, position };
+}
+
 export function localGridTracks(boundaries: number[]) {
   return [...boundaries, 100]
     .map((value, index) => `minmax(0,${value - (boundaries[index - 1] ?? 0)}fr)`)

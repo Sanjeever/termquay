@@ -75,6 +75,46 @@ export const shortcutDefinitions = [
     key: 'Mod+Alt+ArrowLeft',
   },
   {
+    id: 'splitTerminalRight',
+    get label() {
+      return translate('terminal:splitTerminalRight');
+    },
+    scope: 'local',
+    key: 'Mod+Alt+KeyD',
+  },
+  {
+    id: 'splitTerminalDown',
+    get label() {
+      return translate('terminal:splitTerminalDown');
+    },
+    scope: 'local',
+    key: 'Mod+Alt+Shift+KeyD',
+  },
+  {
+    id: 'maximizeTerminal',
+    get label() {
+      return translate('terminal:toggleMaximizePane');
+    },
+    scope: 'local',
+    key: 'Mod+Alt+Enter',
+  },
+  {
+    id: 'nextTerminal',
+    get label() {
+      return translate('terminal:nextTerminal');
+    },
+    scope: 'local',
+    key: 'Mod+Alt+BracketRight',
+  },
+  {
+    id: 'previousTerminal',
+    get label() {
+      return translate('terminal:previousTerminal');
+    },
+    scope: 'local',
+    key: 'Mod+Alt+BracketLeft',
+  },
+  {
     id: 'focusTerminalRight',
     get label() {
       return translate('terminal:focusTerminalRight');

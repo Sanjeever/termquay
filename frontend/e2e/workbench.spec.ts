@@ -118,7 +118,7 @@ test('multiline clipboard confirmation sends one bracketed paste even when activ
     socket.send(Buffer.from('\x1b[?2004hready\r\n'));
   });
   await page.goto('/e2e/terminal.html');
-  await expect(page.getByRole('button', { name: 'Lock input', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Terminal actions', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Terminal actions', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Paste', exact: true }).click();
   const dialog = page.getByRole('dialog');

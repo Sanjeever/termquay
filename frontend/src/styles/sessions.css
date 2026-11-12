@@ -1614,9 +1614,15 @@
 .local-terminal-tab.active > .local-terminal-tab-close {
   opacity: 1;
 }
-.local-workspace-toolbar .select-control {
-  width: 140px;
-  flex-shrink: 0;
+.local-layout-preview {
+  display: grid;
+  width: 18px;
+  height: 14px;
+  gap: 2px;
+}
+.local-layout-preview > i {
+  border: 1px solid currentColor;
+  border-radius: 1px;
 }
 .local-workspace-toolbar > .session-tool {
   display: inline-flex;

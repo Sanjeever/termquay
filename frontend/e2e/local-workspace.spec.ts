@@ -47,7 +47,7 @@ async function openWorkspace(page: Page) {
 
 async function layout(page: Page, name: string) {
   await page.getByRole('button', { name: /Terminal layout/ }).click();
-  await page.getByRole('option', { name, exact: true }).click();
+  await page.getByRole('menuitem', { name, exact: true }).click();
 }
 
 test('six layouts retain live terminals through resizing, moving, maximizing and language changes', async ({
@@ -56,6 +56,9 @@ test('six layouts retain live terminals through resizing, moving, maximizing and
   const { closed, inputs, launches } = await openWorkspace(page);
   const first = await page.locator('[data-terminal-id="local-1"] .xterm').elementHandle();
   const canvas = await page.locator('[data-terminal-id="local-1"] canvas').first().elementHandle();
+  for (let index = 0; index < 3; index++)
+    await page.getByRole('button', { name: 'New terminal in workspace', exact: true }).click();
+  await page.locator('.local-terminal-tab-select').first().click();
   const expected = [
     ['Two columns', 2],
     ['Two rows', 2],
@@ -126,7 +129,7 @@ test('closing a pane confirms once, preserves other terminals and releases the w
   page,
 }) => {
   const { closed, inputs } = await openWorkspace(page);
-  await layout(page, 'Two columns');
+  await layout(page, 'Split right');
   await expect(page.locator('.local-terminal-pane:visible')).toHaveCount(2);
   const close = page
     .locator('[data-terminal-id="local-1"] .local-terminal-pane-header')
@@ -149,7 +152,7 @@ test('closing a pane confirms once, preserves other terminals and releases the w
   await expect.poll(() => closed.slice().sort()).toEqual(['local-1', 'local-2']);
 });
 
-test('a partial open failure keeps existing terminals and exposes the operation error', async ({
+test('a failed split keeps the existing layout and exposes the operation error', async ({
   page,
 }) => {
   await openWorkspace(page);
@@ -162,10 +165,10 @@ test('a partial open failure keeps existing terminals and exposes the operation 
       body: opening ? JSON.stringify({ message: 'local PTY limit reached' }) : 'null',
     });
   });
-  await layout(page, 'Four panes');
+  await layout(page, 'Split right');
   await expect(page.getByRole('alert')).toContainText('local PTY limit reached');
   await expect(page.locator('.local-terminal-pane:visible')).toHaveCount(1);
-  await expect(page.locator('.local-terminal-empty')).toHaveCount(3);
+  await expect(page.locator('.local-terminal-empty')).toHaveCount(0);
 });
 
 test('closing during creation releases a late PTY instead of reviving the workspace', async ({
@@ -205,7 +208,8 @@ test('explicit terminal bells request attention once and focus acknowledges the 
     if (body?.args?.methodID === 1304035475) notifications.push(body.args.args[0]);
     await route.fallback();
   });
-  await layout(page, 'Two columns');
+  await layout(page, 'Split right');
+  await page.locator('[data-terminal-id="local-1"] .local-terminal-pane-title').click();
   await page.getByRole('button', { name: 'Terminal actions', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Enable terminal notifications', exact: true }).click();
   await page.getByRole('button', { name: 'Toggle workspace', exact: true }).click();
@@ -243,7 +247,7 @@ test('program status survives focus, hiding and alternate screens and answers pr
     '\x1b]7501;?:states=idle,working,done,blocked,error:kinds=permission,question,auth\x1b\\',
   );
   expect(inputs.get('local-1')![1].startsWith('\x1b[?')).toBe(true);
-  await layout(page, 'Two columns');
+  await layout(page, 'Split right');
   send('local-1', '\x1b[?1049h\x1b]7501;state=working:app=codex\x07');
   await expect(pane.locator('.terminal-program-state')).toHaveText('Running');
   send('local-1', '\x1b]7501;state=blocked:kind=permission:app=codex:msg=QXBwcm92ZSBjb21tYW5k\x07');
@@ -307,5 +311,26 @@ test('new sessions remain discoverable and single panes use one toolbar', async 
   await tabs.locator('.local-terminal-tab-select').first().focus();
   await page.keyboard.press('ArrowRight');
   await expect(page.locator('[data-terminal-id="local-2"] .xterm-helper-textarea')).toBeFocused();
+  expect(closed).toEqual([]);
+});
+
+test('layout presets never start processes and directional splits retain input targets', async ({
+  page,
+}) => {
+  const { launches, closed, inputs } = await openWorkspace(page);
+  await layout(page, 'Four panes');
+  await expect(page.locator('.local-terminal-empty')).toHaveCount(3);
+  expect(launches).toEqual([]);
+  await layout(page, 'Single');
+  await layout(page, 'Split right');
+  await expect(page.locator('[data-terminal-id="local-2"] .xterm-helper-textarea')).toBeFocused();
+  await page.keyboard.type('right');
+  await layout(page, 'Split down');
+  await expect(page.locator('[data-terminal-id="local-3"]')).toHaveCSS('grid-column-start', '3');
+  await expect(page.locator('[data-terminal-id="local-3"]')).toHaveCSS('grid-row-start', '3');
+  await page.keyboard.type('below');
+  await expect.poll(() => inputs.get('local-2')!.join('')).toBe('right');
+  await expect.poll(() => inputs.get('local-3')!.join('')).toBe('below');
+  expect(launches).toHaveLength(2);
   expect(closed).toEqual([]);
 });

@@ -5,6 +5,7 @@ import {
   Button,
   DropdownItem,
   DropdownMenu,
+  DropdownSection,
   DropdownTrigger,
   ModalBody,
   ModalContent,
@@ -23,7 +24,6 @@ import ErrorNotice from '../../components/ErrorNotice';
 import Icon from '../../components/Icon';
 import Modal from '../../components/Modal';
 import { Dropdown } from '../../components/Popover';
-import SelectControl from '../../components/SelectControl';
 import Tooltip from '../../components/Tooltip';
 import ResizeHandle from '../../components/layout/ResizeHandle';
 import TerminalView, { type TerminalHandle } from './TerminalView';
@@ -37,6 +37,7 @@ import {
   localGridTracks,
   localPaneCount,
   localPaneNeighbor,
+  localSplitPlan,
   localWorkspaceLayouts,
   type LocalWorkspaceLayout,
 } from './localWorkspaceLayout';
@@ -193,7 +194,11 @@ const LocalTerminalWorkspace = forwardRef<
     return session;
   }
 
-  async function openTerminal(kind = current.kind, position = panes.indexOf(active)) {
+  async function openTerminal(
+    kind = current.kind,
+    position = Array.from({ length: count }, (_, index) => index).find((index) => !panes[index]) ??
+      panes.indexOf(active),
+  ) {
     if (opening.current) return;
     opening.current = true;
     setBusy(true);
@@ -215,14 +220,12 @@ const LocalTerminalWorkspace = forwardRef<
     }
   }
 
-  async function changeLayout(nextLayout: LocalWorkspaceLayout) {
+  function changeLayout(nextLayout: LocalWorkspaceLayout) {
     if (opening.current) return;
-    opening.current = true;
-    setBusy(true);
     setError('');
     const nextCount = localPaneCount(nextLayout);
     const next = [
-      ...panes,
+      ...panes.filter(Boolean),
       ...sessions.filter((session) => !panes.includes(session.id)).map((session) => session.id),
     ].slice(0, nextCount);
     if (!next.includes(active) && next.length) next[next.length - 1] = active;
@@ -231,13 +234,26 @@ const LocalTerminalWorkspace = forwardRef<
     setRows(equalPaneBoundaries(localWorkspaceLayouts[nextLayout].rows));
     setMaximized(false);
     setPanes(next);
+    current.terminal.current?.focus();
+  }
+
+  async function splitTerminal(direction: 'Right' | 'Down') {
+    if (opening.current) return;
+    const plan = localSplitPlan(layout, panes, active, direction);
+    if (!plan) return;
+    opening.current = true;
+    setBusy(true);
+    setError('');
     try {
-      while (next.length < nextCount) {
-        const session = await createSession(current.kind, current);
-        if (!session) return;
-        next.push(session.id);
-        setPanes([...next]);
-      }
+      const session = await createSession(current.kind, current);
+      if (!session) return;
+      plan.panes[plan.position] = session.id;
+      setLayout(plan.layout);
+      setColumns(equalPaneBoundaries(localWorkspaceLayouts[plan.layout].columns));
+      setRows(equalPaneBoundaries(localWorkspaceLayouts[plan.layout].rows));
+      setMaximized(false);
+      setPanes(plan.panes);
+      select(session.id);
     } catch (error) {
       if (!disposed.current) setError(error);
     } finally {
@@ -255,7 +271,7 @@ const LocalTerminalWorkspace = forwardRef<
       callbacks.current.onEmpty();
       return;
     }
-    const next = panes.filter((value) => value !== terminal);
+    const next = panes.filter((value) => value && value !== terminal);
     const replacement = remaining.find((session) => !next.includes(session.id));
     if (replacement && next.length < count) next.push(replacement.id);
     setPanes(next);
@@ -302,7 +318,8 @@ const LocalTerminalWorkspace = forwardRef<
       })),
     workspaceAction(action) {
       if (action === 'switchPane') {
-        select(panes[(panes.indexOf(active) + 1) % panes.length]);
+        const shown = panes.filter(Boolean);
+        select(shown[(shown.indexOf(active) + 1) % shown.length]);
         return true;
       }
       if (action.startsWith('focusTerminal')) {
@@ -315,6 +332,21 @@ const LocalTerminalWorkspace = forwardRef<
       }
       if (action === 'newTerminal') {
         void openTerminal();
+        return true;
+      }
+      if (action === 'splitTerminalRight' || action === 'splitTerminalDown') {
+        void splitTerminal(action === 'splitTerminalRight' ? 'Right' : 'Down');
+        return true;
+      }
+      if (action === 'maximizeTerminal') {
+        if (count > 1) setMaximized((value) => !value);
+        current.terminal.current?.focus();
+        return true;
+      }
+      if (action === 'nextTerminal' || action === 'previousTerminal') {
+        const index = sessions.findIndex((session) => session.id === active);
+        const step = action === 'nextTerminal' ? 1 : -1;
+        showSession(sessions[(index + sessions.length + step) % sessions.length].id);
         return true;
       }
       return false;
@@ -383,22 +415,67 @@ const LocalTerminalWorkspace = forwardRef<
             </div>
           ))}
         </div>
-        <span className="local-layout-control">
-          <SelectControl
+        <Dropdown>
+          <DropdownTrigger>
+            <button
+              className="icon-button"
+              aria-label={t('terminal:workspaceLayout')}
+              disabled={busy}
+              title={t('terminal:workspaceLayout')}
+            >
+              <Icon name="splitColumns" width="16" />
+            </button>
+          </DropdownTrigger>
+          <DropdownMenu
             aria-label={t('terminal:workspaceLayout')}
-            value={layout}
-            disabled={busy}
-            onChange={(event) => {
-              void changeLayout(event.target.value as LocalWorkspaceLayout);
+            onAction={(key) => {
+              if (key === 'right' || key === 'down')
+                void splitTerminal(key === 'right' ? 'Right' : 'Down');
+              else changeLayout(String(key) as LocalWorkspaceLayout);
             }}
           >
-            {(Object.keys(localWorkspaceLayouts) as LocalWorkspaceLayout[]).map((value) => (
-              <option key={value} value={value}>
-                {t(`terminal:layout_${value}`)}
-              </option>
-            ))}
-          </SelectControl>
-        </span>
+            <DropdownSection showDivider>
+              <DropdownItem
+                key="right"
+                startContent={<Icon name="splitColumns" width="16" />}
+                isDisabled={!localSplitPlan(layout, panes, active, 'Right')}
+              >
+                {t('terminal:splitTerminalRight')}
+              </DropdownItem>
+              <DropdownItem
+                key="down"
+                startContent={<Icon name="splitRows" width="16" />}
+                isDisabled={!localSplitPlan(layout, panes, active, 'Down')}
+              >
+                {t('terminal:splitTerminalDown')}
+              </DropdownItem>
+            </DropdownSection>
+            <DropdownSection>
+              {(Object.keys(localWorkspaceLayouts) as LocalWorkspaceLayout[]).map((value) => (
+                <DropdownItem
+                  key={value}
+                  endContent={layout === value ? '✓' : undefined}
+                  startContent={
+                    <span
+                      className="local-layout-preview"
+                      aria-hidden="true"
+                      style={{
+                        gridTemplateColumns: `repeat(${localWorkspaceLayouts[value].columns}, 1fr)`,
+                        gridTemplateRows: `repeat(${localWorkspaceLayouts[value].rows}, 1fr)`,
+                      }}
+                    >
+                      {Array.from({ length: localPaneCount(value) }, (_, index) => (
+                        <i key={index} />
+                      ))}
+                    </span>
+                  }
+                >
+                  {t(`terminal:layout_${value}`)}
+                </DropdownItem>
+              ))}
+            </DropdownSection>
+          </DropdownMenu>
+        </Dropdown>
         <Tooltip content={t('terminal:newTerminalInWorkspace')}>
           <button
             className="icon-button"

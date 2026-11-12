@@ -36,6 +36,8 @@ const paths = {
   container: 'M3 7h18v13H3zM7 7V4h10v3M7 11v5M12 11v5M17 11v5',
   focus: 'M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5',
   sidebar: 'M3 4h18v16H3zM8 4v16',
+  splitColumns: 'M3 4h18v16H3zM12 4v16',
+  splitRows: 'M3 4h18v16H3zM3 12h18',
   chevron: 'M9 5l7 7-7 7',
   more: 'M5 12h.01M12 12h.01M19 12h.01',
   up: 'M12 20V4M5 11l7-7 7 7',
