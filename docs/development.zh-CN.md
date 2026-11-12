@@ -398,7 +398,7 @@ macOS 菜单栏提供连接、终端、标签关闭、显示、界面缩放和�
 
 ### 1.4.7 发布验收（2026-11-12）
 
-提交、Windows 环境、版本同步、依赖补丁与许可核对统一见 [Release 1.4.7 verification](development.md#release-147-verification-2026-11-12)。本次发布包含本地终端工作区、PowerShell 集成、中文字体后备及分数缩放渲染修复；既有终端验收记录保留各自验证范围。
+提交、Windows 环境、版本同步、依赖补丁与许可核对统一见 [Release 1.4.7 verification](development.md#release-147-verification-2026-11-12)。记录包含本地全量验证、三平台 CI、候选与标签流水线、镜像网络失败及重跑、公开发布与附件摘要核验，并区分公开 CDN 下载缺口、原生界面与真实服务验收范围。
 
 ### 分数缩放终端像素对齐（2026-11-12）
 
