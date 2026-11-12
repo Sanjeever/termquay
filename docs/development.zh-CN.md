@@ -396,6 +396,10 @@ macOS 菜单栏提供连接、终端、标签关闭、显示、界面缩放和�
 
 “终端与编辑器”的“恢复默认”曾遗漏本地终端渲染设置，现已修复，并有先失败后通过的组件回归。触发条件、引入提交和修复范围统一见 [Terminal defaults reset correction](development.md#terminal-defaults-reset-correction)。
 
+### 1.4.7 发布验收（2026-11-12）
+
+提交、Windows 环境、版本同步、依赖补丁与许可核对统一见 [Release 1.4.7 verification](development.md#release-147-verification-2026-11-12)。本次发布包含本地终端工作区、PowerShell 集成、中文字体后备及分数缩放渲染修复；既有终端验收记录保留各自验证范围。
+
 ### 分数缩放终端像素对齐（2026-11-12）
 
 125% 缩放下，WebGL 画布可能比字符网格多出 1 个物理像素，原来的行位置计算将其分摊到整屏，造成中文字形偏离像素边界。修复后，同一段中文在第 1、11、21 行的实际 GPU 像素完全一致，六项终端渲染浏览器检查通过。复现条件、修复与验证边界见 [Fractional DPI terminal glyph alignment](development.md#fractional-dpi-terminal-glyph-alignment-2026-11-12)。用户实际 Codex 会话与原生窗口效果仍待目视确认。

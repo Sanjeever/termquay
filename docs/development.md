@@ -302,6 +302,12 @@ Report unit tests, local protocol integration, browser substitutes, native deskt
 
 Historical evidence and unresolved gaps remain in the [Chinese acceptance ledger](development.zh-CN.md#已有验收记录与缺口), including [AI acceptance](development.zh-CN.md#内置-ai-验收2026-11-06) and [Windows SSH AI adaptation](development.zh-CN.md#windows-ssh-ai-适配验收2026-11-09). Platform input/IME, RDP clipboard/concurrency, native menus/dialogs, real multi-hop reconnect, provider behavior and sustained application-wide resource measurements need environment-specific evidence. Do not present historical results as current checks.
 
+### Release 1.4.7 verification (2026-11-12)
+
+Release preparation started from `385a489` on Windows 11 / amd64, Go 1.26.10, Node 22.17.0 and pnpm 11.20.0. The bilingual version log covers changes since `v1.4.6`; the version tool synchronized platform resources. Version consistency and the dependency/license release audit passed. The [dependency review](../build/licenses/review.json) records the WebGL patch and lockfile digest changes; dependency versions and other resolutions remain unchanged.
+
+Both README entry points, architecture/development guides, contributor instructions, affected comments/translations, CLI help and the distributed skill were reviewed against the release diff. Existing terminal workflow, font and rendering records remain separate evidence. This preparation changes no CLI/protocol, service/model signature, generated binding, database or backup format.
+
 ### Fractional DPI terminal glyph alignment (2026-11-12)
 
 On Windows Chromium at DPR 1.25, a 32-row WebGL terminal produced an 833-pixel backing canvas for an 832-pixel cell grid. Normalizing row positions by row count distributed the extra pixel across the grid, moving glyphs off pixel boundaries. The WebGL dependency patch now normalizes glyph positions and sizes against the actual backing dimensions while preserving integer cell coordinates. Identical Chinese text at rows 1, 11 and 21 differed before the correction and produced identical, nonempty GPU pixel samples afterward.

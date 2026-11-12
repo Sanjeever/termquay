@@ -2,9 +2,15 @@
   "inputs": {
     "go.mod": "0a951ac612ba5346da42b8a6a1aab560d9c97afdb7bf37e3cb0e5a7d78d14baf",
     "go.sum": "cc5057fd8467af8ee42e503a11552ba4e9ddda40b7550c862cb81d0ad9878b6e",
-    "frontend/pnpm-lock.yaml": "42f20cce0e63dfdb08750d1335e547ea81269d83aca71efa3f05a6a114d0fe6c",
-    "frontend/patches/@xterm__addon-webgl@0.19.0.patch": "b96357765cc286ca2efce30715b982156140a760d290f907b20731740191b5af",
+    "frontend/pnpm-lock.yaml": "ab71065615002ed70666c42f5791c6a34fcb7acd062cf87f4a348fc600d2be79",
+    "frontend/patches/@xterm__addon-webgl@0.19.0.patch": "0ec2191e0bb422ffed48f568ad1c8ac80421bb925930a3303053cd4b2dd0e1b8",
     "frontend/patches/@devolutions__iron-remote-desktop@0.11.0.patch": "53b4e282385f535f908c6399947350bff05c762c268b5060a9bba9d998fa0168"
+  },
+  "terminal_fractional_dpi_patch": {
+    "reviewed_at": "2026-11-12",
+    "baseline": "v1.4.6",
+    "implementation_commit": "385a489",
+    "verification": "The lockfile diff changes only the addon-webgl patch digest in patchedDependencies, its importer resolution and its snapshot key. Package versions, integrity records, production dependencies and all other resolutions remain unchanged. Reviewed the TypeScript patch and both bundled JavaScript formats: glyph positions use integer cell dimensions normalized by actual backing dimensions; backing-size changes update dimensions, renderer state and the cached model. The existing MIT declaration and collected license originals remain applicable, and the patch does not modify license texts. Existing fractional-DPI GPU pixel regressions cover the rendering correction. This is dependency and license review, not reproducible artifact provenance."
   },
   "terminal_dependencies": {
     "reviewed_at": "2026-11-10",
