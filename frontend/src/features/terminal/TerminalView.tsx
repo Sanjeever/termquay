@@ -993,7 +993,7 @@ const TerminalView = forwardRef<
         callbacks.current.onDirectoryStatus?.('waiting');
       }
       complete.current.input(data);
-      const bytes = new TextEncoder().encode(data);
+      const bytes = new TextEncoder().encode(windows?.encode(data) ?? data);
       if (stream.readyState !== stream.OPEN) return;
       if (stream.bufferedAmount + bytes.length + Math.ceil(bytes.length / 32768) > 256 * 1024) {
         if (!disposed)

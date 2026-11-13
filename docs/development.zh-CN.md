@@ -284,6 +284,8 @@ Markdown 默认预览，可切换源码或分栏；首次进入源码才创建�
 
 该预设还将 Shift+Enter 绑定为当前本地终端的 modified Enter，供 TUI 输入多行文本。本地 PTY 启用 Windows `win32-input-mode` 后，[终端输入](../frontend/src/features/terminal/windowsInput.ts) 使用 Win32 按键记录保留 Ctrl+J 与修饰回车键；换行动作在该模式使用 Shift+Enter 记录，其他情况使用 CSI-u modified Enter。不接收修饰回车键的 Shell 或程序可清除“本地 TUI 输入换行”键位。输入法组词期间保留输入法自身的回车处理。
 
+该模式下，纯文本中的中文弯引号（`“”‘’`）也通过 Win32 字符按下和松开记录发送，避免 ConPTY 将字符合成为 Alt 松开事件后被 TUI 忽略。包含转义序列的输入保留原始编码，涵盖括号粘贴和协议响应。行为说明见 [English guide](development.md#using-the-workbench)。
+
 本地终端动作菜单中的“直接粘贴多行文本”在当前 PTY 生命周期内关闭多行确认，“多行粘贴前确认”恢复确认。默认仍要求确认。Shell 集成采用一次预览，完整脚本可展开查看；“插入终端”插入分组脚本，末尾不附加换行。在空白 Shell 提示符处插入后，按 Enter 执行；未启用 bracketed paste 时也遵循此流程。集成随当前 Shell 退出失效。直接粘贴保留应用的 bracketed paste 模式。查看正常缓冲区历史时，新输出保留当前滚动位置，“新输出”返回实时位置。窗格标题采用有界的终端标题报告，目录跟踪独立保留。
 
 集成对话框支持 PowerShell、Bash 与 Zsh。[PowerShell 集成](../frontend/src/features/terminal/shell/integration-powershell.ps1)上报文件系统目录，加载 PSReadLine 后记录后续命令文本、执行边界和成功或失败状态（0/1），用于命令定位与输出选择。集成保留原提示符、读行函数和原生命令退出码变量，不修改配置文件或键位，要求 FullLanguage 模式。PowerShell 的“命令补全”转交原生 Tab 补全。“启用目录上报”可以独立使用，不要求 PSReadLine。已确认的本地目录更新会话标签与目录继承，完整路径保留在会话按钮悬浮信息中，不额外占用终端底栏。

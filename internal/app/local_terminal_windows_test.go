@@ -190,6 +190,10 @@ func TestLocalTerminalWin32KeyRecords(t *testing.T) {
 		{"Ctrl+J", "\x1b[74;36;10;1;8;1_\x1b[74;36;10;0;8;1_", 74, 10, 8},
 		{"Shift+Enter", "\x1b[13;28;13;1;16;1_\x1b[13;28;13;0;16;1_", 13, 13, 16},
 		{"Alt+Enter", "\x1b[13;28;13;1;2;1_\x1b[13;28;13;0;2;1_", 13, 13, 2},
+		{"left double quote", "\x1b[0;0;8220;1;0;1_\x1b[0;0;8220;0;0;1_", 0, '“', 0},
+		{"right double quote", "\x1b[0;0;8221;1;0;1_\x1b[0;0;8221;0;0;1_", 0, '”', 0},
+		{"left single quote", "\x1b[0;0;8216;1;0;1_\x1b[0;0;8216;0;0;1_", 0, '‘', 0},
+		{"right single quote", "\x1b[0;0;8217;1;0;1_\x1b[0;0;8217;0;0;1_", 0, '’', 0},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			directory := t.TempDir()

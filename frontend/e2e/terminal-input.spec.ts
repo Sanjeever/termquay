@@ -192,7 +192,7 @@ test('direct IME punctuation is sent once across keyup and repeated keydown even
   page,
 }) => {
   const inputs = await openTerminal(page);
-  for (const text of ['，', '。', '。']) {
+  for (const text of ['，', '。', '。', '“', '”', '‘', '’']) {
     await page.locator('.xterm-helper-textarea').evaluate((element, text) => {
       const textarea = element as HTMLTextAreaElement;
       for (const type of ['keydown', 'keydown', 'keyup'])
@@ -217,9 +217,9 @@ test('direct IME punctuation is sent once across keyup and repeated keydown even
     }, text);
   }
   await page.waitForTimeout(50);
-  expect(inputs).toEqual(['，', '。', '。']);
+  expect(inputs).toEqual(['，', '。', '。', '“', '”', '‘', '’']);
   await page.keyboard.type('abc');
-  await expect.poll(() => inputs.join('')).toBe('，。。abc');
+  await expect.poll(() => inputs.join('')).toBe('，。。“”‘’abc');
 });
 
 for (const keyCode of [229, 13])
@@ -275,6 +275,97 @@ test('direct IME input owns text even when keypress is also delivered', async ({
   });
   await page.waitForTimeout(50);
   expect(inputs).toEqual(['，']);
+});
+
+for (const mode of ['enabled', 'disabled', 'reset'])
+  test(`IME curly quotes preserve character presses with ConPTY mode ${mode}`, async ({ page }) => {
+    const inputs = await openTerminal(
+      page,
+      `\x1b[?9001h${mode === 'disabled' ? '\x1b[?9001l' : mode === 'reset' ? '\x1bc' : ''}ready\r\n`,
+    );
+    await expect(page.locator('.xterm-screen')).toContainText('ready');
+    for (const text of ['“', '”', '‘', '’']) {
+      await page.locator('.xterm-helper-textarea').evaluate((element, text) => {
+        const textarea = element as HTMLTextAreaElement;
+        const shiftKey = text === '“' || text === '”';
+        if (shiftKey)
+          textarea.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'Shift', keyCode: 16, bubbles: true }),
+          );
+        textarea.dispatchEvent(
+          new KeyboardEvent('keydown', {
+            key: 'Process',
+            code: 'Quote',
+            keyCode: 229,
+            shiftKey,
+            bubbles: true,
+          }),
+        );
+        textarea.value += text;
+        textarea.dispatchEvent(
+          new InputEvent('input', {
+            data: text,
+            inputType: 'insertText',
+            bubbles: true,
+            composed: true,
+          }),
+        );
+        textarea.dispatchEvent(
+          new KeyboardEvent('keyup', {
+            key: 'Process',
+            code: 'Quote',
+            keyCode: 229,
+            bubbles: true,
+          }),
+        );
+        if (shiftKey)
+          textarea.dispatchEvent(
+            new KeyboardEvent('keyup', { key: 'Shift', keyCode: 16, bubbles: true }),
+          );
+      }, text);
+    }
+    const expected =
+      mode === 'enabled'
+        ? [8220, 8221, 8216, 8217].map((code) => `\x1b[0;0;${code};1;0;1_\x1b[0;0;${code};0;0;1_`)
+        : ['“', '”', '‘', '’'];
+    await expect.poll(() => inputs).toEqual(expected);
+    await page.keyboard.type('abc');
+    await expect.poll(() => inputs.join('')).toBe(`${expected.join('')}abc`);
+  });
+
+test('ConPTY mode preserves curly quotes in a committed IME phrase', async ({ page }) => {
+  const inputs = await openTerminal(page, '\x1b[?9001hready\r\n');
+  await expect(page.locator('.xterm-screen')).toContainText('ready');
+  await page.locator('.xterm-helper-textarea').evaluate(async (element) => {
+    const textarea = element as HTMLTextAreaElement;
+    textarea.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
+    textarea.value = '“中文🙂”';
+    textarea.dispatchEvent(
+      new CompositionEvent('compositionupdate', { data: textarea.value, bubbles: true }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    textarea.dispatchEvent(
+      new CompositionEvent('compositionend', { data: textarea.value, bubbles: true }),
+    );
+  });
+  await expect
+    .poll(() => inputs)
+    .toEqual([
+      '\x1b[0;0;8220;1;0;1_\x1b[0;0;8220;0;0;1_中文🙂\x1b[0;0;8221;1;0;1_\x1b[0;0;8221;0;0;1_',
+    ]);
+});
+
+test('ConPTY mode preserves bracketed paste containing curly quotes', async ({ page }) => {
+  const inputs = await openTerminal(page, '\x1b[?9001h\x1b[?2004hready\r\n');
+  await expect(page.locator('.xterm-screen')).toContainText('ready');
+  await page.locator('.xterm-helper-textarea').evaluate((element) => {
+    const clipboardData = new DataTransfer();
+    clipboardData.setData('text/plain', '“中文”‘text’');
+    element.dispatchEvent(
+      new ClipboardEvent('paste', { clipboardData, bubbles: true, cancelable: true }),
+    );
+  });
+  await expect.poll(() => inputs).toEqual(['\x1b[200~“中文”‘text’\x1b[201~']);
 });
 
 test('ConPTY mode preserves Ctrl+J and modified Enter while ordinary input stays intact', async ({

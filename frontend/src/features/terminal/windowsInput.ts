@@ -24,6 +24,11 @@ export function addWindowsInput(term: Terminal) {
     }),
   ];
   return {
+    encode(data: string) {
+      if (!enabled || data.includes('\x1b')) return data;
+      // ConPTY synthesizes curly quotes on Alt release, which some TUIs discard.
+      return data.replace(/[‘’“”]/g, (text) => keyRecords(0, 0, text.charCodeAt(0), 0));
+    },
     key(event: KeyboardEvent) {
       if (
         !enabled ||
