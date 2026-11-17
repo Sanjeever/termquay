@@ -45,6 +45,8 @@ Taskfile 保留 Wails 模板任务。出现 server、Docker 或 iOS 任务不表
 
 测试配置变量和执行命令统一维护在 [Optional real services](development.md#optional-real-services)。通过当前进程环境安全注入，不写入仓库或提交真实样例。配置齐备时，普通 Go 包测试也会执行这些入口；缺少配置时跳过，不计通过。
 
+本次文件操作与紧凑分栏的提交、环境、检查结果和缺口统一见 [2026-11-17 验收记录](development.md#remote-file-operations-and-compact-ssh-panes-2026-11-17)。真实文件测试使用独立临时目录，覆盖新建、编辑、复制、空目录与非空目录删除及符号链接隔离；浏览器替代验证与原生桌面验收分别记录。
+
 原传输与转发测试仍保留曾在真实链路中超时的内部时限，当前缺口及后续核对要求见 [Known SSH test deadline failures](development.md#known-ssh-test-deadline-failures)。临时延长时限的诊断结果不能记为原测试通过。
 
 `TestSG1*` 密码入口覆盖 PTY、SFTP、Linux 采集、传输、端口转发，以及 [跳板](../internal/app/jump_test.go) 和 [目录同步](../internal/app/sync_test.go)。`TestSG1Workflow*` 使用私钥，扩展认证、命令边界、编辑、sudo、续传、复制、录制、tmux、任务确认、重连、代理和资源释放场景。`TestRealWebDAV` 验证密文往返、列表、解密和同名拒绝。场景与断言以对应测试为准。

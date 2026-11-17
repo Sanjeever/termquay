@@ -315,6 +315,16 @@ Report unit tests, local protocol integration, browser substitutes, native deskt
 
 Historical evidence and unresolved gaps remain in the [Chinese acceptance ledger](development.zh-CN.md#已有验收记录与缺口), including [AI acceptance](development.zh-CN.md#内置-ai-验收2026-11-06) and [Windows SSH AI adaptation](development.zh-CN.md#windows-ssh-ai-适配验收2026-11-09). Platform input/IME, RDP clipboard/concurrency, native menus/dialogs, real multi-hop reconnect, provider behavior and sustained application-wide resource measurements need environment-specific evidence. Do not present historical results as current checks.
 
+### Remote file operations and compact SSH panes (2026-11-17)
+
+Source through `a536742` was checked on macOS 26.6.2 / arm64, Go 1.26.10, Node 26.11.0 and pnpm 11.20.0. `pnpm verify` passed formatting, frontend lint/production build, Go vet/package tests, 5 script checks, 148 frontend tests and 77 Chromium regressions. Three Bash-hook and two PowerShell cases skipped under their availability guards; two Windows-font browser cases skipped on macOS. Targeted Go race checks passed for deletion, exclusive file creation, paste plans, layout validation and portable accent settings. Regenerating bindings reproduced the expected split-direction field. Existing macOS linker and frontend chunk-size warnings remain.
+
+Browser coverage uses substituted Wails/stream boundaries. It checks host-only address copying without selecting a connection, branch refresh without reading root, double-click file opening, editor-above-terminal placement and terminal/editor instance preservation across orientation changes. The resulting component screenshot was visually reviewed. Local SFTP tests cover dot directory entries, empty/nonempty deletion, source/destination changes, same-directory naming, explicit overwrite, unsupported entries, cancelled previews, type conflicts and read-only writes.
+
+The opt-in `TestRealFileOperations` passed against the explicitly authorized `sqyl` Ubuntu 22.04 target through the application's SSH/SFTP stack with a separately probed fingerprint. It created and cleaned its own `/tmp/termquay-files-*` tree and verified exclusive creation, editing, same-server directory copying including empty directories, empty/nonempty deletion and symlink isolation. Credentials were injected into the test process rather than stored. This run does not establish cross-host copying, native clipboard/WebView behavior, Windows/Linux desktop behavior or RDP/WebDAV acceptance.
+
+Both README entry points, architecture/development guides, contributor instructions, affected comments/translations, CLI surfaces and the distributed skill were reviewed. Usage changes are documented above and in the Chinese guide; architecture contracts and CLI behavior remain applicable. The application version and dependency versions did not change.
+
 ### Release 1.4.7 verification (2026-11-12)
 
 Release preparation started from `385a489` on Windows 11 / amd64, Go 1.26.10, Node 22.17.0 and pnpm 11.20.0. The bilingual version log covers changes since `v1.4.6`; the version tool synchronized platform resources. Version consistency and the dependency/license release audit passed. The [dependency review](../build/licenses/review.json) records the WebGL patch and lockfile digest changes; dependency versions and other resolutions remain unchanged.
