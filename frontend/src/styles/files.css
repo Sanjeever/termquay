@@ -8,6 +8,21 @@
   container-type: inline-size;
   background: var(--color-surface);
 }
+.file-create-row {
+  padding: 6px 0;
+}
+.file-create-field {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 4px;
+}
+.file-create-field .file-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11px;
+  color: var(--color-muted);
+}
 .file-drop-target-active {
   outline: 2px solid var(--color-primary);
   outline-offset: -2px;

@@ -22,6 +22,7 @@ import {
   GetDirectoryBookmarks,
   SetDirectoryBookmarks,
   CreateRemoteDirectory,
+  CreateRemoteFile,
   RenameRemotePath,
   DeleteRemotePath,
   StartDownload,
@@ -114,7 +115,10 @@ export default function FileBrowser({
   const [navigationFailure, setNavigationFailure] = useState<{ path: string; message: unknown }>();
   const [loading, setLoading] = useState(false);
   const [editingPath, setEditingPath] = useState(false);
-  const [action, setAction] = useState<{ kind: 'mkdir' | 'rename' | 'delete'; path: string }>();
+  const [action, setAction] = useState<{
+    kind: 'mkdir' | 'create' | 'rename' | 'delete';
+    path: string;
+  }>();
   const [working, setWorking] = useState(false);
   const deletion = useRef<ReturnType<typeof DeleteRemotePaths>>();
   const [deleteProgress, setDeleteProgress] = useState('');
@@ -217,10 +221,13 @@ export default function FileBrowser({
   /* oxlint-enable react/exhaustive-deps */
 
   async function load(path: string, historyIndex?: number, refresh = false) {
+    if (refresh) {
+      await refreshDirectory(path);
+      return;
+    }
     setNavigationFailure(undefined);
     setLoading(true);
     const request = (async () => {
-      if (refresh) await tree.refresh();
       return tree.reveal(path);
     })();
     pending.current = request;
@@ -250,6 +257,17 @@ export default function FileBrowser({
         pending.current = undefined;
         setLoading(false);
       }
+    }
+  }
+  async function refreshDirectory(path = directory) {
+    setLoading(true);
+    try {
+      const available = await tree.refresh(path);
+      setSelection((previous) => previous.filter((value) => available.has(value)));
+    } catch (error) {
+      setError(error);
+    } finally {
+      setLoading(false);
     }
   }
   /* oxlint-disable react/exhaustive-deps -- Workspace identity resets navigation; directory and visibility changes have their own paths. */
@@ -336,6 +354,12 @@ export default function FileBrowser({
       ),
     );
     if (!range) anchor.current = path;
+    if (!toggle && !range) {
+      const entry = visibleEntries.find((entry) => entry.path === path);
+      const target = entry?.directory ? path : path.slice(0, path.lastIndexOf('/')) || '/';
+      setDirectory(target);
+      onDirectory?.(target);
+    }
   }
   const regular = (entry: Entry) =>
     !entry.directory && !entry.symlink && entry.mode.startsWith('-');
@@ -412,8 +436,17 @@ export default function FileBrowser({
             ? MoveRemotePaths(id, batch.paths, target)
             : DeleteRemotePaths(id, batch.paths);
         if (batch.kind === 'delete') deletion.current = request;
-        setResults((await request) || []);
-        await load(directory, undefined, true);
+        const result = (await request) || [];
+        setResults(result);
+        const parents = new Set(
+          batch.paths.map((path) => path.slice(0, path.lastIndexOf('/')) || '/'),
+        );
+        if (batch.kind === 'move') parents.add(target);
+        for (const parent of parents) await refreshDirectory(parent);
+        const removed = result.find(
+          (item) => item.state === 'done' && inDirectory(directory, item.path),
+        );
+        if (removed) await load(removed.path.slice(0, removed.path.lastIndexOf('/')) || '/');
       }
       setBatch(undefined);
     } catch (e) {
@@ -465,8 +498,9 @@ export default function FileBrowser({
     setWorking(true);
     setError('');
     try {
-      if (action.kind === 'mkdir')
-        await CreateRemoteDirectory(id, `${directory.replace(/\/$/, '')}/${name}`);
+      const created = `${action.path.replace(/\/$/, '')}/${name}`;
+      if (action.kind === 'mkdir') await CreateRemoteDirectory(id, created);
+      if (action.kind === 'create') await CreateRemoteFile(id, created);
       if (action.kind === 'rename')
         await RenameRemotePath(
           id,
@@ -475,7 +509,20 @@ export default function FileBrowser({
         );
       if (action.kind === 'delete') await DeleteRemotePath(id, action.path);
       setAction(undefined);
-      await load(directory, undefined, true);
+      const parent =
+        action.kind === 'mkdir' || action.kind === 'create'
+          ? action.path
+          : action.path.slice(0, action.path.lastIndexOf('/')) || '/';
+      await refreshDirectory(parent);
+      if (action.kind === 'mkdir' || action.kind === 'create') {
+        const listing = await tree.read(parent);
+        const entry = (listing.entries || []).find((entry) => entry.path === created);
+        if (entry) {
+          pick(entry.path);
+          setSelection([entry.path]);
+          if (action.kind === 'create') await onOpen(entry);
+        }
+      }
     } catch (e) {
       setError(e);
     } finally {
@@ -557,6 +604,15 @@ export default function FileBrowser({
       data-remote-directory={demoDirectories ? undefined : directory}
       onKeyDownCapture={(event) => {
         if (
+          event.key === 'F5' &&
+          !(event.target as HTMLElement).closest('input,textarea,[role=menu]')
+        ) {
+          event.preventDefault();
+          event.stopPropagation();
+          void refreshDirectory();
+          return;
+        }
+        if (
           event.nativeEvent.isComposing ||
           event.repeat ||
           event.altKey ||
@@ -587,19 +643,27 @@ export default function FileBrowser({
       )}
       <div className="sidebar-heading file-heading">
         <h2>{translate('files:files')}</h2>
-        <Tooltip content={translate('files:newDirectory')}>
-          <button
-            className="icon-button"
-            aria-label={translate('files:newDirectory')}
-            disabled={readOnly || !directory || !!demoDirectories}
-            onClick={() => {
+        <Dropdown>
+          <DropdownTrigger>
+            <button
+              className="icon-button"
+              aria-label={translate('files:newItem')}
+              disabled={readOnly || !directory || !!demoDirectories}
+            >
+              <Icon name="plus" width="15" />
+            </button>
+          </DropdownTrigger>
+          <DropdownMenu
+            aria-label={translate('files:newItem')}
+            onAction={(key) => {
               setError('');
-              setAction({ kind: 'mkdir', path: directory });
+              setAction({ kind: key as 'create' | 'mkdir', path: directory });
             }}
           >
-            <Icon name="plus" width="15" />
-          </button>
-        </Tooltip>
+            <DropdownItem key="create">{translate('files:newFile')}</DropdownItem>
+            <DropdownItem key="mkdir">{translate('files:newDirectory')}</DropdownItem>
+          </DropdownMenu>
+        </Dropdown>
         <Tooltip content={translate('files:filterFiles')}>
           <button
             className="icon-button"
@@ -610,7 +674,10 @@ export default function FileBrowser({
             <Icon name="search" width="15" />
           </button>
         </Tooltip>
-        <Dropdown>
+        <Dropdown
+          isOpen={menu === '__panel__'}
+          onOpenChange={(open) => setMenu(open ? '__panel__' : '')}
+        >
           <DropdownTrigger>
             <Tooltip content={translate('files:fileViewOptions')}>
               <button className="icon-button" aria-label={translate('files:fileViewOptions')}>
@@ -628,6 +695,9 @@ export default function FileBrowser({
                   : []
             }
             onAction={(key) => {
+              if (key === 'refresh') void refreshDirectory();
+              if (key === 'create' || key === 'mkdir') setAction({ kind: key, path: directory });
+              if (key === 'paste') void fileClipboard(false);
               if (key === 'upload')
                 window.dispatchEvent(
                   new CustomEvent('termquay:choose-upload', { detail: { id, directory } }),
@@ -642,6 +712,25 @@ export default function FileBrowser({
               if (['name', 'modified', 'size'].includes(String(key))) setSort(String(key));
             }}
           >
+            <DropdownItem key="refresh">{translate('files:refreshDirectory')}</DropdownItem>
+            <DropdownItem
+              key="create"
+              isDisabled={readOnly || working || !directory || !!demoDirectories}
+            >
+              {translate('files:newFile')}
+            </DropdownItem>
+            <DropdownItem
+              key="mkdir"
+              isDisabled={readOnly || working || !directory || !!demoDirectories}
+            >
+              {translate('files:newDirectory')}
+            </DropdownItem>
+            <DropdownItem
+              key="paste"
+              isDisabled={readOnly || working || !directory || !!demoDirectories}
+            >
+              {translate('files:pasteFiles')}
+            </DropdownItem>
             <DropdownItem key="upload" showDivider>
               {translate('files:uploadFiles')}
             </DropdownItem>
@@ -770,7 +859,7 @@ export default function FileBrowser({
             className="icon-button"
             aria-label={translate('files:refreshDirectory')}
             disabled={loading}
-            onClick={() => void load(directory, undefined, true)}
+            onClick={() => void refreshDirectory()}
           >
             <Icon name="refresh" width="15" />
           </button>
@@ -1012,7 +1101,56 @@ export default function FileBrowser({
         role="tree"
         aria-label={translate('files:remoteDirectoryTree')}
         aria-multiselectable="true"
+        onContextMenu={(event) => {
+          if ((event.target as HTMLElement).closest('[role=treeitem]')) return;
+          event.preventDefault();
+          setMenu('__panel__');
+        }}
       >
+        {(action?.kind === 'create' || action?.kind === 'mkdir') && (
+          <li role="none" className="file-create-row">
+            <form
+              className="inline-rename"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void perform(String(new FormData(event.currentTarget).get('name') || ''));
+              }}
+            >
+              <label className="file-create-field">
+                <span className="file-path">{action.path}</span>
+                <input
+                  name="name"
+                  aria-label={translate(
+                    action.kind === 'create' ? 'files:newFile' : 'files:newDirectory',
+                  )}
+                  required
+                  pattern="[^/]+"
+                  autoFocus
+                  disabled={working}
+                  onKeyDown={(event) => {
+                    event.stopPropagation();
+                    if (event.key === 'Escape' && !working) {
+                      setAction(undefined);
+                      setError('');
+                    }
+                  }}
+                />
+              </label>
+              <Button type="submit" size="sm" isLoading={working}>
+                {translate('files:create')}
+              </Button>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label={translate('files:cancel')}
+                disabled={working}
+                onClick={() => setAction(undefined)}
+              >
+                <Icon name="close" width="14" />
+              </button>
+            </form>
+          </li>
+        )}
         {rows.map(({ entry, depth, parent, position, siblings }, index) => (
           <Fragment key={entry.path}>
             <Tooltip
@@ -1123,7 +1261,7 @@ export default function FileBrowser({
                           !e.shiftKey &&
                           e.detail < 2
                         )
-                          toggle(entry.path);
+                          void tree.expand(entry.path).catch((error) => setError(error));
                       }}
                       onDoubleClick={() => {
                         if (!entry.directory) void open(entry);
@@ -1189,6 +1327,9 @@ export default function FileBrowser({
                             selectedEntries.length > 1 && selection.includes(entry.path);
                           if (key === 'log') setLogPath(entry.path);
                           if (key === 'open') void open(entry);
+                          if (key === 'refresh') void refreshDirectory(entry.path);
+                          if (key === 'create' || key === 'mkdir')
+                            setAction({ kind: key, path: entry.path });
                           if (key === 'image') void open(entry, 'image');
                           if (key === 'text') void open(entry, 'text');
                           if (key === 'transfers') {
@@ -1206,6 +1347,23 @@ export default function FileBrowser({
                         }}
                       >
                         <DropdownItem key="open">{translate('files:open')}</DropdownItem>
+                        <DropdownItem key="refresh" className={!entry.directory ? 'hidden' : ''}>
+                          {translate('files:refreshDirectory')}
+                        </DropdownItem>
+                        <DropdownItem
+                          key="create"
+                          className={!entry.directory ? 'hidden' : ''}
+                          isDisabled={readOnly || working || !!demoDirectories}
+                        >
+                          {translate('files:newFile')}
+                        </DropdownItem>
+                        <DropdownItem
+                          key="mkdir"
+                          className={!entry.directory ? 'hidden' : ''}
+                          isDisabled={readOnly || working || !!demoDirectories}
+                        >
+                          {translate('files:newDirectory')}
+                        </DropdownItem>
                         <DropdownItem
                           key="transfers"
                           isDisabled={!onTransfers || !transferSelection(entry)}
@@ -1459,7 +1617,7 @@ export default function FileBrowser({
         </Suspense>
       )}
       <Modal
-        isOpen={!!action && action.kind !== 'rename'}
+        isOpen={action?.kind === 'delete'}
         onClose={() => {
           if (!working) {
             setAction(undefined);

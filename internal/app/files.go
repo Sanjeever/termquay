@@ -138,12 +138,31 @@ func (a *AppService) SaveRemoteFile(ctx context.Context, id string, document fil
 }
 
 func (a *AppService) CreateRemoteDirectory(ctx context.Context, id, remote string) error {
+	if err := validateRemotePaths([]string{remote}); err != nil {
+		return err
+	}
 	c, close, err := a.fileWriteClient(ctx, id)
 	if err != nil {
 		return err
 	}
 	defer close()
 	return c.Mkdir(remote)
+}
+
+func (a *AppService) CreateRemoteFile(ctx context.Context, id, remote string) error {
+	if err := validateRemotePaths([]string{remote}); err != nil {
+		return err
+	}
+	c, release, err := a.fileWriteClient(ctx, id)
+	if err != nil {
+		return err
+	}
+	defer release()
+	file, err := c.OpenFile(remote, os.O_WRONLY|os.O_CREATE|os.O_EXCL)
+	if err != nil {
+		return err
+	}
+	return file.Close()
 }
 func (a *AppService) RenameRemotePath(ctx context.Context, id, oldPath, newPath string) error {
 	c, close, err := a.fileWriteClient(ctx, id)

@@ -216,11 +216,11 @@ export default function useFileTree(
     }
     await read(path);
   }
-  async function refresh() {
-    await read('/', true);
+  async function refresh(directory = '/') {
+    await read(directory, true);
     await Promise.all(
       [...expansion.current]
-        .filter((path) => path !== '/')
+        .filter((path) => path !== directory && inDirectory(path, directory))
         .map(async (path) => {
           try {
             await read(path, true);
@@ -228,6 +228,11 @@ export default function useFileTree(
             if (expansion.current.has(path)) throw error;
           }
         }),
+    );
+    return new Set(
+      Object.values(nodeState.current).flatMap((node) =>
+        (node.entries || []).map((entry) => entry.path),
+      ),
     );
   }
 

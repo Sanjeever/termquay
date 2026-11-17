@@ -244,6 +244,10 @@ export function CreateRemoteDirectory(id: string, remote: string): $CancellableP
     return $Call.ByID(2045068939, id, remote);
 }
 
+export function CreateRemoteFile(id: string, remote: string): $CancellablePromise<void> {
+    return $Call.ByID(663104254, id, remote);
+}
+
 export function CreateTerminal(workspace: string): $CancellablePromise<$models.OpenResult> {
     return $Call.ByID(272076810, workspace);
 }
