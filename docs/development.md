@@ -110,11 +110,9 @@ Linux hosts also need Playwright system libraries; CI installs them with `--with
 
 ### Browser regressions
 
-[Playwright configuration](../frontend/playwright.config.ts) defines the isolated loopback Vite server, Chromium selection and worker count. The [fixture](../frontend/e2e/fixture.tsx) mounts the actual titlebar, workspace tabs, appearance provider and CodeMirror editor with controlled state; [tests](../frontend/e2e/workbench.spec.ts) substitute Wails calls at the HTTP boundary. These development fixtures are outside the production entry point and Vitest projects.
+[Playwright configuration](../frontend/playwright.config.ts) defines the isolated loopback Vite server, Chromium selection and worker count. The [browser fixtures and specifications](../frontend/e2e) cover the titlebar/editor, SSH files and auxiliary panels, local terminal layouts, terminal input and rendering. They mount actual components with controlled state and substitute Wails calls, terminal streams and clipboard boundaries. Fixtures stay outside the production entry point and Vitest projects; test names and assertions define current coverage.
 
-The suite checks tab/action adjacency, overflow, mouse/keyboard access and editor instance/document/selection/undo preservation during language, theme and font changes. Platform variants exercise header styling in Chromium, not native Windows/Linux/macOS WebViews. Browser diagnostics are captured on failure and uploaded by CI. Keep native window dragging, input/IME, remote connections and protocol acceptance in their corresponding verification layers.
-
-The [terminal browser fixture](../frontend/e2e/terminal.tsx) mounts the actual local-terminal view and xterm. Clipboard and stream boundaries are substituted to check single-use multiline-paste confirmation, bracketed input bytes and focus return. It does not establish native clipboard or PTY behavior.
+Coverage includes mouse/keyboard access, narrow layouts, task-panel ownership, pane changes, focus return and terminal/editor instance preservation. Editor checks retain document, selection and undo across language, theme and font changes. Terminal checks inspect input bytes and rendered glyphs. Platform variants exercise Chromium styling and available fonts; they do not establish native WebView, clipboard, PTY or real-remote behavior. Browser diagnostics are captured on failure and uploaded by CI.
 
 ### Frontend tests
 
@@ -159,11 +157,9 @@ Follow the [localization contract](architecture.md#localization-and-collaboratio
 
 The SSH workspace's left tool rail opens files, file transfers and snippets; its right rail opens monitoring, the enabled AI assistant, port forwarding and Docker. Use Tab or the arrow keys within each rail. Docker opens an independent tool tab with the current SSH workspace selected. Layout, focus mode and reconnect actions remain in the workspace header. New workspaces keep monitoring closed. Opening a file in a new workspace places the editor above the retained terminal; restored layouts preserve their panes. **Pane layout** switches between stacked and side-by-side panes, maximizes a pane or merges them. Resizing and changing orientation retain terminal/editor instances and drafts; orientation is saved with the layout.
 
-File browsing mode and directory following use named icon buttons in the compact file header. Selection actions and batch results appear below the tree, so selecting an item does not move it between double-clicks. **Settings → Appearance → Accent color** offers the existing blue and an optional green; changing it preserves open sessions and editor state.
+File browsing mode and directory following use named icon buttons in the compact file header. Batch actions appear below the tree while files are selected and collapse when selection clears, so selecting an item does not move it between double-clicks. Keyboard selection and select-all remain available. **Settings → Appearance → Accent color** offers the existing blue and an optional green; changing it preserves open sessions and editor state.
 
 Middle-click a workspace, tool or terminal/file tab to close it without first selecting it. Local split-pane headers support the same action. Unsaved-file and running-local-terminal confirmations still apply, and closing remains disabled while the existing save, restore or busy state blocks it. The fixed connection center cannot be closed.
-
-The remote file tree shows its batch action bar when files are selected and collapses it when the selection is cleared. Keyboard selection and select-all remain available from the tree.
 
 The connection catalog displays host address and port in separate sortable columns. The address icon copies the host value without username or port and leaves connection selection unchanged. Narrow catalogs scroll horizontally to retain column alignment.
 
@@ -223,6 +219,8 @@ A BEL from an unfocused terminal marks that pane/workspace **Needs attention**. 
 Local terminals accept [OSC 7501 program status](https://www.superlogical.com/rex/docs/build/program-status) in normal and alternate screens. Compatible programs such as Codex and Claude Code can report running, waiting for approval/answers/sign-in, ready, completed or failed. Pane labels show the state and optional progress; hovering shows the program's original message. Workspace labels prioritize waiting, failure and running work. Ready does not imply that a turn completed. Focusing a pane acknowledges completed/failed records but retains a program's blocked state. Clear reports, terminal reset and shell-prompt/process lifecycle events remove applicable records; switching panes, layouts or languages preserves them. Records remain in memory; accepted fields, bounds and lifecycle rules live in [programStatus.ts](../frontend/src/features/terminal/programStatus.ts). The same explicit notification toggle covers background blocked/completed/failed transitions; programs without reports retain ordinary bell behavior.
 
 Closing an active local terminal requires confirmation; exited terminals close directly. Application exit or update restart lists active local sessions alongside existing task/draft checks. Canceling keeps the sessions open. Layout recovery does not restart local processes.
+
+### Local terminal workspaces
 
 The [local workspace](../frontend/src/features/terminal/LocalTerminalWorkspace.tsx) supports single, two-column, two-row, three-column, three-row and four-pane layouts. **Terminal layout** offers **Split right**, **Split down** and visual layout presets. Splitting starts one terminal beside the focused pane in its confirmed directory; unavailable splits are disabled at the layout boundary. Presets rearrange existing sessions without starting processes; empty cells have an explicit new-terminal button. **New terminal** fills an empty cell first, otherwise opens another session in the focused cell. All sessions remain in the toolbar's scrollable session strip, including sessions hidden by a smaller layout or a new terminal. Session buttons show program-reported attention and accept Left/Right/Home/End navigation; selecting one focuses its terminal. Single and maximized views omit the duplicate pane header. Input locking is available under **Terminal actions**, with an explicit unlock button while locked. Drag a pane title onto another pane to exchange positions; drag a divider to resize or double-click to equalize. Divider arrow keys adjust ratios. On a focused pane title, arrows focus neighboring terminals and Shift+arrows exchange positions. **Maximize pane** retains the other sessions. These operations preserve PTYs, xterm instances and buffers.
 
@@ -296,6 +294,7 @@ Independently verify the target fingerprint. File tests create and clean their o
 go test -count=1 -v ./internal/app ./internal/ssh ./internal/files ./internal/monitor -run '^TestSG1'
 go test -count=1 -v -timeout=10m ./internal/app -run '^TestSG1Workflow'
 go test -count=1 -v ./internal/backup -run '^TestRealWebDAV$'
+go test -count=1 -v ./internal/app -run '^TestRealFileOperations$'
 go test -count=1 -v ./internal/app -run '^TestSavedConnectionFileEditing$'
 ```
 
@@ -314,6 +313,16 @@ The [historical SSH run](development.zh-CN.md#ssh-verification-2026-11-05) recor
 Report unit tests, local protocol integration, browser substitutes, native desktop, real SSH, real RDP and real WebDAV separately. A browser substitute, local SSH fixture or cross-build cannot establish native/real-remote acceptance.
 
 Historical evidence and unresolved gaps remain in the [Chinese acceptance ledger](development.zh-CN.md#已有验收记录与缺口), including [AI acceptance](development.zh-CN.md#内置-ai-验收2026-11-06) and [Windows SSH AI adaptation](development.zh-CN.md#windows-ssh-ai-适配验收2026-11-09). Platform input/IME, RDP clipboard/concurrency, native menus/dialogs, real multi-hop reconnect, provider behavior and sustained application-wide resource measurements need environment-specific evidence. Do not present historical results as current checks.
+
+### Documentation audit (2026-11-17)
+
+Source review started from `f778f4b` on macOS 26.6.2 / arm64, Go 1.26.10, Node 26.11.0 and pnpm 11.20.0. It covered both READMEs, architecture/development guides, contributor instructions, handwritten comments, CLI help/examples and the distributed Agent skill against manifests, build/release tasks, models, direct callers and existing test assertions. Historical release notes, imported development skills and original third-party license texts were preserved. Documentation checks are separate from the release checks below.
+
+The stale Chinese catalog, directory-click and pane instructions were checked against [ConnectionCenter](../frontend/src/features/connections/ConnectionCenter.tsx), [catalog styles](../frontend/src/styles/connections.css), [FileBrowser](../frontend/src/features/files/FileBrowser.tsx), [SSHWorkspace](../frontend/src/features/files/SSHWorkspace.tsx), [WorkspacePanes](../frontend/src/features/files/WorkspacePanes.tsx) and the [workflow regressions](../frontend/e2e/workflow.spec.ts). Commits `e31aa71`, `f59c3f8` and `a536742` establish the corresponding UI evolution. The guide now reflects separate host/port columns with horizontal scrolling, directory-name selection/expansion and both pane orientations. Repeated rail/pane descriptions were consolidated; shared setup and skill-installation commands now have linked entry points. Browser-suite guidance was expanded to match the current specifications, and the optional real-service command list now includes `TestRealFileOperations`.
+
+The review retained architecture premises and tradeoffs for directory-memory growth, bounded paging, private SFTP staging and its remaining publication race, RDP TLS interoperability, owner cancellation and restore transactions. Reviewed comments explain lifecycle, protocol or platform constraints and did not require changes. CLI examples and the skill agree with help/protocol definitions; no command/schema change was needed. No new substantial contract disagreement was identified in this review. The [known SSH deadline failures](#known-ssh-test-deadline-failures) still require unmodified real-target evidence; this audit neither reran them nor reclassified them as intended behavior.
+
+Repository-owned Markdown links and heading anchors passed a parser-based check, and `git diff --check` passed. Documentation-only validation did not run builds, type checks or tests; release validation is recorded separately.
 
 ### Connection headers and auxiliary task panels (2026-11-17)
 

@@ -37,27 +37,15 @@ TermQuay 是使用 Go、Wails v3 和 React 构建的开源远程连接工作台�
 
 同一程序无参数启动桌面，`termquay --help` 查看 CLI 帮助。先在桌面“设置 → 本机 CLI”启用访问并解锁，再用精确 SSH 工作区 ID 查询远端或执行命令。CLI 可修改远端，支持命令、平台程序路径与取消限制见 [本机 CLI](docs/development.zh-CN.md#本机-cli)。
 
-安装供外部 AI Agent 使用的 [termquay skill](skills/termquay/SKILL.md)：
-
-```sh
-npx skills add Sanjeever/termquay --skill termquay -g
-```
-
-项目级安装去掉 `-g`。指定 `--skill termquay`，避免同时安装仓库开发技能。Skill 不安装 TermQuay；Node 仅供 skill 安装使用。
+供外部 AI Agent 使用的 [termquay skill](skills/termquay/SKILL.md) 安装命令与安装范围统一见 [CLI and Agent skill](README.md#cli-and-agent-skill)。Skill 不安装 TermQuay，也不授予任意远端操作权限。
 
 ## 界面预览
 
 以下截图使用中文 UI，在浏览器 [演示模式](docs/development.zh-CN.md#设置与演示模式) 中截取。
 
-连接中心
-
 ![连接中心，支持分组、协议筛选与延迟探测](docs/images/screenshots/connection-center.png)
 
-SSH 工作区
-
 ![SSH 终端、远端文件树与 Linux 监控](docs/images/screenshots/ssh-workspace.png)
-
-远端文件编辑
 
 ![远端文件编辑器，支持编码、换行符与代码缩略图](docs/images/screenshots/remote-file-editor.png)
 
