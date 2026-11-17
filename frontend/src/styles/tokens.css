@@ -63,3 +63,11 @@
   --shadow-floating: 0 12px 36px #00000016, 0 2px 8px #0000000d;
   color-scheme: light;
 }
+:root[data-accent='green'] {
+  --color-primary: #5ed59a;
+  --color-selected: #24503b;
+}
+:root.light[data-accent='green'] {
+  --color-primary: #167a49;
+  --color-selected: #d8efe2;
+}

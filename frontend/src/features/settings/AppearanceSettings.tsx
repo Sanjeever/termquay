@@ -75,6 +75,19 @@ export default function AppearanceSettings({
             </SelectControl>
           </div>
           <div className="settings-row">
+            <label htmlFor="appearance-accent">{translate('settings:accentColor')}</label>
+            <SelectControl
+              id="appearance-accent"
+              value={appearance.accent || 'blue'}
+              onChange={(event) =>
+                update({ ...appearance, accent: event.target.value as 'blue' | 'green' })
+              }
+            >
+              <option value="blue">{translate('settings:blueAccent')}</option>
+              <option value="green">{translate('settings:greenAccent')}</option>
+            </SelectControl>
+          </div>
+          <div className="settings-row">
             <label htmlFor="appearance-ui-font">{translate('settings:interfaceFont')}</label>
             <SelectControl
               id="appearance-ui-font"

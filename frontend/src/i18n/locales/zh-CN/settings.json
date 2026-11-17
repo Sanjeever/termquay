@@ -1,4 +1,7 @@
 {
+  "accentColor": "强调色",
+  "blueAccent": "蓝色",
+  "greenAccent": "绿色",
   "localFileEditor": "本地文件编辑器",
   "invalidLocalEditor": "本地文件编辑器设置无效",
   "defaultShortcutPreset": "TermQuay 默认",

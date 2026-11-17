@@ -9,6 +9,13 @@ import {
   terminalTheme,
 } from './appearance.ts';
 
+test('accent defaults preserve the existing blue theme and green persists', () => {
+  const { accent, ...legacy } = defaultAppearance;
+  assert.equal(parseAppearance(JSON.stringify(legacy)).accent, accent);
+  assert.equal(parseAppearance(JSON.stringify({ ...legacy, accent: 'green' })).accent, 'green');
+  assert.throws(() => parseAppearance(JSON.stringify({ ...legacy, accent: 'unknown' })));
+});
+
 test('local editor defaults migrate and invalid editor identifiers are rejected', () => {
   const { localEditor, ...legacy } = defaultAppearance;
   assert.equal(parseAppearance(JSON.stringify(legacy)).localEditor, localEditor);

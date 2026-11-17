@@ -35,6 +35,12 @@ func validatePortableUI(values map[string]string) error {
 					return appmessage.New("backend:invalidAppearanceSettingsField", "外观设置字段无效")
 				}
 			}
+			if raw, ok := settings["accent"]; ok {
+				var accent string
+				if err := json.Unmarshal(raw, &accent); err != nil || !slices.Contains([]string{"blue", "green"}, accent) {
+					return appmessage.New("backend:invalidAppearanceSettingsField", "外观设置字段无效")
+				}
+			}
 			if raw, ok := settings["terminalLogHighlight"]; ok {
 				var enabled bool
 				if err := json.Unmarshal(raw, &enabled); err != nil {

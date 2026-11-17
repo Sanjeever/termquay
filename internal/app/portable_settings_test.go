@@ -41,6 +41,16 @@ func TestPortableLocalEditor(t *testing.T) {
 	}
 }
 
+func TestPortableAccent(t *testing.T) {
+	base := `"theme":"system","uiFont":"system","monoFont":"system","terminalPalette":"theme"`
+	for _, accent := range []string{`"blue"`, `"green"`, `"unknown"`, `null`} {
+		err := validatePortableUI(map[string]string{"appearance": "{" + base + `,"accent":` + accent + "}"})
+		if valid := accent == `"blue"` || accent == `"green"`; (err == nil) != valid {
+			t.Fatalf("accent %s: %v", accent, err)
+		}
+	}
+}
+
 func TestPortableTerminalShortcuts(t *testing.T) {
 	valid := `{"nextWorkspace":"Ctrl+Tab","previousWorkspace":"Ctrl+Shift+Tab","newLocalTerminal":"Ctrl+Shift+KeyT","workspaceSearch":"Ctrl+Shift+KeyO","copy":"Ctrl+Shift+KeyC","paste":"Ctrl+Shift+KeyV","closeTab":"Ctrl+Shift+KeyW"}`
 	if err := validatePortableUI(map[string]string{"shortcuts": valid}); err != nil {

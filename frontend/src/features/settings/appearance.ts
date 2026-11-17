@@ -19,6 +19,7 @@ export const uiZoomLevels = [1, 1.1, 1.25, 1.5, 1.75, 2];
 export type Appearance = {
   language: LanguagePreference;
   theme: 'dark' | 'light' | 'system';
+  accent?: 'blue' | 'green';
   uiFont: 'system' | 'yahei' | 'pingfang';
   uiZoom: number;
   monoFont: 'system' | 'cascadia' | 'consolas' | 'jetbrains' | 'custom';
@@ -33,6 +34,7 @@ export type Appearance = {
 export const defaultAppearance: Appearance = {
   language: 'auto',
   theme: 'system',
+  accent: 'blue',
   uiFont: 'system',
   uiZoom: 1,
   monoFont: 'system',
@@ -70,6 +72,7 @@ export function parseAppearance(value: string | null): Appearance {
   const settings = JSON.parse(value);
   if (
     !settings ||
+    (settings.accent !== undefined && !['blue', 'green'].includes(settings.accent)) ||
     !['dark', 'light', 'system'].includes(settings.theme) ||
     !Object.prototype.hasOwnProperty.call(uiFonts, settings.uiFont) ||
     (settings.monoFont !== 'custom' &&
@@ -104,6 +107,7 @@ export function parseAppearance(value: string | null): Appearance {
   return {
     language: settings.language ?? 'auto',
     theme: settings.theme,
+    accent: settings.accent ?? defaultAppearance.accent,
     uiFont: settings.uiFont,
     uiZoom: settings.uiZoom ?? defaultAppearance.uiZoom,
     monoFont: settings.monoFont,

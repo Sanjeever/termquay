@@ -95,6 +95,7 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
     const root = document.documentElement;
     root.classList.toggle('dark', dark);
     root.classList.toggle('light', !dark);
+    root.dataset.accent = current.accent || 'blue';
     root.style.setProperty('--font-ui', uiFonts[current.uiFont]);
     root.style.setProperty('--font-mono', monospaceFont(current));
   }, [current, dark]);

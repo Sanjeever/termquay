@@ -1,4 +1,7 @@
 {
+  "accentColor": "Accent color",
+  "blueAccent": "Blue",
+  "greenAccent": "Green",
   "localFileEditor": "Local file editor",
   "invalidLocalEditor": "Invalid local file editor setting",
   "defaultShortcutPreset": "TermQuay defaults",
