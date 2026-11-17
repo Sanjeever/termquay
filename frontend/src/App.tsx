@@ -603,6 +603,7 @@ export default function App() {
         setFilesTab(false);
         setFilesRequest(undefined);
         setFilesTransfersOpen(false);
+        setTransfersOpen(false);
       }
       if (id === logsTabID) {
         setLogsTab(false);

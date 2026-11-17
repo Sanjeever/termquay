@@ -860,7 +860,14 @@ test('the file tool owns its task view while transfers survive closing the tool'
   await expect(page.locator('.file-tool-workspace .transfer-panel')).toBeVisible();
   await expect(page.locator('.transfer-panel')).toHaveCount(1);
   await page.getByRole('tab', { name: 'Connection center', exact: true }).click();
+  await page
+    .locator('.workbench-status')
+    .getByRole('button', { name: /transfer/i })
+    .click();
+  await expect(page.locator('.transfer-panel')).toBeVisible();
   await page.getByRole('tab', { name: 'File transfers', exact: true }).click();
+  await expect(page.locator('.file-tool-workspace .transfer-panel')).toBeVisible();
+  await expect(page.locator('.transfer-panel')).toHaveCount(1);
   expect(
     await original!.evaluate(
       (element) => element === document.querySelector('.file-transfer-workspace'),
