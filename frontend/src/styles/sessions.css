@@ -98,6 +98,13 @@
   height: 32px;
   flex-shrink: 0;
 }
+.workspace-tool-rail-left {
+  border-left: 0;
+  border-right: 1px solid var(--color-border);
+}
+.workspace-tool-rail-left .workspace-tool[aria-pressed='true']::before {
+  left: -4px;
+}
 .workspace-tool[aria-pressed='true'] {
   color: var(--color-primary);
   background: var(--color-selected);
@@ -187,6 +194,13 @@
 }
 .workspace-pane-separator > .panel-separator {
   height: 100%;
+}
+.workspace-panes-rows > .workspace-pane-separator {
+  grid-column: 1;
+  grid-row: 3;
+}
+.workspace-panes-rows > .workspace-pane-separator > .panel-separator {
+  width: 100%;
 }
 .workspace-panes > .focused-pane {
   box-shadow: none;

@@ -14,12 +14,18 @@ type Tool = {
   onClick(): void;
 };
 
-export default function WorkspaceToolRail({ tools }: { tools: Tool[] }) {
+export default function WorkspaceToolRail({
+  tools,
+  side = 'right',
+}: {
+  tools: Tool[];
+  side?: 'left' | 'right';
+}) {
   useTranslation();
   return (
     <nav
-      className="workspace-tool-rail"
-      aria-label={t('files:sSHWorkspaceTools')}
+      className={`workspace-tool-rail workspace-tool-rail-${side}`}
+      aria-label={t(side === 'left' ? 'files:resourceTools' : 'files:sSHWorkspaceTools')}
       onKeyDown={(event) => {
         if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
         const buttons = Array.from(

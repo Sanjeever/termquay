@@ -689,6 +689,7 @@ export interface SSHLayout {
     "selected": number[];
     "active_pane": number;
     "split": boolean;
+    "split_direction"?: string;
     "maximized": boolean;
     "ratio": number;
     "directory": string;

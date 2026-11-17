@@ -17,6 +17,25 @@ func TestWorkspaceLayoutMetadataAndValidation(t *testing.T) {
 		t.Fatal("布局或失效配置入口丢失")
 	}
 	encoded, _ := json.Marshal(got)
+	layout.Version = 9
+	layout.Entries[0].SSH.SplitDirection = "rows"
+	if err := a.SaveWorkspaceLayout(layout); err != nil {
+		t.Fatal(err)
+	}
+	stacked, err := a.GetWorkspaceLayout()
+	if err != nil || stacked.Entries[0].SSH.SplitDirection != "rows" {
+		t.Fatal("split direction was not restored", err)
+	}
+	layout.Version = 8
+	if err := layout.validate(); err == nil {
+		t.Fatal("old layout version accepted split orientation")
+	}
+	layout.Version = 9
+	layout.Entries[0].SSH.SplitDirection = "diagonal"
+	if err := layout.validate(); err == nil {
+		t.Fatal("invalid split direction accepted")
+	}
+	layout.Entries[0].SSH.SplitDirection = "rows"
 	for _, field := range []string{"password", "credential_id", "private_key", "grant", "content"} {
 		if strings.Contains(string(encoded), field) {
 			t.Fatal("布局包含禁止字段")

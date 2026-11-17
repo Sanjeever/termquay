@@ -11,6 +11,8 @@ export default function PaneTabs({
   focused,
   hidden,
   column,
+  row = 1,
+  stacked = false,
   creating,
   onSelect,
   onClose,
@@ -32,6 +34,8 @@ export default function PaneTabs({
   focused: boolean;
   hidden: boolean;
   column: number;
+  row?: number;
+  stacked?: boolean;
   creating: boolean;
   onSelect(id: string): void;
   onClose(id: string): void;
@@ -45,10 +49,13 @@ export default function PaneTabs({
       className={`inner-tabs pane-tabs ${focused ? 'focused-pane' : ''}`}
       role="tablist"
       aria-label={translate('files:paneTabs', {
-        value1: pane === 0 ? translate('files:main') : translate('files:right'),
+        value1:
+          pane === 0
+            ? translate('files:main')
+            : translate(stacked ? 'files:bottom' : 'files:right'),
       })}
       hidden={hidden}
-      style={{ gridColumn: column, gridRow: 1 }}
+      style={{ gridColumn: column, gridRow: row }}
       onKeyDown={(e) => {
         if (
           e.nativeEvent.isComposing ||
@@ -124,7 +131,10 @@ export default function PaneTabs({
       <Tooltip content={translate('files:newTerminal', { value1: newShortcut })}>
         <button
           aria-label={translate('files:newTerminalInPane', {
-            value1: pane === 0 ? translate('files:main') : translate('files:right'),
+            value1:
+              pane === 0
+                ? translate('files:main')
+                : translate(stacked ? 'files:bottom' : 'files:right'),
           })}
           disabled={creating}
           onClick={onNew}

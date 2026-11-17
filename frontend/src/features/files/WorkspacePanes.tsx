@@ -5,12 +5,14 @@ import ResizeHandle from '../../components/layout/ResizeHandle';
 
 export default function WorkspacePanes({
   split,
+  direction = 'columns',
   maximized,
   ratio,
   onRatio,
   children,
 }: {
   split: boolean;
+  direction?: 'rows' | 'columns';
   maximized: boolean;
   ratio: number;
   onRatio(value: number): void;
@@ -18,10 +20,13 @@ export default function WorkspacePanes({
 }) {
   useTranslation();
   const host = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(100);
+  const [size, setSize] = useState({ width: 100, height: 100 });
   useEffect(() => {
     const observer = new ResizeObserver(([entry]) =>
-      setWidth(Math.max(100, entry.contentRect.width)),
+      setSize({
+        width: Math.max(100, entry.contentRect.width),
+        height: Math.max(100, entry.contentRect.height - 72),
+      }),
     );
     observer.observe(host.current!);
     return () => observer.disconnect();
@@ -29,13 +34,16 @@ export default function WorkspacePanes({
   return (
     <div
       ref={host}
-      className="workspace-panes"
+      className={`workspace-panes ${direction === 'rows' ? 'workspace-panes-rows' : ''}`}
       style={{
         gridTemplateColumns:
-          split && !maximized
+          split && !maximized && direction === 'columns'
             ? `minmax(0,${ratio}fr) 5px minmax(0,${100 - ratio}fr)`
             : 'minmax(0,1fr)',
-        gridTemplateRows: '36px minmax(0,1fr)',
+        gridTemplateRows:
+          split && !maximized && direction === 'rows'
+            ? `36px minmax(0,${ratio}fr) 5px 36px minmax(0,${100 - ratio}fr)`
+            : '36px minmax(0,1fr)',
       }}
     >
       {children}
@@ -43,10 +51,11 @@ export default function WorkspacePanes({
         <div className="workspace-pane-separator">
           <ResizeHandle
             label={translate('files:splitPaneRatio')}
+            horizontal={direction === 'rows'}
             value={ratio}
             min={20}
             max={80}
-            pixelsPerUnit={width / 100}
+            pixelsPerUnit={(direction === 'rows' ? size.height : size.width) / 100}
             onChange={onRatio}
           />
         </div>

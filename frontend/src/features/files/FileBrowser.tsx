@@ -538,6 +538,10 @@ export default function FileBrowser({
         if (entry) {
           pick(entry.path);
           setSelection([entry.path]);
+          if (action.kind === 'mkdir') {
+            setDirectory(entry.path);
+            onDirectory?.(entry.path);
+          }
           if (action.kind === 'create') await onOpen(entry);
         }
       }
@@ -647,20 +651,44 @@ export default function FileBrowser({
         void fileClipboard(event.key.toLowerCase() === 'c');
       }}
     >
-      {onToggleReadOnly && (
-        <button
-          className="session-tool file-browse-mode"
-          aria-pressed={readOnly}
-          disabled={changingMode || working}
-          onClick={onToggleReadOnly}
-        >
-          {readOnly
-            ? translate('files:fileBrowsingModeAllowWrites')
-            : translate('files:toggleFileBrowsingMode')}
-        </button>
-      )}
       <div className="sidebar-heading file-heading">
         <h2>{translate('files:files')}</h2>
+        {onToggleReadOnly && (
+          <Tooltip
+            content={
+              readOnly
+                ? translate('files:fileBrowsingModeAllowWrites')
+                : translate('files:toggleFileBrowsingMode')
+            }
+          >
+            <button
+              className="icon-button"
+              aria-label={
+                readOnly
+                  ? translate('files:fileBrowsingModeAllowWrites')
+                  : translate('files:toggleFileBrowsingMode')
+              }
+              aria-pressed={readOnly}
+              disabled={changingMode || working}
+              onClick={onToggleReadOnly}
+            >
+              <Icon name={readOnly ? 'eye' : 'edit'} width="15" />
+            </button>
+          </Tooltip>
+        )}
+        {onFollowDirectory && (
+          <Tooltip content={translate('files:followTerminalDirectory')}>
+            <button
+              className="icon-button"
+              aria-label={translate('files:followTerminalDirectory')}
+              aria-pressed={!!followDirectory}
+              disabled={!!demoDirectories}
+              onClick={onFollowDirectory}
+            >
+              <Icon name="tunnel" width="15" />
+            </button>
+          </Tooltip>
+        )}
         <Dropdown>
           <DropdownTrigger>
             <button
@@ -812,17 +840,6 @@ export default function FileBrowser({
           </button>
         </Tooltip>
       </div>
-      {onFollowDirectory && (
-        <button
-          className="session-tool file-follow-toggle"
-          aria-pressed={!!followDirectory}
-          disabled={!!demoDirectories}
-          onClick={onFollowDirectory}
-        >
-          <Icon name="tunnel" width="15" />
-          {translate('files:followTerminalDirectory')}
-        </button>
-      )}
       {followDirectory && directoryFollowStatus && directoryFollowStatus !== 'ready' && (
         <div className="file-follow-status">
           <span role="status">
@@ -1026,92 +1043,6 @@ export default function FileBrowser({
         <p className="muted" role="status">
           {translate('files:reading')}
         </p>
-      )}
-      <div className="file-selection" hidden={!selectedEntries.length}>
-        <label>
-          <input
-            type="checkbox"
-            aria-label={translate('files:selectAllVisibleFiles')}
-            checked={!!visibleEntries.length && selectedEntries.length === visibleEntries.length}
-            onChange={(e) =>
-              setSelection(e.target.checked ? visibleEntries.map((e) => e.path) : [])
-            }
-          />
-          {selectedEntries.length} {translate('files:items')}
-        </label>
-        <button
-          disabled={
-            working || clipboardBusy || !!demoDirectories || !selectedEntries.every(copyable)
-          }
-          onClick={() => void fileClipboard(true)}
-        >
-          {translate('files:copy')}
-        </button>
-        <button
-          disabled={working || !!demoDirectories || !selectedEntries.every(regular)}
-          onClick={() => batchAction('download')}
-        >
-          {translate('files:download')}
-        </button>
-        <Dropdown>
-          <DropdownTrigger>
-            <button className="icon-button" aria-label={translate('files:selectedFileActions')}>
-              <Icon name="more" width="15" />
-            </button>
-          </DropdownTrigger>
-          <DropdownMenu
-            aria-label={translate('files:selectedFileActions')}
-            disabledKeys={
-              working || demoDirectories || readOnly
-                ? ['move', 'delete']
-                : selectedEntries.some((e) => !regular(e) && !e.directory && !e.symlink)
-                  ? ['move']
-                  : []
-            }
-            onAction={(key) => batchAction(key as 'move' | 'delete')}
-          >
-            <DropdownItem key="move">{translate('files:move')}</DropdownItem>
-            <DropdownItem key="delete" color="danger">
-              {translate('files:delete')}
-            </DropdownItem>
-          </DropdownMenu>
-        </Dropdown>
-      </div>
-      {!!results.length && (
-        <details className="file-results" open>
-          <summary>
-            {translate('files:batchOperationResults')}
-            <button
-              aria-label={translate('files:closeBatchResults')}
-              onClick={(e) => {
-                e.preventDefault();
-                setResults([]);
-              }}
-            >
-              ×
-            </button>
-          </summary>
-          {results.map((result, index) => (
-            <p
-              key={index}
-              className={['failed', 'not_run'].includes(result.state) ? 'error' : 'muted'}
-            >
-              {
-                (
-                  {
-                    done: translate('files:completed'),
-                    queued: translate('files:queued'),
-                    failed: translate('files:failed'),
-                    skipped: translate('files:skipped'),
-                    not_run: translate('files:notExecuted'),
-                  } as Record<string, string>
-                )[result.state]
-              }{' '}
-              · {result.path}
-              {errorMessage(eventError(result)) && ` · ${errorMessage(eventError(result))}`}
-            </p>
-          ))}
-        </details>
       )}
       <ul
         className="file-list file-tree"
@@ -1503,6 +1434,92 @@ export default function FileBrowser({
           </Fragment>
         ))}
       </ul>
+      <div className="file-selection" hidden={!selectedEntries.length}>
+        <label>
+          <input
+            type="checkbox"
+            aria-label={translate('files:selectAllVisibleFiles')}
+            checked={!!visibleEntries.length && selectedEntries.length === visibleEntries.length}
+            onChange={(e) =>
+              setSelection(e.target.checked ? visibleEntries.map((e) => e.path) : [])
+            }
+          />
+          {selectedEntries.length} {translate('files:items')}
+        </label>
+        <button
+          disabled={
+            working || clipboardBusy || !!demoDirectories || !selectedEntries.every(copyable)
+          }
+          onClick={() => void fileClipboard(true)}
+        >
+          {translate('files:copy')}
+        </button>
+        <button
+          disabled={working || !!demoDirectories || !selectedEntries.every(regular)}
+          onClick={() => batchAction('download')}
+        >
+          {translate('files:download')}
+        </button>
+        <Dropdown>
+          <DropdownTrigger>
+            <button className="icon-button" aria-label={translate('files:selectedFileActions')}>
+              <Icon name="more" width="15" />
+            </button>
+          </DropdownTrigger>
+          <DropdownMenu
+            aria-label={translate('files:selectedFileActions')}
+            disabledKeys={
+              working || demoDirectories || readOnly
+                ? ['move', 'delete']
+                : selectedEntries.some((e) => !regular(e) && !e.directory && !e.symlink)
+                  ? ['move']
+                  : []
+            }
+            onAction={(key) => batchAction(key as 'move' | 'delete')}
+          >
+            <DropdownItem key="move">{translate('files:move')}</DropdownItem>
+            <DropdownItem key="delete" color="danger">
+              {translate('files:delete')}
+            </DropdownItem>
+          </DropdownMenu>
+        </Dropdown>
+      </div>
+      {!!results.length && (
+        <details className="file-results" open>
+          <summary>
+            {translate('files:batchOperationResults')}
+            <button
+              aria-label={translate('files:closeBatchResults')}
+              onClick={(e) => {
+                e.preventDefault();
+                setResults([]);
+              }}
+            >
+              ×
+            </button>
+          </summary>
+          {results.map((result, index) => (
+            <p
+              key={index}
+              className={['failed', 'not_run'].includes(result.state) ? 'error' : 'muted'}
+            >
+              {
+                (
+                  {
+                    done: translate('files:completed'),
+                    queued: translate('files:queued'),
+                    failed: translate('files:failed'),
+                    skipped: translate('files:skipped'),
+                    not_run: translate('files:notExecuted'),
+                  } as Record<string, string>
+                )[result.state]
+              }{' '}
+              · {result.path}
+              {errorMessage(eventError(result)) && ` · ${errorMessage(eventError(result))}`}
+            </p>
+          ))}
+        </details>
+      )}
       {root?.entries && !root.loading && !loading && !error && visibleEntries.length === 0 && (
         <p className="sidebar-empty">
           {root.entries.length === 0

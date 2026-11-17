@@ -34,6 +34,14 @@ const workspace = (): Workspace => ({
   restore: ssh,
 });
 
+test('split orientation is preserved with its own workspace layout version', () => {
+  const item = workspace();
+  item.restore = { ...ssh, split_direction: 'rows' };
+  const layout = captureWorkspaceLayout([item], item.id)!;
+  assert.equal(layout.version, 9);
+  assert.equal(layout.entries![0].ssh!.split_direction, 'rows');
+});
+
 test('布局保留文件入口和活动工作区，排除凭据引用与本地终端', () => {
   const item = workspace();
   const layout = captureWorkspaceLayout(

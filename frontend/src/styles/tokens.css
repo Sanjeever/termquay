@@ -66,8 +66,12 @@
 :root[data-accent='green'] {
   --color-primary: #5ed59a;
   --color-selected: #24503b;
+  --heroui-primary: 150.8 58.6% 60.2%;
+  --heroui-focus: 150.8 58.6% 60.2%;
 }
 :root.light[data-accent='green'] {
   --color-primary: #167a49;
   --color-selected: #d8efe2;
+  --heroui-primary: 150.6 69.4% 28.2%;
+  --heroui-focus: 150.6 69.4% 28.2%;
 }

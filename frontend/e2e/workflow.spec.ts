@@ -1,5 +1,26 @@
 import { expect, test, type Page } from '@playwright/test';
 
+test('address copy is independent of connection selection and excludes the port', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.route('**/wails/runtime*', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: 'null' }),
+  );
+  await page.goto('/e2e/workflow.html?scene=connections&language=en');
+  const row = page.locator('.connection-row').first();
+  const address = (await row.locator('.connection-host').textContent())!;
+  const selected = await row.getAttribute('class');
+  await row.getByRole('button', { name: `Copy address ${address}`, exact: true }).click();
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(address);
+  await expect(row).toHaveAttribute('class', selected!);
+  await expect(row.locator('.connection-port')).toHaveText(/^\d+$/);
+  const bounds = await row.locator('.connection-port').boundingBox();
+  const host = await row.locator('.connection-address-text').boundingBox();
+  expect(bounds!.x).toBeGreaterThanOrEqual(host!.x + host!.width);
+});
+
 for (const language of ['en', 'zh-CN']) {
   test(`connection states remain readable in compact and wide catalogs (${language})`, async ({
     page,
@@ -263,7 +284,16 @@ async function sshWorkflow(page: Page, language = 'en') {
           },
         ],
       };
-    } else if (method === 272076810) value = { id: 'host-a-terminal-2' };
+    } else if (method === 482496204)
+      value = {
+        path: args[1],
+        content: 'original file\n',
+        revision: 'v1',
+        encoding: 'UTF-8',
+        line_ending: 'LF',
+        bom: false,
+      };
+    else if (method === 272076810) value = { id: 'host-a-terminal-2' };
     else if (method === 1375116584)
       value = {
         id: 'preview-ssh',
@@ -298,6 +328,64 @@ async function sshWorkflow(page: Page, language = 'en') {
     },
   };
 }
+
+test('SSH file opening stacks the editor above the live terminal and layout changes preserve both', async ({
+  page,
+}) => {
+  await sshWorkflow(page);
+  await page.locator('[data-tree-path="/release.conf"] .file-name').dblclick();
+  const editor = page.locator('.cm-editor:visible');
+  await expect(editor).toBeVisible();
+  const instance = await editor.elementHandle();
+  const terminal = page.locator('.terminal-tab:visible .xterm');
+  const terminalInstance = await terminal.elementHandle();
+  const editorBounds = await editor.boundingBox();
+  const terminalBounds = await terminal.boundingBox();
+  expect(terminalBounds!.y).toBeGreaterThan(editorBounds!.y + editorBounds!.height);
+  await editor.locator('.cm-content').click();
+  await page.keyboard.type('unsaved ');
+  await page.getByRole('button', { name: 'Pane layout', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Side by side panes', exact: true }).click();
+  expect(await editor.evaluate((element, original) => element === original, instance)).toBe(true);
+  expect(
+    await terminal.evaluate((element, original) => element === original, terminalInstance),
+  ).toBe(true);
+  await expect(editor.locator('.cm-content')).toContainText('unsaved');
+  await page.getByRole('button', { name: 'Pane layout', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Top and bottom panes', exact: true }).click();
+  await expect(page.getByRole('separator', { name: 'Split pane ratio' })).toHaveAttribute(
+    'aria-orientation',
+    'horizontal',
+  );
+  await page.screenshot({ path: test.info().outputPath('ssh-stacked-workspace.png') });
+});
+
+test('file refresh keeps the selected directory and reads its branch without reading root', async ({
+  page,
+}) => {
+  const ssh = await sshWorkflow(page);
+  const directory = page.locator('[data-tree-path="/config"]');
+  await directory.locator('.file-name').click();
+  await expect(page.locator('.breadcrumbs')).toHaveAttribute('aria-label', '/config');
+  await expect(directory).toHaveAttribute('aria-selected', 'true');
+  const rootReads = ssh.calls.filter(
+    (call) => call.method === 504709045 && (!call.args[1] || call.args[1] === '/'),
+  ).length;
+  const targetReads = () =>
+    ssh.calls.filter((call) => call.method === 504709045 && call.args[1] === '/config').length;
+  await expect.poll(targetReads).toBe(1);
+  await directory.focus();
+  await page.keyboard.press('F5');
+  await expect.poll(targetReads).toBe(2);
+  await expect(directory).toHaveAttribute('aria-selected', 'true');
+  await directory.click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Refresh directory', exact: true }).click();
+  await expect.poll(targetReads).toBe(3);
+  expect(
+    ssh.calls.filter((call) => call.method === 504709045 && (!call.args[1] || call.args[1] === '/'))
+      .length,
+  ).toBe(rootReads);
+});
 
 test('directory following is explicit, pauses when disabled and rejects another host', async ({
   page,

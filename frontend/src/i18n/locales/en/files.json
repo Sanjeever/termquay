@@ -1,6 +1,11 @@
 {
   "newItem": "New",
   "newFile": "New file",
+  "newTerminalBelow": "New terminal below",
+  "bottom": "Bottom",
+  "resourceTools": "File and resource tools",
+  "splitVertically": "Top and bottom panes",
+  "splitHorizontally": "Side by side panes",
   "copyName": "Copy name for {{path}}",
   "nameConflict": "Name conflict for {{path}}",
   "copyConflicts": "Conflicts and unsupported items ({{count}})",

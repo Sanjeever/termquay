@@ -247,6 +247,10 @@ const SSHWorkspace = forwardRef<
     ),
   );
   const [split, setSplit] = useState(initialLayout?.split || false);
+  const [splitDirection, setSplitDirection] = useState<'rows' | 'columns'>(
+    initialLayout ? (initialLayout.split_direction === 'rows' ? 'rows' : 'columns') : 'rows',
+  );
+  const automaticSplit = useRef(!initialLayout);
   const [maximized, setMaximized] = useState(initialLayout?.maximized || false);
   const [ratio, setRatio] = useState(initialLayout?.ratio || 50);
   const [terminals, setTerminals] = useState<string[]>(
@@ -461,9 +465,7 @@ const SSHWorkspace = forwardRef<
         ),
       ),
   );
-  const [monitorOpen, setMonitorOpen] = useState(
-    initialLayout?.monitor_open ?? localStorage.getItem('termquay.layout.monitor') === 'true',
-  );
+  const [monitorOpen, setMonitorOpen] = useState(initialLayout?.monitor_open ?? false);
   const aiSettings = useAISettings();
   const aiEnabled = !!aiSettings.settings?.enabled && !aiSettings.locked;
   const [aiOpen, setAIOpen] = useState(false);
@@ -506,6 +508,7 @@ const SSHWorkspace = forwardRef<
     selection,
     activePane,
     split,
+    splitDirection,
     maximized,
     ratio,
     directory,
@@ -612,12 +615,32 @@ const SSHWorkspace = forwardRef<
     if (!focusedSelection && otherSelection) setActivePane(1 - activePane);
   }, [focusedSelection, otherSelection, activePane]);
   function setActive(path: string) {
+    if (
+      !split &&
+      automaticSplit.current &&
+      splitDirection === 'rows' &&
+      !terminals.includes(path) &&
+      terminals.length
+    ) {
+      setSplit(true);
+      setSecondary([...terminals]);
+      setSelection([path, terminals[0]]);
+      setActivePane(0);
+      return;
+    }
     const pane = paneFor(path);
     setActivePane(pane);
     setSelection((prev) => (pane === 0 ? [path, prev[1]] : [prev[0], path]));
   }
   function shown(path: string) {
     return path === paneSelected[paneFor(path)] && (!maximized || paneFor(path) === activePane);
+  }
+  function panePosition(pane: number, tabs = false) {
+    const stacked = split && !maximized && splitDirection === 'rows';
+    return {
+      gridColumn: maximized || pane === 0 || stacked ? 1 : 3,
+      gridRow: stacked && pane === 1 ? (tabs ? 4 : 5) : tabs ? 1 : 2,
+    };
   }
   function imageFile(path: string) {
     return fileViews[path] ? fileViews[path] === 'image' : isImagePath(path);
@@ -643,7 +666,7 @@ const SSHWorkspace = forwardRef<
     setActivePane(target);
     requestAnimationFrame(() => focusTab(active));
   }
-  async function newTerminal(pane = activePane) {
+  async function newTerminal(pane = split && splitDirection === 'rows' ? 1 : activePane) {
     if (creating || restoring || terminals.length >= 16) return;
     setCreating(true);
     try {
@@ -739,6 +762,7 @@ const SSHWorkspace = forwardRef<
       selected: [ordered.indexOf(paneSelected[0]), ordered.indexOf(paneSelected[1])],
       active_pane: activePane,
       split,
+      split_direction: splitDirection,
       maximized,
       ratio,
       directory,
@@ -1139,7 +1163,7 @@ const SSHWorkspace = forwardRef<
         { ...doc, saved: doc.content, savedFormat: formatKey(doc), error: '', saving: false },
       ]);
       setFileOrder((prev) => (prev.includes(path) ? prev : [...prev, path]));
-      if (split && activePane === 1 && !fileOrder.includes(path)) {
+      if (split && splitDirection === 'columns' && activePane === 1 && !fileOrder.includes(path)) {
         setSecondary((prev) => [...prev, path]);
         setSelection((prev) => [prev[0], path]);
       } else setActive(path);
@@ -1360,6 +1384,17 @@ const SSHWorkspace = forwardRef<
               ...(!split ? ['maximize', 'merge'] : []),
             ]}
             onAction={(key) => {
+              automaticSplit.current = false;
+              if (key === 'rows' || key === 'columns') {
+                setSplitDirection(key);
+                if (!split) {
+                  setSplit(true);
+                  setSecondary([...terminals]);
+                  setSelection([fileOrder[0] || '', terminals[0] || '']);
+                  setActivePane(fileOrder.length ? 0 : 1);
+                }
+                setMaximized(false);
+              }
               if (key === 'new') void newTerminal(1);
               if (key === 'move') moveActive();
               if (key === 'maximize') setMaximized((v) => !v);
@@ -1372,7 +1407,22 @@ const SSHWorkspace = forwardRef<
               }
             }}
           >
-            <DropdownItem key="new">{translate('files:newTerminalOnTheRight')}</DropdownItem>
+            <DropdownItem key="rows" endContent={split && splitDirection === 'rows' ? '✓' : null}>
+              {translate('files:splitVertically')}
+            </DropdownItem>
+            <DropdownItem
+              key="columns"
+              endContent={split && splitDirection === 'columns' ? '✓' : null}
+            >
+              {translate('files:splitHorizontally')}
+            </DropdownItem>
+            <DropdownItem key="new">
+              {translate(
+                splitDirection === 'rows'
+                  ? 'files:newTerminalBelow'
+                  : 'files:newTerminalOnTheRight',
+              )}
+            </DropdownItem>
             <DropdownItem key="move">{translate('files:moveCurrentTabToOtherPane')}</DropdownItem>
             <DropdownItem key="maximize">
               {maximized
@@ -1443,6 +1493,37 @@ const SSHWorkspace = forwardRef<
         </div>
       )}
       <div className="ssh-panels">
+        <WorkspaceToolRail
+          side="left"
+          tools={[
+            {
+              id: 'files',
+              label: translate('files:files'),
+              icon: 'files',
+              active: filesShown,
+              buttonRef: filesToggle,
+              onClick: toggleFiles,
+            },
+            ...(onTransfers
+              ? [
+                  {
+                    id: 'transfers',
+                    label: translate('files:fileTransfers'),
+                    icon: 'transfer' as const,
+                    disabled: state !== 'connected',
+                    onClick: () => onTransfers(directory, []),
+                  },
+                ]
+              : []),
+            {
+              id: 'snippets',
+              label: translate('common:insertSnippet2').trim(),
+              icon: 'code',
+              disabled: state !== 'connected' || !terminals.includes(active),
+              onClick: onSnippets,
+            },
+          ]}
+        />
         {narrow && narrowPanel && (
           <button
             className="panel-scrim"
@@ -1520,7 +1601,13 @@ const SSHWorkspace = forwardRef<
               {translate('files:createATerminalOrOpenAFileFrom')}
             </div>
           )}
-          <WorkspacePanes split={split} maximized={maximized} ratio={ratio} onRatio={setRatio}>
+          <WorkspacePanes
+            split={split}
+            direction={splitDirection}
+            maximized={maximized}
+            ratio={ratio}
+            onRatio={setRatio}
+          >
             {terminals
               .filter((terminal) => tmuxBindings[terminal] && !tmuxAttached.current.has(terminal))
               .map((terminal) => (
@@ -1529,10 +1616,7 @@ const SSHWorkspace = forwardRef<
                   data-tab-id={terminal}
                   key={`tmux-${terminal}`}
                   hidden={!shown(terminal)}
-                  style={{
-                    gridColumn: maximized ? 1 : paneFor(terminal) === 0 ? 1 : 3,
-                    gridRow: 2,
-                  }}
+                  style={panePosition(paneFor(terminal))}
                 >
                   <span>tmux · {tmuxBindings[terminal]}</span>
                   <Button
@@ -1559,7 +1643,9 @@ const SSHWorkspace = forwardRef<
                 selected={paneSelected[pane]}
                 focused={pane === activePane}
                 hidden={(!split && pane === 1) || (maximized && pane !== activePane)}
-                column={maximized || pane === 0 ? 1 : 3}
+                column={panePosition(pane, true).gridColumn}
+                row={panePosition(pane, true).gridRow}
+                stacked={splitDirection === 'rows'}
                 creating={creating || restoring || terminals.length >= 16}
                 onSelect={activate}
                 onClose={closeTab}
@@ -1573,10 +1659,7 @@ const SSHWorkspace = forwardRef<
                   className={`terminal-tab ${activePane === paneFor(terminal) ? 'focused-pane' : ''}`}
                   data-tab-id={terminal}
                   hidden={!shown(terminal)}
-                  style={{
-                    gridColumn: maximized ? 1 : paneFor(terminal) === 0 ? 1 : 3,
-                    gridRow: 2,
-                  }}
+                  style={panePosition(paneFor(terminal))}
                   onFocusCapture={() => setActivePane(paneFor(terminal))}
                   key={terminal}
                 >
@@ -1640,7 +1723,7 @@ const SSHWorkspace = forwardRef<
                     className="editor-tab pending-file"
                     data-tab-id={path}
                     hidden={!shown(path)}
-                    style={{ gridColumn: maximized ? 1 : paneFor(path) === 0 ? 1 : 3, gridRow: 2 }}
+                    style={panePosition(paneFor(path))}
                   >
                     <p className="file-path">{path}</p>
                     {failure ? (
@@ -1731,7 +1814,7 @@ const SSHWorkspace = forwardRef<
                 className="editor-tab"
                 data-tab-id={path}
                 hidden={!shown(path)}
-                style={{ gridColumn: maximized ? 1 : paneFor(path) === 0 ? 1 : 3, gridRow: 2 }}
+                style={panePosition(paneFor(path))}
                 onFocusCapture={() => setActivePane(paneFor(path))}
               >
                 <Suspense
@@ -1763,7 +1846,7 @@ const SSHWorkspace = forwardRef<
                   className={`editor-tab ${activePane === paneFor(d.path) ? 'focused-pane' : ''}`}
                   data-tab-id={d.path}
                   hidden={!shown(d.path) || imageFile(d.path)}
-                  style={{ gridColumn: maximized ? 1 : paneFor(d.path) === 0 ? 1 : 3, gridRow: 2 }}
+                  style={panePosition(paneFor(d.path))}
                   onFocusCapture={() => setActivePane(paneFor(d.path))}
                 >
                   <ErrorNotice
@@ -2021,14 +2104,6 @@ const SSHWorkspace = forwardRef<
         <WorkspaceToolRail
           tools={[
             {
-              id: 'files',
-              label: translate('files:files'),
-              icon: 'files',
-              active: filesShown,
-              buttonRef: filesToggle,
-              onClick: toggleFiles,
-            },
-            {
               id: 'monitor',
               label: translate('files:monitoring'),
               icon: 'monitor',
@@ -2055,24 +2130,6 @@ const SSHWorkspace = forwardRef<
               icon: 'tunnel',
               active: tunnelsOpen,
               onClick: () => setTunnelsOpen((value) => !value),
-            },
-            ...(onTransfers
-              ? [
-                  {
-                    id: 'transfers',
-                    label: translate('files:fileTransfers'),
-                    icon: 'transfer' as const,
-                    disabled: state !== 'connected',
-                    onClick: () => onTransfers(directory, []),
-                  },
-                ]
-              : []),
-            {
-              id: 'snippets',
-              label: translate('common:insertSnippet2').trim(),
-              icon: 'code',
-              disabled: state !== 'connected' || !terminals.includes(active),
-              onClick: onSnippets,
             },
             ...(onDocker
               ? [

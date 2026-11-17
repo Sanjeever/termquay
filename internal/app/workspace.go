@@ -35,17 +35,18 @@ func validTmuxName(name string) bool {
 }
 
 type SSHLayout struct {
-	Tabs        []WorkspaceTabLayout `json:"tabs"`
-	Selected    [2]int               `json:"selected"`
-	ActivePane  int                  `json:"active_pane"`
-	Split       bool                 `json:"split"`
-	Maximized   bool                 `json:"maximized"`
-	Ratio       float64              `json:"ratio"`
-	Directory   string               `json:"directory"`
-	FilesOpen   bool                 `json:"files_open"`
-	FilesWidth  int                  `json:"files_width"`
-	MonitorOpen bool                 `json:"monitor_open"`
-	Focus       bool                 `json:"focus"`
+	Tabs           []WorkspaceTabLayout `json:"tabs"`
+	Selected       [2]int               `json:"selected"`
+	ActivePane     int                  `json:"active_pane"`
+	Split          bool                 `json:"split"`
+	SplitDirection string               `json:"split_direction,omitempty"`
+	Maximized      bool                 `json:"maximized"`
+	Ratio          float64              `json:"ratio"`
+	Directory      string               `json:"directory"`
+	FilesOpen      bool                 `json:"files_open"`
+	FilesWidth     int                  `json:"files_width"`
+	MonitorOpen    bool                 `json:"monitor_open"`
+	Focus          bool                 `json:"focus"`
 }
 type WorkspaceLayoutEntry struct {
 	ID           string          `json:"id"`
@@ -61,7 +62,7 @@ type WorkspaceLayout struct {
 }
 
 func (layout WorkspaceLayout) validate() error {
-	if layout.Version < 1 || layout.Version > 8 {
+	if layout.Version < 1 || layout.Version > 9 {
 		return appmessage.New("backend:unsupportedWorkspaceLayoutVersion", "工作布局版本不受支持")
 	}
 	if len(layout.Entries) > 16 {
@@ -99,6 +100,9 @@ func (layout WorkspaceLayout) validate() error {
 			return appmessage.New("backend:rDPLayoutCannotContainSSHTabs", "RDP 布局不能包含 SSH 标签")
 		}
 		s := entry.SSH
+		if s.SplitDirection != "" && (layout.Version < 9 || s.SplitDirection != "rows" && s.SplitDirection != "columns") {
+			return appmessage.New("backend:invalidLayoutPanes", "布局窗格无效")
+		}
 		if len(s.Tabs) > 72 || s.ActivePane < 0 || s.ActivePane > 1 || s.Ratio < 20 || s.Ratio > 80 || s.FilesWidth < 200 || s.FilesWidth > 420 || len(s.Directory) > 4096 || (s.Directory != "" && (!path.IsAbs(s.Directory) || path.Clean(s.Directory) != s.Directory)) {
 			return appmessage.New("backend:invalidSSHLayoutSizeDirectoryOrTabs", "SSH 布局尺寸、目录或标签无效")
 		}

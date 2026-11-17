@@ -1,6 +1,11 @@
 {
   "newItem": "新建",
   "newFile": "新建文件",
+  "newTerminalBelow": "在下方新建终端",
+  "bottom": "下方",
+  "resourceTools": "文件与资源工具",
+  "splitVertically": "上下分栏",
+  "splitHorizontally": "左右分栏",
   "copyName": "{{path}} 的副本名称",
   "nameConflict": "{{path}} 同名处理",
   "copyConflicts": "冲突或不支持的项目（{{count}}）",

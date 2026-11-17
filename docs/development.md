@@ -157,7 +157,9 @@ Follow the [localization contract](architecture.md#localization-and-collaboratio
 <a id="内置-ai-助手"></a>
 ## Using the workbench
 
-The SSH workspace's right tool rail opens files, monitoring, the enabled AI assistant, port forwarding, file transfers, snippets and Docker. Use Tab or the arrow keys to reach its buttons. Docker opens an independent tool tab with the current SSH workspace selected. Layout, focus mode and reconnect actions remain in the workspace header.
+The SSH workspace's left tool rail opens files, file transfers and snippets; its right rail opens monitoring, the enabled AI assistant, port forwarding and Docker. Use Tab or the arrow keys within each rail. Docker opens an independent tool tab with the current SSH workspace selected. Layout, focus mode and reconnect actions remain in the workspace header. New workspaces keep monitoring closed. Opening a file in a new workspace places the editor above the retained terminal; restored layouts preserve their panes. **Pane layout** switches between stacked and side-by-side panes, maximizes a pane or merges them. Resizing and changing orientation retain terminal/editor instances and drafts; orientation is saved with the layout.
+
+File browsing mode and directory following use named icon buttons in the compact file header. Selection actions and batch results appear below the tree, so selecting an item does not move it between double-clicks. **Settings → Appearance → Accent color** offers the existing blue and an optional green; changing it preserves open sessions and editor state.
 
 Middle-click a workspace, tool or terminal/file tab to close it without first selecting it. Local split-pane headers support the same action. Unsaved-file and running-local-terminal confirmations still apply, and closing remains disabled while the existing save, restore or busy state blocks it. The fixed connection center cannot be closed.
 
@@ -284,6 +286,7 @@ Real tests opt in through securely injected process settings. Never put real val
 | Suite | Configuration |
 | --- | --- |
 | `TestSG1*` password entry | `SSH_MCP_SERVER_SG1_HOST`, `SSH_MCP_SERVER_SG1_PORT`, `SSH_MCP_SERVER_SG1_USERNAME`, `SSH_MCP_SERVER_SG1_PASSWORD`, `TERMQUAY_TEST_HOST_FINGERPRINT` |
+| [`TestRealFileOperations`](../internal/app/files_workflow_integration_test.go) | `TERMQUAY_TEST_FILES_HOST`, `TERMQUAY_TEST_FILES_PORT`, `TERMQUAY_TEST_FILES_USERNAME`, `TERMQUAY_TEST_FILES_PASSWORD`, `TERMQUAY_TEST_HOST_FINGERPRINT`; creates and cleans an isolated `/tmp/termquay-files-*` tree |
 | [`TestSG1Workflow*`](../internal/app/ssh_workflow_integration_test.go) | Host, port, username and verified fingerprint above, plus `TERMQUAY_TEST_PRIVATE_KEY_PATH` pointing to an unencrypted test private key; no password required |
 | [`TestRealWebDAV`](../internal/backup/webdav_test.go) | `TERMQUAY_WEBDAV_URL`, `TERMQUAY_WEBDAV_USERNAME`, `TERMQUAY_WEBDAV_PASSWORD`, `TERMQUAY_WEBDAV_DIRECTORY` for an existing isolated writable collection; creates and cleans a unique child collection |
 

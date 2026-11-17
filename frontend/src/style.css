@@ -49,6 +49,10 @@
   .ssh-panels:has(> .workspace-tool-rail) > .file-dock {
     max-width: calc(100% - 42px);
   }
+  .ssh-panels:has(> .workspace-tool-rail-left) > .file-dock {
+    left: 42px;
+    max-width: calc(100% - 84px);
+  }
 }
 
 @media (prefers-reduced-transparency: reduce) {

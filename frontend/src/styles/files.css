@@ -8,6 +8,10 @@
   container-type: inline-size;
   background: var(--color-surface);
 }
+.file-panel > .file-results {
+  margin-top: 6px;
+  border-top: 1px solid var(--color-border);
+}
 .file-create-row {
   padding: 6px 0;
 }
@@ -221,7 +225,7 @@
   font-size: 11px;
   white-space: nowrap;
 }
-@container (min-width: 340px) {
+@container (min-width: 480px) {
   .file-metadata {
     display: inline-block;
     max-width: 90px;
