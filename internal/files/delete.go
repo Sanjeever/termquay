@@ -53,7 +53,10 @@ func Delete(ctx context.Context, client *sftp.Client, remote string, progress fu
 		for {
 			children, readErr := directory.ReaddirContext(ctx, 128)
 			for _, child := range children {
-				if child.Name() == "." || child.Name() == ".." || strings.ContainsAny(child.Name(), "/\x00") {
+				if child.Name() == "." || child.Name() == ".." {
+					continue
+				}
+				if child.Name() == "" || strings.ContainsAny(child.Name(), "/\x00") {
 					return appmessage.New("backend:serverReturnedAnInvalidDirectoryEntry", "服务端返回无效目录项")
 				}
 				childPath := path.Join(name, child.Name())
