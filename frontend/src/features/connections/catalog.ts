@@ -5,7 +5,7 @@ import type {
   Group,
 } from '../../../bindings/github.com/Sanjeever/termquay/internal/store/models';
 
-export type CatalogSort = 'name' | 'address' | 'username' | 'protocol' | 'recent';
+export type CatalogSort = 'name' | 'address' | 'port' | 'username' | 'protocol' | 'recent';
 
 export function catalogConnections(
   connections: Connection[],
@@ -49,12 +49,14 @@ export function catalogConnections(
           ? (Date.parse(preferences[b.id]?.last_connected || '') || 0) -
             (Date.parse(preferences[a.id]?.last_connected || '') || 0)
           : scope.sort === 'address'
-            ? a.host.localeCompare(b.host, currentLocale(), { numeric: true }) || a.port - b.port
-            : scope.sort === 'username'
-              ? a.username.localeCompare(b.username, currentLocale(), { numeric: true })
-              : scope.sort === 'protocol'
-                ? a.protocol.localeCompare(b.protocol)
-                : a.name.localeCompare(b.name, currentLocale(), { numeric: true })) ||
+            ? a.host.localeCompare(b.host, currentLocale(), { numeric: true })
+            : scope.sort === 'port'
+              ? a.port - b.port
+              : scope.sort === 'username'
+                ? a.username.localeCompare(b.username, currentLocale(), { numeric: true })
+                : scope.sort === 'protocol'
+                  ? a.protocol.localeCompare(b.protocol)
+                  : a.name.localeCompare(b.name, currentLocale(), { numeric: true })) ||
           a.name.localeCompare(b.name, currentLocale(), { numeric: true }) ||
           a.id.localeCompare(b.id)) * (scope.descending ? -1 : 1),
     );

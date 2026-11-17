@@ -119,6 +119,9 @@ export default function ConnectionCenter({
   const [duplicating, setDuplicating] = useState<Connection>();
   const [includeCredentials, setIncludeCredentials] = useState(false);
   const [menu, setMenu] = useState('');
+  const [copiedAddress, setCopiedAddress] = useState('');
+  const copyTimer = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => clearTimeout(copyTimer.current), []);
   const [groupMenu, setGroupMenu] = useState('');
   const list = useRef<HTMLDivElement>(null);
   const query = useDeferredValue(search);
@@ -844,6 +847,7 @@ export default function ConnectionCenter({
                 translate('connections:address'),
                 'connection-address-heading',
               )}
+              {sortHeading('port', translate('connections:port'), 'connection-port')}
               {sortHeading('username', translate('connections:username'), 'connection-user')}
               {sortHeading('protocol', translate('connections:protocol'), 'connection-protocol')}
               <span className="connection-state-heading">{translate('connections:status')}</span>
@@ -896,70 +900,72 @@ export default function ConnectionCenter({
               <Tooltip
                 content={`${c.name}\n${c.protocol.toUpperCase()} · ${c.username}@${c.host}:${c.port}`}
               >
-                <button
-                  className="connection-name"
-                  aria-pressed={selectedIDs.includes(c.id)}
-                  tabIndex={
-                    visible.some((c) => c.id === selected)
-                      ? selected === c.id
-                        ? 0
-                        : -1
-                      : index === 0
-                        ? 0
-                        : -1
-                  }
-                  onClick={(e) => pick(c.id, e.ctrlKey || e.metaKey, e.shiftKey)}
-                  onDoubleClick={() => !busy && (!demo || c.protocol === 'ssh') && onOpen(c)}
-                  onKeyDown={(e) => {
-                    if (e.nativeEvent.isComposing) return;
-                    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
-                      e.preventDefault();
-                      setSelection(visible.map((c) => c.id));
-                    }
-                    if (e.key === ' ') {
-                      e.preventDefault();
-                      pick(c.id, true, e.shiftKey);
-                    }
-                    if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) {
-                      e.preventDefault();
-                      const next =
-                        e.key === 'Home'
+                <div className="connection-name">
+                  <button
+                    className="connection-select"
+                    aria-label={c.name}
+                    aria-pressed={selectedIDs.includes(c.id)}
+                    tabIndex={
+                      visible.some((c) => c.id === selected)
+                        ? selected === c.id
                           ? 0
-                          : e.key === 'End'
-                            ? visible.length - 1
-                            : Math.max(
-                                0,
-                                Math.min(
-                                  visible.length - 1,
-                                  index + (e.key === 'ArrowDown' ? 1 : -1),
-                                ),
-                              );
-                      pick(visible[next].id, false, e.shiftKey);
-                      list.current
-                        ?.querySelectorAll<HTMLElement>('.connection-name')
-                        [next]?.focus();
+                          : -1
+                        : index === 0
+                          ? 0
+                          : -1
                     }
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      if (!busy && (!demo || c.protocol === 'ssh')) onOpen(c);
-                    }
-                    if (demo) return;
-                    if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
-                      e.preventDefault();
-                      setSelected(c.id);
-                      setMenu(c.id);
-                    }
-                    if (e.key === 'F2' && !busy) {
-                      e.preventDefault();
-                      onEdit(c);
-                    }
-                    if (e.key === 'Delete') {
-                      e.preventDefault();
-                      setError('');
-                      setDeleting({ id: c.id, name: c.name });
-                    }
-                  }}
-                >
+                    onClick={(e) => pick(c.id, e.ctrlKey || e.metaKey, e.shiftKey)}
+                    onDoubleClick={() => !busy && (!demo || c.protocol === 'ssh') && onOpen(c)}
+                    onKeyDown={(e) => {
+                      if (e.nativeEvent.isComposing) return;
+                      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+                        e.preventDefault();
+                        setSelection(visible.map((c) => c.id));
+                      }
+                      if (e.key === ' ') {
+                        e.preventDefault();
+                        pick(c.id, true, e.shiftKey);
+                      }
+                      if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) {
+                        e.preventDefault();
+                        const next =
+                          e.key === 'Home'
+                            ? 0
+                            : e.key === 'End'
+                              ? visible.length - 1
+                              : Math.max(
+                                  0,
+                                  Math.min(
+                                    visible.length - 1,
+                                    index + (e.key === 'ArrowDown' ? 1 : -1),
+                                  ),
+                                );
+                        pick(visible[next].id, false, e.shiftKey);
+                        list.current
+                          ?.querySelectorAll<HTMLElement>('.connection-select')
+                          [next]?.focus();
+                      }
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (!busy && (!demo || c.protocol === 'ssh')) onOpen(c);
+                      }
+                      if (demo) return;
+                      if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
+                        e.preventDefault();
+                        setSelected(c.id);
+                        setMenu(c.id);
+                      }
+                      if (e.key === 'F2' && !busy) {
+                        e.preventDefault();
+                        onEdit(c);
+                      }
+                      if (e.key === 'Delete') {
+                        e.preventDefault();
+                        setError('');
+                        setDeleting({ id: c.id, name: c.name });
+                      }
+                    }}
+                  />
                   <Icon name={c.protocol === 'rdp' ? 'desktop' : 'terminal'} width="16" />
                   <strong>
                     {preferences[c.id]?.favorite && (
@@ -981,9 +987,29 @@ export default function ConnectionCenter({
                     )}
                   </strong>
                   <span className="connection-address-text">
-                    <span className="connection-inline-user">{c.username}@</span>
-                    {c.host}:{c.port}
+                    <span className="connection-host">{c.host}</span>
+                    <Tooltip content={translate('connections:copyAddress')}>
+                      <button
+                        className="icon-button connection-copy-address"
+                        aria-label={translate('connections:copyHostAddress', { host: c.host })}
+                        onDoubleClick={(event) => event.stopPropagation()}
+                        onClick={async (event) => {
+                          event.stopPropagation();
+                          try {
+                            await navigator.clipboard.writeText(c.host);
+                            setCopiedAddress(c.id);
+                            clearTimeout(copyTimer.current);
+                            copyTimer.current = setTimeout(() => setCopiedAddress(''), 1500);
+                          } catch (error) {
+                            setError(error);
+                          }
+                        }}
+                      >
+                        <Icon name={copiedAddress === c.id ? 'check' : 'copy'} width="13" />
+                      </button>
+                    </Tooltip>
                   </span>
+                  <span className="connection-port">{c.port}</span>
                   <span className="connection-user">{c.username}</span>
                   <small className="connection-protocol">{c.protocol.toUpperCase()}</small>
                   <small className="connection-session-state">
@@ -998,7 +1024,7 @@ export default function ConnectionCenter({
                       </span>
                     ) : null}
                   </small>
-                </button>
+                </div>
               </Tooltip>
               <ConnectionLatency
                 name={c.name}

@@ -1,4 +1,6 @@
 {
+  "copyAddress": "Copy address",
+  "copyHostAddress": "Copy address {{host}}",
   "status": "Status",
   "confirmDeleteNamed": "Delete “{{name}}”?",
   "ungrouped": "Ungrouped",

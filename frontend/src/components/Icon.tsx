@@ -1,6 +1,8 @@
 import type { SVGProps } from 'react';
 
 const paths = {
+  copy: 'M8 8h13v13H8zM16 8V3H3v13h5',
+  check: 'm5 12 4 4L19 6',
   undo: 'M8 4 3 9l5 5M3 9h10a7 7 0 0 1 0 14',
   redo: 'M16 4l5 5-5 5M21 9H11a7 7 0 0 0 0 14',
   save: 'M4 3h13l4 4v14H3V3zM7 3v6h10V3M7 21v-8h10v8',

@@ -47,6 +47,21 @@ const preferences = {
 const scope = { view: 'all', group: '', protocol: 'all', search: '', sort: 'name' as const };
 const ids = (values: Connection[]) => values.map((c) => c.id);
 
+test('port sorts numerically and address sorting does not combine port numbers', () => {
+  const values = [
+    { ...connections[0], name: 'same', host: 'same', port: 2222 },
+    { ...connections[1], name: 'same', host: 'same', port: 22 },
+  ];
+  assert.deepEqual(ids(catalogConnections(values, groups, {}, { ...scope, sort: 'port' })), [
+    'b',
+    'a',
+  ]);
+  assert.deepEqual(ids(catalogConnections(values, groups, {}, { ...scope, sort: 'address' })), [
+    'a',
+    'b',
+  ]);
+});
+
 test('范围、子分组、协议与检索字段可组合', () => {
   assert.deepEqual(
     ids(
