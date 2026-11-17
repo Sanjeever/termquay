@@ -43,6 +43,8 @@ Taskfile 保留 Wails 模板任务。出现 server、Docker 或 iOS 任务不表
 
 ### 真实 SSH 与 WebDAV
 
+连接表头、传输任务视图和端口转发侧栏的本轮检查见 [2026-11-17 界面验收记录](development.md#connection-headers-and-auxiliary-task-panels-2026-11-17)，包含中英文、深浅主题、窄窗口及焦点回归。浏览器使用 Wails/终端流替代边界，本轮未重复真实 SSH 或原生桌面验收。
+
 测试配置变量和执行命令统一维护在 [Optional real services](development.md#optional-real-services)。通过当前进程环境安全注入，不写入仓库或提交真实样例。配置齐备时，普通 Go 包测试也会执行这些入口；缺少配置时跳过，不计通过。
 
 本次文件操作与紧凑分栏的提交、环境、检查结果和缺口统一见 [2026-11-17 验收记录](development.md#remote-file-operations-and-compact-ssh-panes-2026-11-17)。真实文件测试使用独立临时目录，覆盖新建、编辑、复制、空目录与非空目录删除及符号链接隔离；浏览器替代验证与原生桌面验收分别记录。

@@ -315,6 +315,14 @@ Report unit tests, local protocol integration, browser substitutes, native deskt
 
 Historical evidence and unresolved gaps remain in the [Chinese acceptance ledger](development.zh-CN.md#已有验收记录与缺口), including [AI acceptance](development.zh-CN.md#内置-ai-验收2026-11-06) and [Windows SSH AI adaptation](development.zh-CN.md#windows-ssh-ai-适配验收2026-11-09). Platform input/IME, RDP clipboard/concurrency, native menus/dialogs, real multi-hop reconnect, provider behavior and sustained application-wide resource measurements need environment-specific evidence. Do not present historical results as current checks.
 
+### Connection headers and auxiliary task panels (2026-11-17)
+
+Source through `cf104ea` was checked on macOS 26.6.2 / arm64, Go 1.26.10, Node 26.11.0 and pnpm 11.20.0. `pnpm verify` passed formatting, frontend lint/production build, Go vet/package tests, 5 script checks, 148 frontend tests and 79 Chromium regressions. Five shell-availability cases and two Windows-font browser cases skipped under their existing guards. Existing frontend chunk-size and macOS linker warnings remain.
+
+Browser coverage substitutes Wails calls and terminal streams. It checks single-line English/Chinese protocol headers at three widths and 100–200% CSS zoom, file-tool task containment and manual global task access, closing the tool with a running task record without issuing cancellation, forwarding sidebar placement without reducing terminal height, retained terminal/form instances, monitor exclusivity, narrow-drawer Escape/focus return and automatic presets starting exactly once while the panel is hidden. English/light and Chinese/dark forwarding screenshots were visually reviewed. These checks do not establish native WebView behavior or real SSH forwarding/transfer acceptance; no real-remote or native-desktop run was repeated for this presentation change.
+
+Both README entry points, architecture/development guides, contributor instructions, affected translations/comments, CLI surfaces and the distributed skill were checked for conflicting behavior descriptions. Current usage is synchronized above and in the Chinese guide; connection and task ownership contracts still apply. Version, dependencies and generated interfaces are unchanged.
+
 ### Remote file operations and compact SSH panes (2026-11-17)
 
 Source through `a536742` was checked on macOS 26.6.2 / arm64, Go 1.26.10, Node 26.11.0 and pnpm 11.20.0. `pnpm verify` passed formatting, frontend lint/production build, Go vet/package tests, 5 script checks, 148 frontend tests and 77 Chromium regressions. Three Bash-hook and two PowerShell cases skipped under their availability guards; two Windows-font browser cases skipped on macOS. Targeted Go race checks passed for deletion, exclusive file creation, paste plans, layout validation and portable accent settings. Regenerating bindings reproduced the expected split-direction field. Existing macOS linker and frontend chunk-size warnings remain.
