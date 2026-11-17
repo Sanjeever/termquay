@@ -324,6 +324,14 @@ The review retained architecture premises and tradeoffs for directory-memory gro
 
 Repository-owned Markdown links and heading anchors passed a parser-based check, and `git diff --check` passed. Documentation-only validation did not run builds, type checks or tests; release validation is recorded separately.
 
+### Release 1.4.8 verification (2026-11-17)
+
+Release preparation started after documentation commit `cff3d13` on macOS 26.6.2 / arm64, Go 1.26.10, Node 26.11.0 and pnpm 11.20.0. The bilingual release log covers changes since `v1.4.7`, including the existing unpublished file, workspace and auxiliary-panel changes. The version tool synchronized platform resources, and version consistency and the dependency/license release audit passed. Dependencies, lockfiles and generated interfaces are unchanged by this preparation.
+
+Local `pnpm verify` passed formatting, frontend lint/production build with TypeScript compilation, Go vet/package tests, 5 script checks, 148 frontend tests and 79 Chromium regressions. Five shell-availability cases and two Windows-font browser cases skipped under their existing guards. Real-service opt-ins were removed from the verification process; no real SSH/RDP/WebDAV or saved-connection operations were performed. Existing frontend chunk-size and macOS linker warnings remain. The browser suite substitutes native calls/streams and does not establish native desktop behavior. Repository-owned Markdown links/anchors and `git diff --check` also passed.
+
+Candidate and public-release results will be recorded after their workflows complete. These local checks do not establish physical input/IME, native workbench interaction, real remote services, old-to-new desktop upgrades or sustained application/WebView resource acceptance.
+
 ### Connection headers and auxiliary task panels (2026-11-17)
 
 Source through `cf104ea` was checked on macOS 26.6.2 / arm64, Go 1.26.10, Node 26.11.0 and pnpm 11.20.0. `pnpm verify` passed formatting, frontend lint/production build, Go vet/package tests, 5 script checks, 148 frontend tests and 79 Chromium regressions. Five shell-availability cases and two Windows-font browser cases skipped under their existing guards. Existing frontend chunk-size and macOS linker warnings remain.

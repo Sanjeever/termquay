@@ -405,6 +405,10 @@ macOS 菜单栏提供连接、终端、标签关闭、显示、界面缩放和�
 
 核对范围、源码与历史证据、说明修正及保留的设计取舍统一见 [Documentation audit](development.md#documentation-audit-2026-11-17)。本次修正过时操作说明，合并重复入口，保留历史 SSH 时限失败与原生验收缺口；文档审查不代表重新通过真实服务验收。
 
+### 1.4.8 发布验收（2026-11-17）
+
+版本、许可审计、本机检查及后续候选与公开发布结果统一见 [Release 1.4.8 verification](development.md#release-148-verification-2026-11-17)。原生桌面、真实服务和升级验证缺口分别保留。
+
 “终端与编辑器”的“恢复默认”曾遗漏本地终端渲染设置，现已修复，并有先失败后通过的组件回归。触发条件、引入提交和修复范围统一见 [Terminal defaults reset correction](development.md#terminal-defaults-reset-correction)。
 
 ### 1.4.7 发布验收（2026-11-12）
