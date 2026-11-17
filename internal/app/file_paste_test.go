@@ -121,3 +121,55 @@ func TestFilePasteRejectsDescendantAndReadOnly(t *testing.T) {
 		t.Fatal("read-only destination accepted")
 	}
 }
+
+func TestFilePasteSourceChangesCancellationAndTypeConflicts(t *testing.T) {
+	a, _, root := uploadTestClient(t)
+	source, target := filepath.Join(root, "source"), filepath.Join(root, "target")
+	if err := os.MkdirAll(source, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(target, 0700); err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(source, "file")
+	if err := os.WriteFile(file, []byte("before"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	clipboard := &remoteFileClipboard{workspace: "workspace", paths: []string{file}}
+	preview, err := a.previewFilePaste(t.Context(), clipboard, "workspace", target, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.CancelDirectorySyncPreview(preview.ID)
+	if _, err := a.ExecuteFilePaste(preview.ID, []FilePasteChoice{{Name: "file", Action: "copy"}}); err == nil {
+		t.Fatal("cancelled preview executed")
+	}
+	preview, err = a.previewFilePaste(t.Context(), clipboard, "workspace", target, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(file, []byte("changed source contents"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	view, err := a.ExecuteFilePaste(preview.ID, []FilePasteChoice{{Name: "file", Action: "copy"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sg1WorkflowWaitTransfer(t, a, view.ID, "failed")
+	if _, err := os.Stat(filepath.Join(target, "file")); !os.IsNotExist(err) {
+		t.Fatal("changed source was published", err)
+	}
+	if err := os.WriteFile(filepath.Join(target, "source"), []byte("preserve file"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	preview, err = a.previewFilePaste(t.Context(), &remoteFileClipboard{workspace: "workspace", paths: []string{source}}, "workspace", target, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range preview.Entries {
+		if entry.State != "conflict" {
+			t.Fatalf("type conflict not propagated: %+v", entry)
+		}
+	}
+	a.CancelDirectorySyncPreview(preview.ID)
+}

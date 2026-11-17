@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"slices"
 	"strings"
 	"time"
 
@@ -76,7 +77,11 @@ func (a *AppService) previewFilePaste(ctx context.Context, clipboard *remoteFile
 	if err != nil {
 		return DirectorySyncPreview{}, err
 	}
-	defer releaseSource()
+	defer func() {
+		if releaseSource != nil {
+			releaseSource()
+		}
+	}()
 	target, releaseTarget, err := a.fileClient(ctx, workspace)
 	if err != nil {
 		return DirectorySyncPreview{}, err
@@ -157,6 +162,8 @@ func (a *AppService) previewFilePaste(ctx context.Context, clipboard *remoteFile
 		preview.PasteItems = append(preview.PasteItems, FilePasteItem{Source: original, Name: name, Exists: targetErr == nil})
 		nodes := map[string]files.SyncNode{"": files.SyncInfo(info)}
 		if info.IsDir() && info.Mode()&os.ModeSymlink == 0 {
+			releaseSource()
+			releaseSource = nil
 			_, children, err := a.scanWorkspaceDirectory(ctx, clipboard.workspace, original, nil)
 			if err != nil {
 				return DirectorySyncPreview{}, err
@@ -164,14 +171,34 @@ func (a *AppService) previewFilePaste(ctx context.Context, clipboard *remoteFile
 			for relative, node := range children {
 				nodes[relative] = node
 			}
+			source, releaseSource, err = a.fileClient(ctx, clipboard.workspace)
+			if err != nil {
+				return DirectorySyncPreview{}, err
+			}
 		}
-		for relative, node := range nodes {
+		relatives := make([]string, 0, len(nodes))
+		for relative := range nodes {
+			relatives = append(relatives, relative)
+		}
+		slices.Sort(relatives)
+		for _, relative := range relatives {
+			node := nodes[relative]
 			key := path.Join(name, relative)
 			pathBytes += len(key) + len(original) + len(relative)
 			if len(sources) >= files.MaxSyncEntries || pathBytes > files.MaxSyncPathBytes || strings.Count(key, "/") >= files.MaxSyncDepth {
 				return DirectorySyncPreview{}, appmessage.New("backend:syncPathInvalidOrScanLimitExceeded10000", "同步路径无效或超过扫描上限（10000 项、64 层、8 MiB 路径）")
 			}
 			sources[key], paths[key] = node, path.Join(original, relative)
+			blocked := false
+			for parent := path.Dir(key); parent != "."; parent = path.Dir(parent) {
+				if old, exists := targets[parent]; exists && (!old.Supported() || !old.Mode.IsDir()) {
+					blocked = true
+					break
+				}
+			}
+			if blocked {
+				continue
+			}
 			if err := checkRemoteSyncPath(target, directory, key, false); err != nil {
 				if os.IsNotExist(err) {
 					continue
