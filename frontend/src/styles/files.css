@@ -11,6 +11,25 @@
 .file-create-row {
   padding: 6px 0;
 }
+.file-paste-dialog {
+  max-width: 680px;
+}
+.file-paste-items {
+  max-height: 320px;
+  overflow: auto;
+}
+.file-paste-items li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.file-paste-items li > .file-path {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
 .file-create-field {
   display: grid;
   flex: 1;

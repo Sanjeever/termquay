@@ -1,6 +1,11 @@
 {
   "newItem": "新建",
   "newFile": "新建文件",
+  "copyName": "{{path}} 的副本名称",
+  "nameConflict": "{{path}} 同名处理",
+  "copyConflicts": "冲突或不支持的项目（{{count}}）",
+  "skipCopyConflicts": "跳过所列项目，复制其余内容",
+  "overwrite": "覆盖",
   "dropUploadTarget": "上传到 {{path}}\n松开后确认",
   "openInFileTransfers": "在文件传输中打开",
   "validationNotConfigured": "请先为此文件配置并保存验证命令，再执行保存并验证。",

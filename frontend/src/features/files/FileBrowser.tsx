@@ -35,17 +35,21 @@ import Icon from '../../components/Icon';
 import ErrorNotice from '../../components/ErrorNotice';
 import DirectorySyncDialog from './DirectorySyncDialog';
 import { selectItems } from '../../lib/selection';
-import type { RemotePathResult } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
+import type {
+  DirectorySyncPreview,
+  RemotePathResult,
+} from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
 import useFileTree from './useFileTree';
 import { entryMetadata, fileTreeRows, inDirectory } from './fileTree';
 import FileIcon from './FileIcon';
 import RemoteLogDialog from './RemoteLogDialog';
 import {
   CopyRemoteFiles,
-  PasteClipboardFiles,
+  PreviewClipboardPaste,
 } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
 
 const FileSearchDialog = lazy(() => import('./FileSearchDialog'));
+const FilePasteDialog = lazy(() => import('./FilePasteDialog'));
 
 function FileMetadata({ entry }: { entry: Entry }) {
   useTranslation();
@@ -137,6 +141,7 @@ export default function FileBrowser({
     };
   }, [id]);
   const [clipboardBusy, setClipboardBusy] = useState(false);
+  const [pastePreview, setPastePreview] = useState<DirectorySyncPreview>();
   const [clipboardCopied, setClipboardCopied] = useState(false);
   useEffect(() => {
     const copied = () => setClipboardCopied(true),
@@ -363,13 +368,15 @@ export default function FileBrowser({
   }
   const regular = (entry: Entry) =>
     !entry.directory && !entry.symlink && entry.mode.startsWith('-');
-  async function fileClipboard(copy: boolean) {
+  const copyable = (entry: Entry) => regular(entry) || (entry.directory && !entry.symlink);
+  async function fileClipboard(copy: boolean, entry?: Entry, target = directory) {
     if (!copy && readOnly) {
       setError(uiMessage('files:pastingUploadsIsDisabledInFileBrowsingMode'));
       return;
     }
     if (demoDirectories || working || clipboardRequest.current || !directory) return;
-    if (copy && (!selectedEntries.length || !selectedEntries.every(regular))) {
+    const entries = entry && !selection.includes(entry.path) ? [entry] : selectedEntries;
+    if (copy && (!entries.length || !entries.every(copyable))) {
       setError(uiMessage('files:selectRegularFilesUseDirectoryCopyForFolders'));
       return;
     }
@@ -378,13 +385,24 @@ export default function FileBrowser({
     const request = copy
       ? CopyRemoteFiles(
           id,
-          selectedEntries.map((entry) => entry.path),
+          entries
+            .filter(
+              (entry) =>
+                !entries.some(
+                  (parent) =>
+                    parent.directory &&
+                    parent.path !== entry.path &&
+                    inDirectory(entry.path, parent.path),
+                ),
+            )
+            .map((entry) => entry.path),
         )
-      : PasteClipboardFiles(id, directory);
+      : PreviewClipboardPaste(id, target, []);
     clipboardRequest.current = request;
     try {
-      await request;
+      const result = await request;
       if (copy) window.dispatchEvent(new Event('termquay:files-copied'));
+      else if (result && result.id) setPastePreview(result);
     } catch (e) {
       if (clipboardRequest.current === request) setError(e);
     } finally {
@@ -1023,7 +1041,7 @@ export default function FileBrowser({
         </label>
         <button
           disabled={
-            working || clipboardBusy || !!demoDirectories || !selectedEntries.every(regular)
+            working || clipboardBusy || !!demoDirectories || !selectedEntries.every(copyable)
           }
           onClick={() => void fileClipboard(true)}
         >
@@ -1343,6 +1361,9 @@ export default function FileBrowser({
                           if (key === 'move' || key === 'delete') batchAction(key, entry);
                           if (key === 'copy')
                             navigator.clipboard.writeText(entry.path).catch((e) => setError(e));
+                          if (key === 'copyFiles') void fileClipboard(true, entry);
+                          if (key === 'pasteFiles')
+                            void fileClipboard(false, undefined, entry.path);
                           if (key === 'rename') setAction({ kind: 'rename', path: entry.path });
                         }}
                       >
@@ -1402,6 +1423,26 @@ export default function FileBrowser({
                           {translate('files:moveToDirectory')}
                         </DropdownItem>
                         <DropdownItem key="copy">{translate('files:copyFullPath')}</DropdownItem>
+                        <DropdownItem
+                          key="copyFiles"
+                          isDisabled={
+                            working ||
+                            clipboardBusy ||
+                            !!demoDirectories ||
+                            !(selection.includes(entry.path)
+                              ? selectedEntries.every(copyable)
+                              : copyable(entry))
+                          }
+                        >
+                          {translate('files:copy')}
+                        </DropdownItem>
+                        <DropdownItem
+                          key="pasteFiles"
+                          className={!entry.directory ? 'hidden' : ''}
+                          isDisabled={readOnly || working || clipboardBusy || !!demoDirectories}
+                        >
+                          {translate('files:pasteFiles')}
+                        </DropdownItem>
                         <DropdownItem
                           key="rename"
                           isDisabled={selectedEntries.length > 1 && selection.includes(entry.path)}
@@ -1586,6 +1627,15 @@ export default function FileBrowser({
           connectionID={connectionID}
           onClose={() => setSyncOpen(false)}
         />
+      )}
+      {pastePreview && (
+        <Suspense fallback={null}>
+          <FilePasteDialog
+            workspace={id}
+            initialPreview={pastePreview}
+            onClose={() => setPastePreview(undefined)}
+          />
+        </Suspense>
       )}
       {logPath && (
         <RemoteLogDialog

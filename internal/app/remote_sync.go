@@ -95,18 +95,24 @@ func (a *AppService) remoteSyncEntry(ctx context.Context, plan *directorySyncPla
 	if err != nil {
 		return err
 	}
-	sourceRoot, err := source.RealPath(plan.preview.Local)
-	if err == nil && sourceRoot != plan.preview.Local {
+	sourceRelative := entry.Path
+	sourceBase := plan.preview.Local
+	if plan.pasteSources != nil {
+		sourceBase = path.Dir(plan.pasteSources[entry.Path])
+		sourceRelative = path.Base(plan.pasteSources[entry.Path])
+	}
+	sourceRoot, err := source.RealPath(sourceBase)
+	if err == nil && sourceRoot != sourceBase {
 		err = appmessage.New("backend:sourceRootDirectoryChanged", "来源根目录已变化")
 	}
 	if err == nil {
-		err = checkRemoteSyncPath(source, sourceRoot, entry.Path, false)
+		err = checkRemoteSyncPath(source, sourceRoot, sourceRelative, false)
 	}
 	if err != nil {
 		releaseSource()
 		return err
 	}
-	sourcePath := path.Join(sourceRoot, entry.Path)
+	sourcePath := path.Join(sourceRoot, sourceRelative)
 	info, err := source.Lstat(sourcePath)
 	releaseSource()
 	if err != nil {

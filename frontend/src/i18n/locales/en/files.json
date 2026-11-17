@@ -1,6 +1,11 @@
 {
   "newItem": "New",
   "newFile": "New file",
+  "copyName": "Copy name for {{path}}",
+  "nameConflict": "Name conflict for {{path}}",
+  "copyConflicts": "Conflicts and unsupported items ({{count}})",
+  "skipCopyConflicts": "Skip the listed items and copy the remaining contents",
+  "overwrite": "Overwrite",
   "dropUploadTarget": "Upload to {{path}}\nRelease to review",
   "openInFileTransfers": "Open in file transfers",
   "validationNotConfigured": "Configure and save a validation command for this file before running Save and validate.",

@@ -348,6 +348,10 @@ export function ExecuteDirectorySync(id: string, selected: string[] | null): $Ca
     return $Call.ByID(1166658499, id, selected);
 }
 
+export function ExecuteFilePaste(id: string, choices: $models.FilePasteChoice[] | null): $CancellablePromise<$models.Transfer> {
+    return $Call.ByID(3719284622, id, choices);
+}
+
 export function ExportBackupRecoveryKey(): $CancellablePromise<$models.BackupRecoveryKeyExport> {
     return $Call.ByID(1901775764);
 }
@@ -714,6 +718,10 @@ export function PrepareImagePreview(id: string, remote: string): $CancellablePro
 
 export function PrepareInspectionBaseline(workspace: string, remote: string, timeoutSeconds: number): $CancellablePromise<$models.InspectionBaseline> {
     return $Call.ByID(1650740612, workspace, remote, timeoutSeconds);
+}
+
+export function PreviewClipboardPaste(workspace: string, directory: string, names: string[] | null): $CancellablePromise<$models.DirectorySyncPreview> {
+    return $Call.ByID(1416262919, workspace, directory, names);
 }
 
 export function PreviewDirectorySync(workspace: string, direction: string, local: string, remote: string): $CancellablePromise<$models.DirectorySyncPreview> {

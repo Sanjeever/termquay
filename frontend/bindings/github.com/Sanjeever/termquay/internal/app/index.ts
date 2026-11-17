@@ -50,6 +50,8 @@ export type {
     DirectorySyncPreview,
     DraftRecoveryState,
     FileHistory,
+    FilePasteChoice,
+    FilePasteItem,
     FileVersion,
     ImagePreview,
     InspectionBaseline,

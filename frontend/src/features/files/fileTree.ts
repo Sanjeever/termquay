@@ -31,7 +31,12 @@ export function uploadRefreshPaths(
   task: Pick<Transfer, 'state' | 'direction' | 'destination_path' | 'directory'>,
   cached: string[],
 ) {
-  if (task.state !== 'done' || task.direction !== 'upload' || !task.destination_path) return [];
+  if (
+    task.state !== 'done' ||
+    !['upload', 'copy'].includes(task.direction) ||
+    !task.destination_path
+  )
+    return [];
   const directory = task.directory
     ? task.destination_path
     : task.destination_path.slice(0, task.destination_path.lastIndexOf('/')) || '/';

@@ -379,6 +379,7 @@ export interface DirectorySyncPreview {
     "remote": string;
     "entries": files$0.SyncEntry[] | null;
     "exclude"?: string[] | null;
+    "paste_items"?: FilePasteItem[] | null;
 }
 
 export interface DraftRecoveryState {
@@ -393,6 +394,17 @@ export interface FileHistory {
     "reload": string;
     "health_check"?: string;
     "versions": FileVersion[] | null;
+}
+
+export interface FilePasteChoice {
+    "name": string;
+    "action": string;
+}
+
+export interface FilePasteItem {
+    "source": string;
+    "name": string;
+    "exists": boolean;
 }
 
 export interface FileVersion {

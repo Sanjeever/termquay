@@ -18,12 +18,13 @@ import (
 )
 
 type DirectorySyncPreview struct {
-	ID        string            `json:"id"`
-	Direction string            `json:"direction"`
-	Local     string            `json:"local"`
-	Remote    string            `json:"remote"`
-	Entries   []files.SyncEntry `json:"entries"`
-	Exclude   []string          `json:"exclude,omitempty"`
+	ID         string            `json:"id"`
+	Direction  string            `json:"direction"`
+	Local      string            `json:"local"`
+	Remote     string            `json:"remote"`
+	Entries    []files.SyncEntry `json:"entries"`
+	Exclude    []string          `json:"exclude,omitempty"`
+	PasteItems []FilePasteItem   `json:"paste_items,omitempty"`
 }
 type directorySyncPlan struct {
 	preview         DirectorySyncPreview
@@ -32,6 +33,7 @@ type directorySyncPlan struct {
 	source, target  map[string]files.SyncNode
 	expires         time.Time
 	executing       bool
+	pasteSources    map[string]string
 }
 
 func (a *AppService) PreviewDirectorySync(ctx context.Context, workspace, direction, local, remote string) (DirectorySyncPreview, error) {
@@ -154,6 +156,9 @@ func (a *AppService) ExecuteDirectorySync(id string, selected []string) (Transfe
 		if node.Mode.IsDir() {
 			for child := range p.source {
 				if strings.HasPrefix(child, name+"/") {
+					if p.pasteSources != nil && !p.source[child].Supported() {
+						continue
+					}
 					chosen[child] = true
 				}
 			}
