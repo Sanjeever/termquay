@@ -41,6 +41,26 @@ for (const language of ['en', 'zh-CN']) {
           true,
         );
       }
+      const protocol = page.locator('.connection-protocol.catalog-column-sort');
+      await protocol.click();
+      for (const zoom of [1, 1.5, 2]) {
+        await page.evaluate((value) => {
+          document.documentElement.style.zoom = String(value);
+        }, zoom);
+        expect(
+          await protocol.evaluate((element) => {
+            const range = document.createRange();
+            range.selectNodeContents(element.firstChild!);
+            return range.getClientRects().length;
+          }),
+        ).toBe(1);
+        expect(
+          await protocol.evaluate((element) => element.scrollWidth <= element.clientWidth),
+        ).toBe(true);
+      }
+      await page.evaluate(() => {
+        document.documentElement.style.zoom = '';
+      });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
         true,
       );
