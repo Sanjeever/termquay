@@ -222,6 +222,7 @@ export default function App() {
   const [settings, setSettings] = useState(false);
   const [settingsSection, setSettingsSection] = useState('appearance');
   const [transfersOpen, setTransfersOpen] = useState(false);
+  const [filesTransfersOpen, setFilesTransfersOpen] = useState(false);
   const [transferReveal, setTransferReveal] = useState('');
   const [transferHeight, setTransferHeight] = useState(
     Number(localStorage.getItem('termquay.layout.transfer-height')) || 220,
@@ -601,6 +602,7 @@ export default function App() {
       if (id === filesTabID) {
         setFilesTab(false);
         setFilesRequest(undefined);
+        setFilesTransfersOpen(false);
       }
       if (id === logsTabID) {
         setLogsTab(false);
@@ -664,7 +666,7 @@ export default function App() {
       setFilesRequest({ workspace, directory, selected, sequence: ++filesRequestSequence.current });
     if (!filesTab) setFilesInitial(current?.ssh ? current.sessionID : undefined);
     setFilesTab(true);
-    setTransfersOpen(true);
+    setTransfersOpen(false);
     select(filesTabID);
   }
   function closeCurrentTab() {
@@ -1881,7 +1883,7 @@ export default function App() {
       id: 'transfers',
       label: translate('common:viewTransfers'),
       kind: 'command',
-      run: () => setTransfersOpen(true),
+      run: () => (filesOpen ? setFilesTransfersOpen(true) : setTransfersOpen(true)),
     },
     {
       id: 'command-tasks',
@@ -2188,6 +2190,35 @@ export default function App() {
         (error) => setPreferenceError(uiMessage('common:couldNotUpdateMenu', { value1: error })),
       );
   }, [menuState, demoScene, setPreferenceError]);
+  const transferPanel = (
+    <Suspense fallback={<div role="status">{translate('common:loadingTransfers')}</div>}>
+      <AnimatePresence initial={false}>
+        {(filesOpen ? filesTransfersOpen : transfersOpen) && (
+          <TransferPanel
+            tasks={transfers}
+            reveal={transferReveal}
+            height={transferHeight}
+            onHeight={setTransferHeight}
+            onClose={() => (filesOpen ? setFilesTransfersOpen(false) : setTransfersOpen(false))}
+            onLocate={(workspace, directory) => {
+              const target = workspaces.find((item) => item.sessionID === workspace);
+              if (target) {
+                select(target.id);
+                target.ssh?.current?.locateDirectory(directory);
+              }
+            }}
+            workspaces={workspaces
+              .filter((workspace) => workspace.sessionID && workspace.state === 'connected')
+              .map((workspace) => ({
+                id: workspace.sessionID!,
+                name: workspace.name,
+                target: `${workspace.connection?.username}@${workspace.connection?.host?.includes(':') ? '[' + workspace.connection.host + ']' : workspace.connection?.host}:${workspace.connection?.port}`,
+              }))}
+          />
+        )}
+      </AnimatePresence>
+    </Suspense>
+  );
   return (
     <>
       <div className="live-workbench" hidden={demoScene !== null}>
@@ -2296,8 +2327,12 @@ export default function App() {
               <Tooltip content={transfers.summary}>
                 <button
                   className={transfers.failed || errorMessage(eventError(transfers)) ? 'error' : ''}
-                  aria-expanded={transfersOpen}
-                  onClick={() => setTransfersOpen(!transfersOpen)}
+                  aria-expanded={filesOpen ? filesTransfersOpen : transfersOpen}
+                  onClick={() =>
+                    filesOpen
+                      ? setFilesTransfersOpen(!filesTransfersOpen)
+                      : setTransfersOpen(!transfersOpen)
+                  }
                 >
                   <Icon name="transfer" width="14" />
                   {transfers.running
@@ -2417,7 +2452,7 @@ export default function App() {
             </Suspense>
           )}
           {filesTab && (
-            <div className="workspace" hidden={!filesOpen}>
+            <div className="workspace file-tool-workspace" hidden={!filesOpen}>
               <Suspense
                 fallback={
                   <div className="view-loading" role="status">
@@ -2436,12 +2471,23 @@ export default function App() {
                   onTransfer={(item) => {
                     transfers.accept([item]);
                     setTransferReveal(item.id);
-                    setTransfersOpen(true);
+                    setFilesTransfersOpen(true);
                   }}
                   onCompare={() => setFileCompareOpen(true)}
                   onClose={() => closeWorkspace(filesTabID)}
                 />
               </Suspense>
+              <button
+                className="file-tool-tasks-toggle"
+                hidden={filesTransfersOpen}
+                aria-expanded={filesTransfersOpen}
+                onClick={() => setFilesTransfersOpen(!filesTransfersOpen)}
+              >
+                <Icon name="transfer" width="14" />
+                {translate('files:transferTasks')}
+                <span>{transfers.summary}</span>
+              </button>
+              {filesOpen && transferPanel}
             </div>
           )}
           {dockerTab && (
@@ -2750,33 +2796,7 @@ export default function App() {
               </Suspense>
             </div>
           ))}
-          <Suspense fallback={<div role="status">{translate('common:loadingTransfers')}</div>}>
-            <AnimatePresence initial={false}>
-              {transfersOpen && (
-                <TransferPanel
-                  tasks={transfers}
-                  reveal={transferReveal}
-                  height={transferHeight}
-                  onHeight={setTransferHeight}
-                  onClose={() => setTransfersOpen(false)}
-                  onLocate={(workspace, directory) => {
-                    const target = workspaces.find((item) => item.sessionID === workspace);
-                    if (target) {
-                      select(target.id);
-                      target.ssh?.current?.locateDirectory(directory);
-                    }
-                  }}
-                  workspaces={workspaces
-                    .filter((workspace) => workspace.sessionID && workspace.state === 'connected')
-                    .map((workspace) => ({
-                      id: workspace.sessionID!,
-                      name: workspace.name,
-                      target: `${workspace.connection?.username}@${workspace.connection?.host?.includes(':') ? '[' + workspace.connection.host + ']' : workspace.connection?.host}:${workspace.connection?.port}`,
-                    }))}
-                />
-              )}
-            </AnimatePresence>
-          </Suspense>
+          {!filesOpen && transferPanel}
         </Workbench>
         <UploadDialog
           workspaces={workspaces
@@ -2785,7 +2805,7 @@ export default function App() {
           onSubmitted={(items) => {
             transfers.accept(items);
             setTransferReveal(items[0].id);
-            setTransfersOpen(true);
+            if (filesOpen) setFilesTransfersOpen(true);
           }}
         />
         {!demoScene && (
@@ -3051,7 +3071,7 @@ export default function App() {
                   onTransfer={(item) => {
                     transfers.accept([item]);
                     setTransferReveal(item.id);
-                    setTransfersOpen(true);
+                    if (filesOpen) setFilesTransfersOpen(true);
                   }}
                   onClose={() => setFileCompareOpen(false)}
                 />

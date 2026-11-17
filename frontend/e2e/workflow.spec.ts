@@ -701,12 +701,14 @@ test('forwarding route follows local, remote and dynamic form values without sta
   ).toBe(true);
 });
 
-test('the actual tools menu opens a persistent file tab with the shared transfer panel', async ({
+test('the file tool owns its task view while transfers survive closing the tool', async ({
   page,
 }) => {
+  const calls: number[] = [];
   await page.route('**/wails/runtime*', async (route) => {
     const body = route.request().postDataJSON();
     const method = body?.args?.methodID;
+    calls.push(method);
     const args = body?.args?.args || [];
     let value: unknown = null;
     if (method === 3198086081) value = { groups: [], connections: [], session_only: true };
@@ -717,6 +719,33 @@ test('the actual tools menu opens a persistent file tab with the shared transfer
     else if (method === 2404688278)
       value = { path: args[1] || '/local', parent: '/', entries: [], truncated: false };
     else if (method === 706236747) value = 0;
+    else if (method === 57220462)
+      value = [
+        {
+          id: 'active-transfer',
+          workspace: 'background',
+          name: 'archive.zip',
+          direction: 'upload',
+          state: 'running',
+          total: 100,
+          completed: 50,
+          sequence: 1,
+          target: 'test@example.invalid:22',
+          source_path: '/local/archive.zip',
+          destination_path: '/remote/archive.zip',
+          resumable: false,
+          cleanup_required: false,
+          resume_persisted: false,
+          temporary_path: '',
+          error: '',
+          retryable: false,
+          batch_id: 'background',
+          phase: '',
+          speed: 10,
+          remaining_seconds: 5,
+          directory: false,
+        },
+      ];
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -730,7 +759,10 @@ test('the actual tools menu opens a persistent file tab with the shared transfer
     page.getByRole('tab', { name: 'File transfers', exact: true, selected: true }),
   ).toBeVisible();
   const original = await page.locator('.file-transfer-workspace').elementHandle();
-  await expect(page.getByRole('heading', { name: 'Transfers', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Transfers', exact: true })).toHaveCount(0);
+  await page.locator('.file-tool-tasks-toggle').click();
+  await expect(page.locator('.file-tool-workspace .transfer-panel')).toBeVisible();
+  await expect(page.locator('.transfer-panel')).toHaveCount(1);
   await page.getByRole('tab', { name: 'Connection center', exact: true }).click();
   await page.getByRole('tab', { name: 'File transfers', exact: true }).click();
   expect(
@@ -740,7 +772,14 @@ test('the actual tools menu opens a persistent file tab with the shared transfer
   ).toBe(true);
   await page.locator('[data-workspace-id="file-transfers"] .tab-close').click();
   await expect(page.getByRole('tab', { name: 'File transfers', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Transfers', exact: true })).toHaveCount(0);
+  await page
+    .locator('.workbench-status')
+    .getByRole('button', { name: /transfer/i })
+    .click();
   await expect(page.getByRole('heading', { name: 'Transfers', exact: true })).toBeVisible();
+  await expect(page.locator('[data-transfer-id="active-transfer"]')).toContainText('archive.zip');
+  expect(calls).not.toContain(3293823215);
 });
 
 test('the editor saves normally without commands and explicitly saves and validates from its toolbar', async ({
