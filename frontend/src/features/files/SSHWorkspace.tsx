@@ -318,6 +318,8 @@ const SSHWorkspace = forwardRef<
   >({});
   const [preparing, setPreparing] = useState(false);
   const [tunnelsOpen, setTunnelsOpen] = useState(false);
+  const [tunnelsWidth, setTunnelsWidth] = useState(360);
+  const [tunnelCount, setTunnelCount] = useState(0);
   const [closing, setClosing] = useState('');
   const [conflict, applyConflict] = useState('');
   const [sudoPrompt, setSudoPrompt] = useState<{
@@ -482,7 +484,9 @@ const SSHWorkspace = forwardRef<
   );
   const [focus, setFocus] = useState(initialLayout?.focus || false);
   const [narrow, setNarrow] = useState(window.innerWidth <= 1100);
-  const [narrowPanel, setNarrowPanel] = useState<'files' | 'monitor' | 'ai' | null>(null);
+  const [narrowPanel, setNarrowPanel] = useState<'files' | 'monitor' | 'ai' | 'tunnels' | null>(
+    null,
+  );
   const previousInstance = useRef(sessionID);
   const viewReady = useRef<Promise<void>>();
   const currentDirty = useRef(false);
@@ -491,6 +495,7 @@ const SSHWorkspace = forwardRef<
   const filesToggle = useRef<HTMLButtonElement>(null);
   const monitorToggle = useRef<HTMLButtonElement>(null);
   const aiToggle = useRef<HTMLButtonElement>(null);
+  const tunnelsToggle = useRef<HTMLButtonElement>(null);
   const dirtyCallback = useRef(onDirtyChange);
   dirtyCallback.current = onDirtyChange;
   const stateCallback = useRef(onState);
@@ -522,8 +527,10 @@ const SSHWorkspace = forwardRef<
   const dirty = drafts.some((d) => isDirty(d));
   currentDirty.current = dirty;
   const filesShown = !focus && (narrow ? narrowPanel === 'files' : filesOpen);
-  const aiShown = aiEnabled && !focus && (narrow ? narrowPanel === 'ai' : aiOpen);
-  const monitorShown = !aiShown && !focus && (narrow ? narrowPanel === 'monitor' : monitorOpen);
+  const tunnelsShown = !focus && (narrow ? narrowPanel === 'tunnels' : tunnelsOpen);
+  const aiShown = !tunnelsShown && aiEnabled && !focus && (narrow ? narrowPanel === 'ai' : aiOpen);
+  const monitorShown =
+    !tunnelsShown && !aiShown && !focus && (narrow ? narrowPanel === 'monitor' : monitorOpen);
   const tabIDs = [...terminals, ...fileOrder];
   const paneFor = (path: string) => (split && secondary.includes(path) ? 1 : 0);
   const paneSelected = selection.map((path, pane) =>
@@ -785,7 +792,8 @@ const SSHWorkspace = forwardRef<
   }
   function toggleMonitor() {
     setFocus(false);
-    if (aiShown) {
+    setTunnelsOpen(false);
+    if (aiShown || tunnelsShown) {
       setAIOpen(false);
       setMonitorOpen(true);
       if (narrow) setNarrowPanel('monitor');
@@ -794,6 +802,7 @@ const SSHWorkspace = forwardRef<
   }
   function toggleAI() {
     setFocus(false);
+    setTunnelsOpen(false);
     setAIVisited(true);
     if (narrow) setNarrowPanel((previous) => (previous === 'ai' ? null : 'ai'));
     else setAIOpen((previous) => !previous);
@@ -802,6 +811,18 @@ const SSHWorkspace = forwardRef<
     setAIOpen(false);
     if (narrow) setNarrowPanel(null);
     aiToggle.current?.focus();
+  }
+  function toggleTunnels() {
+    setFocus(false);
+    setAIOpen(false);
+    setMonitorOpen(false);
+    if (narrow) setNarrowPanel((previous) => (previous === 'tunnels' ? null : 'tunnels'));
+    else setTunnelsOpen((previous) => !previous);
+  }
+  function closeTunnels() {
+    setTunnelsOpen(false);
+    if (narrow) setNarrowPanel(null);
+    tunnelsToggle.current?.focus();
   }
   function queueAIReference(reference: Reference) {
     try {
@@ -817,14 +838,22 @@ const SSHWorkspace = forwardRef<
       setAIReferences(next);
       setFocus(false);
       setAIVisited(true);
+      setTunnelsOpen(false);
       setAIOpen(true);
       if (narrow) setNarrowPanel('ai');
     } catch (e) {
       setError(e);
     }
   }
-  function focusPanelToggle(panel: 'files' | 'monitor' | 'ai' | null) {
-    (panel === 'files' ? filesToggle : panel === 'ai' ? aiToggle : monitorToggle).current?.focus();
+  function focusPanelToggle(panel: 'files' | 'monitor' | 'ai' | 'tunnels' | null) {
+    (panel === 'files'
+      ? filesToggle
+      : panel === 'ai'
+        ? aiToggle
+        : panel === 'tunnels'
+          ? tunnelsToggle
+          : monitorToggle
+    ).current?.focus();
   }
   useEffect(() => {
     localStorage.setItem('termquay.layout.ai-width', String(aiWidth));
@@ -848,7 +877,9 @@ const SSHWorkspace = forwardRef<
           ? 'monitor'
           : active?.closest('.ai-dock')
             ? 'ai'
-            : null;
+            : active?.closest('.tunnel-dock')
+              ? 'tunnels'
+              : null;
       setNarrow(media.matches);
       if (media.matches) setNarrowPanel(panel);
       else {
@@ -858,6 +889,7 @@ const SSHWorkspace = forwardRef<
           setMonitorOpen(true);
         }
         if (narrowPanel === 'ai') setAIOpen(true);
+        if (narrowPanel === 'tunnels') setTunnelsOpen(true);
         setNarrowPanel(null);
       }
     };
@@ -1470,14 +1502,6 @@ const SSHWorkspace = forwardRef<
           </DropdownMenu>
         </Dropdown>
       </div>
-      <div hidden={!tunnelsOpen}>
-        <TunnelPanel
-          id={sessionID}
-          connectionID={connectionID}
-          target={target}
-          visible={visible && tunnelsOpen}
-        />
-      </div>
       {reconnect.status && (
         <div className="session-status" role="status">
           <span>{reconnect.status}</span>
@@ -2046,6 +2070,41 @@ const SSHWorkspace = forwardRef<
                 </Suspense>
               ))}
         </div>
+        {tunnelsShown && !narrow && (
+          <ResizeHandle
+            label={translate('tunnels:panelWidth')}
+            value={tunnelsWidth}
+            min={280}
+            max={520}
+            reverse
+            onChange={setTunnelsWidth}
+          />
+        )}
+        <div
+          className="tunnel-dock"
+          hidden={!tunnelsShown}
+          style={{ width: tunnelsWidth }}
+          onKeyDown={(event) => {
+            if (
+              event.key === 'Escape' &&
+              !event.defaultPrevented &&
+              !event.nativeEvent.isComposing &&
+              !(event.target as HTMLElement).closest('[role=dialog],[role=listbox]')
+            ) {
+              event.preventDefault();
+              closeTunnels();
+            }
+          }}
+        >
+          <TunnelPanel
+            id={sessionID}
+            connectionID={connectionID}
+            target={target}
+            visible={visible && tunnelsShown}
+            onClose={closeTunnels}
+            onCountChange={setTunnelCount}
+          />
+        </div>
         <MonitorPanel
           id={sessionID}
           visible={visible && monitorShown}
@@ -2128,8 +2187,10 @@ const SSHWorkspace = forwardRef<
               id: 'tunnels',
               label: translate('files:portForwarding'),
               icon: 'tunnel',
-              active: tunnelsOpen,
-              onClick: () => setTunnelsOpen((value) => !value),
+              active: tunnelsShown,
+              count: tunnelCount,
+              buttonRef: tunnelsToggle,
+              onClick: toggleTunnels,
             },
             ...(onDocker
               ? [

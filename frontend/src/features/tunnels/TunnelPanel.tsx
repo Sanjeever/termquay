@@ -20,16 +20,21 @@ import type {
 import type { ForwardSpec } from '../../../bindings/github.com/Sanjeever/termquay/internal/ssh/models';
 import { Browser } from '@wailsio/runtime';
 import ErrorNotice from '../../components/ErrorNotice';
+import Icon from '../../components/Icon';
 export default function TunnelPanel({
   id,
   visible,
   connectionID,
   target,
+  onClose,
+  onCountChange,
 }: {
   id: string;
   visible: boolean;
   connectionID: string;
   target: string;
+  onClose?: () => void;
+  onCountChange?: (count: number) => void;
 }) {
   useTranslation();
   const [spec, setSpec] = useState<ForwardSpec>({
@@ -43,6 +48,9 @@ export default function TunnelPanel({
   const [items, setItems] = useState<Tunnel[]>([]);
   const [error, setError] = useMessageState('');
   const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const listenInput = useRef<HTMLInputElement>(null);
+  const newButton = useRef<HTMLButtonElement>(null);
   const request = useRef<ReturnType<typeof StartTunnel>>();
   const [presets, setPresets] = useState<TunnelPreset[]>([]);
   const [name, setName] = useState('');
@@ -54,6 +62,14 @@ export default function TunnelPanel({
   const remote = spec.kind === 'remote';
   const bindAddress = `${spec.bind_host.includes(':') ? `[${spec.bind_host}]` : spec.bind_host}:${spec.bind_port || translate('tunnels:automaticPort')}`;
   const destination = `${spec.target_host.includes(':') ? `[${spec.target_host}]` : spec.target_host}:${spec.target_port}`;
+  useEffect(() => {
+    onCountChange?.(
+      items.filter((item) => ['starting', 'running'].includes(item.info.state)).length,
+    );
+  }, [items, onCountChange]);
+  useEffect(() => {
+    if (visible) (editing ? listenInput : newButton).current?.focus();
+  }, [editing, visible]);
   useEffect(() => {
     if (!connectionID) return;
     let ended = false;
@@ -139,211 +155,246 @@ export default function TunnelPanel({
   );
   return (
     <section className="tunnel-panel" aria-label={translate('tunnels:portForwarding')}>
-      {connectionID && (
-        <div className="tunnel-presets">
-          <SelectControl
-            aria-label={translate('tunnels:tunnelPresets')}
-            value=""
-            disabled={busy}
-            onChange={(e) => {
-              const preset = presets.find((p) => p.name === e.target.value);
-              if (preset) {
-                setSpec(preset.spec);
-                setName(preset.name);
-                setAutoStart(preset.auto_start);
-              }
-            }}
+      <header className="tunnel-heading">
+        <h2>{translate('tunnels:portForwarding')}</h2>
+        <Button ref={newButton} size="sm" variant="light" onPress={() => setEditing(!editing)}>
+          {translate(editing ? 'tunnels:backToList' : 'tunnels:new')}
+        </Button>
+        {onClose && (
+          <button
+            className="icon-button"
+            aria-label={translate('tunnels:closePanel')}
+            onClick={onClose}
           >
-            <option value="">{translate('tunnels:selectTunnelPreset')}</option>
-            {presets.map((p) => (
-              <option key={p.name}>{p.name}</option>
-            ))}
-          </SelectControl>
-          <input
-            aria-label={translate('tunnels:tunnelPresetName')}
-            placeholder={translate('tunnels:presetName')}
-            maxLength={128}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            disabled={busy}
-          />
-          <label className="checkbox-label">
-            <input
-              type="checkbox"
-              checked={autoStart}
-              onChange={(e) => setAutoStart(e.target.checked)}
-              disabled={busy}
-            />
-            {translate('tunnels:startAfterConnecting')}
-          </label>
-          <Button
-            size="sm"
-            variant="light"
-            isDisabled={busy || !name.trim()}
-            onPress={() => void savePreset()}
-          >
-            {translate('tunnels:savePreset')}
-          </Button>
-          <Button
-            size="sm"
-            variant="light"
-            isDisabled={busy || !presets.some((p) => p.name === name)}
-            onPress={async () => {
-              setBusy(true);
-              try {
-                await DeleteTunnelPreset(connectionID, name);
-                setPresets((await GetTunnelPresets(connectionID)) || []);
-                setName('');
-              } catch (e) {
-                setError(e);
-              } finally {
+            <Icon name="close" width="15" />
+          </button>
+        )}
+      </header>
+      <div hidden={!editing}>
+        {connectionID && (
+          <details className="tunnel-preset-options">
+            <summary>{translate('tunnels:tunnelPresets')}</summary>
+            <div className="tunnel-presets">
+              <SelectControl
+                aria-label={translate('tunnels:tunnelPresets')}
+                value=""
+                disabled={busy}
+                onChange={(e) => {
+                  const preset = presets.find((p) => p.name === e.target.value);
+                  if (preset) {
+                    setSpec(preset.spec);
+                    setName(preset.name);
+                    setAutoStart(preset.auto_start);
+                  }
+                }}
+              >
+                <option value="">{translate('tunnels:selectTunnelPreset')}</option>
+                {presets.map((p) => (
+                  <option key={p.name}>{p.name}</option>
+                ))}
+              </SelectControl>
+              <input
+                aria-label={translate('tunnels:tunnelPresetName')}
+                placeholder={translate('tunnels:presetName')}
+                maxLength={128}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                disabled={busy}
+              />
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={autoStart}
+                  onChange={(e) => setAutoStart(e.target.checked)}
+                  disabled={busy}
+                />
+                {translate('tunnels:startAfterConnecting')}
+              </label>
+              <Button
+                size="sm"
+                variant="light"
+                isDisabled={busy || !name.trim()}
+                onPress={() => void savePreset()}
+              >
+                {translate('tunnels:savePreset')}
+              </Button>
+              <Button
+                size="sm"
+                variant="light"
+                isDisabled={busy || !presets.some((p) => p.name === name)}
+                onPress={async () => {
+                  setBusy(true);
+                  try {
+                    await DeleteTunnelPreset(connectionID, name);
+                    setPresets((await GetTunnelPresets(connectionID)) || []);
+                    setName('');
+                  } catch (e) {
+                    setError(e);
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                {translate('tunnels:delete')}
+              </Button>
+            </div>
+          </details>
+        )}
+        <p className="tunnel-route-summary">
+          <span>
+            {translate(remote ? 'tunnels:sSHHost' : 'tunnels:thisComputer')} · {bindAddress}
+          </span>
+          <span aria-hidden="true">→</span>
+          <span>{spec.kind === 'dynamic' ? 'SOCKS5' : destination}</span>
+        </p>
+        <details className="tunnel-route-details">
+          <summary>{translate('tunnels:forwardingRoute')}</summary>
+          <ol className="tunnel-route" aria-label={translate('tunnels:forwardingRoute')}>
+            <li>
+              <span>{translate(remote ? 'tunnels:sSHHost' : 'tunnels:thisComputer')}</span>
+              {remote && <small>{target}</small>}
+              <strong>{bindAddress}</strong>
+              <small>{translate('tunnels:listensHere')}</small>
+            </li>
+            <li className="tunnel-route-link" aria-hidden="true">
+              →
+            </li>
+            <li>
+              <span>{translate(remote ? 'tunnels:thisComputer' : 'tunnels:sSHHost')}</span>
+              {!remote && <strong>{target}</strong>}
+              <small>{translate('tunnels:encryptedTunnel')}</small>
+            </li>
+            <li className="tunnel-route-link" aria-hidden="true">
+              →
+            </li>
+            <li>
+              <span>
+                {translate(
+                  remote ? 'tunnels:destinationFromComputer' : 'tunnels:destinationFromServer',
+                )}
+              </span>
+              <strong>
+                {spec.kind === 'dynamic' ? translate('tunnels:socksDestination') : destination}
+              </strong>
+            </li>
+          </ol>
+        </details>
+        <form
+          className="tunnel-form"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setBusy(true);
+            setError('');
+            cancelled.current = false;
+            const operation = StartTunnel(id, spec);
+            request.current = operation;
+            try {
+              await operation;
+              setItems((await ListTunnels(id)) || []);
+              setEditing(false);
+            } catch (e) {
+              if (!cancelled.current && request.current === operation) setError(e);
+            } finally {
+              if (request.current === operation) {
+                request.current = undefined;
                 setBusy(false);
               }
-            }}
-          >
-            {translate('tunnels:delete')}
-          </Button>
-        </div>
-      )}
-      <ol className="tunnel-route" aria-label={translate('tunnels:forwardingRoute')}>
-        <li>
-          <span>{translate(remote ? 'tunnels:sSHHost' : 'tunnels:thisComputer')}</span>
-          {remote && <small>{target}</small>}
-          <strong>{bindAddress}</strong>
-          <small>{translate('tunnels:listensHere')}</small>
-        </li>
-        <li className="tunnel-route-link" aria-hidden="true">
-          →
-        </li>
-        <li>
-          <span>{translate(remote ? 'tunnels:thisComputer' : 'tunnels:sSHHost')}</span>
-          {!remote && <strong>{target}</strong>}
-          <small>{translate('tunnels:encryptedTunnel')}</small>
-        </li>
-        <li className="tunnel-route-link" aria-hidden="true">
-          →
-        </li>
-        <li>
-          <span>
-            {translate(
-              remote ? 'tunnels:destinationFromComputer' : 'tunnels:destinationFromServer',
-            )}
-          </span>
-          <strong>
-            {spec.kind === 'dynamic' ? translate('tunnels:socksDestination') : destination}
-          </strong>
-        </li>
-      </ol>
-      <form
-        className="tunnel-form"
-        onSubmit={async (e) => {
-          e.preventDefault();
-          setBusy(true);
-          setError('');
-          cancelled.current = false;
-          const operation = StartTunnel(id, spec);
-          request.current = operation;
-          try {
-            await operation;
-            setItems((await ListTunnels(id)) || []);
-          } catch (e) {
-            if (!cancelled.current && request.current === operation) setError(e);
-          } finally {
-            if (request.current === operation) {
-              request.current = undefined;
-              setBusy(false);
             }
-          }
-        }}
-      >
-        <label>
-          {translate('tunnels:type')}
-          <SelectControl
-            aria-label={translate('tunnels:forwardingType')}
-            value={spec.kind}
-            disabled={busy}
-            onChange={(e) => setSpec({ ...spec, kind: e.target.value })}
-          >
-            <option value="local">{translate('tunnels:local')}</option>
-            <option value="remote">{translate('tunnels:remote')}</option>
-            <option value="dynamic">{translate('tunnels:dynamicSOCKS5')}</option>
-          </SelectControl>
-        </label>
-        <label>
-          {translate(remote ? 'tunnels:listenOnServer' : 'tunnels:listenOnComputer')}
-          <input
-            aria-label={translate('tunnels:listenIP')}
-            value={spec.bind_host}
-            disabled={busy}
-            onChange={(e) => setSpec({ ...spec, bind_host: e.target.value })}
-          />
-        </label>
-        <label>
-          {translate('tunnels:listenPort0ForAutomatic')}
-          <input
-            aria-label={translate('tunnels:listenPort')}
-            type="number"
-            min={0}
-            max={65535}
-            value={spec.bind_port}
-            disabled={busy}
-            onChange={(e) => setSpec({ ...spec, bind_port: Number(e.target.value) })}
-          />
-        </label>
-        {spec.kind !== 'dynamic' && (
-          <>
-            <label>
-              {translate(
-                remote ? 'tunnels:destinationFromComputer' : 'tunnels:destinationFromServer',
-              )}
+          }}
+        >
+          <label>
+            {translate('tunnels:type')}
+            <SelectControl
+              aria-label={translate('tunnels:forwardingType')}
+              value={spec.kind}
+              disabled={busy}
+              onChange={(e) => setSpec({ ...spec, kind: e.target.value })}
+            >
+              <option value="local">{translate('tunnels:local')}</option>
+              <option value="remote">{translate('tunnels:remote')}</option>
+              <option value="dynamic">{translate('tunnels:dynamicSOCKS5')}</option>
+            </SelectControl>
+          </label>
+          <label>
+            {translate(remote ? 'tunnels:listenOnServer' : 'tunnels:listenOnComputer')}
+            <input
+              ref={listenInput}
+              aria-label={translate('tunnels:listenIP')}
+              value={spec.bind_host}
+              disabled={busy}
+              onChange={(e) => setSpec({ ...spec, bind_host: e.target.value })}
+            />
+          </label>
+          <label>
+            {translate('tunnels:listenPort0ForAutomatic')}
+            <input
+              aria-label={translate('tunnels:listenPort')}
+              type="number"
+              min={0}
+              max={65535}
+              value={spec.bind_port}
+              disabled={busy}
+              onChange={(e) => setSpec({ ...spec, bind_port: Number(e.target.value) })}
+            />
+          </label>
+          {spec.kind !== 'dynamic' && (
+            <>
+              <label>
+                {translate(
+                  remote ? 'tunnels:destinationFromComputer' : 'tunnels:destinationFromServer',
+                )}
+                <input
+                  aria-label={translate('tunnels:forwardDestinationHost')}
+                  required
+                  value={spec.target_host}
+                  disabled={busy}
+                  onChange={(e) => setSpec({ ...spec, target_host: e.target.value })}
+                />
+              </label>
+              <label>
+                {translate('tunnels:destinationPort')}
+                <input
+                  aria-label={translate('tunnels:forwardDestinationPort')}
+                  type="number"
+                  min={1}
+                  max={65535}
+                  required
+                  value={spec.target_port}
+                  disabled={busy}
+                  onChange={(e) => setSpec({ ...spec, target_port: Number(e.target.value) })}
+                />
+              </label>
+            </>
+          )}
+          <details className="tunnel-advanced">
+            <summary>{translate('tunnels:advanced')}</summary>
+            <label className="checkbox-label">
               <input
-                aria-label={translate('tunnels:forwardDestinationHost')}
-                required
-                value={spec.target_host}
+                type="checkbox"
+                checked={spec.allow_public}
                 disabled={busy}
-                onChange={(e) => setSpec({ ...spec, target_host: e.target.value })}
+                onChange={(e) => setSpec({ ...spec, allow_public: e.target.checked })}
               />
+              {translate('tunnels:allowNonLoopbackListenersExposingForwardingToThe')}
             </label>
-            <label>
-              {translate('tunnels:destinationPort')}
-              <input
-                aria-label={translate('tunnels:forwardDestinationPort')}
-                type="number"
-                min={1}
-                max={65535}
-                required
-                value={spec.target_port}
-                disabled={busy}
-                onChange={(e) => setSpec({ ...spec, target_port: Number(e.target.value) })}
-              />
-            </label>
-          </>
-        )}
-        <label className="checkbox-label">
-          <input
-            type="checkbox"
-            checked={spec.allow_public}
-            disabled={busy}
-            onChange={(e) => setSpec({ ...spec, allow_public: e.target.checked })}
-          />
-          {translate('tunnels:allowNonLoopbackListenersExposingForwardingToThe')}
-        </label>
-        <Button size="sm" type="submit" isDisabled={busy}>
-          {translate('tunnels:startForwarding')}
-        </Button>
-        {busy && (
-          <Button
-            size="sm"
-            variant="light"
-            onPress={() => {
-              cancelled.current = true;
-              request.current?.cancel();
-            }}
-          >
-            {translate('tunnels:cancelStartup')}
+          </details>
+          <Button size="sm" type="submit" isDisabled={busy}>
+            {translate('tunnels:startForwarding')}
           </Button>
-        )}
-      </form>
+          {busy && (
+            <Button
+              size="sm"
+              variant="light"
+              onPress={() => {
+                cancelled.current = true;
+                request.current?.cancel();
+              }}
+            >
+              {translate('tunnels:cancelStartup')}
+            </Button>
+          )}
+        </form>
+      </div>
       <ErrorNotice message={error} onDismiss={() => setError('')} />
       {!listErrorDismissed && (
         <ErrorNotice message={listError} onDismiss={() => setListErrorDismissed(true)}>
@@ -373,6 +424,12 @@ export default function TunnelPanel({
                 ? translate('tunnels:remote')
                 : translate('tunnels:local')}{' '}
             · {t.info.address}
+            <small>
+              →{' '}
+              {t.spec.kind === 'dynamic'
+                ? 'SOCKS5'
+                : `${t.spec.target_host.includes(':') ? `[${t.spec.target_host}]` : t.spec.target_host}:${t.spec.target_port}`}
+            </small>
             <small>
               {
                 (

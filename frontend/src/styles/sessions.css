@@ -98,6 +98,16 @@
   height: 32px;
   flex-shrink: 0;
 }
+.workspace-tool-count {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  padding: 0 2px;
+  border-radius: 3px;
+  background: var(--color-surface);
+  font-size: 9px;
+  line-height: 12px;
+}
 .workspace-tool-rail-left {
   border-left: 0;
   border-right: 1px solid var(--color-border);
@@ -133,7 +143,8 @@
   background: var(--color-surface);
 }
 .file-dock,
-.monitor-dock {
+.monitor-dock,
+.tunnel-dock {
   opacity: 1;
   translate: 0 0;
   transition:
@@ -145,12 +156,14 @@
   opacity: 0;
   translate: -8px 0;
 }
-.monitor-dock[hidden] {
+.monitor-dock[hidden],
+.tunnel-dock[hidden] {
   opacity: 0;
   translate: 8px 0;
 }
 .file-dock[hidden],
-.monitor-dock[hidden] {
+.monitor-dock[hidden],
+.tunnel-dock[hidden] {
   pointer-events: none;
 }
 @starting-style {
@@ -158,7 +171,8 @@
     opacity: 0;
     translate: -8px 0;
   }
-  .monitor-dock:not([hidden]) {
+  .monitor-dock:not([hidden]),
+  .tunnel-dock:not([hidden]) {
     opacity: 0;
     translate: 8px 0;
   }
@@ -637,22 +651,61 @@
   color: var(--color-muted);
   font-size: 12px;
 }
-.tunnel-panel {
-  padding: 8px 12px;
-  max-height: 40vh;
-  overflow: auto;
-  border-bottom: 1px solid var(--color-border);
+.tunnel-dock {
+  display: flex;
+  flex-shrink: 0;
+  min-width: 0;
+  min-height: 0;
+  border-left: 1px solid var(--color-border);
+  background: var(--color-surface);
 }
-.tunnel-form {
+.tunnel-panel {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  overflow: auto;
+}
+.tunnel-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.tunnel-heading h2 {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+}
+.tunnel-route-summary {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 8px;
+  gap: 6px;
+  font: 11px var(--font-mono);
+  overflow-wrap: anywhere;
+}
+.tunnel-panel summary {
+  cursor: pointer;
+  padding: 8px 0;
   font-size: 11px;
+  color: var(--color-muted);
+}
+.tunnel-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: end;
+  gap: 10px;
+  font-size: 11px;
+}
+.tunnel-form > label:first-child,
+.tunnel-advanced {
+  grid-column: 1 / -1;
+}
+.tunnel-advanced .checkbox-label {
+  align-items: flex-start;
 }
 .tunnel-route {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
   gap: 10px;
   margin: 0 0 12px;
@@ -1421,6 +1474,7 @@
   gap: 8px;
   margin-bottom: 10px;
   font-size: 12px;
+  padding: 4px 0;
 }
 .tunnel-presets > input {
   max-width: 160px;
@@ -1433,7 +1487,7 @@
   display: flex;
   flex-direction: column;
   gap: 3px;
-  max-width: 150px;
+  min-width: 0;
 }
 .tunnel-form input,
 .tunnel-form select {
@@ -1445,11 +1499,18 @@
 }
 .tunnel-row {
   display: flex;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 6px;
   align-items: center;
   justify-content: space-between;
-  margin-top: 8px;
+  padding: 10px 0;
+  border-top: 1px solid var(--color-border);
   font-size: 12px;
+}
+.tunnel-row > span {
+  flex-basis: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .tunnel-row small {
   display: block;

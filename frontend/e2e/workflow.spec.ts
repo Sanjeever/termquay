@@ -252,8 +252,9 @@ async function fileWorkspace(page: Page) {
   return calls;
 }
 
-async function sshWorkflow(page: Page, language = 'en') {
+async function sshWorkflow(page: Page, language = 'en', autoForward = false) {
   const calls: { method: number; args: unknown[] }[] = [];
+  const forwards: unknown[] = [];
   const inputs: string[] = [];
   const sockets: { send(data: Buffer): void; id: string; terminal: boolean }[] = [];
   await page.routeWebSocket('**/ssh-fixture/*', (socket) => {
@@ -313,6 +314,37 @@ async function sshWorkflow(page: Page, language = 'en') {
         line_ending: 'LF',
         bom: false,
       };
+    else if (method === 3975293328)
+      value = autoForward
+        ? [
+            {
+              name: 'Database',
+              auto_start: true,
+              spec: {
+                kind: 'local',
+                bind_host: '127.0.0.1',
+                bind_port: 13306,
+                target_host: '127.0.0.1',
+                target_port: 3306,
+                allow_public: false,
+              },
+            },
+          ]
+        : [];
+    else if (method === 4013407056) {
+      value = {
+        id: 'forward-1',
+        workspace: args[0],
+        spec: args[1],
+        info: {
+          state: 'running',
+          address: '127.0.0.1:13306',
+          active: 0,
+          error: '',
+        },
+      };
+      forwards.push(value);
+    } else if (method === 495421101) value = forwards;
     else if (method === 272076810) value = { id: 'host-a-terminal-2' };
     else if (method === 1375116584)
       value = {
@@ -329,7 +361,9 @@ async function sshWorkflow(page: Page, language = 'en') {
     });
   });
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto(`/e2e/workflow.html?scene=ssh&language=${language}`);
+  await page.goto(
+    `/e2e/workflow.html?scene=ssh&language=${language}&theme=${autoForward && language === 'zh-CN' ? 'dark' : 'light'}`,
+  );
   await expect(page.locator('.file-panel [data-tree-path="/config"]')).toBeVisible();
   await expect.poll(() => sockets.length).toBe(2);
   return {
@@ -666,6 +700,66 @@ test('disconnected file locations stay explicit and never switch to the local fi
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
+for (const language of ['en', 'zh-CN']) {
+  test(`forwarding uses the auxiliary panel and retains its draft and automatic tunnel (${language})`, async ({
+    page,
+  }) => {
+    const { calls } = await sshWorkflow(page, language, true);
+    const button = page.locator('.workspace-tool-rail-right').getByRole('button', {
+      name: language === 'en' ? 'Port forwarding' : '端口转发',
+      exact: true,
+    });
+    const dock = page.locator('.tunnel-dock');
+    await expect.poll(() => calls.filter((call) => call.method === 4013407056).length).toBe(1);
+    await expect(dock).toBeHidden();
+    await expect(button.locator('.workspace-tool-count')).toHaveText('1');
+    const terminal = await page.locator('.terminal-view').first().elementHandle();
+    const before = await page.locator('.ssh-panels').boundingBox();
+    await button.click();
+    await expect(dock).toBeVisible();
+    await expect(dock.locator('form')).toBeHidden();
+    await expect(dock.locator('.tunnel-row')).toContainText('127.0.0.1:13306');
+    expect((await page.locator('.ssh-panels').boundingBox())!.height).toBe(before!.height);
+    await dock
+      .getByRole('button', { name: language === 'en' ? 'New' : '新建', exact: true })
+      .click();
+    const input = dock.getByRole('textbox', {
+      name: language === 'en' ? 'Listen IP' : '监听 IP',
+      exact: true,
+    });
+    await input.fill('127.0.0.2');
+    await page.screenshot({ path: test.info().outputPath(`forwarding-wide-${language}.png`) });
+    await page
+      .locator('.workspace-tool-rail-right')
+      .getByRole('button', {
+        name: language === 'en' ? 'Monitoring' : '监控',
+        exact: true,
+      })
+      .click();
+    await expect(dock).toBeHidden();
+    await expect(page.locator('.monitor-dock')).toBeVisible();
+    await button.click();
+    await expect(page.locator('.monitor-dock')).toBeHidden();
+    await expect(input).toHaveValue('127.0.0.2');
+    await page.setViewportSize({ width: 620, height: 650 });
+    await expect(dock).toBeVisible();
+    await expect(input).toHaveValue('127.0.0.2');
+    expect(await dock.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    await page.screenshot({ path: test.info().outputPath(`forwarding-narrow-${language}.png`) });
+    await input.press('Escape');
+    await expect(dock).toBeHidden();
+    await expect(button).toBeFocused();
+    await button.click();
+    await expect(input).toHaveValue('127.0.0.2');
+    expect(await terminal!.evaluate((element) => element.isConnected)).toBe(true);
+    expect(calls.filter((call) => call.method === 4013407056)).toHaveLength(1);
+    expect(calls.filter((call) => call.method === 3780901500)).toHaveLength(0);
+  });
+}
+
 test('forwarding route follows local, remote and dynamic form values without starting a tunnel', async ({
   page,
 }) => {
@@ -674,6 +768,8 @@ test('forwarding route follows local, remote and dynamic form values without sta
   );
   await page.goto('/e2e/workflow.html');
   await page.getByRole('button', { name: 'Port forwarding', exact: true }).click();
+  await page.getByRole('button', { name: 'New', exact: true }).click();
+  await page.locator('.tunnel-route-details summary').click();
   const route = page.getByRole('list', { name: 'Forwarding route' });
   await expect(route).toContainText('This computer');
   await page.getByRole('spinbutton', { name: 'Listen port', exact: true }).fill('13306');

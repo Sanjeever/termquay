@@ -9,6 +9,7 @@ type Tool = {
   label: string;
   icon: ComponentProps<typeof Icon>['name'];
   active?: boolean;
+  count?: number;
   disabled?: boolean;
   buttonRef?: Ref<HTMLButtonElement>;
   onClick(): void;
@@ -44,16 +45,22 @@ export default function WorkspaceToolRail({
       }}
     >
       {tools.map((tool) => (
-        <Tooltip key={tool.id} content={tool.label}>
+        <Tooltip key={tool.id} content={tool.count ? `${tool.label} (${tool.count})` : tool.label}>
           <button
             ref={tool.buttonRef}
             className="icon-button workspace-tool"
             aria-label={tool.label}
             aria-pressed={tool.active}
+            aria-description={tool.count ? `${tool.label}: ${tool.count}` : undefined}
             disabled={tool.disabled}
             onClick={tool.onClick}
           >
             <Icon name={tool.icon} />
+            {!!tool.count && (
+              <span className="workspace-tool-count" aria-hidden="true">
+                {tool.count}
+              </span>
+            )}
           </button>
         </Tooltip>
       ))}
