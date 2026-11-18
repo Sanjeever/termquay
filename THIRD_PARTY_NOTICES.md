@@ -6,10 +6,10 @@ TermQuay 采用 Apache-2.0。各依赖保留其原有许可证、版权与声明
 - Go 工具链原始许可证保存在 `build/licenses/go/Go/LICENSE`。
 - [前端锁文件](frontend/pnpm-lock.yaml) 固定前端依赖。[前端收集清单](build/licenses/frontend/packages.json) 记录收集时的生产依赖元数据，目录内保存包附带的许可文件。以下按用途说明许可，具体版本以锁文件和收集清单分别核对。
 - Wails 与前端运行时采用 MIT；React、HeroUI、xterm.js、CodeMirror 及大部分前端依赖采用 MIT。具体条款以各依赖原文为准。
-- Offline interface localization uses `i18next` and `react-i18next` (MIT), including `html-parse-stringify` (MIT). Their original licenses are collected under `build/licenses/frontend/`.
+- 离线界面本地化使用 `i18next` 和 `react-i18next`，包括依赖 `html-parse-stringify`，均采用 MIT。许可原文保存在 `build/licenses/frontend/`。
 - 终端搜索与链接使用 `@xterm/addon-search`、`@xterm/addon-web-links`，均采用 MIT；许可原文随包保存在前端许可目录。
 - 终端 Unicode 11 宽度与可选 WebGL 渲染使用 `@xterm/addon-unicode11`、`@xterm/addon-webgl`，采用 MIT；许可原文随包保存在前端许可目录。
-- The local [addon-webgl patch](frontend/patches/@xterm__addon-webgl@0.19.0.patch) synchronizes GPU viewport/uniform state and cached cells when the physical canvas backing size changes. The pinned MIT package and its original license remain unchanged; pnpm applies the patch to source and both bundled module formats.
+- 本地 [addon-webgl 补丁](frontend/patches/@xterm__addon-webgl@0.19.0.patch) 在画布像素尺寸变化时同步 GPU 视口、uniform 状态和单元格缓存。pnpm 将补丁应用到源码和两种分发模块格式。包版本与 MIT 许可原文保持原样。
 - 带时间轴终端录制使用 `maze.io/x/asciicast`（MIT），离线回放使用 `asciinema-player`（Apache-2.0）；录制编码与播放器均在本机运行。Go 与 npm 包附带的许可原文已收集。[播放器 WASM 材料](build/licenses/asciinema-player/3.17.0/) 保存锁定源码的 normal/build 依赖清单及许可原文、npm 来源证明与签名验证结果、构建配置和内嵌制品摘要；清单可能包含未链接的依赖，未执行可复现重建。
 - 快速连接使用 `github.com/google/shlex` 解析引号与词法，采用 Apache-2.0；不执行解析内容。许可原文保存在 Go 许可目录。
 - AI 模型流使用 `github.com/tmaxmax/go-sse` 解析 SSE，采用 MIT；许可原文保存在 Go 许可目录。
@@ -37,7 +37,7 @@ macOS 应用包和其他平台安装包分发时，需随包携带本文件、�
 
 主程序通过 [assets.go](assets.go) 内嵌本文件、项目许可和收集的依赖声明，可在“设置 → 关于 → 开源许可”读取。[macOS 打包任务](build/darwin/Taskfile.yml) 另保留资源目录副本。Wails 更新组件使用 `golang.org/x/mod`，采用 BSD-3-Clause，许可原文位于 Go 许可目录。
 
-上述两项无独立 LICENSE 文件的 npm 包，依据发布包与固定源码中的明确 MIT 声明收集条款。源码提交与 SPDX 文本来源统一记录在 [核对记录](build/licenses/review.json)，不把作者元数据改写为新版权声明。
+`@replit/codemirror-minimap` 和 `use-composed-ref` 的源码提交、MIT 声明和所收集条款的 SPDX 来源见 [核对记录](build/licenses/review.json)。两个发布包均未附独立 LICENSE 文件。
 
 下方标题是 [发行检查](scripts/release-check.mjs) 的待办入口；标题后留空表示无登记待办，新增事项会阻止标签发布。
 

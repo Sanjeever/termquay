@@ -2,13 +2,13 @@
 
 [简体中文](README.zh-CN.md) · [Contributing](CONTRIBUTING.md)
 
-TermQuay is an open source remote connection workbench built with Go, Wails v3 and React. It brings SSH, local terminals, remote file editing, Linux monitoring and embedded RDP into one desktop workspace. Connections can be grouped and backed up using encrypted local files or WebDAV snapshots. There is no commercial limit on saved connections.
+TermQuay is an open source desktop workbench for SSH, local terminals and RDP. Organize saved connections without a commercial count limit, edit remote files and inspect Linux hosts from the same workspace.
 
 Available for macOS, Windows and Linux. Download the appropriate archive from [GitHub Releases](https://github.com/Sanjeever/termquay/releases). Check [runtime prerequisites](docs/development.md#packaged-desktop) and the [recorded verification limits](docs/development.md#verification-and-known-gaps).
 
 ## Interface languages
 
-Choose **Settings → Appearance → Language** to follow the system, use English or use Simplified Chinese. Both languages are bundled for offline use. Language selection is available before unlocking local data. Switching languages preserves open workspaces, connections, transfers and editor drafts.
+Choose **Settings → Appearance → Language** to follow the system or select English or Simplified Chinese. Both languages are available offline, including before unlock.
 
 <a id="当前能力"></a>
 <a id="comparison-with-other-tools"></a>
@@ -21,12 +21,12 @@ Choose **Settings → Appearance → Language** to follow the system, use Englis
 ## Features
 
 - **Connections** — groups, filters, configuration imports, connection playbooks, encrypted credentials and master password protection.
-- **SSH and local terminals** — multiple authentication methods, jump hosts, SOCKS5 proxies, port forwarding, reconnect and connection diagnostics. [Local workspaces](docs/development.md#local-terminal-workspaces) offer retained sessions and pane layouts; the [usage guide](docs/development.md#using-the-workbench) covers shell integration, program status, editor links and rendering.
+- **[SSH and local terminals](docs/development.md#using-the-workbench)** — jump hosts, SOCKS5, port forwarding, reconnect, diagnostics and [local pane layouts](docs/development.md#local-terminal-workspaces).
 - **Files and transfers** — a dedicated dual-pane transfer tab for local/remote and cross-host copies, search, batch transfers, explicit resume, directory sync and comparisons.
 - **Remote editing** — encodings and line endings, completion, conflict merging, encrypted version history and explicit validation/reload commands. Preview Markdown and common image formats.
 - **Terminal tools** — snippets, shell completion, tmux, recording/playback, background multi-host tasks, inspections and result comparisons.
 - **Linux diagnostics** — resource trends, processes, systemd services, ports, multi-source logs and diagnostic snapshots.
-- **Docker containers** — [Tools → Docker](docs/development.md#docker-containers) opens a dedicated tab for container status, resources, logs, terminals, mounts, ports and confirmed start/stop/restart operations over SSH.
+- **[Docker containers](docs/development.md#docker-containers)** — inspect, open terminals and manage container state over SSH.
 - **AI assistant** — workspace conversations, explicit terminal references, capability-based remote queries, command approval and encrypted local history.
 - **Remote desktop** — embedded RDP, SSH gateways and the Windows system client.
 - **Workspace recovery** — named SSH/RDP working sets, disconnected layouts and encrypted file drafts; appearance and keyboard shortcuts.
@@ -37,7 +37,7 @@ See [usage and boundaries](docs/development.md#using-the-workbench), including t
 <a id="cli-与-agent-skill"></a>
 ## CLI and Agent skill
 
-The same executable opens the desktop without arguments. Run `termquay --help` for CLI usage. Enable **Settings → Local CLI** and unlock the desktop before accessing it. Use an exact connected SSH workspace ID for queries or command execution. Commands can modify remote systems; see the [CLI guide](docs/development.md#local-cli).
+The same executable opens the desktop without arguments and shows CLI usage with `termquay --help`. See the [CLI guide](docs/development.md#local-cli) for access, exact workspace selection and remote command execution.
 
 Install the [TermQuay Agent skill](skills/termquay/SKILL.md):
 
@@ -61,20 +61,12 @@ These screenshots show the English interface in browser [demo mode](docs/develop
 <a id="运行与开发"></a>
 ## Build and contribute
 
-Start with [CONTRIBUTING.md](CONTRIBUTING.md). English and Chinese contributions are welcome; imperfect English is fine.
-
-Follow [environment and first run](docs/development.md#environment) for toolchain definitions and dependency setup, then run from the repository root:
-
-```sh
-pnpm dev
-```
-
-The [development commands](docs/development.md#development-commands) cover the project-local Wails CLI, native builds, packaging, bindings and checks. The [architecture guide](docs/architecture.md) explains security, ownership, backpressure and recovery contracts.
+Follow [first run](docs/development.md#first-run) to install dependencies and start the desktop. See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution workflow and [development commands](docs/development.md#development-commands) for builds, packaging and checks.
 
 <a id="项目结构与文档"></a>
 ## Repository map
 
-Use the architecture guide's [code navigation](docs/architecture.md#code-navigation) for implementation and verification entry points. [AGENTS.md](AGENTS.md) defines contributor boundaries and documentation synchronization rules.
+See [architecture and code navigation](docs/architecture.md) for design contracts, source code and relevant tests. [AGENTS.md](AGENTS.md) defines repository instructions for coding agents.
 
 <a id="开源许可"></a>
 ## License

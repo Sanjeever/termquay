@@ -2,37 +2,27 @@
 
 [English](development.md) · [贡献指南](../CONTRIBUTING.md)
 
-英文入口覆盖独立贡献所需的环境、验证和核心操作。本文保留详细使用说明与历史验收记录；历史记录不代表当前改动重新通过验证。
+以下命令从仓库根目录执行。设计约束见 [架构说明](architecture.zh-CN.md)。
 
-本文提供从源码运行、日常使用、验证和本地打包入口。设计理由与行为契约见 [架构文档](architecture.zh-CN.md)。以下命令从仓库根目录执行。
+[首次运行](#首次运行) · [检查](#日常修改与验证) · [工作台](#使用说明) · [AI 助手](#内置-ai-助手) · [CLI](#本机-cli) · [打包](#构建与本地打包) · [发布](#版本与发布) · [验收记录](#已有验收记录与缺口)
 
 ## 环境与定义入口
 
 ### 发行包运行环境
 
-发行包运行所需的 WebView、Linux 运行库与 macOS 包要求统一见 [Packaged desktop](development.md#packaged-desktop)。运行发行包无需安装 Go、Node、pnpm 或 C 编译器；下文列出源码开发前提。
+参见发行包的 [WebView、Linux 运行库与 macOS 要求](development.md#packaged-desktop)。
 
 ### 源码开发
 
-Go、pnpm、Node 与 Wails CLI 的定义入口、各平台编译前提统一见 [Source development](development.md#source-development)。按仓库清单和锁文件准备工具链，不改其他项目或全局工具配置；交叉编译不能证明原生 WebView 行为。
-
-命令、构建配置与平台任务的共用入口见 [Development commands](development.md#development-commands) 和 [Code navigation](architecture.md#code-navigation)。
-
-Taskfile 中的模板任务不扩大桌面产品的交付范围。自定义开发端口与 RDP 精确来源白名单的配置要求见 [Environment](development.md#environment)。
+[源码开发环境](development.md#source-development) 列出 Go、pnpm、Node、Wails CLI 各自的版本来源、平台依赖和 RDP 开发端口约束。
 
 ## 首次运行
 
-安装、前端构建、桌面启动及项目内 Wails CLI 管理统一见 [First run](development.md#first-run)，日常命令与参数传递见 [Development commands](development.md#development-commands)。这些入口适用于 Windows、macOS 和 Linux。浏览器预览不能代替原生 Wails 运行时验证。
+按 [First run](development.md#first-run) 安装依赖、构建前端并启动桌面。其他入口见 [开发命令](development.md#development-commands)。
 
 ## 日常修改与验证
 
-绑定生成、前端逻辑测试、类型检查、构建及 Go 检查命令统一见 [Changes and checks](development.md#changes-and-checks)。修改对外暴露的 Go 服务签名、模型或事件后重新生成 [frontend/bindings](../frontend/bindings)，不要手工修补生成文件；接口、行为或配置变化按 [文档同步规则](../AGENTS.md#documentation-consistency) 核对关联说明。
-
-根包通过 [assets.go](../assets.go) 嵌入资源，测试根包前须构建前端。按影响范围选择内部包或全仓测试；竞态检查需要支持的工具链与 C 编译器，普通测试不能替代它。前端采用 Vitest，纯逻辑测试在 Node 中运行，组件与 Hook 测试使用 jsdom、React Testing Library 和 user-event；脚本测试继续使用 `node:test`。`pnpm test` 和 `pnpm --dir frontend test` 均执行脚本与前端测试。分组、筛选、watch 命令及编写约定统一见 [Frontend tests](development.md#frontend-tests)，本次环境与覆盖见 [迁移验证记录](development.md#frontend-test-migration-verification-2026-11-09)。Node 环境参照 [CI](../.github/workflows/ci.yml)。纯文档修改检查内容、链接和 diff。
-
-质量检查使用 Oxlint、Oxfmt、TypeScript、gofmt 和 Go vet，入口为 `pnpm lint`、`pnpm format`、`pnpm format:check`。`pnpm verify` 汇总格式、lint、前端构建、脚本与前后端测试，以及 Chromium 回归；安装步骤、检查范围和 Hooks 局部例外规则统一见 [Linting and formatting](development.md#linting-and-formatting)。新增开发依赖的锁文件审查记录在 [review.json](../build/licenses/review.json)。
-
-组件自动测试覆盖 DOM 交互与状态变化；`pnpm test:ui` 使用真实组件与 Wails HTTP 替身检查浏览器布局、键盘操作和编辑器状态保留，具体范围见 [Browser regressions](development.md#browser-regressions)。平台标题栏样式检查不能证明各平台原生 WebView、窗口拖动或真实远端行为。测试名称及实际覆盖以仓库测试为准。带凭据的真实服务测试可能在普通 Go 测试命令中执行；缺少配置时会跳过，必须区分通过与跳过。
+[检查入口](development.md#changes-and-checks) 集中维护绑定生成、Go 检查、前端测试和浏览器回归。纯文档修改见 [文档检查](development.md#documentation-checks)。接口、行为或配置变化按 [文档同步规则](../AGENTS.md#documentation-consistency) 核对关联说明。
 
 冷启动与延迟装载相关修改须使用发行构建，在各平台原生环境分别记录窗口出现、首屏绘制与可操作时间，区分完全退出后启动、系统首次启动与常驻唤起；统计应覆盖应用和 WebView 相关进程。类型检查与单元测试不能证明冷启动耗时或首次打开工作区体验通过。当前装载与初始化顺序见 [App.tsx](../frontend/src/App.tsx)，取消、失败及会话交接仍须满足 [生命周期契约](architecture.zh-CN.md#通信背压与生命周期)。
 
@@ -40,15 +30,11 @@ Taskfile 中的模板任务不扩大桌面产品的交付范围。自定义开�
 
 ### 真实 SSH 与 WebDAV
 
-连接表头、传输任务视图和端口转发侧栏的本轮检查见 [2026-11-17 界面验收记录](development.md#connection-headers-and-auxiliary-task-panels-2026-11-17)，包含中英文、深浅主题、窄窗口及焦点回归。浏览器使用 Wails/终端流替代边界，本轮未重复真实 SSH 或原生桌面验收。
-
-测试配置变量和执行命令统一维护在 [Optional real services](development.md#optional-real-services)。通过当前进程环境安全注入，不写入仓库或提交真实样例。配置齐备时，普通 Go 包测试也会执行这些入口；缺少配置时跳过，不计通过。
-
-本次文件操作与紧凑分栏的提交、环境、检查结果和缺口统一见 [2026-11-17 验收记录](development.md#remote-file-operations-and-compact-ssh-panes-2026-11-17)。真实文件测试使用独立临时目录，覆盖新建、编辑、复制、空目录与非空目录删除及符号链接隔离；浏览器替代验证与原生桌面验收分别记录。
+测试环境变量和执行命令见 [Optional real services](development.md#optional-real-services)。
 
 原传输与转发测试仍保留曾在真实链路中超时的内部时限，当前缺口及后续核对要求见 [Known SSH test deadline failures](development.md#known-ssh-test-deadline-failures)。临时延长时限的诊断结果不能记为原测试通过。
 
-`TestSG1*` 密码入口覆盖 PTY、SFTP、Linux 采集、传输、端口转发，以及 [跳板](../internal/app/jump_test.go) 和 [目录同步](../internal/app/sync_test.go)。`TestSG1Workflow*` 使用私钥，扩展认证、命令边界、编辑、sudo、续传、复制、录制、tmux、任务确认、重连、代理和资源释放场景。`TestRealWebDAV` 验证密文往返、列表、解密和同名拒绝。场景与断言以对应测试为准。
+密码套件覆盖 PTY、SFTP、Linux 采集、传输、端口转发、[跳板](../internal/app/jump_test.go) 和 [目录同步](../internal/app/sync_test.go)。`TestSG1Workflow*` 使用私钥，覆盖认证、命令、编辑、sudo、续传、复制、录制、tmux、任务确认、重连、代理和资源释放。`TestRealWebDAV` 验证密文往返、列表、解密和同名拒绝。具体覆盖以测试断言为准。
 
 SSH 指纹须来自已核对的测试目标，不能为跑通测试关闭身份校验。文件和同步测试创建并清理本次 `/tmp/termquay-*` 目录；监控运行只读 Linux 采集。跳板测试要求目标允许 TCP 转发，并能经自身回环地址访问配置的 SSH 端口。WebDAV 目录指定已有可写测试集合，测试在其中创建唯一子目录并清理。遵守 [远端操作边界](../AGENTS.md#credentials-and-remote-operations)，MCP 连通不能替代应用自身链路验证。
 
@@ -186,7 +172,7 @@ SSH 工作区的文件树完整读取单个目录，与成对浏览的截断列�
 
 路径面包屑、直接输入、前进/后退与书签继续可用。过滤通过标题栏搜索按钮展开，范围为已展开目录，保留匹配项的祖先；不为过滤扫描未展开目录。Escape 清除并收起过滤。排序、显示隐藏文件、复制目录路径与目录同步位于“文件视图选项”，排序在每个目录内进行，目录优先。空目录、无匹配、分支加载和读取失败分别反馈。悬停或键盘聚焦节点时展示已有文件元数据，窄面板优先展示名称，加宽后显示元数据列。书签限额见 [目录偏好](../internal/app/preferences.go)，临时连接书签留在本次工作区。拖入文件时以命中的目录节点或文件所属目录为上传位置；工具栏上传、新建与目录同步使用路径栏的当前目录。窄窗口打开文件后收起临时文件面板，保留树、过滤与书签状态。
 
-目录和文件使用本地 SVG 图标，按文件名、扩展名和目录用途识别源码、配置、容器、包清单、文档、媒体、压缩包、数据库与可执行文件；未知类型使用通用文件图标。目录区分展开状态，`.ssh`、`.config`、`.git`、`.docker`、源码与依赖目录带有对应标记。符号链接显示指向路径，tooltip 补充实际路径、目标类型或读取错误；目录链接可以展开，指向祖先目录的循环会被阻止。文件链接仍须显式使用实际目标路径编辑，删除或重命名操作链接本身。
+符号链接显示指向路径，悬停可查看实际路径、目标类型或读取错误。目录链接可展开，指向祖先目录的循环会被阻止。编辑文件链接须使用实际目标路径。删除或重命名作用于链接本身。
 
 传输按有界并发执行，其余按 FIFO 等待；并发、等待与历史记录上限见 [传输队列](../internal/app/transfer.go)。等待可取消，不能直接移除；关闭所属 SSH 实例取消运行及等待。达到限额会报错，需要取消或移除已结束记录后再次操作。
 
@@ -297,7 +283,7 @@ Markdown 默认预览，可切换源码或分栏；首次进入源码才创建�
 
 非当前焦点终端发出 BEL 时，将窗格与工作区标为“需要处理”。聚焦对应终端后确认该提示，聚焦其他窗格不会清除。“启用终端通知”显式请求系统通知权限，对当前会话生效。确认前的重复响铃合并，点击通知返回对应终端。响铃处理不根据输出文字猜测完成或审批状态；既有 Shell 集成的命令状态和完成提醒独立保留。
 
-本地终端在普通屏与备用屏中接收 [OSC 7501 程序状态](https://www.superlogical.com/rex/docs/build/program-status)。支持该协议的 Codex、Claude Code 等程序可报告处理中、等待授权或回答或登录、就绪、完成与失败。窗格标题显示状态与可选进度，悬停查看程序原始消息；外层工作区优先显示等待、失败和运行状态。“就绪”不代表本轮任务完成。聚焦窗格会确认完成或失败记录，仍在阻塞的状态继续保留。清除报告、终端重置及 Shell 提示符或进程生命周期按协议清理对应记录；切换窗格、布局和语言保留状态。记录仅保存在内存，字段、限额与清理规则以 [programStatus.ts](../frontend/src/features/terminal/programStatus.ts) 为准。相同通知开关覆盖后台阻塞、完成与失败状态变化，未上报程序状态的工具继续沿用响铃行为。
+本地终端在普通屏与备用屏中接收 OSC 7501。窗格标题显示状态和进度，悬停可查看原始消息。外层工作区优先显示等待、失败和运行状态。“就绪”与“完成”是不同的报告。聚焦窗格确认完成或失败，阻塞状态持续到下次状态变化或按 [协议生命周期](../frontend/src/features/terminal/programStatus.ts) 清理。切换窗格、布局和语言保留内存状态。通知开关也覆盖后台阻塞、完成和失败，未上报状态的程序仍可响铃。协议入口见 [英文说明](development.md#using-the-workbench)。
 
 在本地终端按住 Ctrl/Command 点击文件引用，可在外部编辑器中打开已存在的本地文件。支持本机绝对路径、相对路径、可选的 `:行号:列号` 或 `#L行号C列号`，以及带引号的空格路径。相对路径采用该段输出对应的本地 OSC 7 目录，缺少已确认目录时由原生选择器指定基准目录；其他主机的报告使上下文失效。嵌套 SSH 或容器路径需明确选择对应本地目录，WSL 文件链接当前不支持。“设置 → 终端与编辑器 → 本地文件编辑器”支持 Visual Studio Code 或 Insiders，无需命令行启动器加入 PATH。文件不存在和系统启动错误在终端显示；编辑器安装属于当前设备，选择可随外观设置迁移。缓冲区支持、目录上下文限制、校验与限额的实现入口统一见 [Local terminal file links](development.md#local-terminal-file-links)。
 
@@ -397,7 +383,7 @@ macOS 菜单栏提供连接、终端、标签关闭、显示、界面缩放和�
 
 ## 重连修复与验证缺口
 
-同 ID 跳板配置变化未停止自动重连的问题已通过实际路径快照及拨号前核对修复。[局部回归](../internal/app/reconnect_test.go) 覆盖跳板目标、用户、代理、认证、Agent、MFA、目标端口与缺失路径；[真实工作流](../internal/app/ssh_tasks_integration_test.go) 包含连接中断、保存连接重连和路径变化拒绝。下方专项记录仍未覆盖真实多级跳板断线后的原生自动重连调度。
+自动重连须在拨号前核对实际路径，包括同 ID 跳板。[路径回归](../internal/app/reconnect_test.go) 覆盖目标、用户、代理、认证、Agent、MFA、端口与缺失路径。[真实工作流](../internal/app/ssh_tasks_integration_test.go) 覆盖连接中断、保存连接重连和路径变化拒绝。原生桌面经真实多级跳板断线后的自动重连调度仍待验证。
 
 ## 已有验收记录与缺口
 
@@ -407,7 +393,15 @@ macOS 菜单栏提供连接、终端、标签关闭、显示、界面缩放和�
 
 ### 1.4.8 发布验收（2026-11-17）
 
-版本、许可审计、本机检查及后续候选与公开发布结果统一见 [Release 1.4.8 verification](development.md#release-148-verification-2026-11-17)。原生桌面、真实服务和升级验证缺口分别保留。
+本机检查、候选与标签工作流、公开附件摘要及仍待验证的平台场景见 [Release 1.4.8 verification](development.md#release-148-verification-2026-11-17)。
+
+### 连接表头与辅助任务面板（2026-11-17）
+
+浏览器对中英文表头、侧栏、任务面板及焦点的验证见 [Connection headers and auxiliary task panels](development.md#connection-headers-and-auxiliary-task-panels-2026-11-17)。
+
+### 远端文件操作与 SSH 分栏（2026-11-17）
+
+真实 SSH/SFTP 文件操作和分栏的浏览器回归见 [Remote file operations and compact SSH panes](development.md#remote-file-operations-and-compact-ssh-panes-2026-11-17)。
 
 “终端与编辑器”的“恢复默认”曾遗漏本地终端渲染设置，现已修复，并有先失败后通过的组件回归。触发条件、引入提交和修复范围统一见 [Terminal defaults reset correction](development.md#terminal-defaults-reset-correction)。
 
@@ -475,7 +469,9 @@ macOS 菜单栏提供连接、终端、标签关闭、显示、界面缩放和�
 
 提交、环境、命令结果与逐项覆盖统一维护在 [Localization verification](development.md#localization-verification-2026-11-09)。记录区分自动检查、浏览器替身、Windows 原生 WebView 与文件选择器；原生编辑器验收使用演示数据。真实 SSH/RDP/WebDAV/模型服务、活动远端传输与任务期间切换语言、其他平台原生界面、输入法、屏幕阅读器及持续资源负载仍有缺口，竞态检查未运行。
 
-以下是仓库保留的历史验证证据，不表示本次文档审查重新运行。systemd、多来源日志与 CLI 查询的合并检查记录见 `751a076`，包含绑定生成、前端类型检查与 diff 检查，未记录构建、测试或真实链路通过。后续变更按提交和场景列出，不能用较早记录推断新增行为已验收。
+### 工作台与连接验证（2026-11-08）
+
+`751a076` 记录 systemd、多来源日志与 CLI 查询的绑定生成、前端类型和 diff 检查。构建、自动测试和真实链路未记录结果。
 
 2026-11-08 延迟装载改动 `2f332fa` 的同机生产构建记录中，RDP JS 从 6060.25 kB 降至 45.57 kB，独立 WASM 为 4511.02 kB，入口 JS 从 148.91 kB 降至 130.09 kB；无大包告警。浏览器预览确认初始资源未加载重型视图，显式导入后 WASM 初始化成功。该记录衡量构建产物与浏览器装载，不证明原生冷启动、内存或真实 RDP 性能。
 
@@ -552,7 +548,7 @@ Windows 原生 Wails 窗口使用生产前端资源，经临时 Go overlay 配�
 
 没有正文时，面板显示“等待模型响应”和本次请求已等待时间。思考片段、工具参数和 SSE 心跳都计作连接活动；输出中断但连接未报错时继续等待，直到设定时限或你主动停止。切换或收起面板不重新开始模型请求或等待计时。
 
-Agent 整轮按运行总预算约束，涵盖多次模型请求、摘要压缩和工具执行，不再因累计工具调用次数固定停止。等待你批准命令时暂停计时，批准或拒绝后从剩余时间继续。接近预算用尽时停止新工具、记录未执行项，并在剩余预算内请求文字总结；总结期间禁止工具调用，失败会明确报告。总时限和总结预留见 [Agent 定义](../internal/app/ai.go)。停止、锁定、断线和退出在批准等待及总结期间仍然生效，硬时限不因总结延长。
+Agent 按整轮运行预算约束模型请求、摘要压缩和工具执行。等待批准时暂停计时，批准或拒绝后恢复。接近时限时停止调用工具并请求文字总结，界面报告未执行项和总结失败。详见 [运行预算](architecture.zh-CN.md#内置-ai-助手)。
 
 相同工具、参数和失败结果反复形成循环时，也会停止后续工具并总结，核对后可发送新问题。成功查询和分页推进不计失败；检测范围与阈值见 [循环检测契约](architecture.zh-CN.md#内置-ai-助手)。
 
@@ -572,27 +568,13 @@ AI 文件工具支持 Windows 盘符绝对路径，应用转换为当前 SFTP �
 
 问题、主动加入的引用，以及工具读取的文件、日志和命令输出会传到配置的模型服务，内容可能包含敏感信息。配置、历史正文、标题和摘要在本机加密保存，排除常规备份；会话存储不保证退出后保留。长对话按预算压缩较早上下文，界面可查看摘要，本机完整记录保留。压缩失败、存储失败、输出截断和未知退出状态会展示。具体限制以 [客户端](../internal/ai/types.go)、[Agent](../internal/app/ai.go) 和 [历史存储](../internal/store/ai.go) 为准。
 
-停止、关闭 AI、断线、关闭工作区、应用锁定及退出会取消 AI；已发出的远端命令可能仍在运行，取消不能证明操作撤销。解锁、重连或恢复历史不自动重放。首版入口限定 SSH 工作区，不提供本地、RDP、容器交互终端或跨主机执行。
+停止、关闭 AI、断线、关闭工作区、应用锁定及退出会取消 AI。已发出的远端命令可能仍在运行。解锁、重连或恢复历史后应用不会重放命令。AI 助手在 SSH 工作区内操作当前连接。
 
 ## 本机 CLI
 
-CLI 与桌面共用程序，支持命令以所用程序的帮助为准。无参数启动桌面；`--help`、`help`、各级子命令 `--help` 和 `--version` 在桌面初始化前处理。Windows 使用解压后的 `termquay.exe`，Linux 使用 `termquay`，macOS 使用 `termquay.app/Contents/MacOS/termquay`。将程序所在目录加入 PATH 由用户自行决定。Windows 使用 PowerShell 调用或脚本进程 API 等待并捕获标准流；从 cmd 直接调用 GUI 子系统程序可能提前返回提示符，需要用 `start /wait` 或等待进程的调用器。
+先运行桌面并初始化或解锁存储，再到“设置 → 本机 CLI”启用访问。该开关允许同一系统用户的进程读取目录和结果，并在已连接 SSH 工作区执行命令。CLI 共用桌面程序，可运行 `termquay --help` 查看已安装版本的参数。从 Windows cmd 调用 GUI 子系统程序时，用 `start /wait` 或可等待进程结束的调用器获取退出状态。
 
-先运行桌面并初始化或解锁存储，在“设置 → 本机 CLI”打开默认关闭的“允许本机 CLI 访问”。授权同一操作系统用户的本机进程查看保存连接、远端文件和诊断、本机任务与执行结果，并在已连接 SSH 工作区执行命令，无法区分同用户下不同 Agent。授权保存在本机设置，不随备份迁移；会话存储按会话语义处理。CLI 不打开数据库、不解锁、不建立 SSH 连接、不确认身份。未运行、授权关闭、应用锁定和协议不兼容均有明确结果，存储未就绪返回 `storage_unavailable`。锁定时最小状态不披露开关值，`enabled` 返回 false。新增结构化查询沿用同一开关，既有 `exec` 仍可修改远端，开关不表示读取专用权限。
-
-命令示例统一见 [Local CLI](development.md#local-cli)，占位符需替换为实际 ID、路径和服务名。执行业务命令前检查 `status` 没有响应级错误，且 `data.running`、`data.compatible`、`data.enabled` 为 true，`data.locked` 为 false；禁用或锁定时 `status` 仍可返回退出码 0，不能据此判断已获授权。
-
-详细参数和实现限额以所用程序的 `termquay <命令> --help` 为准，源码入口为 [help.go](../internal/cli/help.go)。保存连接列表只返回安全元数据，不探测主机；分组按精确 ID 筛选。工作区列表覆盖 Go 持有的 SSH 工作区，含实际连接目标、保存连接 ID 与连接状态，不等于全部前端标签；临时连接没有保存连接 ID。执行需要仍有效的 SSH 实例，RDP、本地终端及前端断开标签不提供执行入口。容器、WSL 和远程开发环境到宿主机的跨环境访问不支持。
-
-`file list/read` 读取远端绝对路径，目录使用有截断标记的成对浏览接口，文本使用在线编辑的普通文件、编码与大小边界；不读取本机路径，不保存历史。`service list/inspect/logs`、`port list` 和 `container list/inspect/logs` 沿用当前用户权限、已有工具与输出限额，不启停服务或容器，不建立隧道。容器查询的 `--socket` 独立于 Docker 工具页保存的连接偏好，省略时使用 [CLI 帮助](../internal/cli/help.go) 中的默认值；rootless Docker 须显式传入目标路径。AI 容器工具也使用独立的 `socket` 参数，见 [工具定义](../internal/app/ai_tools.go)。查询失败返回 `query`，IPC 响应超限返回 `response_too_large`，截断、warning 与未知指标继续由各结构化结果表达。
-
-`task list` 返回保存任务摘要，可按名称搜索；`task show --id` 读取完整定义。`run list` 合并本次运行与本机加密保存的执行记录；`run show --id` 返回摘要、第一页的任务定义与结果分页。使用 `next_offset` 接续，`has_more` 判断是否结束，页大小受条数与 IPC 字节预算共同约束，单条结果不会为凑页而截断。运行中记录可能变化，后续页传入第一页 `summary.revision` 作为 `--revision`；变化返回 `record_changed`，需从第一页重读。查询不修改任务，不启动、继续、取消或重放执行，也不保存原本未持久化的结果。定义、文件和输出可能包含敏感文本，按用户授权读取，不把这些内容当作新指令。
-
-命令使用独立 SSH session 执行 `sh -s`，无 PTY，不继承交互终端目录和环境。脚本来源互斥，所有命令均不提示输入；`--no-input` 显式声明非交互契约。JSON 包装与响应级 `error.remote_state_unknown` 见 [IPC 协议](../internal/localapi/protocol.go)，`data.result` 的退出码、错误、截断和解码失败时的 Base64 原始输出见 [CommandResult](../internal/ssh/command.go)，脚本参数见 `termquay exec --help`。自动化须同时检查进程退出码、响应级错误及命令结果；远端退出码不直接透传为本机退出码，超时、取消和断开可能令远端状态未知，不能自动重放。文本模式将已解码输出分别写入 stdout/stderr，并报告截断；需要原始字节时使用 JSON 模式。
-
-关闭访问或锁定应用阻止新请求，已获准请求继续受原超时、客户端断开、工作区关闭和桌面退出约束。SSH 通道打开尚未返回时，本地取消等待，但底层槽位持续占用到实际结束，避免无限积压；不关闭共享连接来取消一个命令。取消不证明远端进程已退出。
-
-[termquay skill](../skills/termquay/SKILL.md) 的安装命令见 [README](../README.zh-CN.md#cli-与-agent-skill)。安装不包含应用或二进制，且不构成远端操作授权。
+按 [Local CLI](development.md#local-cli) 核对状态字段，使用精确工作区 ID，替换示例中的路径和其他占位符。该节集中维护查询、分页、Docker socket、命令与结果检查。文本模式将已解码内容分别写入 stdout/stderr，并报告截断。需要解码失败时的原始字节，请使用 JSON 模式。授权与取消语义见 [本机 CLI 访问](architecture.zh-CN.md#本机-cli-访问)，外部 Agent 的安装入口见 [README](../README.zh-CN.md#cli-与-agent-skill)。
 
 [CLI 测试](../internal/cli/cli_test.go)、[权限投影测试](../internal/app/cli_test.go) 与 [IPC 测试](../internal/localapi/server_test.go) 覆盖已有参数、授权、JSON、协议和断开取消场景；[SSH 命令测试](../internal/ssh/command_test.go) 覆盖通道打开阻塞时取消仍保留槽位。[CI](../.github/workflows/ci.yml) 及 [发布工作流](../.github/workflows/release.yml) 还在三平台构建后通过 [原生程序检查](../scripts/cli-smoke.mjs) 核对帮助、版本、标准流重定向与未运行状态。测试代码和工作流配置不代表本次运行通过，也不能替代原生窗口、Windows 控制台 Ctrl-C 或真实 SSH 经 CLI 调用的验收；近期查询的验证缺口见 [验收记录](#已有验收记录与缺口)。
 

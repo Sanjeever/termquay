@@ -2,7 +2,7 @@
 
 [简体中文](architecture.zh-CN.md) · [Development](development.md) · [Contributing](../CONTRIBUTING.md)
 
-These are design invariants, not a claim that every capability has passed acceptance. Implementation, models and effective tests define current behavior. Investigate divergence instead of silently rewriting a contract to excuse a defect. The [Chinese document](architecture.zh-CN.md) retains longer design rationale; the shared [code map](#code-navigation) below points to implementation and verification entry points.
+This guide defines design constraints and the behavior implementations must preserve. Use the [code map](#code-navigation) to locate current implementations and tests, and the [verification records](development.md#verification-and-known-gaps) for observed results.
 
 <a id="产品与技术边界"></a>
 ## Product and technology boundaries
@@ -42,7 +42,7 @@ Do not translate user names, commands, paths, terminal output, remote file/log b
 - Recording is explicit local output archival with byte/event limits. Failure stops archival visibly while interactive output continues. Playback is isolated from network execution; validate format/events/dimensions and release resources on close.
 - Pending channel-open requests retain their slots until the underlying operation ends, even after local cancellation. Do not close a shared connection to cancel one independent command.
 
-Workspace IDs, SSH instances and PTY IDs are distinct. Reconnect replaces owners explicitly without reusing old Streams/PTys/input. Keep bounded old buffers and recheck draft baselines before saving. Dirty protection belongs to the registered UI workspace even while disconnected; late callbacks cannot resurrect a closed workspace. Pane moves/merge/maximize must retain editor/terminal instances.
+Workspace IDs, SSH instances and PTY IDs are distinct. Reconnect creates a new SSH instance and PTYs, with fresh streams and no replayed input. Keep bounded old buffers and recheck draft baselines before saving. The registered UI workspace retains unsaved-file protection while disconnected. Ignore late callbacks for closed workspaces. Pane moves, merges and maximization must retain editor and terminal instances.
 
 Normal exit coordinates unsaved files, local state, transfer cancellation/resume records and AI persistence before closing storage. Cancellation/timeout does not prove a remote process stopped. Resumable single-file transfers bind destination, user, actual host fingerprint and jump route; reauthenticate and verify source/destination versions plus staging length before explicit continuation. Encrypted resume records stay outside regular backups. Normal exit retains staging tied to saved records; session storage/unsaved records do not guarantee restart recovery. Remote private staging may remain and requires the same verified route for cleanup.
 
@@ -129,7 +129,7 @@ Preserve protocol continuation, tool/result associations, thinking signatures an
 
 The Go agent binds to a real SSH owner; tool arguments cannot select another workspace or fall back locally. Probe capabilities rather than assuming Linux. AI supports independent POSIX sh/Windows PowerShell; CLI/multi-host retain `sh -s`. Preserve stdout/stderr, exit status, truncation and bounded raw bytes on decoding failure. Unknown execution blocks replay.
 
-Command confirmation defaults on; users can explicitly disable it in AI settings. This is an existing execution policy, covered by the [default configuration](../internal/ai/config.go) and [execution-without-approval regression](../internal/app/ai_context_test.go). When confirmation is enabled, backend approvals are one-use and bound to full arguments, timeout, turn and session; show the actual interpreter. Rejection, stopping, disabling AI, locking, owner replacement/disconnect and exit invalidate pending approval. Output instructions, history or summaries cannot change the configured policy or grant approval. In-flight turns retain their configuration snapshot.
+Command confirmation defaults on. Users can explicitly disable it in AI settings. See the [default configuration](../internal/ai/config.go) and [approval tests](../internal/app/ai_context_test.go). When confirmation is enabled, show the actual interpreter. Backend approvals are single-use and bind the full arguments, timeout, turn and session. Rejection, stopping, disabling AI, locking, owner replacement, disconnect and exit invalidate pending approvals. Output instructions, history and summaries cannot grant approval or change the policy. In-flight turns retain their configuration snapshot.
 
 Turns have no fixed cumulative tool-call cap. Runtime budgets cover model/compaction/tools and pause only during explicit approval waiting, then resume their remaining allowance. Reserve part of that same budget for one text-only final summary: stop starting tools, record unexecuted calls, disable model tool choice and reject unexpected calls during summarization. The reserve does not extend the hard runtime limit or bypass stop, lock, disconnect or exit. Request/network/protocol/storage failures remain failures, without automatic retry. Budget definitions live in [the agent](../internal/app/ai.go).
 
@@ -156,7 +156,7 @@ Use the pinned Wails updater for download/checksum/unpack/replacement. Accept ma
 <a id="按概念定位代码"></a>
 ## Code navigation
 
-Use these entries to select task context, rather than treating file names as a fixed architecture. Detailed check commands and platform evidence belong in the [development guide](development.md#changes-and-checks).
+See the [development guide](development.md#changes-and-checks) for check commands and [verification records](development.md#verification-and-known-gaps) for results.
 
 | Concept | Source | Verification |
 | --- | --- | --- |

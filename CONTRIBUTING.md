@@ -12,32 +12,20 @@ Small fixes can go directly to a PR. Good entry points include translation proof
 
 ## Run from source
 
-Follow [environment and first run](docs/development.md#first-run), including matching project-local Wails CLI and native dependencies. Use the Go/Wails v3, React/TypeScript, Vite, HeroUI, pnpm and Go Modules stack with its lockfile. Toolchain definitions live in the manifests.
-
-Go owns network/authentication/session/transfer/storage logic; React owns views and drafts. Read [AGENTS.md](AGENTS.md) and the relevant [architecture contract](docs/architecture.md) before changing boundaries. Keep the diff focused and preserve user changes.
+Follow [First run](docs/development.md#first-run) for prerequisites and startup. Read [AGENTS.md](AGENTS.md) and the relevant [architecture contract](docs/architecture.md) before changing application boundaries.
 
 ## Verify affected behavior
 
-Follow [changes and checks](docs/development.md#changes-and-checks) for frontend commands, binding generation and backend/race checks. Choose checks for the affected behavior and inspect generated diffs. Never patch bindings manually.
-
-Use the [quality commands](docs/development.md#linting-and-formatting) for formatting, Oxlint, type checking and aggregate verification. Review Hooks dependency findings against session/editor lifetimes, and keep formatting-only migrations in separate commits. Browser regressions use the [documented fixture and limits](docs/development.md#browser-regressions).
-
-Documentation-only changes need content/link/diff checks. Every PR need not test every platform or real service. Unit/local integration works without maintainer servers. Real SSH/WebDAV tests are optional, require authorization/secure settings and use isolated test directories or collections.
-
-Distinguish unit/local integration, browser substitutes, native desktop and real remote checks. Report skipped tests/unavailable environments. Builds/test doubles do not establish real RDP, native WebView, IME or performance acceptance.
+Choose [checks](docs/development.md#changes-and-checks) for the affected behavior. Report which checks ran, their environments, and any skips or gaps. Identify local integration, browser substitutes, native desktop and real remote checks separately. [Real-service tests](docs/development.md#optional-real-services) require separate authorization and secure settings.
 
 ## Translate and document
 
-Maintain bundled English/Simplified Chinese resources, whole sentences, plurals and interpolation parameters. Translate app-generated errors/status at display boundaries and retain original diagnostics. Verify language switching preserves sessions, transfers, drafts, editor selection and history. See [localization](docs/development.md#interface-localization).
-
-Do not translate user content, commands, paths, terminal/remote output, model content, original licenses or published release notes. New documentation/comments default to English; retain Chinese entry points. Focused translation contributions are welcome without maintaining every language document; identify follow-up needs.
-
-Follow the [documentation synchronization rules](AGENTS.md#documentation-consistency) after behavior/API/error/configuration changes, including help/examples and generated interfaces. Keep shared commands and verification records at their canonical entry points. Do not weaken identity, backpressure, cancellation or restore contracts to pass a test.
+Follow the [localization guide](docs/development.md#interface-localization) for interface translations and the [documentation workflow](AGENTS.md#documentation-consistency) for prose and changes to behavior, APIs, errors or configuration. Focused translation contributions are welcome. Identify any affected counterpart that still needs an update.
 
 ## Submit a pull request
 
 Base changes on `main`. Use an English Conventional Commit description, such as `fix(files): preserve drafts after a save conflict`, and an English PR title. Explain the problem, resulting behavior, checks and remaining gaps. Exclude unrelated refactoring, upgrades and formatting.
 
-Do not bump versions, edit historical logs, create tags, publish/sign artifacts, push on a maintainer's behalf or change remote settings without authorization. Future authorized release notes use English first, then Chinese in the same version file.
+Follow the [release procedure](docs/development.md#versions-and-releases) for authorized version and publication work. Preserve published notes and original third-party licenses.
 
 New production dependencies need compatibility review and the existing license/provenance workflow. Existing audit and platform gaps remain in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and the development guide.

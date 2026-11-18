@@ -2,14 +2,16 @@
 
 [简体中文](development.zh-CN.md) · [Contributing](../CONTRIBUTING.md) · [Architecture](architecture.md)
 
-This guide covers an independent contribution from checkout to verification. The [Chinese guide](development.zh-CN.md) retains the longer operational manual and historical acceptance records. Those records have not been rerun merely by translating this entry point. Commands below run from the repository root.
+Run commands from the repository root. For detailed operating procedures, see the [Chinese user guide](development.zh-CN.md#使用说明).
+
+[First run](#first-run) · [Checks](#changes-and-checks) · [Workbench](#using-the-workbench) · [CLI](#local-cli) · [Packaging](#build-and-local-packaging) · [Releases](#versions-and-releases) · [Verification records](#verification-and-known-gaps)
 
 <a id="环境与定义入口"></a>
 ## Environment
 
 ### Packaged desktop
 
-The release archives contain the application, without requiring Go, Node, pnpm or a C compiler on the destination computer. Windows needs WebView2. Linux needs the runtime libraries declared in [package metadata](../build/linux/nfpm/nfpm.yaml); the [release workflow](../.github/workflows/release.yml) archives the executable without bundling those libraries. macOS bundle requirements are declared in [Info.plist](../build/darwin/Info.plist). Build runners and declared requirements do not establish acceptance on every OS version; see [verification and known gaps](#verification-and-known-gaps).
+Release archives run without a development toolchain. Windows needs WebView2. Install the Linux runtime libraries listed in the [package metadata](../build/linux/nfpm/nfpm.yaml) before launching the archived executable. The macOS bundle declares its minimum OS in [Info.plist](../build/darwin/Info.plist). See [verification and known gaps](#verification-and-known-gaps) for tested environments.
 
 ### Source development
 
@@ -44,13 +46,13 @@ Development tasks generate bindings and start the desktop and Vite server. Brows
 
 ### Development commands
 
-The root [package.json](../package.json) provides these entry points. This table explains their purpose; the manifest defines their current command expansions. Keep its pnpm declaration aligned with [frontend/package.json](../frontend/package.json).
+The root [package.json](../package.json) defines the following entry points.
 
 | Command | Action |
 | --- | --- |
-| `pnpm dev` | Run `wails3 task dev`, using the project's development config and port |
-| `pnpm build` | Run `wails3 build` |
-| `pnpm package` | Run `wails3 task package` for the host platform |
+| `pnpm dev` | Start the desktop and Vite development server |
+| `pnpm build` | Build the desktop application |
+| `pnpm package` | Package the application for the host platform |
 | `pnpm wails:doctor` | Run `wails3 doctor` (`pnpm doctor` is pnpm's own command) |
 | `pnpm bindings` | Run `wails3 generate bindings -ts -i` |
 | `pnpm task <task> [args]` | Run a Wails task |
@@ -61,15 +63,16 @@ The root [package.json](../package.json) provides these entry points. This table
 | `pnpm test` | Run the existing frontend and script tests |
 | `pnpm lint` | Run Oxlint and Go vet; build frontend assets first for the root Go package |
 | `pnpm format` / `pnpm format:check` | Format handwritten frontend/scripts and Go source, or check without writing |
+| `pnpm docs:check` | Check repository-local links and Markdown anchors |
 | `pnpm test:ui` | Run the Chromium layout and editor-state regressions |
-| `pnpm verify` | Check formatting, run frontend lint/build, Go vet, script/frontend/Go tests and browser regressions |
+| `pnpm verify` | Check docs links and formatting, run frontend lint/build, Go vet, script/frontend/Go tests and browser regressions |
 
 Arguments are passed through, for example `pnpm build ARCH=arm64` or `pnpm task darwin:package:universal`. Packaging prerequisites still come from the [platform tasks](../build); builds can update Go modules and generated bindings, so inspect the resulting diff. The `frontend` package's `dev` script remains the Vite entry point used by Wails.
 
 <a id="日常修改与验证"></a>
 ## Changes and checks
 
-For behavior/API/error/configuration changes, follow the [documentation synchronization rules](../AGENTS.md#documentation-consistency). Check the implementation, direct callers and effective tests before updating claims; keep unresolved contract violations visible rather than documenting them as intended behavior.
+Follow the [documentation workflow](../AGENTS.md#documentation-consistency) when changing an API, error, configuration, or behavior.
 
 After changes to exposed Go services/models/events, regenerate bindings and inspect the result:
 
@@ -87,9 +90,13 @@ go test ./internal/...
 go test ./...
 ```
 
-The second command includes the root entry point and needs built frontend assets. On a supported platform with CGO and a C compiler, run the relevant race checks, for example `go test -race ./internal/...`. Ordinary tests do not substitute for race detection. Documentation-only changes need content/link/diff checks, not builds.
+The second command includes the root entry point and needs built frontend assets. On a supported platform with CGO and a C compiler, run relevant race checks, for example `go test -race ./internal/...`.
 
-CI has one quality job for formatting, Oxlint, TypeScript and Chromium regressions. The existing platform matrix runs the frontend/script suites, Go vet/tests, native builds, binding consistency and the [CLI smoke check](../scripts/cli-smoke.mjs); Linux also runs race detection. A workflow definition is not evidence that a check ran for your change.
+CI's quality job checks documentation links, formatting, Oxlint, TypeScript and Chromium regressions. The platform matrix runs frontend/script suites, Go vet/tests, native builds, binding consistency and the [CLI smoke check](../scripts/cli-smoke.mjs). Linux also runs race detection.
+
+### Documentation checks
+
+After installing frontend dependencies, run `pnpm docs:check` and `git diff --check` for a documentation-only change. Review the content against its sources and check changed external references separately. The [link checker](../scripts/docs-check.mjs) validates repository-relative Markdown links, images and headings, including the guides' explicit anchor aliases. It excludes imported skills and collected licenses as source documents and runs without network requests.
 
 ### Linting and formatting
 
@@ -155,27 +162,25 @@ Follow the [localization contract](architecture.md#localization-and-collaboratio
 <a id="内置-ai-助手"></a>
 ## Using the workbench
 
-The SSH workspace's left tool rail opens files, file transfers and snippets; its right rail opens monitoring, the enabled AI assistant, port forwarding and Docker. Use Tab or the arrow keys within each rail. Docker opens an independent tool tab with the current SSH workspace selected. Layout, focus mode and reconnect actions remain in the workspace header. New workspaces keep monitoring closed. Opening a file in a new workspace places the editor above the retained terminal; restored layouts preserve their panes. **Pane layout** switches between stacked and side-by-side panes, maximizes a pane or merges them. Resizing and changing orientation retain terminal/editor instances and drafts; orientation is saved with the layout.
+The SSH workspace's left rail opens files, file transfers and snippets. The right rail opens monitoring, AI when enabled, port forwarding and Docker. Use Tab or arrow keys within each rail. Find **Pane layout**, focus mode and reconnect in the workspace header. Opening a file in a new workspace places the editor above the terminal. The [SSH workspace guide](development.zh-CN.md#ssh-工作区与本地终端) covers pane controls and reconnect behavior.
 
-File browsing mode and directory following use named icon buttons in the compact file header. Batch actions appear below the tree while files are selected and collapse when selection clears, so selecting an item does not move it between double-clicks. Keyboard selection and select-all remain available. **Settings → Appearance → Accent color** offers the existing blue and an optional green; changing it preserves open sessions and editor state.
+Find browsing mode and directory following in the file header. With files selected, batch actions appear below the tree. **Settings → Appearance → Accent color** offers blue and green and preserves open sessions and editor state.
 
 Middle-click a workspace, tool or terminal/file tab to close it without first selecting it. Local split-pane headers support the same action. Unsaved-file and running-local-terminal confirmations still apply, and closing remains disabled while the existing save, restore or busy state blocks it. The fixed connection center cannot be closed.
 
-The connection catalog displays host address and port in separate sortable columns. The address icon copies the host value without username or port and leaves connection selection unchanged. Narrow catalogs scroll horizontally to retain column alignment.
+The connection catalog has separate sortable address and port columns. The address action copies the host name or IP without changing selection.
 
-Selecting a directory name makes it the current operation directory and expands it; the arrow changes expansion independently. The toolbar, F5 within the file panel, and directory context menu refresh the target branch and its expanded descendants without resetting selection or scroll. Blank-space context actions use the path bar directory. **New → File / Folder** and directory context actions create an item using inline name entry; Enter creates and Escape cancels. File creation refuses existing names and opens the new file in the editor. File browsing mode blocks creation as well as other remote writes.
+Select a directory name to expand it and use it for file operations. Press F5 in the file panel to refresh the branch and expanded descendants. Use **New → File / Folder** to create an item. Enter submits the name and Escape cancels. The [file guide](development.zh-CN.md#远端文件与传输) covers refresh, creation, file browsing mode and keyboard navigation.
 
-**Copy / Paste** in the file tree supports ordinary files and directories, including empty directories, within or between connected SSH workspaces. **Copy path** remains a separate text action. Same-directory pastes propose an unused `copy` name. The preview allows renaming; changing a name requires a new preview. Existing destinations default to Skip; Overwrite explicitly merges directories and replaces matching regular files while retaining unrelated destination contents. Conflicts, symbolic links and unsupported files are listed, and skipping them requires acknowledgement. Scans cover selected subtrees and corresponding destination paths within the existing sync limits; transfers use the bounded queue, source/destination rechecks and cancellation. Local file clipboard uploads retain their existing confirmation flow.
+Use **Copy / Paste** on ordinary files and directories, including empty ones, in the same or another connected SSH workspace. Review the preview before executing. Existing destinations default to Skip. Overwrite merges directories and replaces matching regular files while retaining unrelated destination files. See the [file guide](development.zh-CN.md#远端文件与传输) for naming, conflict acknowledgement and local clipboard uploads.
 
-**Follow terminal directory** is an explicit toggle in the file panel and starts off. It follows directory reports from the active terminal on the current SSH instance; reports naming another host are ignored. Before a valid report arrives, the panel shows **Waiting for terminal directory** and offers **Enable directory reporting** for the active connected terminal. Select the running shell, review the expandable script, then use **Insert into terminal** and press Enter at an empty prompt. The panel shows **Waiting for execution** after insertion and starts following when a valid directory arrives. These session-only hooks report directories without enabling command recording or completion bindings; full shell integration remains in the terminal menu. Switching terminals uses that terminal's reports, and a reconnected SSH instance needs fresh reports. Turning following off retains the current browsing location.
+Turn on **Follow terminal directory** to use reports from the active terminal. If the panel is waiting for a report, choose **Enable directory reporting**, select the running shell and review the script. Insert it and press Enter at an empty prompt. The hook lasts for that shell session. Reconnect requires a fresh report.
 
-The file menu's **Open in file transfers** carries selected files from one directory into the transfer tool's right pane. The rail's transfer button carries the current directory. Both retain the left location and require an explicit copy preview and execution; opening the tool does not transfer files.
+**Save and validate** saves the draft before running the configured validation command. If the command is missing, it opens configuration without saving. Reload requires successful validation and separate confirmation. See the [editor guide](development.zh-CN.md#文件编辑) for ordinary Save, health checks, and disconnect behavior.
 
-The remote editor's **Save and validate** action opens the existing file workflow and saves the draft before running its configured validation command. A missing command opens configuration without saving or guessing a command. Ordinary Save and opening **History and validation** do not execute commands. Reload still requires successful validation and a separate confirmation; a configured health check follows successful reload. The request belongs to the current SSH instance: reconnecting never replays the action, and closing its owner during a save/refresh prevents late validation. See [the workflow](../frontend/src/features/files/FileHistoryDialog.tsx).
+In **Port forwarding**, choose **New** and review the route before starting. Local and dynamic forwards listen on this computer. Remote forwards listen on the SSH host. Closing the panel retains the draft and running tunnels. See the [SSH workspace guide](development.zh-CN.md#ssh-工作区与本地终端) for presets, listener options and route details.
 
-SSH port forwarding opens in the right auxiliary area, shared with monitoring and AI. It starts with existing forwards; **New** opens the form with a compact route summary. Route details, presets and advanced listener options expand on request. Local and dynamic forwards listen on this computer; remote forwards listen on the SSH host. Destination labels identify which side resolves and reaches the target. Port `0` is shown as automatically assigned until startup returns the actual listening address. Switching or closing the panel retains the draft and running tunnels. The wide panel can resize; narrow windows use a drawer. Escape closes it and returns focus to its tool button. Automatic presets still start with the SSH instance, including while the panel is hidden. The route preview does not start a tunnel. See [the panel](../frontend/src/features/tunnels/TunnelPanel.tsx) for effective fields.
-
-**Tools → File transfers** opens a persistent dual-pane tool tab. Each side selects the local filesystem or an already connected SSH workspace. Browse paths, select files/directories, preview the copy direction and explicitly select differences before copying; text comparison opens separately. Its collapsible task list sits below the browsers and expands when a copy is submitted. It shows background tasks, speed, remaining time, failures and explicit resume. Switching tabs retains paths and selections; hidden file views stop directory reads. A disconnected endpoint stays selected and blocks new copies until a connected workspace is explicitly selected. Closing the tool tab closes its task view and releases its reads and unexecuted preview, without closing SSH connections or cancelling admitted transfers. The status bar opens tasks inside the active file tool or the global task panel elsewhere; submitting an upload outside the tool updates the status bar without opening a panel. The tool is excluded from layouts and named working sets. Directory browsing and copy limits remain defined by [the browsing API](../internal/app/transfer_browser.go), [sync scan](../internal/files/sync.go) and [execution](../internal/app/sync.go).
+Open **Tools → File transfers** or use **Open in file transfers** from the file menu. Choose a local or connected SSH endpoint on each side, then preview the direction and select what to copy. The task list expands on submission. The status bar opens the task list in this tool or the global task panel elsewhere. Admitted transfers continue after the tool closes. The [file guide](development.zh-CN.md#远端文件与传输) covers disconnects, comparison, resume and cleanup.
 
 - **Connections:** the fixed connection center manages groups, filters and saved metadata. Environment, tags and saved filters are under **Filters**; active conditions remain visible and **Clear filters** also resets the protocol. The catalog footer shows the result count and selection actions. Outer tabs hold connection workspaces or independent multi-host, log, Docker and file-transfer tools; SSH inner tabs hold terminals/files. The workspace switcher stays outside the scrolling tab strip, and duplicate file names show distinguishing parent paths. Quick connect parses supported addresses/options for review and does not execute the entered text.
 - **Identity and credentials:** verify new fingerprints/certificates against a trusted source. Changed identities block connection. Review legitimate changes in identity settings. Shared credential updates require reviewing the affected connection set.
@@ -216,7 +221,7 @@ Control/Command-click a file reference in a local terminal to open the existing 
 
 A BEL from an unfocused terminal marks that pane/workspace **Needs attention**. Focusing that terminal acknowledges it; focusing a different pane does not. **Enable terminal notifications** explicitly requests system notification permission for the session. Repeated bells coalesce until acknowledgement, and notification activation returns to the owning terminal. Bell handling does not infer completion or approval requests from output text. Existing shell-integration completion states/reminders remain available independently.
 
-Local terminals accept [OSC 7501 program status](https://www.superlogical.com/rex/docs/build/program-status) in normal and alternate screens. Compatible programs such as Codex and Claude Code can report running, waiting for approval/answers/sign-in, ready, completed or failed. Pane labels show the state and optional progress; hovering shows the program's original message. Workspace labels prioritize waiting, failure and running work. Ready does not imply that a turn completed. Focusing a pane acknowledges completed/failed records but retains a program's blocked state. Clear reports, terminal reset and shell-prompt/process lifecycle events remove applicable records; switching panes, layouts or languages preserves them. Records remain in memory; accepted fields, bounds and lifecycle rules live in [programStatus.ts](../frontend/src/features/terminal/programStatus.ts). The same explicit notification toggle covers background blocked/completed/failed transitions; programs without reports retain ordinary bell behavior.
+Local terminals accept [OSC 7501 program status](https://www.superlogical.com/rex/docs/build/program-status) in normal and alternate screens. Programs that emit it can report activity, progress, completion, failure and requests for approval, answers or sign-in. Focus the pane to acknowledge completion or failure. Blocked status remains until the program reports a change or the record clears under the [protocol lifecycle rules](../frontend/src/features/terminal/programStatus.ts). The notification toggle also covers background blocked, completed and failed reports. Programs without reports retain ordinary bell behavior.
 
 Closing an active local terminal requires confirmation; exited terminals close directly. Application exit or update restart lists active local sessions alongside existing task/draft checks. Canceling keeps the sessions open. Layout recovery does not restart local processes.
 
@@ -244,35 +249,43 @@ The SSH server must allow Unix socket forwarding and the login user must already
 
 Container terminals use the shell selector's supported choices, enforced by the [Docker client](../internal/docker/client.go). They remain mounted when selecting other containers or hosts and can be reached from the open-terminal menu. They do not offer host filesystem completion, host tmux management, recording or snippets. Closing a terminal, the Docker tab, or its SSH workspace releases its channel; it does not prove the container process terminated. Confirm the SSH target, container name, full ID and action before start/stop/restart. A completed operation followed by a failed state refresh is reported separately. Canceling a request does not undo a remote state change. Mount actions open host directories; port actions create SSH-workspace-owned local tunnels, which remain manageable after closing Docker. Runtime limits remain in the client and [workspace service](../internal/app/docker.go).
 
-The English guide covers core usage and contribution paths. The long-form [Chinese operational manual](development.zh-CN.md#使用说明) has not yet been fully translated.
-
 <a id="本机-cli"></a>
 ## Local CLI
 
-Enable **Settings → Local CLI**, unlock the desktop, then discover exact live SSH workspaces:
+The desktop must be running and unlocked. Enable **Settings → Local CLI** for the same OS user and environment. This switch permits queries and command execution without prompts from the CLI. It starts off and stays local to the device. It does not grant access from a container, WSL or remote development host. Setup, unlock and identity confirmation stay in the desktop.
+
+Run `termquay` from PATH or use the executable's path. On macOS it is inside `.app/Contents/MacOS/termquay`. On Windows use `termquay.exe` and a caller that waits and captures both standard streams and the exit code.
 
 ```sh
 termquay --version
 termquay --help
 termquay status --json --no-input
+```
+
+Before business commands, check that the status response has no `error`, `data.running=true`, `data.compatible=true`, `data.enabled=true` and `data.locked=false`. Disabled or locked status can still exit with code zero. Open the desktop to initialize or unlock storage if the response reports `storage_unavailable`.
+
+Discover the SSH workspace and match its `id`, `connection_id`, `target` and `state`. Saved connections do not establish reachability. Use the exact ID of a connected workspace. Substitute real values for the placeholders below.
+
+```sh
 termquay workspace list --json --no-input
 termquay file list --workspace '<exact-workspace-id>' --path /tmp --json --no-input
 termquay file read --workspace '<exact-workspace-id>' --path '<absolute-text-file-path>' --json --no-input
+```
+
+Use `termquay --help` to discover catalog, service, port, container, task and run queries and `termquay <command> --help` for arguments. Repository definitions are in [CLI help](../internal/cli/help.go) and the [IPC protocol](../internal/localapi/protocol.go).
+
+Queries respect current remote permissions and keep errors, encoding, versions, warnings and truncation visible. An oversized IPC response fails with `response_too_large`. Files, definitions and results may contain sensitive text. `run show` returns the task definition on the first page. Follow `next_offset` and `has_more` and pass the first page's `summary.revision` as `--revision` on subsequent live pages. Restart on `record_changed`. The byte budget can shorten a page even when more results are available.
+
+Container queries take their own `--socket` argument; omitting it uses the default in [CLI help](../internal/cli/help.go), independently of the Docker tool's saved connection preference. For rootless Docker, pass the intended socket explicitly. AI container tools likewise take a separate `socket` argument in their [tool definitions](../internal/app/ai_tools.go).
+
+`exec` can modify the remote system. Review the script and target before running it.
+
+```sh
 termquay exec --help
 termquay exec --workspace '<exact-workspace-id>' --script-file '<local-script-path>' --timeout 30s --json --no-input
 ```
 
-Use `termquay --help` to discover catalog, service, port, container, task and run queries, then `<command> --help` for arguments. The installed program's help is the command contract; repository definitions are in [CLI help](../internal/cli/help.go) and the [IPC protocol](../internal/localapi/protocol.go). On macOS it is inside `.app/Contents/MacOS/termquay`; Windows retains `.exe` and callers must wait and collect its exit code. IPC supports the same OS user/environment, not a container/WSL/remote-development proxy.
-
-Before business commands, check the status response has no `error`, `data.running=true`, `data.compatible=true`, `data.enabled=true` and `data.locked=false`. Status remains readable with exit code zero when CLI access is disabled or the application is locked; process success alone does not establish authorization. Handle setup/unlock in the desktop.
-
-Saved connections are metadata, not evidence that a host is online. Workspaces identify backend SSH owners, not every frontend tab. Match `id`, `connection_id`, `target` and `state`; never execute against a fuzzy name.
-
-File/service/port/container queries retain permissions, encoding, version, warnings and truncation. They do not start services, containers or tasks. Definitions/results may contain sensitive text. Run pagination uses `next_offset`, `has_more` and, on subsequent live pages, the first page's `summary.revision` as `--revision`. Restart pagination on `record_changed`.
-
-Container queries take their own `--socket` argument; omitting it uses the default in [CLI help](../internal/cli/help.go), independently of the Docker tool's saved connection preference. For rootless Docker, pass the intended socket explicitly. AI container tools likewise take a separate `socket` argument in their [tool definitions](../internal/app/ai_tools.go).
-
-Exec uses a separate non-PTY `sh -s` session without the interactive terminal's directory/environment. Prefer `--script-file` or stdin for multiline scripts. Check the process exit code, response-level `error.remote_state_unknown`, and `data.result.exit_code`, `error` and `truncated`. Decode bounded `stdout_base64`/`stderr_base64` on text decoding failure; do not replay a command to fix display. Cancellation/timeout/disconnect does not prove remote termination. The [Agent skill](../skills/termquay/SKILL.md) does not install the app or authorize arbitrary remote operations.
+Exec runs in a separate non-PTY `sh -s` session without the interactive terminal's directory or environment. Use `--script-file <path>` or `--script-file -` for multiline scripts. Check the process exit code, response `error` including `remote_state_unknown`, and `data.result.exit_code`, `error` and `truncated`. JSON includes bounded `stdout_base64` and `stderr_base64` on text decoding failure. A timeout, cancellation or disconnect may leave the remote command running. Verify its state before taking further action. See the [distributed skill](../skills/termquay/SKILL.md) for agent use and the [IPC contract](architecture.md#local-cli-boundary) for authorization and cancellation.
 
 <a id="真实-ssh-与-webdav"></a>
 ## Optional real services
@@ -283,7 +296,7 @@ Real tests opt in through securely injected process settings. Never put real val
 
 | Suite | Configuration |
 | --- | --- |
-| `TestSG1*` password entry | `SSH_MCP_SERVER_SG1_HOST`, `SSH_MCP_SERVER_SG1_PORT`, `SSH_MCP_SERVER_SG1_USERNAME`, `SSH_MCP_SERVER_SG1_PASSWORD`, `TERMQUAY_TEST_HOST_FINGERPRINT` |
+| Password suites matching `TestSG1*`, excluding `TestSG1Workflow*` | `SSH_MCP_SERVER_SG1_HOST`, `SSH_MCP_SERVER_SG1_PORT`, `SSH_MCP_SERVER_SG1_USERNAME`, `SSH_MCP_SERVER_SG1_PASSWORD`, `TERMQUAY_TEST_HOST_FINGERPRINT` |
 | [`TestRealFileOperations`](../internal/app/files_workflow_integration_test.go) | `TERMQUAY_TEST_FILES_HOST`, `TERMQUAY_TEST_FILES_PORT`, `TERMQUAY_TEST_FILES_USERNAME`, `TERMQUAY_TEST_FILES_PASSWORD`, `TERMQUAY_TEST_HOST_FINGERPRINT`; creates and cleans an isolated `/tmp/termquay-files-*` tree |
 | [`TestSG1Workflow*`](../internal/app/ssh_workflow_integration_test.go) | Host, port, username and verified fingerprint above, plus `TERMQUAY_TEST_PRIVATE_KEY_PATH` pointing to an unencrypted test private key; no password required |
 | [`TestRealWebDAV`](../internal/backup/webdav_test.go) | `TERMQUAY_WEBDAV_URL`, `TERMQUAY_WEBDAV_USERNAME`, `TERMQUAY_WEBDAV_PASSWORD`, `TERMQUAY_WEBDAV_DIRECTORY` for an existing isolated writable collection; creates and cleans a unique child collection |
@@ -291,14 +304,14 @@ Real tests opt in through securely injected process settings. Never put real val
 Independently verify the target fingerprint. File tests create and clean their own `/tmp/termquay-*` directories. Do not change system/SSH/services/business files or install remote tools. Some workflow cases require existing sudo/tmux/Docker permissions. Follow [remote-operation boundaries](../AGENTS.md#credentials-and-remote-operations).
 
 ```sh
-go test -count=1 -v ./internal/app ./internal/ssh ./internal/files ./internal/monitor -run '^TestSG1'
+go test -count=1 -v ./internal/app ./internal/ssh ./internal/files ./internal/monitor -run '^TestSG1' -skip '^TestSG1Workflow'
 go test -count=1 -v -timeout=10m ./internal/app -run '^TestSG1Workflow'
 go test -count=1 -v ./internal/backup -run '^TestRealWebDAV$'
 go test -count=1 -v ./internal/app -run '^TestRealFileOperations$'
 go test -count=1 -v ./internal/app -run '^TestSavedConnectionFileEditing$'
 ```
 
-The workflow-only command is an alternative to the full SSH selection. Use `-race` where supported. The [saved-connection file test](../internal/app/files_integration_test.go) uses `TERMQUAY_TEST_SAVED_CONNECTION`, `TERMQUAY_TEST_HOST_FINGERPRINT` and the system vault; it does not implement master-password unlock. Read the test before using it. Configured real-service tests also run under ordinary `go test` package selections; missing settings cause skips, which must be reported separately from passes.
+Run the password and private-key selections with their respective settings. Use `-race` where supported. The [saved-connection file test](../internal/app/files_integration_test.go) uses `TERMQUAY_TEST_SAVED_CONNECTION`, `TERMQUAY_TEST_HOST_FINGERPRINT` and the system vault. It cannot unlock master-password storage. Ordinary `go test` package selections also include configured real-service tests. Missing settings cause skips, which must be reported separately from passes.
 
 ### Known SSH test deadline failures
 
@@ -326,19 +339,17 @@ Repository-owned Markdown links and heading anchors passed a parser-based check,
 
 ### Release 1.4.8 verification (2026-11-17)
 
-Release preparation started after documentation commit `cff3d13` on macOS 26.6.2 / arm64, Go 1.26.10, Node 26.11.0 and pnpm 11.20.0. The bilingual release log covers changes since `v1.4.7`, including the existing unpublished file, workspace and auxiliary-panel changes. The version tool synchronized platform resources, and version consistency and the dependency/license release audit passed. Dependencies, lockfiles and generated interfaces are unchanged by this preparation.
+Version consistency and the license audit passed during release preparation from `cff3d13` on macOS 26.6.2 / arm64, Go 1.26.10, Node 26.11.0 and pnpm 11.20.0. The [release log](releases/1.4.8.md) covers changes since `v1.4.7`.
 
 Local `pnpm verify` passed formatting, frontend lint/production build with TypeScript compilation, Go vet/package tests, 5 script checks, 148 frontend tests and 79 Chromium regressions. Five shell-availability cases and two Windows-font browser cases skipped under their existing guards. Real-service opt-ins were removed from the verification process; no real SSH/RDP/WebDAV or saved-connection operations were performed. Existing frontend chunk-size and macOS linker warnings remain. The browser suite substitutes native calls/streams and does not establish native desktop behavior. Repository-owned Markdown links/anchors and `git diff --check` also passed.
 
-Candidate and public-release results will be recorded after their workflows complete. These local checks do not establish physical input/IME, native workbench interaction, real remote services, old-to-new desktop upgrades or sustained application/WebView resource acceptance.
+The [candidate workflow](https://github.com/Sanjeever/termquay/actions/runs/44101996412), [CI](https://github.com/Sanjeever/termquay/actions/runs/44101965668) and [tag workflow](https://github.com/Sanjeever/termquay/actions/runs/44106733219) succeeded at `c8da183`. The tag workflow published [v1.4.8](https://github.com/Sanjeever/termquay/releases/tag/v1.4.8) on 2026-11-17 UTC. The public notes match the version log. The downloaded `SHA256SUMS` matches GitHub's recorded digest, and the three archive digests recorded by GitHub match their checksum entries. This comparison used GitHub's archive metadata. The native workbench, physical input/IME, real services, old-to-new desktop upgrades and sustained application/WebView resource usage still require separate evidence.
 
 ### Connection headers and auxiliary task panels (2026-11-17)
 
 Source through `cf104ea` was checked on macOS 26.6.2 / arm64, Go 1.26.10, Node 26.11.0 and pnpm 11.20.0. `pnpm verify` passed formatting, frontend lint/production build, Go vet/package tests, 5 script checks, 148 frontend tests and 79 Chromium regressions. Five shell-availability cases and two Windows-font browser cases skipped under their existing guards. Existing frontend chunk-size and macOS linker warnings remain.
 
 Browser coverage substitutes Wails calls and terminal streams. It checks single-line English/Chinese protocol headers at three widths and 100–200% CSS zoom, file-tool task containment and manual global task access, closing the tool with a running task record without issuing cancellation, forwarding sidebar placement without reducing terminal height, retained terminal/form instances, monitor exclusivity, narrow-drawer Escape/focus return and automatic presets starting exactly once while the panel is hidden. English/light and Chinese/dark forwarding screenshots were visually reviewed. These checks do not establish native WebView behavior or real SSH forwarding/transfer acceptance; no real-remote or native-desktop run was repeated for this presentation change.
-
-Both README entry points, architecture/development guides, contributor instructions, affected translations/comments, CLI surfaces and the distributed skill were checked for conflicting behavior descriptions. Current usage is synchronized above and in the Chinese guide; connection and task ownership contracts still apply. Version, dependencies and generated interfaces are unchanged.
 
 ### Remote file operations and compact SSH panes (2026-11-17)
 
@@ -348,13 +359,9 @@ Browser coverage uses substituted Wails/stream boundaries. It checks host-only a
 
 The opt-in `TestRealFileOperations` passed against the explicitly authorized `sqyl` Ubuntu 22.04 target through the application's SSH/SFTP stack with a separately probed fingerprint. It created and cleaned its own `/tmp/termquay-files-*` tree and verified exclusive creation, editing, same-server directory copying including empty directories, empty/nonempty deletion and symlink isolation. Credentials were injected into the test process rather than stored. This run does not establish cross-host copying, native clipboard/WebView behavior, Windows/Linux desktop behavior or RDP/WebDAV acceptance.
 
-Both README entry points, architecture/development guides, contributor instructions, affected comments/translations, CLI surfaces and the distributed skill were reviewed. Usage changes are documented above and in the Chinese guide; architecture contracts and CLI behavior remain applicable. The application version and dependency versions did not change.
-
 ### Release 1.4.7 verification (2026-11-12)
 
 Release preparation started from `385a489` on Windows 11 / amd64, Go 1.26.10, Node 22.17.0 and pnpm 11.20.0. The bilingual version log covers changes since `v1.4.6`; the version tool synchronized platform resources. Version consistency and the dependency/license release audit passed. The [dependency review](../build/licenses/review.json) records the WebGL patch and lockfile digest changes; dependency versions and other resolutions remain unchanged.
-
-Both README entry points, architecture/development guides, contributor instructions, affected comments/translations, CLI help and the distributed skill were reviewed against the release diff. Existing terminal workflow, font and rendering records remain separate evidence. This preparation changes no CLI/protocol, service/model signature, generated binding, database or backup format.
 
 On Windows 11 build 26100, local `pnpm verify` passed formatting, frontend lint and production build, Go vet/package tests, 5 script checks, 144 frontend tests and all 68 Chromium regressions. Three Bash-hook tests were skipped by their shell-availability guard. The frontend build retained its existing chunk-size warning. Browser checks used substituted Wails calls and streams; Go package results included cached results and do not establish real SSH/RDP/WebDAV acceptance. The installed WebGL dependency's MIT license matched the collected original byte for byte.
 

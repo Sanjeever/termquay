@@ -16,8 +16,6 @@ Choose context relevant to the task:
 | User entry points and development | [README.md](README.md), [docs/development.md](docs/development.md); keep them consistent with actual behavior |
 | Distribution licensing and audit gaps | [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and original texts in `build/licenses/` |
 
-When code and documentation disagree, distinguish stale implementation descriptions from explicit design contracts. Correct stale descriptions against code. Do not silently legitimize a contract violation by rewriting documentation. Investigate using code, tests and history; obtain confirmation for substantial design changes.
-
 ## Implementation boundaries
 
 - Keep Go, Wails v3, React, TypeScript, Vite, Tailwind CSS, HeroUI, pnpm and Go Modules. Check compatibility when upgrading dependencies; keep toolchain configuration local to this project.
@@ -39,13 +37,10 @@ When code and documentation disagree, distinguish stale implementation descripti
 
 ## Documentation consistency
 
-- Before committing an API, event, error, behavior, configuration or default change, check its authoritative definition, direct callers and effective tests. Search affected concepts and old names in both READMEs, docs, AGENTS.md, comments, examples, CLI help and the distributed skill; synchronize affected documentation, translations, tests, configuration and generated interfaces. Report documentation impact and checked surfaces, including why no prose change is needed when applicable.
-- Keep mutable facts in code/schema/configuration and link to them. Maintain shared commands and verification records once, with translated summaries linking there. Check example arguments, JSON nesting, test selectors and required security settings against their entry points; avoid version-pinned commands.
-- Keep README entry points, architecture premises/contracts/tradeoffs and development operations/verification distinct. Preserve unique constraints and decision rationale; remove internal call-chain narration and keep small implementation rationales near code.
-- Use code, effective tests and history to distinguish design evolution from defects. Correct stale descriptions; record unresolved discrepancies in the development guide with expected/actual behavior, triggers, evidence and verification gaps. Obtain confirmation before changing substantial design contracts; never make a defect legitimate by rewriting its requirement.
-- Check incoming links and heading anchors after moves, renames or deletions. Preserve historical release notes and original third-party license texts.
-- Verification records identify commit, environment and coverage. Separate source inspection, current unmodified checks, historical/diagnostic runs and test doubles; date release outcomes and retain actual integration gaps.
-- Future authorized release notes use English first, then Chinese, in the same version file. This convention does not authorize a version bump or release.
+- Use [doc-writing](.agents/skills/doc-writing/SKILL.md) when creating, changing, or auditing documentation. Verify claims against current sources and behavior. Give each fact one authoritative home and link to it from other entry points.
+- Review completed documentation with [prose-standard](.agents/skills/prose-standard/SKILL.md). Run [trim-cot-leakage](.agents/skills/trim-cot-leakage/SKILL.md) on formal documentation to remove authoring-session references while retaining rationale and evidence.
+- API, event, error, behavior, configuration, and default changes require checking related documentation, translations, examples, CLI help, tests, and generated interfaces. Report documentation impact, including why no prose change is needed when applicable.
+- Investigate conflicts between behavior and design contracts. Obtain confirmation before changing substantial contracts.
 
 ## Credentials and remote operations
 
