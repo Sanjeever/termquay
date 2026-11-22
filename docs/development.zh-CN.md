@@ -393,6 +393,10 @@ SSH 终端工具栏的「快捷输入」可编辑当前终端的命令草稿，�
 
 ## 已有验收记录与缺口
 
+### 1.4.9 发布验收（2026-11-22）
+
+候选提交通过本机检查、三平台 CI 和正式标签流程。公开下载的三份压缩包均通过 SHA-256 校验，发布正文与双语日志一致。范围与缺口见 [Release 1.4.9 verification](development.md#release-149-verification-2026-11-22)。
+
 ### SSH 快捷输入多行确认
 
 多行插入在确认时核对括号粘贴模式，避免裸回车提交命令。模式变化、草稿保留、粘贴帧与独立 Enter 的浏览器回归见 [SSH Quick Input multiline confirmation](development.md#ssh-quick-input-multiline-confirmation)。

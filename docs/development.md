@@ -329,6 +329,14 @@ Report unit tests, local protocol integration, browser substitutes, native deskt
 
 Historical evidence and unresolved gaps remain in the [Chinese acceptance ledger](development.zh-CN.md#已有验收记录与缺口), including [AI acceptance](development.zh-CN.md#内置-ai-验收2026-11-06) and [Windows SSH AI adaptation](development.zh-CN.md#windows-ssh-ai-适配验收2026-11-09). Platform input/IME, RDP clipboard/concurrency, native menus/dialogs, real multi-hop reconnect, provider behavior and sustained application-wide resource measurements need environment-specific evidence. Do not present historical results as current checks.
 
+### Release 1.4.9 verification (2026-11-22)
+
+Candidate `83eca4f` passed version consistency, the license audit and local `pnpm verify` on macOS 26.6.2 / arm64 with Go 1.26.10, Node 26.11.0 and pnpm 11.20.0. The frontend suite passed 149 tests with 5 skips. Chromium passed 85 regressions with 2 Windows font cases skipped. The focused keyboard confirmation check passed three repetitions. See [Quick Input multiline confirmation](#ssh-quick-input-multiline-confirmation) for the browser and local PTY evidence.
+
+The [three-platform CI](https://github.com/Sanjeever/termquay/actions/runs/45022171761), [candidate workflow](https://github.com/Sanjeever/termquay/actions/runs/45022172485) and [tag workflow](https://github.com/Sanjeever/termquay/actions/runs/45022937426) passed at the same commit. The tag workflow published [v1.4.9](https://github.com/Sanjeever/termquay/releases/tag/v1.4.9) on 2026-11-22 UTC. The public notes matched the bilingual version log. The three downloaded public archives matched `SHA256SUMS`, and all four downloaded assets matched GitHub's recorded digests. The candidate and public archives had the expected top-level structure and platform architectures. The universal macOS bundle passed strict signature-integrity checks with an ad-hoc signature, reported 1.4.9 in both plist fields and the executable, and ran CLI help on arm64.
+
+The browser fixture substitutes SSH streams. Native desktop workbench interaction, Quick Input over real SSH and in-app upgrades remain outside this verification record.
+
 ### SSH Quick Input multiline confirmation
 
 At `cfae33a`, confirming a multiline Quick Input draft could emit bare carriage returns when bracketed paste was inactive. A shell could submit part of the draft during insertion. The pinned xterm paste API wraps those carriage returns only while bracketed paste is active. Quick Input now checks the mode at confirmation and retains the draft if the mode is unavailable. See the [insertion path](../frontend/src/features/terminal/TerminalView.tsx).
