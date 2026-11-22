@@ -34,20 +34,23 @@ export function captureWorkspaceLayout(
       ...(ssh ? { ssh } : {}),
     });
   }
-  const version = entries.some((entry) => entry.ssh?.split_direction)
-    ? 9
-    : entries.some((entry) => entry.ssh?.tabs?.some((tab) => tab.tmux_session))
-      ? 8
-      : entries.some((entry) => entry.target.jump_id)
-        ? 7
-        : entries.some((entry) => entry.target.proxy_address)
-          ? 6
-          : entries.some(
-                (entry) => entry.target.mfa || entry.target.auth_method === 'keyboard_interactive',
-              )
-            ? 4
-            : entries.some((entry) => entry.target.auth_method || entry.target.identity_agent)
-              ? 2
-              : 1;
+  const version = entries.some((entry) => entry.ssh?.split_columns)
+    ? 10
+    : entries.some((entry) => entry.ssh?.split_direction)
+      ? 9
+      : entries.some((entry) => entry.ssh?.tabs?.some((tab) => tab.tmux_session))
+        ? 8
+        : entries.some((entry) => entry.target.jump_id)
+          ? 7
+          : entries.some((entry) => entry.target.proxy_address)
+            ? 6
+            : entries.some(
+                  (entry) =>
+                    entry.target.mfa || entry.target.auth_method === 'keyboard_interactive',
+                )
+              ? 4
+              : entries.some((entry) => entry.target.auth_method || entry.target.identity_agent)
+                ? 2
+                : 1;
   return { version, active: entries.some((entry) => entry.id === active) ? active : '', entries };
 }

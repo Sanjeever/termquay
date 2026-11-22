@@ -57,7 +57,7 @@ import type {
   RecoveryDraftInput,
   SSHLayout,
 } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/models';
-import WorkspacePanes from './WorkspacePanes';
+import WorkspacePanes, { type PaneColumns } from './WorkspacePanes';
 import TunnelPanel from '../tunnels/TunnelPanel';
 import PaneTabs from './PaneTabs';
 import { shortcutLabel, type Shortcuts } from '../../lib/shortcuts';
@@ -237,21 +237,33 @@ const SSHWorkspace = forwardRef<
     if (browseOnly) SetWorkspaceBrowseOnly(sessionID, true).catch((e) => setError(e));
   }, [sessionID, setError]);
   /* oxlint-enable react/exhaustive-deps */
-  const [selection, setSelection] = useState<[string, string]>(
+  const [selection, setSelection] = useState<string[]>(() =>
     initialLayout
-      ? [initialIDs[initialLayout.selected[0]] || '', initialIDs[initialLayout.selected[1]] || '']
-      : [sessionID, ''],
+      ? [0, 1, 2, 3].map(
+          (pane) =>
+            initialIDs[
+              pane < 2
+                ? initialLayout.selected[pane]
+                : (initialLayout.split_columns?.selected?.[pane - 2] ?? -1)
+            ] || '',
+        )
+      : [sessionID, '', '', ''],
   );
   const [activePane, setActivePane] = useState(initialLayout?.active_pane || 0);
-  const [secondary, setSecondary] = useState<string[]>(
-    (initialLayout?.tabs || []).flatMap((tab, index) =>
-      tab.pane === 1 ? [initialIDs[index]] : [],
+  const [paneAssignments, setPaneAssignments] = useState<Record<string, number>>(() =>
+    Object.fromEntries(
+      (initialLayout?.tabs || []).map((tab, index) => [initialIDs[index], tab.pane]),
     ),
   );
   const [split, setSplit] = useState(initialLayout?.split || false);
   const [splitDirection, setSplitDirection] = useState<'rows' | 'columns'>(
     initialLayout ? (initialLayout.split_direction === 'rows' ? 'rows' : 'columns') : 'rows',
   );
+  const [splitColumns, setSplitColumns] = useState<PaneColumns | undefined>(() => {
+    const mode = initialLayout?.split_columns?.mode;
+    return mode === 'bottom' || mode === 'grid' ? mode : undefined;
+  });
+  const [columnRatio, setColumnRatio] = useState(initialLayout?.split_columns?.ratio ?? 50);
   const automaticSplit = useRef(!initialLayout);
   const [maximized, setMaximized] = useState(initialLayout?.maximized || false);
   const [ratio, setRatio] = useState(initialLayout?.ratio || 50);
@@ -513,11 +525,13 @@ const SSHWorkspace = forwardRef<
     terminals,
     tmuxBindings,
     fileOrder,
-    secondary,
+    paneAssignments,
     selection,
     activePane,
     split,
     splitDirection,
+    splitColumns,
+    columnRatio,
     maximized,
     ratio,
     directory,
@@ -536,7 +550,8 @@ const SSHWorkspace = forwardRef<
   const monitorShown =
     !tunnelsShown && !aiShown && !focus && (narrow ? narrowPanel === 'monitor' : monitorOpen);
   const tabIDs = [...terminals, ...fileOrder];
-  const paneFor = (path: string) => (split && secondary.includes(path) ? 1 : 0);
+  const paneCount = splitColumns === 'grid' ? 4 : splitColumns === 'bottom' ? 3 : split ? 2 : 1;
+  const paneFor = (path: string) => (split ? paneAssignments[path] || 0 : 0);
   const paneSelected = selection.map((path, pane) =>
     tabIDs.includes(path) && paneFor(path) === pane
       ? path
@@ -551,12 +566,16 @@ const SSHWorkspace = forwardRef<
     setDirectorySetups((previous) =>
       Object.fromEntries(Object.entries(previous).filter(([key]) => live.has(key))),
     );
-    setSecondary((previous) => {
-      const next = previous.filter((path) => live.has(path) || fileOrder.includes(path));
-      return next.length === previous.length ? previous : next;
-    });
-  }, [terminals, fileOrder]);
-  const active = paneSelected[activePane];
+    if (!restoring)
+      setPaneAssignments((previous) => {
+        const ids = Object.keys(previous);
+        const next = ids.filter((path) => live.has(path) || fileOrder.includes(path));
+        return next.length === ids.length
+          ? previous
+          : Object.fromEntries(next.map((path) => [path, previous[path]]));
+      });
+  }, [terminals, fileOrder, restoring]);
+  const active = paneSelected[activePane] || '';
   const activeTerminal =
     state === 'connected' &&
     terminals.includes(active) &&
@@ -620,11 +639,17 @@ const SSHWorkspace = forwardRef<
       setError(e);
     }
   }
-  const focusedSelection = paneSelected[activePane];
-  const otherSelection = paneSelected[1 - activePane];
+  const firstPopulatedPane = paneSelected.findIndex(Boolean);
   useEffect(() => {
-    if (!focusedSelection && otherSelection) setActivePane(1 - activePane);
-  }, [focusedSelection, otherSelection, activePane]);
+    if (!active && firstPopulatedPane >= 0) setActivePane(firstPopulatedPane);
+  }, [active, firstPopulatedPane]);
+  function selectInPane(pane: number, path: string) {
+    setSelection((previous) => previous.map((value, index) => (index === pane ? path : value)));
+    setActivePane(pane);
+  }
+  function assignToPane(path: string, pane: number) {
+    setPaneAssignments((previous) => ({ ...previous, [path]: pane }));
+  }
   function setActive(path: string) {
     if (
       !split &&
@@ -634,19 +659,25 @@ const SSHWorkspace = forwardRef<
       terminals.length
     ) {
       setSplit(true);
-      setSecondary([...terminals]);
-      setSelection([path, terminals[0]]);
+      setPaneAssignments(Object.fromEntries(terminals.map((id) => [id, 1])));
+      setSelection([path, terminals[0], '', '']);
       setActivePane(0);
       return;
     }
-    const pane = paneFor(path);
-    setActivePane(pane);
-    setSelection((prev) => (pane === 0 ? [path, prev[1]] : [prev[0], path]));
+    selectInPane(paneFor(path), path);
   }
   function shown(path: string) {
     return path === paneSelected[paneFor(path)] && (!maximized || paneFor(path) === activePane);
   }
   function panePosition(pane: number, tabs = false) {
+    if (splitColumns && !maximized) {
+      const bottom = splitColumns === 'bottom' ? pane > 0 : pane > 1;
+      const right = splitColumns === 'bottom' ? pane === 2 : pane % 2 === 1;
+      return {
+        gridColumn: splitColumns === 'bottom' && !bottom ? '1 / -1' : right ? 3 : 1,
+        gridRow: (bottom ? 4 : 1) + (tabs ? 0 : 1),
+      };
+    }
     const stacked = split && !maximized && splitDirection === 'rows';
     return {
       gridColumn: maximized || pane === 0 || stacked ? 1 : 3,
@@ -669,17 +700,58 @@ const SSHWorkspace = forwardRef<
   }
   function moveActive() {
     if (!active) return;
-    const target = 1 - paneFor(active);
+    const target = (paneFor(active) + 1) % Math.max(2, paneCount);
     setSplit(true);
     setMaximized(false);
-    setSecondary((prev) => (target === 1 ? [...prev, active] : prev.filter((p) => p !== active)));
-    setSelection((prev) => (target === 0 ? [active, prev[1]] : [prev[0], active]));
-    setActivePane(target);
+    assignToPane(active, target);
+    selectInPane(target, active);
     requestAnimationFrame(() => focusTab(active));
   }
+  function applyColumns(mode: PaneColumns) {
+    if (splitColumns === mode) return;
+    const ordered = [...new Set([...paneSelected.filter(Boolean), ...tabIDs])];
+    const nextPanes: Record<string, number> = {};
+    const nextSelection = ['', '', '', ''];
+    let terminalCount = 0;
+    ordered.forEach((path, index) => {
+      const pane =
+        mode === 'grid'
+          ? Math.min(3, index)
+          : terminals.includes(path)
+            ? Math.min(2, ++terminalCount)
+            : 0;
+      nextPanes[path] = pane;
+      if (!nextSelection[pane] || path === active) nextSelection[pane] = path;
+    });
+    setPaneAssignments(nextPanes);
+    setSelection(nextSelection);
+    setActivePane(nextPanes[active] || 0);
+    setSplit(true);
+    setSplitDirection('rows');
+    setSplitColumns(mode);
+    setMaximized(false);
+  }
+  function applyTwoPanes(direction: 'rows' | 'columns') {
+    if (!split) {
+      setPaneAssignments(Object.fromEntries(terminals.map((id) => [id, 1])));
+      setSelection([fileOrder[0] || '', terminals[0] || '', '', '']);
+      setActivePane(fileOrder.length ? 0 : 1);
+    } else if (splitColumns) {
+      setPaneAssignments(
+        Object.fromEntries(tabIDs.map((path) => [path, Math.min(1, paneFor(path))])),
+      );
+      setSelection([paneSelected[0], activePane > 0 ? active : paneSelected[1], '', '']);
+      setActivePane(Math.min(1, activePane));
+    }
+    setSplit(true);
+    setSplitDirection(direction);
+    setSplitColumns(undefined);
+    setMaximized(false);
+  }
   async function newTerminal(
-    pane = split && splitDirection === 'rows' ? 1 : activePane,
+    pane = split && splitDirection === 'rows' && !splitColumns ? 1 : activePane,
     direction?: 'rows' | 'columns',
+    columns?: PaneColumns,
   ) {
     if (state !== 'connected' || creating || restoring || terminals.length >= 16) return;
     setCreating(true);
@@ -691,16 +763,16 @@ const SSHWorkspace = forwardRef<
       }
       terminalOwners.current.set(result.id, sessionID);
       setTerminals((prev) => [...prev, result.id]);
-      if (pane === 1) {
+      if (pane > 0) {
         if (direction) {
           automaticSplit.current = false;
           setSplitDirection(direction);
         }
+        if (columns) setSplitColumns(columns);
         setSplit(true);
-        setSecondary((prev) => [...prev, result.id]);
+        assignToPane(result.id, pane);
       }
-      setSelection((prev) => (pane === 0 ? [result.id, prev[1]] : [prev[0], result.id]));
-      setActivePane(pane);
+      selectInPane(pane, result.id);
       setMaximized(false);
     } catch (e) {
       setError(e);
@@ -735,14 +807,9 @@ const SSHWorkspace = forwardRef<
         ...previous.filter((terminal) => !placeholder || terminal !== source),
         result.id,
       ]);
-      if (placeholder)
-        setSecondary((previous) => previous.filter((terminal) => terminal !== source));
       const pane = paneFor(source);
-      if (pane === 1) setSecondary((previous) => [...previous, result.id]);
-      setSelection((previous) =>
-        pane === 0 ? [result.id, previous[1]] : [previous[0], result.id],
-      );
-      setActivePane(pane);
+      assignToPane(result.id, pane);
+      selectInPane(pane, result.id);
       setMaximized(false);
       return true;
     } catch (e) {
@@ -781,6 +848,15 @@ const SSHWorkspace = forwardRef<
       active_pane: activePane,
       split,
       split_direction: splitDirection,
+      ...(splitColumns
+        ? {
+            split_columns: {
+              mode: splitColumns,
+              ratio: columnRatio,
+              selected: paneSelected.slice(2, paneCount).map((path) => ordered.indexOf(path)),
+            },
+          }
+        : {}),
       maximized,
       ratio,
       directory,
@@ -1062,10 +1138,8 @@ const SSHWorkspace = forwardRef<
             terminalOwners.current.set(result.id, sessionID);
             setTerminals((prev) => [...prev, result.id]);
             const old = planned[index].key;
-            setSecondary((prev) => prev.map((id) => (id === old ? result.id : id)));
-            setSelection(
-              (prev) => prev.map((id) => (id === old ? result.id : id)) as [string, string],
-            );
+            assignToPane(result.id, planned[index].tab.pane);
+            setSelection((prev) => prev.map((id) => (id === old ? result.id : id)));
           } catch (e) {
             if (!stopped)
               setError(uiMessage('files:someTerminalsCouldNotBeRestored', { value1: e }));
@@ -1207,8 +1281,8 @@ const SSHWorkspace = forwardRef<
       ]);
       setFileOrder((prev) => (prev.includes(path) ? prev : [...prev, path]));
       if (split && splitDirection === 'columns' && activePane === 1 && !fileOrder.includes(path)) {
-        setSecondary((prev) => [...prev, path]);
-        setSelection((prev) => [prev[0], path]);
+        assignToPane(path, 1);
+        selectInPane(1, path);
       } else setActive(path);
       return true;
     } catch (e) {
@@ -1314,7 +1388,6 @@ const SSHWorkspace = forwardRef<
     setMarkdownAnchor((previous) => (previous?.path === path ? undefined : previous));
     updateDrafts((prev) => prev.filter((d) => d.path !== path));
     setFileOrder((prev) => prev.filter((p) => p !== path));
-    setSecondary((prev) => prev.filter((p) => p !== path));
     setPendingErrors((prev) => {
       const next = { ...prev };
       delete next[path];
@@ -1336,7 +1409,6 @@ const SSHWorkspace = forwardRef<
     tmuxAttached.current.delete(path);
     unbindTmux(path);
     setTerminals((prev) => prev.filter((t) => t !== path));
-    setSecondary((prev) => prev.filter((p) => p !== path));
   }
   function workspaceAction(action: 'switchPane' | 'closeContent' | 'newTerminal') {
     if (restoring) return true;
@@ -1346,9 +1418,15 @@ const SSHWorkspace = forwardRef<
       closeTab(active);
     }
     if (action === 'switchPane' && split) {
-      const pane = 1 - activePane;
-      setActivePane(pane);
-      requestAnimationFrame(() => focusTab(paneSelected[pane]));
+      const offset = paneSelected
+        .slice(activePane + 1)
+        .concat(paneSelected.slice(0, activePane))
+        .findIndex(Boolean);
+      if (offset >= 0) {
+        const pane = (activePane + offset + 1) % paneSelected.length;
+        setActivePane(pane);
+        requestAnimationFrame(() => focusTab(paneSelected[pane]));
+      }
     }
     return true;
   }
@@ -1426,35 +1504,34 @@ const SSHWorkspace = forwardRef<
           <DropdownMenu
             aria-label={translate('files:paneActions')}
             disabledKeys={[
-              ...(creating || terminals.length >= 16 ? ['new'] : []),
+              ...(state !== 'connected' || terminals.length >= 16 ? ['new'] : []),
+              ...(creating || restoring
+                ? ['new', 'rows', 'columns', 'bottom', 'grid', 'move', 'merge']
+                : []),
               ...(!active ? ['move'] : []),
               ...(!split ? ['maximize', 'merge'] : []),
             ]}
             onAction={(key) => {
               automaticSplit.current = false;
-              if (key === 'rows' || key === 'columns') {
-                setSplitDirection(key);
-                if (!split) {
-                  setSplit(true);
-                  setSecondary([...terminals]);
-                  setSelection([fileOrder[0] || '', terminals[0] || '']);
-                  setActivePane(fileOrder.length ? 0 : 1);
-                }
-                setMaximized(false);
-              }
-              if (key === 'new') void newTerminal(1);
+              if (key === 'rows' || key === 'columns') applyTwoPanes(key);
+              if (key === 'bottom' || key === 'grid') applyColumns(key);
+              if (key === 'new') void newTerminal(splitColumns ? activePane : 1);
               if (key === 'move') moveActive();
               if (key === 'maximize') setMaximized((v) => !v);
               if (key === 'merge') {
                 setSplit(false);
-                setSecondary([]);
-                setSelection([active || paneSelected[0], '']);
+                setSplitColumns(undefined);
+                setPaneAssignments({});
+                setSelection([active || paneSelected[0], '', '', '']);
                 setActivePane(0);
                 setMaximized(false);
               }
             }}
           >
-            <DropdownItem key="rows" endContent={split && splitDirection === 'rows' ? '✓' : null}>
+            <DropdownItem
+              key="rows"
+              endContent={split && !splitColumns && splitDirection === 'rows' ? '✓' : null}
+            >
               {translate('files:splitVertically')}
             </DropdownItem>
             <DropdownItem
@@ -1463,11 +1540,19 @@ const SSHWorkspace = forwardRef<
             >
               {translate('files:splitHorizontally')}
             </DropdownItem>
+            <DropdownItem key="bottom" endContent={splitColumns === 'bottom' ? '✓' : null}>
+              {translate('files:editorAndTwoTerminals')}
+            </DropdownItem>
+            <DropdownItem key="grid" endContent={splitColumns === 'grid' ? '✓' : null}>
+              {translate('files:fourPaneGrid')}
+            </DropdownItem>
             <DropdownItem key="new">
               {translate(
-                splitDirection === 'rows'
-                  ? 'files:newTerminalBelow'
-                  : 'files:newTerminalOnTheRight',
+                splitColumns
+                  ? 'common:newTerminal'
+                  : splitDirection === 'rows'
+                    ? 'files:newTerminalBelow'
+                    : 'files:newTerminalOnTheRight',
               )}
             </DropdownItem>
             <DropdownItem key="move">{translate('files:moveCurrentTabToOtherPane')}</DropdownItem>
@@ -1648,6 +1733,11 @@ const SSHWorkspace = forwardRef<
             ratio={ratio}
             onRatio={setRatio}
             tabHeight={compact ? 30 : undefined}
+            columns={
+              splitColumns
+                ? { mode: splitColumns, ratio: columnRatio, onRatio: setColumnRatio }
+                : undefined
+            }
           >
             {terminals
               .filter((terminal) => tmuxBindings[terminal] && !tmuxAttached.current.has(terminal))
@@ -1674,7 +1764,7 @@ const SSHWorkspace = forwardRef<
                   </Button>
                 </div>
               ))}
-            {[0, 1].map((pane) => (
+            {Array.from({ length: paneCount }, (_, pane) => (
               <PaneTabs
                 key={`pane-${pane}`}
                 pane={pane}
@@ -1683,10 +1773,11 @@ const SSHWorkspace = forwardRef<
                 items={tabs.filter((t) => paneFor(t.id) === pane)}
                 selected={paneSelected[pane]}
                 focused={pane === activePane}
-                hidden={(!split && pane === 1) || (maximized && pane !== activePane)}
+                hidden={maximized && pane !== activePane}
                 column={panePosition(pane, true).gridColumn}
                 row={panePosition(pane, true).gridRow}
                 stacked={splitDirection === 'rows'}
+                numbered={!!splitColumns}
                 creating={state !== 'connected' || creating || restoring || terminals.length >= 16}
                 onSelect={activate}
                 onClose={closeTab}
@@ -1694,8 +1785,11 @@ const SSHWorkspace = forwardRef<
                 onSplit={
                   compact && !split && pane === 0
                     ? (direction) => void newTerminal(1, direction)
-                    : undefined
+                    : compact && pane === 1 && paneCount === 2 && splitDirection === 'rows'
+                      ? () => void newTerminal(2, 'rows', 'bottom')
+                      : undefined
                 }
+                splitDirections={pane === 1 ? ['columns'] : undefined}
               />
             ))}
             {terminals

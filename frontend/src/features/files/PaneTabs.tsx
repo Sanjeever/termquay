@@ -18,6 +18,8 @@ export default function PaneTabs({
   onClose,
   onNew,
   onSplit,
+  splitDirections = ['columns', 'rows'],
+  numbered = false,
   newShortcut,
   closeShortcut,
 }: {
@@ -34,7 +36,7 @@ export default function PaneTabs({
   selected: string;
   focused: boolean;
   hidden: boolean;
-  column: number;
+  column: number | string;
   row?: number;
   stacked?: boolean;
   creating: boolean;
@@ -42,20 +44,22 @@ export default function PaneTabs({
   onClose(id: string): void;
   onNew(): void;
   onSplit?(direction: 'rows' | 'columns'): void;
+  splitDirections?: readonly ('rows' | 'columns')[];
+  numbered?: boolean;
   newShortcut: string;
   closeShortcut: string;
 }) {
   useTranslation();
+  const paneName = translate(pane === 0 ? 'files:main' : stacked ? 'files:bottom' : 'files:right');
   return (
     <div
       className={`inner-tabs pane-tabs ${focused ? 'focused-pane' : ''}`}
       role="tablist"
-      aria-label={translate('files:paneTabs', {
-        value1:
-          pane === 0
-            ? translate('files:main')
-            : translate(stacked ? 'files:bottom' : 'files:right'),
-      })}
+      aria-label={
+        numbered
+          ? translate('files:numberedPaneTabs', { number: pane + 1 })
+          : translate('files:paneTabs', { value1: paneName })
+      }
       hidden={hidden}
       style={{ gridColumn: column, gridRow: row }}
       onKeyDown={(e) => {
@@ -132,12 +136,11 @@ export default function PaneTabs({
       ))}
       <Tooltip content={translate('files:newTerminal', { value1: newShortcut })}>
         <button
-          aria-label={translate('files:newTerminalInPane', {
-            value1:
-              pane === 0
-                ? translate('files:main')
-                : translate(stacked ? 'files:bottom' : 'files:right'),
-          })}
+          aria-label={
+            numbered
+              ? translate('files:newTerminalInNumberedPane', { number: pane + 1 })
+              : translate('files:newTerminalInPane', { value1: paneName })
+          }
           disabled={creating}
           onClick={onNew}
         >
@@ -145,7 +148,7 @@ export default function PaneTabs({
         </button>
       </Tooltip>
       {onSplit &&
-        (['columns', 'rows'] as const).map((direction) => {
+        splitDirections.map((direction) => {
           const label = translate(
             direction === 'columns' ? 'terminal:splitTerminalRight' : 'terminal:splitTerminalDown',
           );

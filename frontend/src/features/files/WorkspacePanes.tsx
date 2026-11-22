@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import ResizeHandle from '../../components/layout/ResizeHandle';
 
+export type PaneColumns = 'bottom' | 'grid';
+
 export default function WorkspacePanes({
   split,
   direction = 'columns',
@@ -10,6 +12,7 @@ export default function WorkspacePanes({
   ratio,
   onRatio,
   tabHeight = 36,
+  columns,
   children,
 }: {
   split: boolean;
@@ -18,6 +21,7 @@ export default function WorkspacePanes({
   ratio: number;
   onRatio(value: number): void;
   tabHeight?: number;
+  columns?: { mode: PaneColumns; ratio: number; onRatio(value: number): void };
   children: ReactNode;
 }) {
   useTranslation();
@@ -39,8 +43,8 @@ export default function WorkspacePanes({
       className={`workspace-panes ${direction === 'rows' ? 'workspace-panes-rows' : ''}`}
       style={{
         gridTemplateColumns:
-          split && !maximized && direction === 'columns'
-            ? `minmax(0,${ratio}fr) 5px minmax(0,${100 - ratio}fr)`
+          split && !maximized && (direction === 'columns' || columns)
+            ? `minmax(0,${columns?.ratio ?? ratio}fr) 5px minmax(0,${100 - (columns?.ratio ?? ratio)}fr)`
             : 'minmax(0,1fr)',
         gridTemplateRows:
           split && !maximized && direction === 'rows'
@@ -59,6 +63,21 @@ export default function WorkspacePanes({
             max={80}
             pixelsPerUnit={(direction === 'rows' ? size.height : size.width) / 100}
             onChange={onRatio}
+          />
+        </div>
+      )}
+      {columns && !maximized && (
+        <div
+          className="workspace-pane-column-separator"
+          style={{ gridRow: columns.mode === 'bottom' ? '4 / 6' : '1 / -1' }}
+        >
+          <ResizeHandle
+            label={translate('files:splitColumnRatio')}
+            value={columns.ratio}
+            min={20}
+            max={80}
+            pixelsPerUnit={size.width / 100}
+            onChange={columns.onRatio}
           />
         </div>
       )}

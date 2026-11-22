@@ -287,6 +287,7 @@ async function sshWorkflow(page: Page, language = 'en', autoForward = false, com
   const forwards: unknown[] = [];
   const inputs: string[] = [];
   const sockets: { send(data: Buffer): void; id: string; terminal: boolean }[] = [];
+  let terminalNumber = 1;
   await page.routeWebSocket('**/ssh-fixture/*', (socket) => {
     const entry = {
       send: (data: Buffer) => socket.send(data),
@@ -375,7 +376,7 @@ async function sshWorkflow(page: Page, language = 'en', autoForward = false, com
       };
       forwards.push(value);
     } else if (method === 495421101) value = forwards;
-    else if (method === 272076810) value = { id: 'host-a-terminal-2' };
+    else if (method === 272076810) value = { id: `host-a-terminal-${++terminalNumber}` };
     else if (method === 1375116584)
       value = {
         id: 'preview-ssh',
@@ -477,6 +478,47 @@ test('the compact SSH workspace shows its docks and splits from the focused pane
   await page.keyboard.press('Escape');
   await expect(page.locator('.monitor-dock')).toBeHidden();
   await expect(monitoring).toBeFocused();
+});
+
+test('SSH layouts keep an editor and two independent terminals alive', async ({ page }) => {
+  await sshWorkflow(page, 'en', false, true);
+  await page.locator('[data-tree-path="/release.conf"] .file-name').dblclick();
+  const editor = page.locator('.cm-content:visible');
+  await expect(editor).toContainText('original file');
+  const firstTerminal = page.locator('[data-tab-id="host-a"] .xterm');
+  const originalTerminal = await firstTerminal.elementHandle();
+  const originalEditor = await editor.elementHandle();
+  await editor.click();
+  await page.keyboard.type('draft ');
+  await page.getByRole('button', { name: 'Split right', exact: true }).click();
+  const secondTerminal = page.locator('[data-tab-id="host-a-terminal-2"] .xterm');
+  await expect(secondTerminal).toBeVisible();
+  const [fileBounds, firstBounds, secondBounds] = await Promise.all([
+    editor.boundingBox(),
+    firstTerminal.boundingBox(),
+    secondTerminal.boundingBox(),
+  ]);
+  expect(fileBounds!.y + fileBounds!.height).toBeLessThan(firstBounds!.y);
+  expect(firstBounds!.x + firstBounds!.width).toBeLessThan(secondBounds!.x);
+  expect(firstBounds!.y).toBe(secondBounds!.y);
+  await expect(page.getByRole('separator', { name: 'Split column ratio' })).toBeVisible();
+  await page.screenshot({ path: test.info().outputPath('ssh-editor-and-terminals.png') });
+  const paneLayout = page.getByRole('button', { name: 'Pane layout', exact: true });
+  await paneLayout.click();
+  await page.getByRole('menuitem', { name: 'Four-pane grid', exact: true }).click();
+  await expect(page.locator('.pane-tabs:visible')).toHaveCount(4);
+  await expect(editor).toContainText('draft ');
+  expect(await editor.evaluate((element, handle) => element === handle, originalEditor)).toBe(true);
+  expect(
+    await firstTerminal.evaluate((element, handle) => element === handle, originalTerminal),
+  ).toBe(true);
+  await page.getByRole('button', { name: 'New terminal in pane 4', exact: true }).click();
+  await expect(page.locator('[data-tab-id="host-a-terminal-3"] .xterm')).toBeVisible();
+  await paneLayout.click();
+  await page.getByRole('menuitem', { name: 'Merge panes', exact: true }).click();
+  await expect(page.locator('.pane-tabs:visible')).toHaveCount(1);
+  await page.getByRole('tab', { name: '/release.conf', exact: true }).click();
+  await expect(editor).toContainText('draft ');
 });
 
 test('file refresh keeps the selected directory and reads its branch without reading root', async ({

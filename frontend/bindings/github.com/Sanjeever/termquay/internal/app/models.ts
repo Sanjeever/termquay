@@ -690,6 +690,7 @@ export interface SSHLayout {
     "active_pane": number;
     "split": boolean;
     "split_direction"?: string;
+    "split_columns"?: SSHLayoutColumns | null;
     "maximized": boolean;
     "ratio": number;
     "directory": string;
@@ -697,6 +698,12 @@ export interface SSHLayout {
     "files_width": number;
     "monitor_open": boolean;
     "focus": boolean;
+}
+
+export interface SSHLayoutColumns {
+    "mode": string;
+    "ratio": number;
+    "selected": number[] | null;
 }
 
 export interface SSHReconnectResult {

@@ -42,6 +42,21 @@ test('split orientation is preserved with its own workspace layout version', () 
   assert.equal(layout.entries![0].ssh!.split_direction, 'rows');
 });
 
+test('additional SSH panes retain their selections and use layout version ten', () => {
+  const item = workspace();
+  item.restore = {
+    ...ssh,
+    tabs: [...(ssh.tabs || []), { kind: 'terminal', path: '', pane: 3 }],
+    split: true,
+    split_direction: 'rows',
+    split_columns: { mode: 'grid', ratio: 55, selected: [-1, 1] },
+    active_pane: 3,
+  };
+  const layout = captureWorkspaceLayout([item], item.id)!;
+  assert.equal(layout.version, 10);
+  assert.deepEqual(layout.entries?.[0].ssh, item.restore);
+});
+
 test('布局保留文件入口和活动工作区，排除凭据引用与本地终端', () => {
   const item = workspace();
   const layout = captureWorkspaceLayout(

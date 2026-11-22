@@ -56,3 +56,47 @@ func TestWorkspaceLayoutMetadataAndValidation(t *testing.T) {
 		t.Fatal("覆盖未来版本布局")
 	}
 }
+
+func TestWorkspaceLayoutSplitColumns(t *testing.T) {
+	a := testAppStore(t)
+	ssh := &SSHLayout{
+		Tabs: []WorkspaceTabLayout{
+			{Kind: "file", Path: "/etc/test", Pane: 0},
+			{Kind: "terminal", Pane: 1},
+			{Kind: "terminal", Pane: 2},
+		},
+		Selected: [2]int{0, 1}, ActivePane: 2, Split: true, SplitDirection: "rows",
+		SplitColumns: &SSHLayoutColumns{Mode: "bottom", Ratio: 55, Selected: []int{2}},
+		Ratio:        45, FilesWidth: 248,
+	}
+	layout := WorkspaceLayout{Version: 10, Entries: []WorkspaceLayoutEntry{{
+		ID: "view", Name: "Server", Target: WorkspaceTarget{
+			Protocol: "ssh", Host: "example.invalid", Port: 22,
+		}, SSH: ssh,
+	}}}
+	if err := a.SaveWorkspaceLayout(layout); err != nil {
+		t.Fatal(err)
+	}
+	got, err := a.GetWorkspaceLayout()
+	if err != nil {
+		t.Fatal(err)
+	}
+	columns := got.Entries[0].SSH.SplitColumns
+	if columns == nil || columns.Mode != "bottom" || columns.Ratio != 55 || columns.Selected[0] != 2 {
+		t.Fatalf("split columns were not restored: %+v", columns)
+	}
+	layout.Version = 9
+	if err := layout.validate(); err == nil {
+		t.Fatal("old layout version accepted additional panes")
+	}
+	layout.Version = 10
+	ssh.SplitColumns.Selected[0] = 1
+	if err := layout.validate(); err == nil {
+		t.Fatal("accepted a selected terminal from another pane")
+	}
+	ssh.SplitColumns.Mode = "grid"
+	ssh.SplitColumns.Selected = []int{2, -1}
+	if err := layout.validate(); err != nil {
+		t.Fatal(err)
+	}
+}

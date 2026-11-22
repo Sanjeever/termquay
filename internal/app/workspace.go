@@ -40,6 +40,7 @@ type SSHLayout struct {
 	ActivePane     int                  `json:"active_pane"`
 	Split          bool                 `json:"split"`
 	SplitDirection string               `json:"split_direction,omitempty"`
+	SplitColumns   *SSHLayoutColumns    `json:"split_columns,omitempty"`
 	Maximized      bool                 `json:"maximized"`
 	Ratio          float64              `json:"ratio"`
 	Directory      string               `json:"directory"`
@@ -47,6 +48,11 @@ type SSHLayout struct {
 	FilesWidth     int                  `json:"files_width"`
 	MonitorOpen    bool                 `json:"monitor_open"`
 	Focus          bool                 `json:"focus"`
+}
+type SSHLayoutColumns struct {
+	Mode     string  `json:"mode"`
+	Ratio    float64 `json:"ratio"`
+	Selected []int   `json:"selected"`
 }
 type WorkspaceLayoutEntry struct {
 	ID           string          `json:"id"`
@@ -62,7 +68,7 @@ type WorkspaceLayout struct {
 }
 
 func (layout WorkspaceLayout) validate() error {
-	if layout.Version < 1 || layout.Version > 9 {
+	if layout.Version < 1 || layout.Version > 10 {
 		return appmessage.New("backend:unsupportedWorkspaceLayoutVersion", "工作布局版本不受支持")
 	}
 	if len(layout.Entries) > 16 {
@@ -103,7 +109,23 @@ func (layout WorkspaceLayout) validate() error {
 		if s.SplitDirection != "" && (layout.Version < 9 || s.SplitDirection != "rows" && s.SplitDirection != "columns") {
 			return appmessage.New("backend:invalidLayoutPanes", "布局窗格无效")
 		}
-		if len(s.Tabs) > 72 || s.ActivePane < 0 || s.ActivePane > 1 || s.Ratio < 20 || s.Ratio > 80 || s.FilesWidth < 200 || s.FilesWidth > 420 || len(s.Directory) > 4096 || (s.Directory != "" && (!path.IsAbs(s.Directory) || path.Clean(s.Directory) != s.Directory)) {
+		paneCount := 2
+		selected := s.Selected[:]
+		if columns := s.SplitColumns; columns != nil {
+			switch columns.Mode {
+			case "bottom":
+				paneCount = 3
+			case "grid":
+				paneCount = 4
+			default:
+				return appmessage.New("backend:invalidLayoutPanes", "布局窗格无效")
+			}
+			if layout.Version < 10 || !s.Split || s.SplitDirection != "rows" || columns.Ratio < 20 || columns.Ratio > 80 || len(columns.Selected) != paneCount-2 {
+				return appmessage.New("backend:invalidLayoutPanes", "布局窗格无效")
+			}
+			selected = append(selected, columns.Selected...)
+		}
+		if len(s.Tabs) > 72 || s.ActivePane < 0 || s.ActivePane >= paneCount || s.Ratio < 20 || s.Ratio > 80 || s.FilesWidth < 200 || s.FilesWidth > 420 || len(s.Directory) > 4096 || (s.Directory != "" && (!path.IsAbs(s.Directory) || path.Clean(s.Directory) != s.Directory)) {
 			return appmessage.New("backend:invalidSSHLayoutSizeDirectoryOrTabs", "SSH 布局尺寸、目录或标签无效")
 		}
 		files := map[string]bool{}
@@ -112,7 +134,7 @@ func (layout WorkspaceLayout) validate() error {
 			if tab.TmuxSession != "" && (layout.Version < 8 || tab.Kind != "terminal" || !validTmuxName(tab.TmuxSession)) {
 				return appmessage.New("backend:invalidLayoutTmuxBindingOrLayoutVersionToo", "布局 tmux 绑定无效或版本过旧")
 			}
-			if tab.Pane < 0 || tab.Pane > 1 || (!s.Split && tab.Pane != 0) {
+			if tab.Pane < 0 || tab.Pane >= paneCount || (!s.Split && tab.Pane != 0) {
 				return appmessage.New("backend:invalidLayoutPanes", "布局窗格无效")
 			}
 			if tab.Kind == "terminal" {
@@ -132,7 +154,7 @@ func (layout WorkspaceLayout) validate() error {
 		if terminals > 8 || len(files) > 64 {
 			return appmessage.New("backend:layoutTerminalOrFileCountExceedsTheLimit", "布局终端或文件超过上限")
 		}
-		for pane, index := range s.Selected {
+		for pane, index := range selected {
 			if index < -1 || index >= len(s.Tabs) || (index >= 0 && s.Tabs[index].Pane != pane) {
 				return appmessage.New("backend:invalidSelectedLayoutTab", "布局选中标签无效")
 			}

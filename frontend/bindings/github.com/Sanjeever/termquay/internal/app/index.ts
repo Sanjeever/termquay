@@ -87,6 +87,7 @@ export type {
     SSHImportPreview,
     SSHImportRow,
     SSHLayout,
+    SSHLayoutColumns,
     SSHReconnectResult,
     SSHRouteHop,
     SnapshotDetails,

@@ -162,9 +162,11 @@ Follow the [localization contract](architecture.md#localization-and-collaboratio
 <a id="内置-ai-助手"></a>
 ## Using the workbench
 
-The SSH workspace's left rail opens files, file transfers and snippets. The right rail opens monitoring, AI when enabled, port forwarding and Docker. Use Tab or arrow keys within each rail. Find **Pane layout**, focus mode and reconnect in the workspace header. Opening a file in a new workspace places the editor above the terminal. The [SSH workspace guide](development.zh-CN.md#ssh-工作区与本地终端) covers pane controls and reconnect behavior.
+The SSH workspace's left rail opens files, file transfers and snippets. The right rail opens monitoring, AI when enabled, port forwarding and Docker. Use Tab or arrow keys within each rail. Find **Pane layout**, focus mode and reconnect in the workspace header.
 
-Enable **Settings → Appearance → Compact SSH workspace** to reduce control height. New wide workspaces open monitoring beside the terminal. Existing and restored workspaces keep their panel choices. Use **Split right** or **Split down** in a single pane to open a new terminal. Narrow windows use drawers.
+Opening a file in a new workspace places the editor above the terminal. **Pane layout** can rearrange open tabs into stacked or side-by-side panes, an editor above two terminals, or a four-pane grid. Use a pane's **+** to open another terminal. Layout changes retain terminal instances and editor drafts. Restored workspaces keep saved positions and ratios and start disconnected. The [SSH workspace guide](development.zh-CN.md#ssh-工作区与本地终端) covers pane controls and reconnect behavior.
+
+Enable **Settings → Appearance → Compact SSH workspace** to reduce control height. With this setting, new wide workspaces open monitoring beside the terminal. Existing and restored workspaces keep their panel choices. Use **Split right** or **Split down** in a single pane to open a new terminal. Narrow windows use drawers.
 
 Find browsing mode and directory following in the file header. With files selected, batch actions appear below the tree. **Settings → Appearance → Accent color** offers blue and green and preserves open sessions and editor state.
 
