@@ -608,7 +608,7 @@ const TerminalView = forwardRef<
   function confirmPaste() {
     const pending = pendingPaste.current;
     if (!pending) return;
-    if (pending.onInserted && (!visible || !quickInputAvailable)) return;
+    if (pending.onInserted && (!visible || !quickInputAvailable || !connected)) return;
     if (!insert(pending.text, false, pending.onInserted)) return;
     pendingPaste.current = undefined;
     setPaste(undefined);
@@ -638,13 +638,24 @@ const TerminalView = forwardRef<
       reportError('input', translate('terminal:terminalDisconnected'));
       return false;
     }
+    const multiline = /[\r\n]/.test(text);
+    if (
+      onInserted &&
+      multiline &&
+      !confirm &&
+      (!term.modes.bracketedPasteMode || term.options.ignoreBracketedPasteMode)
+    ) {
+      // Without paste delimiters, xterm sends newlines as Enter key bytes.
+      reportError('input', uiMessage('terminal:quickInputRequiresBracketedPaste'));
+      return false;
+    }
     if (stream.bufferedAmount + size + Math.ceil(size / 32768) + 16 > 256 * 1024) {
       reportError('input', translate('terminal:inputQueueFullWaitForTheRemoteHost'));
       return false;
     }
     clearError('input');
     completion.dismiss();
-    if (/[\r\n]/.test(text) && confirm) {
+    if (multiline && confirm) {
       pendingPaste.current = { text, onInserted };
       setPaste(text);
     } else {
@@ -2018,7 +2029,13 @@ const TerminalView = forwardRef<
         <ModalContent>
           <ModalHeader>{translate('terminal:confirmMultilinePaste')}</ModalHeader>
           <ModalBody>
-            <p>{translate('terminal:newlinesMayExecuteCommandsImmediatelyReviewTheContents')}</p>
+            <p>
+              {translate(
+                pendingPaste.current?.onInserted
+                  ? 'terminal:integrationInsertHint'
+                  : 'terminal:newlinesMayExecuteCommandsImmediatelyReviewTheContents',
+              )}
+            </p>
             <pre className="paste-preview" ref={pastePreviewRef}>
               {paste}
             </pre>
@@ -2036,7 +2053,11 @@ const TerminalView = forwardRef<
               {translate('terminal:cancel')}
             </Button>
             <Button color="primary" onPress={confirmPaste}>
-              {translate('terminal:pasteIntoTerminal')}
+              {translate(
+                pendingPaste.current?.onInserted
+                  ? 'terminal:insertIntoTerminal'
+                  : 'terminal:pasteIntoTerminal',
+              )}
             </Button>
           </ModalFooter>
         </ModalContent>

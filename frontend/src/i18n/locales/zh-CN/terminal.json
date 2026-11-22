@@ -868,6 +868,7 @@
   "commandDraft": "命令草稿",
   "addToQuickInput": "添加到快捷输入",
   "quickInputControlCharacters": "草稿含有终端控制字符。",
+  "quickInputRequiresBracketedPaste": "当前 Shell 需启用括号粘贴才能插入多行内容。草稿已保留。",
   "splitTerminalDown": "向下分屏",
   "toggleMaximizePane": "最大化或恢复终端窗格",
   "nextTerminal": "工作区下一个终端",

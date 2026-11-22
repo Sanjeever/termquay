@@ -307,7 +307,7 @@ macOS 菜单栏提供连接、终端、标签关闭、显示、界面缩放和�
 
 ### 终端工具与命令片段
 
-SSH 终端工具栏的「快捷输入」可编辑当前终端的命令草稿，也可预览片段参数后添加到草稿。单行草稿插入 Shell 提示符后，按 Enter 执行。多行内容经过粘贴预览，取消会保留草稿。未启用括号粘贴时，确认可能直接提交部分命令，详见 [多行插入的已知差异](development.md#ssh-quick-input-multiline-confirmation)。草稿随终端分别保存在内存中，插入成功或关闭终端后清除。
+SSH 终端工具栏的「快捷输入」可编辑当前终端的命令草稿，也可预览片段参数后添加到草稿。在空白 Shell 提示符处选择「插入终端」，另按 Enter 执行。多行内容先预览，确认时须已启用括号粘贴。取消或当前模式不支持插入时保留草稿。草稿随终端分别保存在内存中，插入成功或关闭终端后清除。
 
 终端在接收输出前启用 Unicode 11 宽度规则，适用于 SSH、本地及容器终端；复杂 emoji 字素簇仍受 xterm、远端宽度规则和字体影响。渲染设置与生命周期统一见 [Terminal rendering](development.md#terminal-rendering)，各阶段实际覆盖见 [验收记录](#已有验收记录与缺口)。
 
@@ -395,7 +395,7 @@ SSH 终端工具栏的「快捷输入」可编辑当前终端的命令草稿，�
 
 ### SSH 快捷输入多行确认
 
-未协商括号粘贴的 Shell 可能在确认多行预览时执行其中部分命令。当前对「插入」是否必须等待单独按 Enter 的约定仍待确认。源码证据与回归覆盖见 [SSH Quick Input multiline confirmation](development.md#ssh-quick-input-multiline-confirmation)。
+多行插入在确认时核对括号粘贴模式，避免裸回车提交命令。模式变化、草稿保留、粘贴帧与独立 Enter 的浏览器回归见 [SSH Quick Input multiline confirmation](development.md#ssh-quick-input-multiline-confirmation)。
 
 ### 文档审查（2026-11-17）
 

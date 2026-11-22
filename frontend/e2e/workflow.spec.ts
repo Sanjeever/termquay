@@ -785,6 +785,45 @@ test('quick input keeps its draft with the originating terminal and previews mul
   await expect(draft).toHaveValue('');
 });
 
+test('quick input inserts multiline drafts only with active bracketed paste and waits for Enter', async ({
+  page,
+}) => {
+  const ssh = await sshWorkflow(page);
+  const terminal = page.locator('.terminal-tab:visible .xterm');
+  const quickInput = page.getByRole('button', { name: 'Quick input', exact: true });
+  const draft = page.getByRole('textbox', { name: 'Command draft', exact: true });
+  const dialog = page.getByRole('dialog');
+  const confirm = dialog.getByRole('button', { name: /into terminal/ });
+  const script = 'pwd\nwhoami\n';
+
+  await quickInput.click();
+  await draft.fill(script);
+  await page.getByRole('button', { name: 'Insert into terminal', exact: true }).click();
+  await expect(dialog).toContainText('whoami');
+
+  // The shell can change modes after the preview opens.
+  ssh.send('\x1b[?2004lPaste disabled');
+  await expect(terminal).toContainText('Paste disabled');
+  await confirm.click();
+  await expect(dialog).toContainText('Multiline insertion requires bracketed paste');
+  expect(ssh.inputs).toEqual([]);
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await quickInput.click();
+  await expect(draft).toHaveValue(script);
+
+  ssh.send('\r\n\x1b[?2004hPaste enabled');
+  await expect(terminal).toContainText('Paste enabled');
+  await page.getByRole('button', { name: 'Insert into terminal', exact: true }).click();
+  await confirm.focus();
+  await page.keyboard.press('Enter');
+  await expect(dialog).toHaveCount(0);
+  const paste = '\x1b[200~pwd\rwhoami\r\x1b[201~';
+  await expect.poll(() => ssh.inputs.join('')).toBe(paste);
+  await expect(terminal.locator('textarea')).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect.poll(() => ssh.inputs.join('')).toBe(`${paste}\r`);
+});
+
 test('directory setup stays compact in Chinese at narrow widths', async ({ page }) => {
   await sshWorkflow(page, 'zh-CN');
   await page.getByRole('button', { name: '跟随终端目录', exact: true }).click();

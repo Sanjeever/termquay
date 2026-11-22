@@ -178,7 +178,7 @@ Use **Connect** in a catalog row to open or locate its workspace. Use the header
 
 **Save and validate** saves the draft before running the configured validation command. If the command is missing, it opens configuration without saving. Reload requires successful validation and separate confirmation. See the [editor guide](development.zh-CN.md#文件编辑) for ordinary Save, health checks, and disconnect behavior.
 
-Use **Quick input** to edit a command draft or add a reviewed snippet. A single-line draft awaits Enter at a shell prompt after insertion. Multiline drafts open a paste preview. Cancelling keeps the draft. Confirming can submit lines when bracketed paste is inactive. See the [multiline insertion discrepancy](#ssh-quick-input-multiline-confirmation).
+Use **Quick input** to edit a command draft or add a reviewed snippet. Insert at an empty shell prompt, then press Enter to run. Multiline drafts open a preview and require active bracketed paste. Cancellation or an unavailable paste mode keeps the draft.
 
 In **Port forwarding**, choose **New** and review the route before starting. Local and dynamic forwards listen on this computer. Remote forwards listen on the SSH host. Closing the panel retains the draft and running tunnels. See the [SSH workspace guide](development.zh-CN.md#ssh-工作区与本地终端) for presets, listener options and route details.
 
@@ -331,9 +331,9 @@ Historical evidence and unresolved gaps remain in the [Chinese acceptance ledger
 
 ### SSH Quick Input multiline confirmation
 
-The usage guide in `0f8c245` specifies that a draft waits for Enter at the shell prompt. At `cfae33a`, confirming the multiline preview calls xterm's ordinary `paste` API. The pinned `@xterm/xterm` package's `src/browser/Clipboard.ts` converts line endings to carriage returns and adds bracketed-paste markers only when the mode is active. Without those markers, a shell can treat each carriage return as Enter and submit part of the draft during insertion. See the [insertion path](../frontend/src/features/terminal/TerminalView.tsx) and [pinned xterm dependency](../frontend/package.json).
+At `cfae33a`, confirming a multiline Quick Input draft could emit bare carriage returns when bracketed paste was inactive. A shell could submit part of the draft during insertion. The pinned xterm paste API wraps those carriage returns only while bracketed paste is active. Quick Input now checks the mode at confirmation and retains the draft if the mode is unavailable. See the [insertion path](../frontend/src/features/terminal/TerminalView.tsx).
 
-The [Quick Input regression](../frontend/e2e/workflow.spec.ts) checks cancellation of a multiline preview and insertion of a single line without a carriage return. It does not confirm a multiline draft or exercise a native shell. The multiline contract awaits a maintainer decision on whether to require a separate Enter in every shell or make confirmation an explicit execute action where pasting can submit lines.
+The [Quick Input regression](../frontend/e2e/workflow.spec.ts) checks that a mode change after the preview opens blocks insertion without writing input and retains the draft. With bracketed paste enabled, it checks that keyboard confirmation sends the complete paste frame and that Enter must be pressed again after focus returns to the terminal. The browser test substitutes the SSH stream. A separate local PTY check on macOS 26.6.2 / arm64 with zsh 5.9 sent the same frame structure and confirmed that both lines ran only after a separate Enter.
 
 ### Documentation audit (2026-11-17)
 

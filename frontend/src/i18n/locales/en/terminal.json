@@ -868,6 +868,7 @@
   "commandDraft": "Command draft",
   "addToQuickInput": "Add to quick input",
   "quickInputControlCharacters": "The draft contains terminal control characters.",
+  "quickInputRequiresBracketedPaste": "Multiline insertion requires bracketed paste in the current shell. Your draft is kept.",
   "splitTerminalDown": "Split down",
   "toggleMaximizePane": "Maximize or restore terminal pane",
   "nextTerminal": "Next terminal in workspace",
