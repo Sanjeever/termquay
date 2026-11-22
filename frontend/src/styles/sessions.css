@@ -5,6 +5,25 @@
   min-width: 0;
   min-height: 0;
 }
+.compact-ssh .workspace-toolbar {
+  min-block-size: 30px;
+  padding-block: 0;
+}
+.compact-ssh .workspace-tool-rail {
+  inline-size: 34px;
+  gap: 3px;
+  padding: 5px 3px;
+}
+.compact-ssh .workspace-tool-rail .workspace-tool {
+  inline-size: 26px;
+  block-size: 28px;
+}
+.compact-ssh .workspace-tool[aria-pressed='true']::before {
+  inset-inline-start: -3px;
+}
+.compact-ssh .pane-tabs {
+  block-size: 30px;
+}
 .workspace-toolbar {
   display: flex;
   flex-wrap: wrap;

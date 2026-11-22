@@ -59,6 +59,7 @@
   "couldNotZoomTheInterface": "界面缩放失败：{{value1}}",
   "appearanceContextIsNotInitialized": "外观上下文尚未初始化",
   "appearance": "外观",
+  "compactSSH": "紧凑 SSH 工作区",
   "terminalAndEditor": "终端与编辑器",
   "simplifiedChinese": "简体中文",
   "theme": "主题",

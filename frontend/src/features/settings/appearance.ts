@@ -22,6 +22,7 @@ export type Appearance = {
   accent?: 'blue' | 'green';
   uiFont: 'system' | 'yahei' | 'pingfang';
   uiZoom: number;
+  compactSSH: boolean;
   monoFont: 'system' | 'cascadia' | 'consolas' | 'jetbrains' | 'custom';
   customMonoFont: string;
   terminalPalette: keyof typeof terminalPalettes;
@@ -37,6 +38,7 @@ export const defaultAppearance: Appearance = {
   accent: 'blue',
   uiFont: 'system',
   uiZoom: 1,
+  compactSSH: false,
   monoFont: 'system',
   customMonoFont: '',
   terminalPalette: 'theme',
@@ -79,6 +81,7 @@ export function parseAppearance(value: string | null): Appearance {
       !Object.prototype.hasOwnProperty.call(monoFonts, settings.monoFont)) ||
     (settings.customMonoFont !== undefined && typeof settings.customMonoFont !== 'string') ||
     !Object.prototype.hasOwnProperty.call(terminalPalettes, settings.terminalPalette) ||
+    (settings.compactSSH !== undefined && typeof settings.compactSSH !== 'boolean') ||
     (settings.terminalLogHighlight !== undefined &&
       typeof settings.terminalLogHighlight !== 'boolean') ||
     (settings.terminalCopyOnSelect !== undefined &&
@@ -110,6 +113,7 @@ export function parseAppearance(value: string | null): Appearance {
     accent: settings.accent ?? defaultAppearance.accent,
     uiFont: settings.uiFont,
     uiZoom: settings.uiZoom ?? defaultAppearance.uiZoom,
+    compactSSH: settings.compactSSH ?? defaultAppearance.compactSSH,
     monoFont: settings.monoFont,
     customMonoFont: settings.customMonoFont ?? defaultAppearance.customMonoFont,
     terminalPalette: settings.terminalPalette,

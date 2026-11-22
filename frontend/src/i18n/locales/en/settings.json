@@ -59,6 +59,7 @@
   "couldNotZoomTheInterface": "Could not zoom the interface: {{value1}}",
   "appearanceContextIsNotInitialized": "Appearance context is not initialized",
   "appearance": "Appearance",
+  "compactSSH": "Compact SSH workspace",
   "terminalAndEditor": "Terminal and editor",
   "simplifiedChinese": "Simplified Chinese",
   "theme": "Theme",

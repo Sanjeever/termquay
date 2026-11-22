@@ -34,6 +34,7 @@ localStorage.setItem(
     ...defaultAppearance,
     language: parameters.get('language') === 'zh-CN' ? 'zh-CN' : 'en',
     theme: parameters.get('theme') === 'dark' ? 'dark' : 'light',
+    compactSSH: parameters.get('compactSSH') === 'true',
   }),
 );
 

@@ -164,6 +164,8 @@ Follow the [localization contract](architecture.md#localization-and-collaboratio
 
 The SSH workspace's left rail opens files, file transfers and snippets. The right rail opens monitoring, AI when enabled, port forwarding and Docker. Use Tab or arrow keys within each rail. Find **Pane layout**, focus mode and reconnect in the workspace header. Opening a file in a new workspace places the editor above the terminal. The [SSH workspace guide](development.zh-CN.md#ssh-工作区与本地终端) covers pane controls and reconnect behavior.
 
+Enable **Settings → Appearance → Compact SSH workspace** to reduce control height. New wide workspaces open monitoring beside the terminal. Existing and restored workspaces keep their panel choices. Use **Split right** or **Split down** in a single pane to open a new terminal. Narrow windows use drawers.
+
 Find browsing mode and directory following in the file header. With files selected, batch actions appear below the tree. **Settings → Appearance → Accent color** offers blue and green and preserves open sessions and editor state.
 
 Middle-click a workspace, tool or terminal/file tab to close it without first selecting it. Local split-pane headers support the same action. Unsaved-file and running-local-terminal confirmations still apply, and closing remains disabled while the existing save, restore or busy state blocks it. The fixed connection center cannot be closed.

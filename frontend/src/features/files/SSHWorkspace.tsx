@@ -74,6 +74,7 @@ import { SetWorkspaceBrowseOnly } from '../../../bindings/github.com/Sanjeever/t
 import useAISettings from '../ai/useAISettings';
 import { addAIReference } from '../ai/references';
 import type { Reference } from '../../../bindings/github.com/Sanjeever/termquay/internal/ai/models';
+import { useAppearance } from '../settings/AppearanceProvider';
 
 const TextDocument = lazy(() => import('./TextDocument'));
 const ImagePreview = lazy(() => import('./ImagePreview'));
@@ -467,7 +468,9 @@ const SSHWorkspace = forwardRef<
         ),
       ),
   );
-  const [monitorOpen, setMonitorOpen] = useState(initialLayout?.monitor_open ?? false);
+  const { appearance } = useAppearance();
+  const compact = appearance.compactSSH;
+  const [monitorOpen, setMonitorOpen] = useState(initialLayout?.monitor_open ?? compact);
   const aiSettings = useAISettings();
   const aiEnabled = !!aiSettings.settings?.enabled && !aiSettings.locked;
   const [aiOpen, setAIOpen] = useState(false);
@@ -673,8 +676,11 @@ const SSHWorkspace = forwardRef<
     setActivePane(target);
     requestAnimationFrame(() => focusTab(active));
   }
-  async function newTerminal(pane = split && splitDirection === 'rows' ? 1 : activePane) {
-    if (creating || restoring || terminals.length >= 16) return;
+  async function newTerminal(
+    pane = split && splitDirection === 'rows' ? 1 : activePane,
+    direction?: 'rows' | 'columns',
+  ) {
+    if (state !== 'connected' || creating || restoring || terminals.length >= 16) return;
     setCreating(true);
     try {
       const result = await CreateTerminal(sessionID);
@@ -685,6 +691,10 @@ const SSHWorkspace = forwardRef<
       terminalOwners.current.set(result.id, sessionID);
       setTerminals((prev) => [...prev, result.id]);
       if (pane === 1) {
+        if (direction) {
+          automaticSplit.current = false;
+          setSplitDirection(direction);
+        }
         setSplit(true);
         setSecondary((prev) => [...prev, result.id]);
       }
@@ -1357,7 +1367,7 @@ const SSHWorkspace = forwardRef<
   });
   return (
     <div
-      className="ssh-workspace"
+      className={compact ? 'ssh-workspace compact-ssh' : 'ssh-workspace'}
       onKeyDown={(event) => {
         if (
           event.key === 'Escape' &&
@@ -1631,6 +1641,7 @@ const SSHWorkspace = forwardRef<
             maximized={maximized}
             ratio={ratio}
             onRatio={setRatio}
+            tabHeight={compact ? 30 : undefined}
           >
             {terminals
               .filter((terminal) => tmuxBindings[terminal] && !tmuxAttached.current.has(terminal))
@@ -1670,10 +1681,15 @@ const SSHWorkspace = forwardRef<
                 column={panePosition(pane, true).gridColumn}
                 row={panePosition(pane, true).gridRow}
                 stacked={splitDirection === 'rows'}
-                creating={creating || restoring || terminals.length >= 16}
+                creating={state !== 'connected' || creating || restoring || terminals.length >= 16}
                 onSelect={activate}
                 onClose={closeTab}
                 onNew={() => void newTerminal(pane)}
+                onSplit={
+                  compact && !split && pane === 0
+                    ? (direction) => void newTerminal(1, direction)
+                    : undefined
+                }
               />
             ))}
             {terminals

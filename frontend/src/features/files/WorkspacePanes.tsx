@@ -9,6 +9,7 @@ export default function WorkspacePanes({
   maximized,
   ratio,
   onRatio,
+  tabHeight = 36,
   children,
 }: {
   split: boolean;
@@ -16,6 +17,7 @@ export default function WorkspacePanes({
   maximized: boolean;
   ratio: number;
   onRatio(value: number): void;
+  tabHeight?: number;
   children: ReactNode;
 }) {
   useTranslation();
@@ -25,12 +27,12 @@ export default function WorkspacePanes({
     const observer = new ResizeObserver(([entry]) =>
       setSize({
         width: Math.max(100, entry.contentRect.width),
-        height: Math.max(100, entry.contentRect.height - 72),
+        height: Math.max(100, entry.contentRect.height - 2 * tabHeight),
       }),
     );
     observer.observe(host.current!);
     return () => observer.disconnect();
-  }, []);
+  }, [tabHeight]);
   return (
     <div
       ref={host}
@@ -42,8 +44,8 @@ export default function WorkspacePanes({
             : 'minmax(0,1fr)',
         gridTemplateRows:
           split && !maximized && direction === 'rows'
-            ? `36px minmax(0,${ratio}fr) 5px 36px minmax(0,${100 - ratio}fr)`
-            : '36px minmax(0,1fr)',
+            ? `${tabHeight}px minmax(0,${ratio}fr) 5px ${tabHeight}px minmax(0,${100 - ratio}fr)`
+            : `${tabHeight}px minmax(0,1fr)`,
       }}
     >
       {children}

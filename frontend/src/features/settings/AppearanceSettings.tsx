@@ -113,6 +113,15 @@ export default function AppearanceSettings({
               ))}
             </SelectControl>
           </div>
+          <div className="settings-row">
+            <span id="compact-ssh-label">{translate('settings:compactSSH')}</span>
+            <Switch
+              size="sm"
+              aria-labelledby="compact-ssh-label"
+              isSelected={appearance.compactSSH}
+              onValueChange={(compactSSH) => update({ ...appearance, compactSSH })}
+            />
+          </div>
           {onDemo && (
             <div className="settings-row">
               <span id="appearance-demo-label">{translate('settings:demoMode')}</span>
@@ -312,6 +321,7 @@ export default function AppearanceSettings({
               theme: defaultAppearance.theme,
               uiFont: defaultAppearance.uiFont,
               uiZoom: defaultAppearance.uiZoom,
+              compactSSH: defaultAppearance.compactSSH,
             });
           else {
             update({

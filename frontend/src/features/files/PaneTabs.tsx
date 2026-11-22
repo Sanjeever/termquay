@@ -17,6 +17,7 @@ export default function PaneTabs({
   onSelect,
   onClose,
   onNew,
+  onSplit,
   newShortcut,
   closeShortcut,
 }: {
@@ -40,6 +41,7 @@ export default function PaneTabs({
   onSelect(id: string): void;
   onClose(id: string): void;
   onNew(): void;
+  onSplit?(direction: 'rows' | 'columns'): void;
   newShortcut: string;
   closeShortcut: string;
 }) {
@@ -142,6 +144,23 @@ export default function PaneTabs({
           <Icon name="plus" width="15" />
         </button>
       </Tooltip>
+      {onSplit &&
+        (['columns', 'rows'] as const).map((direction) => {
+          const label = translate(
+            direction === 'columns' ? 'terminal:splitTerminalRight' : 'terminal:splitTerminalDown',
+          );
+          return (
+            <Tooltip content={label} key={direction}>
+              <button aria-label={label} disabled={creating} onClick={() => onSplit(direction)}>
+                <Icon
+                  name="sidebar"
+                  width="14"
+                  style={direction === 'rows' ? { transform: 'rotate(90deg)' } : undefined}
+                />
+              </button>
+            </Tooltip>
+          );
+        })}
     </div>
   );
 }

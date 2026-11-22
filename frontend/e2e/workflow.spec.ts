@@ -277,7 +277,7 @@ async function fileWorkspace(page: Page) {
   return calls;
 }
 
-async function sshWorkflow(page: Page, language = 'en', autoForward = false) {
+async function sshWorkflow(page: Page, language = 'en', autoForward = false, compactSSH = false) {
   const calls: { method: number; args: unknown[] }[] = [];
   const forwards: unknown[] = [];
   const inputs: string[] = [];
@@ -387,7 +387,7 @@ async function sshWorkflow(page: Page, language = 'en', autoForward = false) {
   });
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(
-    `/e2e/workflow.html?scene=ssh&language=${language}&theme=${autoForward && language === 'zh-CN' ? 'dark' : 'light'}`,
+    `/e2e/workflow.html?scene=ssh&language=${language}&theme=${autoForward && language === 'zh-CN' ? 'dark' : 'light'}&compactSSH=${compactSSH}`,
   );
   await expect(page.locator('.file-panel [data-tree-path="/config"]')).toBeVisible();
   await expect.poll(() => sockets.length).toBe(2);
@@ -437,6 +437,41 @@ test('SSH file opening stacks the editor above the live terminal and layout chan
     'horizontal',
   );
   await page.screenshot({ path: test.info().outputPath('ssh-stacked-workspace.png') });
+});
+
+test('the compact SSH workspace shows its docks and splits from the focused pane', async ({
+  page,
+}) => {
+  await sshWorkflow(page, 'en', false, true);
+  const terminal = page.locator('.terminal-tab:visible .xterm');
+  await expect(terminal).toBeVisible();
+  const original = await terminal.elementHandle();
+  for (const width of [1280, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    const files = await page.locator('.file-dock').boundingBox();
+    const monitor = await page.locator('.monitor-dock').boundingBox();
+    const content = await terminal.boundingBox();
+    expect(files!.x + files!.width).toBeLessThan(content!.x);
+    expect(content!.x + content!.width).toBeLessThan(monitor!.x);
+  }
+  await page.screenshot({ path: test.info().outputPath('compact-ssh-workspace.png') });
+  await page.getByRole('button', { name: 'Split right', exact: true }).click();
+  await expect(terminal).toHaveCount(2);
+  await expect(page.getByRole('separator', { name: 'Split pane ratio' })).toHaveAttribute(
+    'aria-orientation',
+    'vertical',
+  );
+  expect(await terminal.first().evaluate((element, handle) => element === handle, original)).toBe(
+    true,
+  );
+  await page.setViewportSize({ width: 1000, height: 900 });
+  await expect(page.locator('.monitor-dock')).toBeHidden();
+  const monitoring = page.getByRole('button', { name: 'Monitoring', exact: true });
+  await monitoring.click();
+  await expect(page.locator('.monitor-dock')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.monitor-dock')).toBeHidden();
+  await expect(monitoring).toBeFocused();
 });
 
 test('file refresh keeps the selected directory and reads its branch without reading root', async ({
