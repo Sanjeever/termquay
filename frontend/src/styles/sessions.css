@@ -592,6 +592,28 @@
   width: 26px;
   height: 24px;
 }
+.terminal-quick-input {
+  inline-size: min(420px, calc(100vw - 24px));
+  padding: 10px;
+  gap: 8px;
+}
+.terminal-quick-input textarea {
+  inline-size: 100%;
+  resize: vertical;
+  max-block-size: 40vh;
+  padding: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-background);
+  color: var(--color-text);
+  font: 12px/1.5 var(--font-mono);
+}
+.terminal-quick-input-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  inline-size: 100%;
+}
 .terminal-search {
   display: flex;
   flex-wrap: wrap;

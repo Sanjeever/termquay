@@ -12,10 +12,12 @@ export default function SnippetInsertDialog({
   snippet,
   onInsert,
   onClose,
+  draft = false,
 }: {
   snippet: Snippet;
   onInsert(text: string): boolean;
   onClose(): void;
+  draft?: boolean;
 }) {
   useTranslation();
   const names = snippetParameters(snippet.body);
@@ -72,7 +74,7 @@ export default function SnippetInsertDialog({
               else setError(uiMessage('terminal:currentTerminalIsNotInteractiveCloseThisDialog'));
             }}
           >
-            {translate('terminal:insertIntoCurrentTerminal')}
+            {translate(draft ? 'terminal:addToQuickInput' : 'terminal:insertIntoCurrentTerminal')}
           </Button>
         </ModalFooter>
       </ModalContent>

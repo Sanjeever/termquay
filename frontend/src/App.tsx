@@ -234,6 +234,10 @@ export default function App() {
   const [palette, setPalette] = useState(false);
   const [paletteScope, setPaletteScope] = useState<'all' | CommandKind>('all');
   const [paletteQuery, setPaletteQuery] = useState('');
+  const [paletteDraftTarget, setPaletteDraftTarget] = useState<{
+    workspace: string;
+    terminal: string;
+  }>();
   const recentWorkspaces = useRef<string[]>([]);
   useEffect(() => {
     if (active)
@@ -248,6 +252,7 @@ export default function App() {
     snippet: Snippet;
     workspace: string;
     terminal: string;
+    draft?: boolean;
   }>();
   const [fileCompareOpen, setFileCompareOpen] = useState(false);
   const [filesTab, setFilesTab] = useState(false);
@@ -869,6 +874,7 @@ export default function App() {
       return;
     if (!demoScene) beginPreview();
     setPalette(false);
+    setPaletteDraftTarget(undefined);
     selectDemoScene(scene);
   }
   function selectDemoScene(scene: DemoScene) {
@@ -2138,7 +2144,15 @@ export default function App() {
           run: () => {
             const target = current?.local ? current.id : current?.ssh?.current?.insertionTarget();
             if (target && current)
-              setSnippetInsert({ snippet, workspace: current.id, terminal: target });
+              setSnippetInsert({
+                snippet,
+                workspace: current.id,
+                terminal:
+                  paletteDraftTarget?.workspace === current.id
+                    ? paletteDraftTarget.terminal
+                    : target,
+                draft: paletteDraftTarget?.workspace === current.id,
+              });
           },
         }))
       : []),
@@ -2721,7 +2735,8 @@ export default function App() {
                     onTransfers={(directory, selected) =>
                       openFileTransfers(w.sessionID, directory, selected)
                     }
-                    onSnippets={() => {
+                    onSnippets={(terminal) => {
+                      setPaletteDraftTarget(terminal ? { workspace: w.id, terminal } : undefined);
                       setPaletteScope('command');
                       setPaletteQuery(translate('common:insertSnippet2'));
                       setPalette(true);
@@ -3112,6 +3127,7 @@ export default function App() {
                 onClose={() => {
                   setPalette(false);
                   setPaletteQuery('');
+                  setPaletteDraftTarget(undefined);
                 }}
                 error={snippetError}
               />
@@ -3119,12 +3135,15 @@ export default function App() {
             {snippetInsert && (
               <SnippetInsertDialog
                 snippet={snippetInsert.snippet}
+                draft={snippetInsert.draft}
                 onClose={() => setSnippetInsert(undefined)}
                 onInsert={(text) =>
                   active === snippetInsert.workspace &&
-                  (current?.local
-                    ? !!current.local.terminal.current?.insert(text)
-                    : !!current?.ssh?.current?.insert(text, snippetInsert.terminal))
+                  (snippetInsert.draft
+                    ? !!current?.ssh?.current?.appendQuickInput(text, snippetInsert.terminal)
+                    : current?.local
+                      ? !!current.local.terminal.current?.insert(text)
+                      : !!current?.ssh?.current?.insert(text, snippetInsert.terminal))
                 }
               />
             )}

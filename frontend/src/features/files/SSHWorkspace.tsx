@@ -93,6 +93,7 @@ export type SSHWorkspaceHandle = {
   recoveryDrafts(): RecoveryDraftInput[] | null;
   insertionTarget(): string;
   insert(text: string, target: string): boolean;
+  appendQuickInput(text: string, target: string): boolean;
   focus(): void;
   saveAll(): Promise<boolean>;
   prepareReconnect(): Promise<boolean>;
@@ -127,7 +128,7 @@ const SSHWorkspace = forwardRef<
     onCancelReconnect(): void;
     onDocker?(): void;
     onTransfers?(directory: string, selected: string[]): void;
-    onSnippets(): void;
+    onSnippets(draftTerminal?: string): void;
     busy: boolean;
   }
 >(function SSHWorkspace(
@@ -1248,6 +1249,10 @@ const SSHWorkspace = forwardRef<
     insertionTarget: () => (terminalHandles.current.has(active) ? active : ''),
     insert: (text, target) =>
       target === active ? terminalHandles.current.get(target)?.insert(text) || false : false,
+    appendQuickInput: (text, target) =>
+      target === active && terminalOwners.current.get(target) === sessionID
+        ? terminalHandles.current.get(target)?.appendQuickInput?.(text) || false
+        : false,
     focus: () => focusTab(),
     showFiles,
     locateDirectory: (path) => {
@@ -1554,7 +1559,7 @@ const SSHWorkspace = forwardRef<
               label: translate('common:insertSnippet2').trim(),
               icon: 'code',
               disabled: state !== 'connected' || !terminals.includes(active),
-              onClick: onSnippets,
+              onClick: () => onSnippets(),
             },
           ]}
         />
@@ -1732,6 +1737,13 @@ const SSHWorkspace = forwardRef<
                     onSnippets={() => {
                       setActive(terminal);
                       onSnippets();
+                    }}
+                    quickInputAvailable={
+                      state === 'connected' && terminalOwners.current.get(terminal) === sessionID
+                    }
+                    onQuickInputSnippets={() => {
+                      setActive(terminal);
+                      onSnippets(terminal);
                     }}
                     onAttention={(value) =>
                       setAttention((previous) =>

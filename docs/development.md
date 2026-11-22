@@ -182,6 +182,8 @@ Turn on **Follow terminal directory** to use reports from the active terminal. I
 
 **Save and validate** saves the draft before running the configured validation command. If the command is missing, it opens configuration without saving. Reload requires successful validation and separate confirmation. See the [editor guide](development.zh-CN.md#文件编辑) for ordinary Save, health checks, and disconnect behavior.
 
+Use **Quick input** to edit a command draft or add a reviewed snippet. **Insert into terminal** puts the draft in the terminal for you to run with Enter. Multiline drafts use the paste preview. Cancelling the preview keeps the draft. The draft stays in memory until insertion or terminal closure.
+
 In **Port forwarding**, choose **New** and review the route before starting. Local and dynamic forwards listen on this computer. Remote forwards listen on the SSH host. Closing the panel retains the draft and running tunnels. See the [SSH workspace guide](development.zh-CN.md#ssh-工作区与本地终端) for presets, listener options and route details.
 
 Open **Tools → File transfers** or use **Open in file transfers** from the file menu. Choose a local or connected SSH endpoint on each side, then preview the direction and select what to copy. The task list expands on submission. The status bar opens the task list in this tool or the global task panel elsewhere. Admitted transfers continue after the tool closes. The [file guide](development.zh-CN.md#远端文件与传输) covers disconnects, comparison, resume and cleanup.

@@ -705,6 +705,44 @@ test('directory list reuses the file panel and browsing pauses terminal followin
   await expect(page.locator('.cm-content')).toContainText('original file');
 });
 
+test('quick input keeps its draft with the originating terminal and previews multiline text', async ({
+  page,
+}) => {
+  const ssh = await sshWorkflow(page);
+  const quickInput = page.getByRole('button', { name: 'Quick input', exact: true });
+  const draft = page.getByRole('textbox', { name: 'Command draft', exact: true });
+  const insert = page.getByRole('button', { name: 'Insert into terminal', exact: true });
+  await quickInput.click();
+  await draft.fill('pwd\nwhoami');
+  await page.screenshot({ path: test.info().outputPath('ssh-quick-input.png') });
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'New terminal in Main pane', exact: true }).click();
+  await expect(page.getByRole('tab', { name: 'Terminal 2', exact: true })).toBeVisible();
+  await quickInput.click();
+  await expect(draft).toHaveValue('');
+  await page.keyboard.press('Escape');
+  await page.getByRole('tab', { name: 'Terminal 1', exact: true }).click();
+  await page.getByRole('button', { name: 'Lock input', exact: true }).click();
+  await quickInput.click();
+  await expect(draft).toHaveValue('pwd\nwhoami');
+  await expect(insert).toBeDisabled();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: /unlock/i }).click();
+  await quickInput.click();
+  await insert.click();
+  await expect(page.getByRole('dialog')).toContainText('whoami');
+  expect(ssh.inputs.join('')).not.toContain('whoami');
+  await page.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true }).click();
+  await quickInput.click();
+  await expect(draft).toHaveValue('pwd\nwhoami');
+  await draft.fill('pwd');
+  await insert.click();
+  await expect.poll(() => ssh.inputs.join('')).toContain('pwd');
+  expect(ssh.inputs.join('')).not.toContain('\r');
+  await quickInput.click();
+  await expect(draft).toHaveValue('');
+});
+
 test('directory setup stays compact in Chinese at narrow widths', async ({ page }) => {
   await sshWorkflow(page, 'zh-CN');
   await page.getByRole('button', { name: '跟随终端目录', exact: true }).click();

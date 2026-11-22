@@ -30,8 +30,10 @@ import {
   ModalHeader,
   ModalBody,
   ModalFooter,
+  PopoverContent,
+  PopoverTrigger,
 } from '@heroui/react';
-import { Dropdown } from '../../components/Popover';
+import { Dropdown, Popover } from '../../components/Popover';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { SearchAddon } from '@xterm/addon-search';
@@ -98,6 +100,7 @@ import { addWebGLRenderer } from './webglRenderer';
 
 const CommandIndexDialog = lazy(() => import('./CommandIndexDialog'));
 const RecordingPlayer = lazy(() => import('./RecordingPlayer'));
+const quickInputLimit = 65536;
 
 export type TerminalAction =
   | 'lineBreak'
@@ -117,6 +120,7 @@ export type TerminalHandle = {
   focus(): void;
   action(action: TerminalAction): void;
   insert(text: string): boolean;
+  appendQuickInput?(text: string): boolean;
 };
 const TerminalView = forwardRef<
   TerminalHandle,
@@ -144,6 +148,8 @@ const TerminalView = forwardRef<
     onActivate?(): void;
     onAIReference?(reference: Reference): void;
     onSnippets(): void;
+    onQuickInputSnippets?(): void;
+    quickInputAvailable?: boolean;
     onDirectory?(path: string, host: string): void;
     onDirectoryStatus?(status: 'waiting' | 'inserted'): void;
     onFile?(path: string, line: number): void;
@@ -174,6 +180,8 @@ const TerminalView = forwardRef<
     onActivate,
     onAIReference,
     onSnippets,
+    onQuickInputSnippets,
+    quickInputAvailable = false,
     onDirectory,
     onDirectoryStatus,
     onFile,
@@ -238,7 +246,17 @@ const TerminalView = forwardRef<
   const [paste, setPaste] = useState<string>();
   const [confirmMultilinePaste, setConfirmMultilinePaste] = useState(true);
   const [unreadOutput, setUnreadOutput] = useState(false);
-  const pendingPaste = useRef<string>();
+  const pendingPaste = useRef<{ text: string; onInserted?(): void }>();
+  const [quickInputOpen, setQuickInputOpen] = useState(false);
+  const [quickInput, setQuickInput] = useState('');
+  useEffect(() => {
+    if (visible) return;
+    setQuickInputOpen(false);
+    if (pendingPaste.current?.onInserted) {
+      pendingPaste.current = undefined;
+      setPaste(undefined);
+    }
+  }, [visible]);
   const [locked, setLocked] = useState(false);
   const inputLocked = useRef(false);
   function toggleInputLock() {
@@ -588,15 +606,19 @@ const TerminalView = forwardRef<
     setIntegrationOpen(true);
   }
   function confirmPaste() {
-    if (inputLocked.current) return;
-    const text = pendingPaste.current;
-    if (text === undefined) return;
+    const pending = pendingPaste.current;
+    if (!pending) return;
+    if (pending.onInserted && (!visible || !quickInputAvailable)) return;
+    if (!insert(pending.text, false, pending.onInserted)) return;
     pendingPaste.current = undefined;
-    terminal.current?.paste(text);
     setPaste(undefined);
     terminal.current?.focus();
   }
-  function insert(text: string, confirm = !local || confirmMultilinePaste): boolean {
+  function insert(
+    text: string,
+    confirm = !local || confirmMultilinePaste,
+    onInserted?: () => void,
+  ): boolean {
     if (inputLocked.current) {
       reportError('input', translate('terminal:terminalInputLocked'));
       return false;
@@ -611,7 +633,8 @@ const TerminalView = forwardRef<
       return false;
     }
     const stream = inputStream.current;
-    if (!stream || stream.readyState !== stream.OPEN) {
+    const term = terminal.current;
+    if (!term || !stream || stream.readyState !== stream.OPEN) {
       reportError('input', translate('terminal:terminalDisconnected'));
       return false;
     }
@@ -622,10 +645,36 @@ const TerminalView = forwardRef<
     clearError('input');
     completion.dismiss();
     if (/[\r\n]/.test(text) && confirm) {
-      pendingPaste.current = text;
+      pendingPaste.current = { text, onInserted };
       setPaste(text);
-    } else terminal.current?.paste(text);
+    } else {
+      term.paste(text);
+      onInserted?.();
+    }
     return true;
+  }
+  function appendQuickInput(text: string) {
+    if (!quickInputAvailable || !visible || !connected || inputLocked.current) return false;
+    const next = quickInput ? `${quickInput}\n${text}` : text;
+    if (next.length > quickInputLimit) return false;
+    setQuickInput(next);
+    setQuickInputOpen(true);
+    return true;
+  }
+  function insertQuickInput() {
+    if (!quickInputAvailable || !visible || !connected || inputLocked.current || !quickInput.trim())
+      return;
+    // oxlint-disable-next-line eslint/no-control-regex -- The draft is text; terminal control bytes are separate user actions.
+    if (/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]/.test(quickInput)) {
+      reportError('quick-input', uiMessage('terminal:quickInputControlCharacters'));
+      return;
+    }
+    const text = quickInput;
+    if (!insert(text, true, () => setQuickInput((current) => (current === text ? '' : current))))
+      return;
+    clearError('quick-input');
+    setQuickInputOpen(false);
+    if (!pendingPaste.current) requestAnimationFrame(() => terminal.current?.focus());
   }
   function action(name: TerminalAction) {
     const term = terminal.current;
@@ -693,6 +742,7 @@ const TerminalView = forwardRef<
     if (name !== 'find' && name !== 'paste') term.focus();
   }
   useImperativeHandle(ref, () => ({
+    appendQuickInput,
     action,
     insert,
     focus: () => terminal.current?.focus(),
@@ -1218,12 +1268,72 @@ const TerminalView = forwardRef<
     >
       <TerminalTools host={toolbarHost} visible={showTools}>
         <div className="terminal-tools">
+          {onQuickInputSnippets && (
+            <Popover
+              placement="bottom-end"
+              isOpen={visible && quickInputOpen}
+              onOpenChange={setQuickInputOpen}
+            >
+              <PopoverTrigger>
+                <button
+                  className="icon-button"
+                  title={translate('terminal:quickInput')}
+                  aria-label={translate('terminal:quickInput')}
+                >
+                  <Icon name="code" width="15" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                className="terminal-quick-input"
+                aria-label={translate('terminal:quickInput')}
+              >
+                <textarea
+                  autoFocus
+                  aria-label={translate('terminal:commandDraft')}
+                  rows={4}
+                  maxLength={quickInputLimit}
+                  spellCheck={false}
+                  value={quickInput}
+                  onChange={(event) => {
+                    clearError('quick-input');
+                    setQuickInput(event.target.value);
+                  }}
+                />
+                {(error?.source === 'quick-input' || error?.source === 'input') && (
+                  <p className="error" role="alert">
+                    {errorMessage(error.message)}
+                  </p>
+                )}
+                <div className="terminal-quick-input-actions">
+                  <Button
+                    size="sm"
+                    variant="light"
+                    isDisabled={!quickInputAvailable || !connected || locked}
+                    onPress={() => {
+                      setQuickInputOpen(false);
+                      onQuickInputSnippets();
+                    }}
+                  >
+                    {translate('terminal:commandSnippets')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    color="primary"
+                    isDisabled={!quickInputAvailable || !connected || locked || !quickInput.trim()}
+                    onPress={insertQuickInput}
+                  >
+                    {translate('terminal:insertIntoTerminal')}
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
           {demoOutput === undefined && (!local || locked) && (
             <button className="session-tool" aria-pressed={locked} onClick={toggleInputLock}>
               {locked ? translate('terminal:inputLockedUnlock') : translate('terminal:lockInput')}
             </button>
           )}
-          {!containerConsole && (
+          {!containerConsole && !onQuickInputSnippets && (
             <Tooltip content={translate('terminal:commandSnippets')}>
               <button
                 className="icon-button"
@@ -1912,6 +2022,7 @@ const TerminalView = forwardRef<
             <pre className="paste-preview" ref={pastePreviewRef}>
               {paste}
             </pre>
+            {error?.source === 'input' && <ErrorNotice message={errorMessage(error.message)} />}
           </ModalBody>
           <ModalFooter>
             <Button
