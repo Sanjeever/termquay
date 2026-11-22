@@ -24,7 +24,7 @@ Choose context relevant to the task:
 - Read affected code and direct callers before editing. Make focused changes that solve the task completely. Avoid unrelated refactoring, formatting, dependency upgrades and speculative architecture.
 - Preserve existing user changes. Read reference projects only when their paths are available; never modify them or inherit plaintext credential/backup designs.
 - Expose real failures. Do not mask incomplete behavior with fake data, silent fallbacks, swallowed errors, retries, disabled identity verification or invented defaults.
-- The application version comes from `frontend/package.json`; `scripts/version.mjs` synchronizes platform resources. Before an authorized bump, write `docs/releases/<version>.md` and commit it with version files. Publishing and updates reuse that log. Database and backup format versions are independent.
+- Follow the [release procedure](docs/development.md#versions-and-releases) for authorized version changes, platform resource synchronization and release logs.
 
 ## Code style and quality
 
@@ -39,7 +39,7 @@ Choose context relevant to the task:
 
 - Use [doc-writing](.agents/skills/doc-writing/SKILL.md) when creating, changing, or auditing documentation. Verify claims against current sources and behavior. Give each fact one authoritative home and link to it from other entry points.
 - Review completed documentation with [prose-standard](.agents/skills/prose-standard/SKILL.md). Run [trim-cot-leakage](.agents/skills/trim-cot-leakage/SKILL.md) on formal documentation to remove authoring-session references while retaining rationale and evidence.
-- API, event, error, behavior, configuration, and default changes require checking related documentation, translations, examples, CLI help, tests, and generated interfaces. Report documentation impact, including why no prose change is needed when applicable.
+- In the same change as an API, event, error, configuration, default or behavior update, check affected README and guide sections in both languages, source comments, examples, CLI help and the distributed skill. Update affected text and check translations, tests and generated interfaces. Link to code, schemas or manifests for exact values. Summarize what changed or why the existing text still applies.
 - Investigate conflicts between behavior and design contracts. Obtain confirmation before changing substantial contracts.
 
 ## Credentials and remote operations

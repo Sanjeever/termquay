@@ -4,7 +4,7 @@
 
 TermQuay is an open source desktop workbench for SSH, local terminals and RDP. Organize saved connections without a commercial count limit, edit remote files and inspect Linux hosts from the same workspace.
 
-Available for macOS, Windows and Linux. Download the appropriate archive from [GitHub Releases](https://github.com/Sanjeever/termquay/releases). Check [runtime prerequisites](docs/development.md#packaged-desktop) and the [recorded verification limits](docs/development.md#verification-and-known-gaps).
+Download the macOS, Windows or Linux archive from [GitHub Releases](https://github.com/Sanjeever/termquay/releases). See the [runtime prerequisites](docs/development.md#packaged-desktop) and [recorded verification limits](docs/development.md#verification-and-known-gaps).
 
 ## Interface languages
 
@@ -21,7 +21,7 @@ Choose **Settings → Appearance → Language** to follow the system or select E
 ## Features
 
 - **Connections** — groups, filters, configuration imports, connection playbooks, encrypted credentials and master password protection.
-- **[SSH and local terminals](docs/development.md#using-the-workbench)** — jump hosts, SOCKS5, port forwarding, reconnect, diagnostics and [local pane layouts](docs/development.md#local-terminal-workspaces).
+- **[SSH and local terminals](docs/development.md#using-the-workbench)** — multi-pane workspaces, jump hosts, SOCKS5, port forwarding, reconnect and diagnostics.
 - **Files and transfers** — a dedicated dual-pane transfer tab for local/remote and cross-host copies, search, batch transfers, explicit resume, directory sync and comparisons.
 - **Remote editing** — encodings and line endings, completion, conflict merging, encrypted version history and explicit validation/reload commands. Preview Markdown and common image formats.
 - **Terminal tools** — snippets, shell completion, tmux, recording/playback, background multi-host tasks, inspections and result comparisons.
@@ -50,7 +50,7 @@ Omit `-g` for a project installation. Specify `--skill termquay` to avoid instal
 <a id="界面预览"></a>
 ## Screenshots
 
-These screenshots show the English interface in browser [demo mode](docs/development.md#using-the-workbench).
+These screenshots show the English interface in browser demo mode. See [workspace controls](docs/development.md#using-the-workbench) for current layouts and tool placement.
 
 ![Connection center with groups, protocol filters and latency probes](docs/images/screenshots/connection-center-en.png)
 

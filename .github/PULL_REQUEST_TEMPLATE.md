@@ -8,4 +8,4 @@ List checks actually run and their scope. Distinguish unit/local integration, br
 
 ## Related impact
 
-Mention affected documentation, translations, generated bindings or security/lifecycle contracts when relevant. Remove secrets and sensitive output before submitting.
+Report documentation impact using the [documentation synchronization rules](../AGENTS.md#documentation-consistency). Mention affected translations, generated bindings and security or lifecycle contracts. Remove secrets and sensitive output before submitting.

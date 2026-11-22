@@ -67,7 +67,7 @@ The root [package.json](../package.json) defines the following entry points.
 | `pnpm test:ui` | Run the Chromium layout and editor-state regressions |
 | `pnpm verify` | Check docs links and formatting, run frontend lint/build, Go vet, script/frontend/Go tests and browser regressions |
 
-Arguments are passed through, for example `pnpm build ARCH=arm64` or `pnpm task darwin:package:universal`. Packaging prerequisites still come from the [platform tasks](../build); builds can update Go modules and generated bindings, so inspect the resulting diff. The `frontend` package's `dev` script remains the Vite entry point used by Wails.
+Arguments pass through to Wails. Use `pnpm task darwin:package:universal` on macOS to build a universal bundle. See the [platform tasks](../build) for packaging prerequisites. Builds can update Go modules and generated bindings, so inspect the resulting diff.
 
 <a id="日常修改与验证"></a>
 ## Changes and checks
@@ -164,27 +164,21 @@ Follow the [localization contract](architecture.md#localization-and-collaboratio
 
 The SSH workspace's left rail opens files, file transfers and snippets. The right rail opens monitoring, AI when enabled, port forwarding and Docker. Use Tab or arrow keys within each rail. Find **Pane layout**, focus mode and reconnect in the workspace header.
 
-Opening a file in a new workspace places the editor above the terminal. **Pane layout** can rearrange open tabs into stacked or side-by-side panes, an editor above two terminals, or a four-pane grid. Use a pane's **+** to open another terminal. Layout changes retain terminal instances and editor drafts. Restored workspaces keep saved positions and ratios and start disconnected. The [SSH workspace guide](development.zh-CN.md#ssh-工作区与本地终端) covers pane controls and reconnect behavior.
+With the automatic layout, the first file opened in a new SSH workspace appears above the terminal. **Pane layout** rearranges open tabs into stacked or side-by-side panes, an editor above two terminal panes, or a four-pane grid. Use a pane's **+** to open another terminal. Layout changes retain terminal instances and editor drafts. Restored workspaces start disconnected. See [pane controls and reconnect](development.zh-CN.md#ssh-工作区与本地终端) and the [layout compatibility contract](architecture.md#communication-backpressure-and-lifecycle).
 
-Enable **Settings → Appearance → Compact SSH workspace** to reduce control height. With this setting, new wide workspaces open monitoring beside the terminal. Existing and restored workspaces keep their panel choices. Use **Split right** or **Split down** in a single pane to open a new terminal. Narrow windows use drawers.
+Enable **Settings → Appearance → Compact SSH workspace** for shorter controls and direct split buttons. New wide workspaces show monitoring. Narrow windows use drawers. See [compact layout controls](development.zh-CN.md#ssh-工作区与本地终端).
 
-Find browsing mode and directory following in the file header. With files selected, batch actions appear below the tree. **Settings → Appearance → Accent color** offers blue and green and preserves open sessions and editor state.
-
-**Directory list** switches the file panel to the current directory, with sortable name, size and modification time. Double-click a directory or press Enter to open it. The list shares path navigation, bookmarks and file actions with the tree. Manual navigation pauses terminal following, which can be resumed from the file header.
+The file header offers browsing mode, terminal directory following and **Directory list**. Use the list to sort and browse the current directory. For refresh, creation, selection and copy/paste, see [remote files and transfers](development.zh-CN.md#远端文件与传输).
 
 Middle-click a workspace, tool or terminal/file tab to close it without first selecting it. Local split-pane headers support the same action. Unsaved-file and running-local-terminal confirmations still apply, and closing remains disabled while the existing save, restore or busy state blocks it. The fixed connection center cannot be closed.
 
 Use **Connect** in a catalog row to open or locate its workspace. Use the header settings to show, hide and resize columns on this device. Address and port sort separately. The address action copies the host name or IP and preserves selection. Narrow catalogs scroll horizontally.
 
-Select a directory name to expand it and use it for file operations. Press F5 in the file panel to refresh the branch and expanded descendants. Use **New → File / Folder** to create an item. Enter submits the name and Escape cancels. The [file guide](development.zh-CN.md#远端文件与传输) covers refresh, creation, file browsing mode and keyboard navigation.
-
-Use **Copy / Paste** on ordinary files and directories, including empty ones, in the same or another connected SSH workspace. Review the preview before executing. Existing destinations default to Skip. Overwrite merges directories and replaces matching regular files while retaining unrelated destination files. See the [file guide](development.zh-CN.md#远端文件与传输) for naming, conflict acknowledgement and local clipboard uploads.
-
-Turn on **Follow terminal directory** to use reports from the active terminal. If the panel is waiting for a report, choose **Enable directory reporting**, select the running shell and review the script. Insert it and press Enter at an empty prompt. The hook lasts for that shell session. Reconnect requires a fresh report.
+**Follow terminal directory** uses reports from the active terminal. If the panel is waiting for a report, use **Enable directory reporting** to set up the current shell. See [directory following](development.zh-CN.md#远端文件与传输).
 
 **Save and validate** saves the draft before running the configured validation command. If the command is missing, it opens configuration without saving. Reload requires successful validation and separate confirmation. See the [editor guide](development.zh-CN.md#文件编辑) for ordinary Save, health checks, and disconnect behavior.
 
-Use **Quick input** to edit a command draft or add a reviewed snippet. **Insert into terminal** puts the draft in the terminal for you to run with Enter. Multiline drafts use the paste preview. Cancelling the preview keeps the draft. The draft stays in memory until insertion or terminal closure.
+Use **Quick input** to edit a command draft or add a reviewed snippet. A single-line draft awaits Enter at a shell prompt after insertion. Multiline drafts open a paste preview. Cancelling keeps the draft. Confirming can submit lines when bracketed paste is inactive. See the [multiline insertion discrepancy](#ssh-quick-input-multiline-confirmation).
 
 In **Port forwarding**, choose **New** and review the route before starting. Local and dynamic forwards listen on this computer. Remote forwards listen on the SSH host. Closing the panel retains the draft and running tunnels. See the [SSH workspace guide](development.zh-CN.md#ssh-工作区与本地终端) for presets, listener options and route details.
 
@@ -194,7 +188,7 @@ Open **Tools → File transfers** or use **Open in file transfers** from the fil
 - **Identity and credentials:** verify new fingerprints/certificates against a trusted source. Changed identities block connection. Review legitimate changes in identity settings. Shared credential updates require reviewing the affected connection set.
 - **Storage and lock:** explicitly choose master password/session storage if the system keychain is unavailable. Connection metadata is not whole-database encrypted. Application lock blocks new interaction while existing sessions/tasks can continue. Forgotten passwords require an independent backup.
 - **Files:** enable file browsing mode to block new file writes in that SSH workspace. It does not restrict terminal/task commands or cancel operations already started. Upload is in the file panel's options menu; bookmarks and paste use named icon buttons. Saving checks the remote baseline and preserves drafts on conflict. The editor toolbar shows save state; encoding and line endings are in its status bar. Reload, download and manual completion are in editor options. Recovery actions follow the failed operation, and draft-download errors remain separate from remote save errors. Encoding, history recovery, sudo authorization, validation and reload are separate decisions.
-- **Transfers:** preview conflicts and selected differences. The panel groups tasks by batch, actual target and direction; finished entries can be expanded while running and failed entries stay visible. Resume and staging cleanup have separate confirmation flows. Removing a record works offline and leaves staging files; confirm the loss of resume data before removal. Explicit cleanup removes staging first and retains the record on failure. Resume explicitly after reconnecting to the same verified destination. Directory sync does not delete extra destination files. See the [transfer lifecycle contract](architecture.md#communication-backpressure-and-lifecycle).
+- **Transfers:** preview conflicts and select differences before copying. Resume, record removal and staging cleanup are separate actions. See the [transfer lifecycle contract](architecture.md#communication-backpressure-and-lifecycle) for the effect of each action.
 - **Terminal tools:** snippets await explicit insertion; completion integration is enabled per shell session. Multi-host steps use separate shells. Review the first-host confirmation before continuing. Saved run results are locally encrypted and excluded from regular backups.
 - **Local terminals:** use the fixed **+** beside the workspace tabs or **Local terminal** in the connection center. The adjacent menu selects a shell, opens a native directory picker or reuses a recent directory. New local tabs inherit the selected local shell's directory. macOS/Linux query the shell process on demand; local OSC 7 reports update labels and supply the confirmed directory on other platforms. Without either source, the launch directory remains the baseline. Remote-host reports are ignored. Tabs show directory names and distinguishing parent paths; manual names survive directory changes. Recent launch directories stay on this device, outside backups. WSL retains its Linux home by default and accepts explicitly selected Windows directories; WSL OSC paths are not mapped to native directories.
 - **Terminal fonts:** under **Settings → Terminal and editor → Monospace font → Custom**, enter the family name of a font installed on this computer, for example `JetBrainsMono Nerd Font Mono`. Nerd Font Mono families provide fixed-width icons for prompts such as Powerlevel10k. The preference applies to terminals, editors and the settings preview, persists locally and travels with UI settings backups. All presets and custom-font fallbacks provide explicit local CJK fonts when the selected font lacks Chinese glyphs, retaining the chosen Latin monospace font. The platform fallback chains live in [appearance.ts](../frontend/src/features/settings/appearance.ts); the app does not download fonts. Font changes preserve open sessions and editor drafts/history.
@@ -204,7 +198,7 @@ Open **Tools → File transfers** or use **Open in file transfers** from the fil
 - **Language/demo:** choose **Settings → Appearance → Language**. Demo mode uses isolated in-memory data while real workspaces remain mounted. Demo results do not prove remote behavior.
 - **Backups:** encryption passwords are separate from WebDAV login passwords. Explicitly include credentials when needed. Full replacement removes the local credential set even when the snapshot has none. Restored tunnel auto-start is paused; reselect local private key files and verify sync paths.
 
-AI turns continue beyond a fixed tool-call count while their runtime budget allows. Near budget exhaustion or after repeated identical tool failures, the assistant stops tools and requests a text-only summary within the remaining budget. Review the results before sending a new question. Summary failure is reported; stopping, locking or disconnecting cancels it. Batch parsing limits, output/context/history bounds and individual command approvals still apply. See [AI ownership and budgets](architecture.md#ai-ownership-and-approvals).
+See [AI ownership and approvals](architecture.md#ai-ownership-and-approvals) for run budgets, repeated failure handling and command approvals.
 
 **Terminal shortcuts:** **Settings → Keyboard shortcuts → WezTerm** applies the supported Control-based bindings for new local tabs, tab switching/search, copy/paste, close, find and font size. Existing custom bindings stay until explicitly replaced. Control and Command are distinct on macOS. New local terminals and new terminals inside SSH workspaces have separate actions. Terminal search starts with the current selection.
 
@@ -272,12 +266,12 @@ termquay status --json --no-input
 
 Before business commands, check that the status response has no `error`, `data.running=true`, `data.compatible=true`, `data.enabled=true` and `data.locked=false`. Disabled or locked status can still exit with code zero. Open the desktop to initialize or unlock storage if the response reports `storage_unavailable`.
 
-Discover the SSH workspace and match its `id`, `connection_id`, `target` and `state`. Saved connections do not establish reachability. Use the exact ID of a connected workspace. Substitute real values for the placeholders below.
+Discover the SSH workspace and match its `id`, `connection_id`, `target` and `state`. Use the exact ID of a connected workspace. Substitute absolute paths on that host, using a known text file for `file read`.
 
 ```sh
 termquay workspace list --json --no-input
-termquay file list --workspace '<exact-workspace-id>' --path /tmp --json --no-input
-termquay file read --workspace '<exact-workspace-id>' --path '<absolute-text-file-path>' --json --no-input
+termquay file list --workspace '<exact-workspace-id>' --path '<absolute-remote-directory>' --json --no-input
+termquay file read --workspace '<exact-workspace-id>' --path '<absolute-remote-text-file>' --json --no-input
 ```
 
 Use `termquay --help` to discover catalog, service, port, container, task and run queries and `termquay <command> --help` for arguments. Repository definitions are in [CLI help](../internal/cli/help.go) and the [IPC protocol](../internal/localapi/protocol.go).
@@ -309,7 +303,7 @@ Real tests opt in through securely injected process settings. Never put real val
 | [`TestSG1Workflow*`](../internal/app/ssh_workflow_integration_test.go) | Host, port, username and verified fingerprint above, plus `TERMQUAY_TEST_PRIVATE_KEY_PATH` pointing to an unencrypted test private key; no password required |
 | [`TestRealWebDAV`](../internal/backup/webdav_test.go) | `TERMQUAY_WEBDAV_URL`, `TERMQUAY_WEBDAV_USERNAME`, `TERMQUAY_WEBDAV_PASSWORD`, `TERMQUAY_WEBDAV_DIRECTORY` for an existing isolated writable collection; creates and cleans a unique child collection |
 
-Independently verify the target fingerprint. File tests create and clean their own `/tmp/termquay-*` directories. Do not change system/SSH/services/business files or install remote tools. Some workflow cases require existing sudo/tmux/Docker permissions. Follow [remote-operation boundaries](../AGENTS.md#credentials-and-remote-operations).
+Independently verify the target fingerprint. File tests create and clean their own `/tmp/termquay-*` directories. Do not change system, SSH, services or business files or install remote tools. Some workflow cases require existing sudo, tmux and Docker socket permissions. The jump test needs TCP forwarding and loopback access to the configured SSH port on the test host. Follow [remote-operation boundaries](../AGENTS.md#credentials-and-remote-operations).
 
 ```sh
 go test -count=1 -v ./internal/app ./internal/ssh ./internal/files ./internal/monitor -run '^TestSG1' -skip '^TestSG1Workflow'
@@ -335,15 +329,15 @@ Report unit tests, local protocol integration, browser substitutes, native deskt
 
 Historical evidence and unresolved gaps remain in the [Chinese acceptance ledger](development.zh-CN.md#已有验收记录与缺口), including [AI acceptance](development.zh-CN.md#内置-ai-验收2026-11-06) and [Windows SSH AI adaptation](development.zh-CN.md#windows-ssh-ai-适配验收2026-11-09). Platform input/IME, RDP clipboard/concurrency, native menus/dialogs, real multi-hop reconnect, provider behavior and sustained application-wide resource measurements need environment-specific evidence. Do not present historical results as current checks.
 
+### SSH Quick Input multiline confirmation
+
+The usage guide in `0f8c245` specifies that a draft waits for Enter at the shell prompt. At `cfae33a`, confirming the multiline preview calls xterm's ordinary `paste` API. The pinned `@xterm/xterm` package's `src/browser/Clipboard.ts` converts line endings to carriage returns and adds bracketed-paste markers only when the mode is active. Without those markers, a shell can treat each carriage return as Enter and submit part of the draft during insertion. See the [insertion path](../frontend/src/features/terminal/TerminalView.tsx) and [pinned xterm dependency](../frontend/package.json).
+
+The [Quick Input regression](../frontend/e2e/workflow.spec.ts) checks cancellation of a multiline preview and insertion of a single line without a carriage return. It does not confirm a multiline draft or exercise a native shell. The multiline contract awaits a maintainer decision on whether to require a separate Enter in every shell or make confirmation an explicit execute action where pasting can submit lines.
+
 ### Documentation audit (2026-11-17)
 
-Source review started from `f778f4b` on macOS 26.6.2 / arm64, Go 1.26.10, Node 26.11.0 and pnpm 11.20.0. It covered both READMEs, architecture/development guides, contributor instructions, handwritten comments, CLI help/examples and the distributed Agent skill against manifests, build/release tasks, models, direct callers and existing test assertions. Historical release notes, imported development skills and original third-party license texts were preserved. Documentation checks are separate from the release checks below.
-
-The stale Chinese catalog, directory-click and pane instructions were checked against [ConnectionCenter](../frontend/src/features/connections/ConnectionCenter.tsx), [catalog styles](../frontend/src/styles/connections.css), [FileBrowser](../frontend/src/features/files/FileBrowser.tsx), [SSHWorkspace](../frontend/src/features/files/SSHWorkspace.tsx), [WorkspacePanes](../frontend/src/features/files/WorkspacePanes.tsx) and the [workflow regressions](../frontend/e2e/workflow.spec.ts). Commits `e31aa71`, `f59c3f8` and `a536742` establish the corresponding UI evolution. The guide now reflects separate host/port columns with horizontal scrolling, directory-name selection/expansion and both pane orientations. Repeated rail/pane descriptions were consolidated; shared setup and skill-installation commands now have linked entry points. Browser-suite guidance was expanded to match the current specifications, and the optional real-service command list now includes `TestRealFileOperations`.
-
-The review retained architecture premises and tradeoffs for directory-memory growth, bounded paging, private SFTP staging and its remaining publication race, RDP TLS interoperability, owner cancellation and restore transactions. Reviewed comments explain lifecycle, protocol or platform constraints and did not require changes. CLI examples and the skill agree with help/protocol definitions; no command/schema change was needed. No new substantial contract disagreement was identified in this review. The [known SSH deadline failures](#known-ssh-test-deadline-failures) still require unmodified real-target evidence; this audit neither reran them nor reclassified them as intended behavior.
-
-Repository-owned Markdown links and heading anchors passed a parser-based check, and `git diff --check` passed. Documentation-only validation did not run builds, type checks or tests; release validation is recorded separately.
+Review at `f778f4b` checked documentation, comments, CLI examples and the distributed skill against source and test assertions. Commits `e31aa71`, `f59c3f8` and `a536742` establish the catalog column, directory selection and pane layout changes. A parser-based Markdown link and anchor check and `git diff --check` passed on macOS 26.6.2 / arm64 with Node 26.11.0 and pnpm 11.20.0. The [SSH deadline failures](#known-ssh-test-deadline-failures) remained open. Builds and runtime tests belong to the separate release record below.
 
 ### Release 1.4.8 verification (2026-11-17)
 
@@ -385,7 +379,7 @@ This release verification did not repeat native GUI startup/workbench interactio
 
 On Windows Chromium at DPR 1.25, a 32-row WebGL terminal produced an 833-pixel backing canvas for an 832-pixel cell grid. Normalizing row positions by row count distributed the extra pixel across the grid, moving glyphs off pixel boundaries. The WebGL dependency patch now normalizes glyph positions and sizes against the actual backing dimensions while preserving integer cell coordinates. Identical Chinese text at rows 1, 11 and 21 differed before the correction and produced identical, nonempty GPU pixel samples afterward.
 
-All six terminal-rendering browser checks passed, covering this pixel regression, Windows font selection, retained terminal instances, backing-size changes and synchronized output. This is Chromium evidence; the user's live Codex session and physical native WebView output still require visual confirmation. No settings defaults or application version changed.
+All six terminal-rendering browser checks passed, covering this pixel regression, Windows font selection, retained terminal instances, backing-size changes and synchronized output. Physical fractional-DPI rendering in the native WebView remained unverified.
 
 ### Chinese terminal font fallback verification (2026-11-12)
 
@@ -393,7 +387,7 @@ Font fix `4f67f69` was checked on the Windows host described in [local terminal 
 
 Formatting, frontend lint, TypeScript and all 13 appearance/provider tests passed. Both corrected Windows glyph-selection regressions failed their requested CJK-font assertions before the fix, then passed after it. All 5 terminal-rendering browser checks and the separate editor font/theme/language preservation regression passed. The glyph checks use actual DOM font styles or captured WebGL glyph-rasterization font strings, Chromium's reported platform glyph fonts and substituted Wails calls/streams. They confirm Microsoft YaHei UI for Chinese, retained Latin monospace fonts and the same live terminal node across the three presets. These checks require the installed Windows font and skip other platforms.
 
-A separate dark WebGL visual check used 16 px text with emulated DPR 1.25. Its 1550×838 drawing buffer matched the GPU viewport, without page overflow. This is browser evidence, not physical monitor or native WebView acceptance. No Go/runtime, renderer, settings-schema, dependency, version or release changes were made. Both README entry points, architecture/development guides, contributor instructions, affected source comments, CLI help and the distributed skill were reviewed; the two font usage guides were updated.
+A separate dark WebGL check with 16 px text at emulated DPR 1.25 showed a 1550×838 drawing buffer matching the GPU viewport without page overflow. Physical monitors and native WebViews require separate verification.
 
 ### Local terminal interaction verification (2026-11-12)
 
@@ -405,7 +399,7 @@ Script tests executed installed PowerShell and Windows PowerShell without user p
 
 An earlier concurrent diagnostic run timed out in the existing custom-font component regression; it passed in the final sequential aggregate run. The six-layout browser trace separately showed about 24 seconds spent navigating through cold Vite compilation, exhausting that long scenario's original 30-second budget. Its budget is now 60 seconds, with all interaction assertions retained and retries disabled.
 
-Both README entry points, architecture/development guides, contributor instructions, affected translations/comments, CLI help/examples and the distributed skill were reviewed. Usage guidance and translations were synchronized. Service/model signatures and generated bindings did not change. This work does not establish foreground native desktop paint/input latency, physical IME, clipboard-image attachments, physical multi-monitor DPI transitions, WSL behavior, macOS/Linux native interaction, real remote services or sustained application/WebView resource behavior. The application version remains unchanged; no publication or release was performed.
+Open verification covers native desktop paint/input latency, physical IME, clipboard-image attachments, multi-monitor DPI transitions, WSL behavior, macOS/Linux native interaction, real remote services and sustained application/WebView resource use.
 
 ### Release 1.4.6 verification (2026-11-11)
 
@@ -543,7 +537,7 @@ A Chromium browser harness mounted the real appearance provider, settings and xt
 
 Candidate and tag commit `e3cb45e` passed [three-platform CI](https://github.com/Sanjeever/termquay/actions/runs/42646313853), including Linux race detection, and the [manual candidate workflow](https://github.com/Sanjeever/termquay/actions/runs/42646316551). All three downloaded candidate archives matched `SHA256SUMS` and had the expected top-level executable or `.app`. On the local arm64 host, the macOS candidate contained x86_64/arm64, passed strict signature-integrity verification, reported 1.4.2 in its plist and executable, and ran CLI help successfully. This does not establish GUI behavior or execution on x86_64.
 
-The [tag workflow](https://github.com/Sanjeever/termquay/actions/runs/42648552501) succeeded and marked [v1.4.2](https://github.com/Sanjeever/termquay/releases/tag/v1.4.2) as the latest stable Release at publication. All three downloaded public archives matched the published `SHA256SUMS` and expected top-level structure; the Release body matched the repository version log. The requester received the release link and font setup steps in [issue #1](https://github.com/Sanjeever/termquay/issues/1#issuecomment-6744568791).
+The [tag workflow](https://github.com/Sanjeever/termquay/actions/runs/42648552501) published [v1.4.2](https://github.com/Sanjeever/termquay/releases/tag/v1.4.2). All three downloaded public archives matched the published `SHA256SUMS` and expected top-level structure. The Release body matched the version log. [Issue #1](https://github.com/Sanjeever/termquay/issues/1#issuecomment-6744568791) records the reported font issue and the setup steps.
 
 ### Documentation audit and 1.4.1 candidate verification (2026-11-09)
 

@@ -1,7 +1,5 @@
-# Wails development/build resources: docs/development.md#development-commands.
-# Sync versions through scripts/version.mjs. After other info/fileAssociations changes,
-# run pnpm task common:update:build-assets and inspect the generated platform diff
-# for overwritten packaging customizations.
+# Resource generation and version synchronization are documented in
+# docs/development.zh-CN.md#构建与本地打包 and docs/development.md#versions-and-releases.
 version: '3'
 
 info:
@@ -30,7 +28,7 @@ dev_mode:
       - "*_test.go"
     watched_extension:
       - "*.go"
-      - "*.js" # 跟踪通过 //wails:include 嵌入的 JS/TS 资源。
+      - "*.js" # Watch resources embedded through //wails:include.
       - "*.ts"
     git_ignore: true
   executes:
@@ -43,9 +41,7 @@ dev_mode:
       type: primary
       exit_policy: shutdown
 
-# 当前未启用文件关联；启用后需重新生成平台资源。
 fileAssociations:
 
-# Wails 模板附加数据。
 other:
   - name: My Other Data

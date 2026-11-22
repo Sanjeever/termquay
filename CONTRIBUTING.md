@@ -16,7 +16,7 @@ Follow [First run](docs/development.md#first-run) for prerequisites and startup.
 
 ## Verify affected behavior
 
-Choose [checks](docs/development.md#changes-and-checks) for the affected behavior. Report which checks ran, their environments, and any skips or gaps. Identify local integration, browser substitutes, native desktop and real remote checks separately. [Real-service tests](docs/development.md#optional-real-services) require separate authorization and secure settings.
+Choose [checks](docs/development.md#changes-and-checks) for the affected behavior. Report which checks ran, their environments, and any skips or gaps. Identify local integration, browser substitutes, native desktop and real remote checks separately. Run [real-service tests](docs/development.md#optional-real-services) on targets you are authorized to use, with securely injected settings.
 
 ## Translate and document
 

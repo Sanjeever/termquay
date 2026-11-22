@@ -20,7 +20,7 @@ TermQuay 是面向 SSH、本地终端和 RDP 的开源桌面工作台。可分�
 ## 当前能力
 
 - [连接管理](docs/development.zh-CN.md#连接与工作区)：分组与筛选、配置导入、操作手册、加密凭据与主密码保护。
-- [SSH 与本地终端](docs/development.zh-CN.md#ssh-工作区与本地终端)：跳板、SOCKS5、端口转发、重连、诊断和本地多窗格布局。
+- [SSH 与本地终端](docs/development.zh-CN.md#ssh-工作区与本地终端)：多窗格工作区、跳板、SOCKS5、端口转发、重连与诊断。
 - [文件管理与传输](docs/development.zh-CN.md#远端文件与传输)：独立双栏传输标签，支持本地与远端、跨主机复制，以及搜索、批量传输、显式续传、目录同步与文件对比。
 - [文件编辑](docs/development.zh-CN.md#文件编辑)：多编码、补全、冲突合并、版本历史与配置验证；[文件预览](docs/development.zh-CN.md#文件预览) 支持 Markdown 与常见图片。
 - [终端工具与多主机操作](docs/development.zh-CN.md#终端工具与命令片段)：片段与补全、tmux、录制回放、后台执行、巡检与结果比较。
@@ -41,7 +41,7 @@ TermQuay 是面向 SSH、本地终端和 RDP 的开源桌面工作台。可分�
 
 ## 界面预览
 
-以下截图使用中文 UI，在浏览器 [演示模式](docs/development.zh-CN.md#设置与演示模式) 中截取。
+以下截图使用中文界面，在浏览器演示模式中截取。当前布局与工具入口见 [使用说明](docs/development.zh-CN.md#使用说明)。
 
 ![连接中心，支持分组、协议筛选与延迟探测](docs/images/screenshots/connection-center.png)
 

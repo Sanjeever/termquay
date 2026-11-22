@@ -1,5 +1,5 @@
-# Linux 包元数据与运行依赖，操作入口见 docs/development.md。
-# version 通过 scripts/version.mjs 从 frontend/package.json 同步。
+# Linux runtime prerequisites and version synchronization are documented in
+# docs/development.md#packaged-desktop and docs/development.md#versions-and-releases.
 
 name: "termquay"
 arch: ${GOARCH}
@@ -22,7 +22,6 @@ contents:
   - src: "./build/linux/termquay.desktop"
     dst: "/usr/share/applications/termquay.desktop"
 
-# 默认 GTK4 / WebKitGTK 6.0 运行库；不同包格式使用下方依赖名。
 depends:
   - libgtk-4-1
   - libwebkitgtk-6.0-4
