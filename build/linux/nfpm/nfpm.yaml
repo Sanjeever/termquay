@@ -4,7 +4,7 @@
 name: "termquay"
 arch: ${GOARCH}
 platform: "linux"
-version: "1.4.8"
+version: "1.4.9"
 section: "default"
 priority: "extra"
 maintainer: ${GIT_COMMITTER_NAME} <${GIT_COMMITTER_EMAIL}>
