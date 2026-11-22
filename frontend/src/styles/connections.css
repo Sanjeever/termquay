@@ -30,17 +30,17 @@
   color: var(--color-muted);
 }
 .connection-catalog {
-  --catalog-grid: 18px minmax(130px, 1.4fr) minmax(160px, 1fr) 56px minmax(64px, 0.55fr) 72px 104px;
   container-type: inline-size;
   flex: 1;
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 18px 24px 12px;
+  padding: 12px 16px 10px;
 }
 .catalog-toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
@@ -85,7 +85,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 0 10px;
+  padding: 6px 0;
   min-height: 56px;
   flex-shrink: 0;
 }
@@ -204,8 +204,8 @@
 .connection-columns,
 .connection-row {
   display: grid;
-  min-width: 910px;
-  grid-template-columns: minmax(0, 1fr) 90px 26px;
+  min-inline-size: var(--catalog-min-width);
+  grid-template-columns: minmax(0, 1fr) 90px 104px;
   gap: 6px;
 }
 .connection-name-columns,
@@ -254,8 +254,8 @@
   top: 0;
   z-index: 2;
   align-items: center;
-  min-height: 36px;
-  margin-bottom: 5px;
+  min-height: 32px;
+  margin-bottom: 2px;
   color: var(--color-muted);
   background: var(--color-background);
   border-bottom: 1px solid var(--color-border);
@@ -390,9 +390,43 @@
 }
 .connection-row {
   align-items: center;
-  min-height: 44px;
+  min-height: 36px;
   border-radius: var(--radius);
-  margin-bottom: 2px;
+}
+.catalog-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  padding-inline-end: 4px;
+}
+.catalog-row-actions .row-menu {
+  opacity: 1;
+}
+.catalog-connect {
+  min-block-size: 24px;
+  color: var(--color-primary);
+}
+.catalog-column-settings {
+  gap: 6px;
+  padding: 10px;
+}
+.catalog-column-setting {
+  display: grid;
+  grid-template-columns: minmax(6rem, 1fr) minmax(5rem, 1fr);
+  align-items: center;
+  gap: 8px;
+  inline-size: 100%;
+}
+.catalog-column-setting label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.catalog-column-setting input[type='range'] {
+  min-inline-size: 0;
+  inline-size: 100%;
+  accent-color: var(--color-primary);
 }
 .connection-row:hover {
   background: var(--color-hover);

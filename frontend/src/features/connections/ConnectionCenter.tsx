@@ -7,7 +7,15 @@ import { useTranslation } from 'react-i18next';
 import Tooltip from '../../components/Tooltip';
 
 import SelectControl from '../../components/SelectControl';
-import { useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react';
 import {
   GetConnectionFilters,
   SaveConnectionFilters,
@@ -51,6 +59,38 @@ import CredentialAssignDialog from './CredentialAssignDialog';
 import useConnectionLatency from './useConnectionLatency';
 import ConnectionLatency from './ConnectionLatency';
 
+const catalogColumns = [
+  { id: 'name', label: 'connections:name', width: 130, weight: 1.4 },
+  { id: 'address', label: 'connections:address', width: 146, weight: 1 },
+  { id: 'port', label: 'connections:port', width: 52, weight: 0 },
+  { id: 'username', label: 'connections:username', width: 64, weight: 0.55 },
+  { id: 'protocol', label: 'connections:protocol', width: 68, weight: 0 },
+  { id: 'status', label: 'connections:status', width: 104, weight: 0 },
+] as const;
+
+type ColumnID = (typeof catalogColumns)[number]['id'];
+type ColumnSettings = Partial<Record<ColumnID, { hidden?: boolean; width?: number }>>;
+const columnSettingsKey = 'termquay.catalog.columns.v1';
+
+function readColumnSettings(): ColumnSettings {
+  try {
+    const saved = JSON.parse(localStorage.getItem(columnSettingsKey) || '{}');
+    const settings: ColumnSettings = {};
+    for (const column of catalogColumns) {
+      const entry = saved?.[column.id];
+      if (!entry) continue;
+      const width = entry.width;
+      settings[column.id] = {
+        hidden: column.id !== 'name' && entry.hidden === true,
+        width: Number.isInteger(width) && width >= column.width && width <= 360 ? width : undefined,
+      };
+    }
+    return settings;
+  } catch {
+    return {};
+  }
+}
+
 export default function ConnectionCenter({
   connections,
   groups,
@@ -90,6 +130,34 @@ export default function ConnectionCenter({
 }) {
   useTranslation();
   const demo = demoLatency !== undefined;
+  const [columns, setColumns] = useState<ColumnSettings>(() => (demo ? {} : readColumnSettings()));
+  const shownColumns = catalogColumns.filter(({ id }) => !columns[id]?.hidden);
+  const columnStyle = {
+    '--catalog-grid': [
+      '18px',
+      ...shownColumns.map(({ id, width, weight }) => {
+        const customWidth = columns[id]?.width;
+        return customWidth
+          ? `${customWidth}px`
+          : weight
+            ? `minmax(${width}px, ${weight}fr)`
+            : `${width}px`;
+      }),
+    ].join(' '),
+    '--catalog-min-width': `${
+      18 +
+      shownColumns.length * 10 +
+      18 +
+      90 +
+      104 +
+      12 +
+      shownColumns.reduce((total, column) => total + (columns[column.id]?.width ?? column.width), 0)
+    }px`,
+  } as CSSProperties;
+  function updateColumns(next: ColumnSettings) {
+    setColumns(next);
+    if (!demo) localStorage.setItem(columnSettingsKey, JSON.stringify(next));
+  }
   const [search, setSearch] = useState('');
   const [protocol, setProtocol] = useState('all');
   const [environment, setEnvironment] = useState('');
@@ -263,6 +331,7 @@ export default function ConnectionCenter({
   function sortHeading(value: CatalogSort, label: string, className = '') {
     return (
       <button
+        key={value}
         className={`catalog-column-sort ${className}`}
         aria-label={translate('connections:sortBy', {
           value1: label,
@@ -836,21 +905,33 @@ export default function ConnectionCenter({
         <div
           className="connection-list"
           aria-label={translate('connections:savedConnections')}
+          role="region"
+          tabIndex={0}
+          style={columnStyle}
           ref={list}
         >
           <div className="connection-columns">
             <div className="connection-name-columns">
               <span />
-              {sortHeading('name', translate('connections:name'))}
-              {sortHeading(
-                'address',
-                translate('connections:address'),
-                'connection-address-heading',
+              {shownColumns.map(({ id, label }) =>
+                id === 'status' ? (
+                  <span key={id} className="connection-state-heading">
+                    {translate(label)}
+                  </span>
+                ) : (
+                  sortHeading(
+                    id,
+                    translate(label),
+                    id === 'address'
+                      ? 'connection-address-heading'
+                      : id === 'username'
+                        ? 'connection-user'
+                        : id === 'name'
+                          ? ''
+                          : `connection-${id}`,
+                  )
+                ),
               )}
-              {sortHeading('port', translate('connections:port'), 'connection-port')}
-              {sortHeading('username', translate('connections:username'), 'connection-user')}
-              {sortHeading('protocol', translate('connections:protocol'), 'connection-protocol')}
-              <span className="connection-state-heading">{translate('connections:status')}</span>
             </div>
             <Tooltip
               content={
@@ -877,7 +958,57 @@ export default function ConnectionCenter({
                 {translate('connections:tCPLatency')}
               </button>
             </Tooltip>
-            <span />
+            <div className="catalog-row-actions">
+              <Popover placement="bottom-end">
+                <PopoverTrigger>
+                  <button className="icon-button" aria-label={translate('connections:columns')}>
+                    <Icon name="settings" width="15" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="catalog-column-settings"
+                  aria-label={translate('connections:columns')}
+                >
+                  {catalogColumns.map(({ id, label, width }) => (
+                    <div className="catalog-column-setting" key={id}>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={!columns[id]?.hidden}
+                          disabled={id === 'name'}
+                          onChange={(event) =>
+                            updateColumns({
+                              ...columns,
+                              [id]: { ...columns[id], hidden: !event.target.checked },
+                            })
+                          }
+                        />
+                        {translate(label)}
+                      </label>
+                      <input
+                        type="range"
+                        min={width}
+                        max={360}
+                        disabled={columns[id]?.hidden}
+                        aria-label={translate('connections:columnWidth', {
+                          column: translate(label),
+                        })}
+                        value={columns[id]?.width ?? width}
+                        onChange={(event) =>
+                          updateColumns({
+                            ...columns,
+                            [id]: { ...columns[id], width: event.target.valueAsNumber },
+                          })
+                        }
+                      />
+                    </div>
+                  ))}
+                  <button className="session-tool" onClick={() => updateColumns({})}>
+                    {translate('connections:resetColumns')}
+                  </button>
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
           {visible.map((c, index) => (
             <div
@@ -986,44 +1117,52 @@ export default function ConnectionCenter({
                       </em>
                     )}
                   </strong>
-                  <span className="connection-address-text">
-                    <span className="connection-host">{c.host}</span>
-                    <Tooltip content={translate('connections:copyAddress')}>
-                      <button
-                        className="icon-button connection-copy-address"
-                        aria-label={translate('connections:copyHostAddress', { host: c.host })}
-                        onDoubleClick={(event) => event.stopPropagation()}
-                        onClick={async (event) => {
-                          event.stopPropagation();
-                          try {
-                            await navigator.clipboard.writeText(c.host);
-                            setCopiedAddress(c.id);
-                            clearTimeout(copyTimer.current);
-                            copyTimer.current = setTimeout(() => setCopiedAddress(''), 1500);
-                          } catch (error) {
-                            setError(error);
-                          }
-                        }}
-                      >
-                        <Icon name={copiedAddress === c.id ? 'check' : 'copy'} width="13" />
-                      </button>
-                    </Tooltip>
-                  </span>
-                  <span className="connection-port">{c.port}</span>
-                  <span className="connection-user">{c.username}</span>
-                  <small className="connection-protocol">{c.protocol.toUpperCase()}</small>
-                  <small className="connection-session-state">
-                    {sessions[c.id]?.length ? (
-                      <span>
-                        {[...new Set(sessions[c.id])]
-                          .map(
-                            (state) =>
-                              `${state} ${sessions[c.id].filter((s) => s === state).length}`,
-                          )
-                          .join(' / ')}
-                      </span>
-                    ) : null}
-                  </small>
+                  {!columns.address?.hidden && (
+                    <span className="connection-address-text">
+                      <span className="connection-host">{c.host}</span>
+                      <Tooltip content={translate('connections:copyAddress')}>
+                        <button
+                          className="icon-button connection-copy-address"
+                          aria-label={translate('connections:copyHostAddress', { host: c.host })}
+                          onDoubleClick={(event) => event.stopPropagation()}
+                          onClick={async (event) => {
+                            event.stopPropagation();
+                            try {
+                              await navigator.clipboard.writeText(c.host);
+                              setCopiedAddress(c.id);
+                              clearTimeout(copyTimer.current);
+                              copyTimer.current = setTimeout(() => setCopiedAddress(''), 1500);
+                            } catch (error) {
+                              setError(error);
+                            }
+                          }}
+                        >
+                          <Icon name={copiedAddress === c.id ? 'check' : 'copy'} width="13" />
+                        </button>
+                      </Tooltip>
+                    </span>
+                  )}
+                  {!columns.port?.hidden && <span className="connection-port">{c.port}</span>}
+                  {!columns.username?.hidden && (
+                    <span className="connection-user">{c.username}</span>
+                  )}
+                  {!columns.protocol?.hidden && (
+                    <small className="connection-protocol">{c.protocol.toUpperCase()}</small>
+                  )}
+                  {!columns.status?.hidden && (
+                    <small className="connection-session-state">
+                      {sessions[c.id]?.length ? (
+                        <span>
+                          {[...new Set(sessions[c.id])]
+                            .map(
+                              (state) =>
+                                `${state} ${sessions[c.id].filter((s) => s === state).length}`,
+                            )
+                            .join(' / ')}
+                        </span>
+                      ) : null}
+                    </small>
+                  )}
                 </div>
               </Tooltip>
               <ConnectionLatency
@@ -1032,63 +1171,75 @@ export default function ConnectionCenter({
                 measurement={(demoLatency || latency.measurements)[c.id]}
                 onRefresh={() => latency.refresh(c.id)}
               />
-              <Dropdown isOpen={menu === c.id} onOpenChange={(open) => setMenu(open ? c.id : '')}>
-                <DropdownTrigger>
-                  <button
-                    className="icon-button row-menu"
-                    disabled={demo}
-                    aria-label={translate('connections:connectionActions', { value1: c.name })}
-                    onFocus={() => setSelected(c.id)}
-                  >
-                    <Icon name="more" />
-                  </button>
-                </DropdownTrigger>
-                <DropdownMenu
-                  aria-label={translate('connections:connectionActions', { value1: c.name })}
-                  disabledKeys={busy ? ['open', 'another', 'edit', 'duplicate'] : []}
-                  onAction={(key) => {
-                    if (demo) return;
-                    if (key === 'open') onOpen(c);
-                    if (key === 'another') onOpen(c, true);
-                    if (key === 'system') onOpen(c, true, 'system');
-                    if (key === 'playbook') onPlaybook?.(c);
-                    if (key === 'edit') onEdit(c);
-                    if (key === 'duplicate') {
-                      setError('');
-                      setIncludeCredentials(false);
-                      setDuplicating(c);
-                    }
-                    if (key === 'delete') {
-                      setError('');
-                      setDeleting({ id: c.id, name: c.name });
-                    }
-                  }}
+              <div className="catalog-row-actions">
+                <button
+                  className="session-tool catalog-connect"
+                  aria-label={translate('connections:connectByName', { name: c.name })}
+                  disabled={busy || (demo && c.protocol !== 'ssh')}
+                  onClick={() => onOpen(c)}
                 >
-                  <DropdownItem key="open">
-                    {translate('connections:connectLocateWorkspace')}
-                  </DropdownItem>
-                  <DropdownItem key="another">
-                    {translate('connections:openAnotherWorkspace')}
-                  </DropdownItem>
-                  <DropdownItem
-                    key="system"
-                    className={c.protocol === 'rdp' ? '' : 'hidden'}
-                    isDisabled={busy || !systemRDP || c.protocol !== 'rdp'}
+                  {translate('connections:connect')}
+                </button>
+                <Dropdown isOpen={menu === c.id} onOpenChange={(open) => setMenu(open ? c.id : '')}>
+                  <DropdownTrigger>
+                    <button
+                      className="icon-button row-menu"
+                      disabled={demo}
+                      aria-label={translate('connections:connectionActions', { value1: c.name })}
+                      onFocus={() => setSelected(c.id)}
+                    >
+                      <Icon name="more" />
+                    </button>
+                  </DropdownTrigger>
+                  <DropdownMenu
+                    aria-label={translate('connections:connectionActions', { value1: c.name })}
+                    disabledKeys={busy ? ['open', 'another', 'edit', 'duplicate'] : []}
+                    onAction={(key) => {
+                      if (demo) return;
+                      if (key === 'open') onOpen(c);
+                      if (key === 'another') onOpen(c, true);
+                      if (key === 'system') onOpen(c, true, 'system');
+                      if (key === 'playbook') onPlaybook?.(c);
+                      if (key === 'edit') onEdit(c);
+                      if (key === 'duplicate') {
+                        setError('');
+                        setIncludeCredentials(false);
+                        setDuplicating(c);
+                      }
+                      if (key === 'delete') {
+                        setError('');
+                        setDeleting({ id: c.id, name: c.name });
+                      }
+                    }}
                   >
-                    {translate('connections:useSystemClient')}
-                  </DropdownItem>
-                  <DropdownItem key="playbook" className={onPlaybook ? '' : 'hidden'}>
-                    {translate('connections:playbook')}
-                  </DropdownItem>
-                  <DropdownItem key="edit">{translate('connections:editConnection')}</DropdownItem>
-                  <DropdownItem key="duplicate">
-                    {translate('connections:copyConfiguration')}
-                  </DropdownItem>
-                  <DropdownItem key="delete" color="danger">
-                    {translate('connections:deleteConnection')}
-                  </DropdownItem>
-                </DropdownMenu>
-              </Dropdown>
+                    <DropdownItem key="open">
+                      {translate('connections:connectLocateWorkspace')}
+                    </DropdownItem>
+                    <DropdownItem key="another">
+                      {translate('connections:openAnotherWorkspace')}
+                    </DropdownItem>
+                    <DropdownItem
+                      key="system"
+                      className={c.protocol === 'rdp' ? '' : 'hidden'}
+                      isDisabled={busy || !systemRDP || c.protocol !== 'rdp'}
+                    >
+                      {translate('connections:useSystemClient')}
+                    </DropdownItem>
+                    <DropdownItem key="playbook" className={onPlaybook ? '' : 'hidden'}>
+                      {translate('connections:playbook')}
+                    </DropdownItem>
+                    <DropdownItem key="edit">
+                      {translate('connections:editConnection')}
+                    </DropdownItem>
+                    <DropdownItem key="duplicate">
+                      {translate('connections:copyConfiguration')}
+                    </DropdownItem>
+                    <DropdownItem key="delete" color="danger">
+                      {translate('connections:deleteConnection')}
+                    </DropdownItem>
+                  </DropdownMenu>
+                </Dropdown>
+              </div>
             </div>
           ))}
         </div>
@@ -1148,15 +1299,6 @@ export default function ConnectionCenter({
             )}
           {selectedConnection ? (
             <>
-              <Button
-                size="sm"
-                color="primary"
-                variant="flat"
-                isDisabled={busy || (demo && selectedConnection.protocol !== 'ssh')}
-                onPress={() => onOpen(selectedConnection)}
-              >
-                {translate('connections:connect')}
-              </Button>
               <Button
                 size="sm"
                 variant="light"

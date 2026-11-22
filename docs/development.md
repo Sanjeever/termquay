@@ -168,7 +168,7 @@ Find browsing mode and directory following in the file header. With files select
 
 Middle-click a workspace, tool or terminal/file tab to close it without first selecting it. Local split-pane headers support the same action. Unsaved-file and running-local-terminal confirmations still apply, and closing remains disabled while the existing save, restore or busy state blocks it. The fixed connection center cannot be closed.
 
-The connection catalog has separate sortable address and port columns. The address action copies the host name or IP without changing selection.
+Use **Connect** in a catalog row to open or locate its workspace. Use the header settings to show, hide and resize columns on this device. Address and port sort separately. The address action copies the host name or IP and preserves selection. Narrow catalogs scroll horizontally.
 
 Select a directory name to expand it and use it for file operations. Press F5 in the file panel to refresh the branch and expanded descendants. Use **New → File / Folder** to create an item. Enter submits the name and Escape cancels. The [file guide](development.zh-CN.md#远端文件与传输) covers refresh, creation, file browsing mode and keyboard navigation.
 

@@ -1,5 +1,30 @@
 import { expect, test, type Page } from '@playwright/test';
 
+test('catalog column controls preserve the row connection action', async ({ page }) => {
+  await page.route('**/wails/runtime*', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: 'null' }),
+  );
+  await page.goto('/e2e/workflow.html?scene=connections&language=en');
+  const row = page.locator('.connection-row').filter({ hasText: /SSH/ }).first();
+  const name = await row.locator('.connection-select').getAttribute('aria-label');
+  const host = row.locator('.connection-host');
+  await expect(host).toBeVisible();
+  await page.getByRole('button', { name: 'Connection columns' }).click();
+  const address = page.getByRole('checkbox', { name: 'Address', exact: true });
+  await address.uncheck();
+  await expect(host).toHaveCount(0);
+  await expect(page.getByRole('slider', { name: 'Address column width' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Reset columns' }).click();
+  await expect(host).toBeVisible();
+  const width = page.getByRole('slider', { name: 'Address column width' });
+  await width.focus();
+  await width.press('End');
+  expect((await row.locator('.connection-address-text').boundingBox())?.width).toBe(360);
+  await page.keyboard.press('Escape');
+  await row.getByRole('button', { name: `Connect to ${name}`, exact: true }).click();
+  await expect(page.locator('.xterm')).toBeVisible();
+});
+
 test('address copy is independent of connection selection and excludes the port', async ({
   page,
   context,
