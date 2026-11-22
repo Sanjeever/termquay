@@ -120,6 +120,8 @@
   "viewProcessesUsingTheMostMemory": "View processes using the most memory",
   "memoryUsageTrend": "Memory usage trend",
   "network": "Network",
+  "downloadRate": "↓ {{rate}}",
+  "uploadRate": "↑ {{rate}}",
   "received": "↓ Received",
   "sentDashed": "↑ Sent · Dashed",
   "totalNetworkReceiveAndSendRateTrends": "Total network receive and send rate trends",

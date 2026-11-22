@@ -15,7 +15,7 @@ import type { Sample } from '../../../bindings/github.com/Sanjeever/termquay/int
 import ResizeHandle from '../../components/layout/ResizeHandle';
 import Icon from '../../components/Icon';
 import MonitorTrend from './MonitorTrend';
-import { createHistory, historyPoints, recordSample } from './history';
+import { createHistory, historyPoints, recordSample, sampleGap } from './history';
 
 const LinuxInspectionDialog = lazy(() => import('./LinuxInspectionDialog'));
 
@@ -25,7 +25,7 @@ function bytes(value: number | null | undefined) {
   if (value >= 1024 ** 2) return `${(value / 1024 ** 2).toFixed(1)} MiB`;
   return `${(value / 1024).toFixed(1)} KiB`;
 }
-function rate(value: number | null) {
+function rate(value: number | null | undefined) {
   return value == null ? '—' : `${bytes(value)}/s`;
 }
 
@@ -111,8 +111,18 @@ export default function MonitorPanel({
         });
     };
   }, [id, visible, retry, demoSamples, setError]);
-  const stale = sample && now - new Date(sample.time).getTime() > 10000;
+  const sampleTime = sample ? Date.parse(sample.time) : undefined;
+  const stale = sampleTime !== undefined && now - sampleTime > sampleGap;
   const points = historyPoints(history.current);
+  const latest = points[points.length - 1];
+  const current = !stale && latest?.time === sampleTime ? latest : undefined;
+  const filesystems = sample?.file_systems;
+  const filesystemError = errorMessage(eventError(filesystems));
+  const freshFilesystems = !stale && filesystems && now - Date.parse(filesystems.time) <= 45000;
+  const rootFS =
+    freshFilesystems && !filesystemError
+      ? filesystems.items?.find((fs) => fs.target === '/')
+      : undefined;
   return (
     <div className="monitor-dock" hidden={!visible} style={{ width }}>
       <ResizeHandle
@@ -161,7 +171,7 @@ export default function MonitorPanel({
         ) : (
           <>
             <p className="system-info">{sample.system}</p>
-            <div className="metric">
+            <div className="metric monitor-overview-metric">
               <button
                 className="metric-inspect"
                 aria-label={translate('monitor:viewProcessesUsingTheMostCPU')}
@@ -182,7 +192,7 @@ export default function MonitorPanel({
                 format={(value) => `${value}%`}
               />
             </div>
-            <div className="metric">
+            <div className="metric monitor-overview-metric">
               <button
                 className="metric-inspect"
                 aria-label={translate('monitor:viewProcessesUsingTheMostMemory')}
@@ -211,7 +221,17 @@ export default function MonitorPanel({
               />
             </div>
             <details className="monitor-details">
-              <summary>{translate('monitor:network')}</summary>
+              <summary>
+                {translate('monitor:network')}
+                <span className="monitor-summary-values">
+                  <span>
+                    {translate('monitor:downloadRate', { rate: rate(current?.networkRead) })}
+                  </span>
+                  <span>
+                    {translate('monitor:uploadRate', { rate: rate(current?.networkWrite) })}
+                  </span>
+                </span>
+              </summary>
               <div className="trend-legend">
                 <span>{translate('monitor:received')}</span>
                 <span>{translate('monitor:sentDashed')}</span>
@@ -232,7 +252,19 @@ export default function MonitorPanel({
               ))}
             </details>
             <details className="monitor-details">
-              <summary>{translate('monitor:diskIO')}</summary>
+              <summary>
+                {translate('monitor:diskIO')}
+                <span className="monitor-summary-values">
+                  <span>
+                    {translate('monitor:read2')}
+                    {rate(current?.diskRead)}
+                  </span>
+                  <span>
+                    {translate('monitor:written')}
+                    {rate(current?.diskWrite)}
+                  </span>
+                </span>
+              </summary>
               <div className="trend-legend">
                 <span>{translate('monitor:read')}</span>
                 <span>{translate('monitor:writtenDashed')}</span>
@@ -259,10 +291,16 @@ export default function MonitorPanel({
               ))}
             </details>
             <details className="monitor-details">
-              <summary>{translate('monitor:filesystems')}</summary>
-              {errorMessage(eventError(sample.file_systems)) ? (
+              <summary>
+                {translate('monitor:filesystems')}
+                <span className="monitor-summary-values">
+                  <span>/</span>
+                  <span>{rootFS ? `${bytes(rootFS.used)} / ${bytes(rootFS.size)}` : '—'}</span>
+                </span>
+              </summary>
+              {filesystemError ? (
                 <p className="error" role="alert">
-                  {errorMessage(eventError(sample.file_systems))}
+                  {filesystemError}
                 </p>
               ) : (
                 sample.file_systems?.items?.map((fs, index) => (
@@ -270,16 +308,10 @@ export default function MonitorPanel({
                     <Tooltip content={`${fs.source} · ${fs.type}`}>
                       <strong>{fs.target}</strong>
                     </Tooltip>
-                    <span>
-                      {stale || now - new Date(sample.file_systems!.time).getTime() > 45000
-                        ? '—'
-                        : `${bytes(fs.used)} / ${bytes(fs.size)}`}
-                    </span>
+                    <span>{freshFilesystems ? `${bytes(fs.used)} / ${bytes(fs.size)}` : '—'}</span>
                     <span className="muted">
                       {translate('monitor:available')}
-                      {stale || now - new Date(sample.file_systems!.time).getTime() > 45000
-                        ? '—'
-                        : bytes(fs.available)}
+                      {freshFilesystems ? bytes(fs.available) : '—'}
                     </span>
                   </div>
                 ))

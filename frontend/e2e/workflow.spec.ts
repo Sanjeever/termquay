@@ -194,6 +194,11 @@ test('narrow monitoring and workspace controls remain readable in both languages
   for (const language of ['English', 'Chinese']) {
     await page.getByRole('button', { name: language, exact: true }).click();
     const panel = page.locator('.monitor-panel');
+    const overview = panel.locator('.monitor-summary-values');
+    await expect(overview).toHaveCount(3);
+    await expect(overview.nth(0)).toHaveText(/↓ [\d.]+ KiB\/s↑ [\d.]+ KiB\/s/);
+    await expect(overview.nth(1)).toContainText('32.0 KiB/s');
+    await expect(overview.nth(2)).toContainText('24.0 GiB / 80.0 GiB');
     expect(await panel.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
       true,
     );

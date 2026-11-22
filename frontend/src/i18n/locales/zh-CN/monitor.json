@@ -120,6 +120,8 @@
   "viewProcessesUsingTheMostMemory": "查看内存占用最高的进程",
   "memoryUsageTrend": "内存使用率趋势",
   "network": "网络",
+  "downloadRate": "↓ {{rate}}",
+  "uploadRate": "↑ {{rate}}",
   "received": "↓ 接收",
   "sentDashed": "↑ 发送 · 虚线",
   "totalNetworkReceiveAndSendRateTrends": "网络总接收与总发送速率趋势",
