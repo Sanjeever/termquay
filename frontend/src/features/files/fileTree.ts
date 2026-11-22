@@ -48,7 +48,13 @@ export function uploadRefreshPaths(
 export function fileTreeRows(
   nodes: Record<string, TreeDirectory>,
   expanded: ReadonlySet<string>,
-  options: { filter: string; showHidden: boolean; sort: string; descending: boolean },
+  options: {
+    filter: string;
+    showHidden: boolean;
+    sort: string;
+    descending: boolean;
+    directory?: string;
+  },
 ) {
   const query = options.filter.trim().toLowerCase();
   function children(parent: string, depth: number): FileTreeRow[] {
@@ -68,7 +74,9 @@ export function fileTreeRows(
       );
     const branches = entries.flatMap((entry) => {
       const nested =
-        entry.directory && expanded.has(entry.path) ? children(entry.path, depth + 1) : [];
+        !options.directory && entry.directory && expanded.has(entry.path)
+          ? children(entry.path, depth + 1)
+          : [];
       return !query || entry.name.toLowerCase().includes(query) || nested.length
         ? [[{ entry, depth, parent, position: 0, siblings: 0 }, ...nested]]
         : [];
@@ -78,7 +86,7 @@ export function fileTreeRows(
       ...nested,
     ]);
   }
-  return children('/', 0);
+  return children(options.directory || '/', 0);
 }
 
 export function entryMetadata(entry: Entry) {

@@ -332,7 +332,7 @@
   color: var(--color-muted);
 }
 .file-toolbar .icon-button {
-  width: 28px;
+  width: 26px;
   height: 28px;
   flex-shrink: 0;
 }
@@ -439,6 +439,53 @@
 .file-tree li[role='treeitem'] {
   min-height: 28px;
   outline-offset: -2px;
+}
+.directory-list-headings,
+.directory-list li[data-tree-path] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(34px, 3em) minmax(58px, 5.5em) 24px;
+  gap: 4px;
+  align-items: center;
+  padding-inline: 4px;
+}
+.directory-list-headings {
+  min-block-size: 27px;
+  margin-block-start: 4px;
+  color: var(--color-muted);
+  font-size: 11px;
+  border-block-end: 1px solid var(--color-border);
+}
+.directory-list-headings button {
+  min-inline-size: 0;
+  min-block-size: 24px;
+  overflow: hidden;
+  text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.directory-list-headings button[aria-pressed='true'] {
+  color: var(--color-text);
+}
+.directory-list {
+  margin-block-start: 3px;
+}
+.directory-list li[data-tree-path] {
+  font-size: 11px;
+  min-block-size: 28px;
+  outline-offset: -2px;
+}
+.directory-list li:has(.inline-rename) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.directory-list .file-metadata {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+.file-toolbar .icon-button[aria-pressed='true'] {
+  color: var(--color-primary);
+  background: var(--color-selected);
 }
 .file-tree .row-menu {
   height: 24px;

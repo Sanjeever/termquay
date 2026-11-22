@@ -673,6 +673,38 @@ test('directory readiness belongs to the active terminal and SSH instance', asyn
   await expect(page.locator('.file-follow-status')).toHaveCount(0);
 });
 
+test('directory list reuses the file panel and browsing pauses terminal following', async ({
+  page,
+}) => {
+  const ssh = await sshWorkflow(page);
+  const files = page.locator('.file-panel');
+  const path = files.locator('.breadcrumbs');
+  const follow = files.getByRole('button', { name: 'Follow terminal directory', exact: true });
+  const mode = files.getByRole('button', { name: 'Directory list', exact: true });
+  await follow.click();
+  ssh.directory('/config');
+  await expect(path).toHaveAttribute('aria-label', '/config');
+  const reads = ssh.calls.filter((call) => call.method === 504709045).length;
+  await mode.click();
+  const list = files.getByRole('list', { name: 'Directory list' });
+  const configFile = list.getByRole('listitem', { name: 'release.conf', exact: true });
+  await expect(configFile).toContainText('2,048');
+  await expect(list.locator('[data-tree-path="/release.conf"]')).toHaveCount(0);
+  expect(ssh.calls.filter((call) => call.method === 504709045)).toHaveLength(reads);
+  const subdirectory = list.getByRole('listitem', { name: 'subdir', exact: true });
+  await subdirectory.getByRole('button', { name: 'subdir', exact: true }).click();
+  await expect(path).toHaveAttribute('aria-label', '/config');
+  await subdirectory.getByRole('button', { name: 'subdir', exact: true }).dblclick();
+  await expect(path).toHaveAttribute('aria-label', '/config/subdir');
+  await expect(follow).toHaveAttribute('aria-pressed', 'false');
+  await list.getByRole('button', { name: 'release.conf', exact: true }).dblclick();
+  await expect(page.locator('.cm-content')).toContainText('original file');
+  await mode.click();
+  await expect(files.getByRole('tree')).toBeVisible();
+  await expect(path).toHaveAttribute('aria-label', '/config/subdir');
+  await expect(page.locator('.cm-content')).toContainText('original file');
+});
+
 test('directory setup stays compact in Chinese at narrow widths', async ({ page }) => {
   await sshWorkflow(page, 'zh-CN');
   await page.getByRole('button', { name: '跟随终端目录', exact: true }).click();

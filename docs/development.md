@@ -168,6 +168,8 @@ Enable **Settings → Appearance → Compact SSH workspace** to reduce control h
 
 Find browsing mode and directory following in the file header. With files selected, batch actions appear below the tree. **Settings → Appearance → Accent color** offers blue and green and preserves open sessions and editor state.
 
+**Directory list** switches the file panel to the current directory, with sortable name, size and modification time. Double-click a directory or press Enter to open it. The list shares path navigation, bookmarks and file actions with the tree. Manual navigation pauses terminal following, which can be resumed from the file header.
+
 Middle-click a workspace, tool or terminal/file tab to close it without first selecting it. Local split-pane headers support the same action. Unsaved-file and running-local-terminal confirmations still apply, and closing remains disabled while the existing save, restore or busy state blocks it. The fixed connection center cannot be closed.
 
 Use **Connect** in a catalog row to open or locate its workspace. Use the header settings to show, hide and resize columns on this device. Address and port sort separately. The address action copies the host name or IP and preserves selection. Narrow catalogs scroll horizontally.

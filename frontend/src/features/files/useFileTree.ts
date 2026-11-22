@@ -45,6 +45,7 @@ export default function useFileTree(
   shown.current = visible;
   const generation = useRef(0);
   const navigation = useRef<{ sequence: number; path: string }>({ sequence: 0, path: '' });
+  const listedDirectory = useRef('');
   const invalidated = useRef(new Map<string, number>());
   const refreshTimer = useRef<ReturnType<typeof setTimeout>>();
   const highlightTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -55,7 +56,10 @@ export default function useFileTree(
     refreshTimer.current = setTimeout(() => {
       refreshTimer.current = undefined;
       for (const path of invalidated.current.keys()) {
-        if (expansion.current.has(path) && !reads.current.has(path))
+        if (
+          (expansion.current.has(path) || listedDirectory.current === path) &&
+          !reads.current.has(path)
+        )
           void read(path).catch(() => {});
       }
     }, 300);
@@ -76,6 +80,15 @@ export default function useFileTree(
     queue.current = queue.current.filter((read) => read !== operation);
     operation.request?.cancel();
     operation.reject(uiMessage('files:directoryReadCanceled'));
+  }
+  function discardListing(path: string) {
+    if (!path || expansion.current.has(path)) return;
+    cancel(path);
+    invalidated.current.delete(path);
+    const remaining = { ...nodeState.current };
+    delete remaining[path];
+    nodeState.current = remaining;
+    setNodes(remaining);
   }
   function pump() {
     while (shown.current && running.current < 2 && queue.current.length) {
@@ -165,14 +178,21 @@ export default function useFileTree(
     pump();
     return promise;
   }
-  async function reveal(path: string, force = false) {
+  async function reveal(path: string, force = false, revealAncestors = true) {
     const epoch = generation.current;
-    if (!expansion.current.has(navigation.current.path)) cancel(navigation.current.path);
+    const previous = navigation.current.path;
+    if (previous !== path && previous !== listedDirectory.current) discardListing(previous);
     const sequence = navigation.current.sequence + 1;
     navigation.current = { sequence, path };
     const result = await read(path, force);
     if (epoch !== generation.current || sequence !== navigation.current.sequence)
       throw uiMessage('files:directoryReadCanceled');
+    if (!revealAncestors) {
+      const priorListing = listedDirectory.current;
+      listedDirectory.current = result.path;
+      if (priorListing !== result.path) discardListing(priorListing);
+      return result;
+    }
     const ancestors = directoryAncestors(result.path);
     const next = new Set([...expansion.current, ...ancestors]);
     if (next.size > maxExpandedDirectories) {
@@ -192,6 +212,10 @@ export default function useFileTree(
         throw uiMessage('files:directoryReadCanceled');
       if (ancestor !== result.path) await read(ancestor);
     }
+    if (epoch !== generation.current || sequence !== navigation.current.sequence)
+      throw uiMessage('files:directoryReadCanceled');
+    discardListing(listedDirectory.current);
+    listedDirectory.current = '';
     return result;
   }
   function collapse(path: string) {
@@ -239,6 +263,8 @@ export default function useFileTree(
   /* oxlint-disable react/exhaustive-deps -- The workspace owns the file-tree subscription; navigation callbacks use current queue state and must not resubscribe on every render. */
   useEffect(() => {
     invalidated.current.clear();
+    navigation.current = { sequence: 0, path: '' };
+    listedDirectory.current = '';
     setRecentPaths(new Set());
     generation.current++;
     changeExpansion(new Set(['/']));
@@ -272,7 +298,9 @@ export default function useFileTree(
   /* oxlint-disable react/exhaustive-deps -- Visibility starts or stops the existing workspace queue; render-created navigation functions are not lifecycle keys. */
   useEffect(() => {
     if (visible) {
-      for (const path of expansion.current)
+      const paths = new Set(expansion.current);
+      if (listedDirectory.current) paths.add(listedDirectory.current);
+      for (const path of paths)
         if (!nodeState.current[path]?.entries || invalidated.current.has(path))
           void read(path).catch(() => {});
       pump();

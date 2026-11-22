@@ -1582,6 +1582,7 @@ const SSHWorkspace = forwardRef<
             directoryRequest={directoryRequest}
             followDirectory={followDirectory}
             onFollowDirectory={() => setFollowDirectory((value) => !value)}
+            onBrowseDirectory={() => setFollowDirectory(false)}
             directoryFollowStatus={directoryFollowStatus}
             onEnableDirectoryReporting={
               activeTerminal

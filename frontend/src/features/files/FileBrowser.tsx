@@ -80,6 +80,7 @@ export default function FileBrowser({
   directoryRequest,
   followDirectory,
   onFollowDirectory,
+  onBrowseDirectory,
   directoryFollowStatus,
   onEnableDirectoryReporting,
   onTerminalDirectory,
@@ -100,6 +101,7 @@ export default function FileBrowser({
   directoryRequest?: { path: string; sequence: number; locate?: boolean };
   followDirectory?: boolean;
   onFollowDirectory?(): void;
+  onBrowseDirectory?(): void;
   directoryFollowStatus?: 'waiting' | 'inserted' | 'ready' | 'inactive';
   onEnableDirectoryReporting?(): void;
   onTerminalDirectory?(path: string): void;
@@ -108,6 +110,7 @@ export default function FileBrowser({
 }) {
   useTranslation();
   const [directory, setDirectory] = useState(initialDirectory);
+  const [listView, setListView] = useState(false);
   const tree = useFileTree(id, visible, demoDirectories);
   const [selected, setSelected] = useState('');
   const [selection, setSelection] = useState<string[]>([]);
@@ -225,15 +228,11 @@ export default function FileBrowser({
   }, [visible, directoryRequest]);
   /* oxlint-enable react/exhaustive-deps */
 
-  async function load(path: string, historyIndex?: number, refresh = false) {
-    if (refresh) {
-      await refreshDirectory(path);
-      return;
-    }
+  async function load(path: string, historyIndex?: number, showTree = !listView) {
     setNavigationFailure(undefined);
     setLoading(true);
     const request = (async () => {
-      return tree.reveal(path);
+      return tree.reveal(path, false, showTree);
     })();
     pending.current = request;
     try {
@@ -263,6 +262,10 @@ export default function FileBrowser({
         setLoading(false);
       }
     }
+  }
+  function browse(path: string, historyIndex?: number) {
+    onBrowseDirectory?.();
+    return load(path, historyIndex);
   }
   async function refreshDirectory(path = directory) {
     setLoading(true);
@@ -308,12 +311,19 @@ export default function FileBrowser({
       ended = true;
     };
   }, [connectionID, demoDirectories, setError]);
-  const rows = fileTreeRows(tree.nodes, tree.expanded, { filter, showHidden, sort, descending });
+  const rows = fileTreeRows(tree.nodes, tree.expanded, {
+    filter,
+    showHidden,
+    sort,
+    descending,
+    directory: listView ? directory || '/' : undefined,
+  });
   const visibleEntries = rows.map((row) => row.entry);
   const focusedVisible = visibleEntries.some((entry) => entry.path === selected);
-  const root = tree.nodes['/'];
+  const listingPath = listView ? directory || '/' : '/';
+  const root = tree.nodes[listingPath];
   const directoryFailure =
-    navigationFailure || (root?.error ? { path: '/', message: root.error } : undefined);
+    navigationFailure || (root?.error ? { path: listingPath, message: root.error } : undefined);
   function focusEntry(path: string) {
     setSelected(path);
     requestAnimationFrame(() =>
@@ -359,9 +369,10 @@ export default function FileBrowser({
       ),
     );
     if (!range) anchor.current = path;
-    if (!toggle && !range) {
+    if (!listView && !toggle && !range) {
       const entry = visibleEntries.find((entry) => entry.path === path);
       const target = entry?.directory ? path : path.slice(0, path.lastIndexOf('/')) || '/';
+      if (directory !== target) onBrowseDirectory?.();
       setDirectory(target);
       onDirectory?.(target);
     }
@@ -470,7 +481,7 @@ export default function FileBrowser({
     } catch (e) {
       setError(e);
       if (batch.kind === 'delete')
-        await load(directory, undefined, true).catch((refreshError) => setError([e, refreshError]));
+        await refreshDirectory(directory).catch((refreshError) => setError([e, refreshError]));
     } finally {
       deletion.current = undefined;
       setWorking(false);
@@ -497,7 +508,7 @@ export default function FileBrowser({
   }
 
   async function open(entry: Entry, view?: 'text' | 'image') {
-    if (entry.directory) await load(entry.path);
+    if (entry.directory) await browse(entry.path);
     else {
       try {
         setError('');
@@ -582,7 +593,7 @@ export default function FileBrowser({
       pick(rows[next].entry.path, false, e.shiftKey);
       focusEntry(rows[next].entry.path);
     }
-    if (e.key === 'ArrowRight' && entry.directory) {
+    if (!listView && e.key === 'ArrowRight' && entry.directory) {
       e.preventDefault();
       if (!tree.expanded.has(entry.path)) toggle(entry.path);
       else if (rows[index + 1]?.parent === entry.path) {
@@ -590,7 +601,7 @@ export default function FileBrowser({
         focusEntry(rows[index + 1].entry.path);
       }
     }
-    if (e.key === 'ArrowLeft') {
+    if (!listView && e.key === 'ArrowLeft') {
       e.preventDefault();
       if (entry.directory && tree.expanded.has(entry.path)) toggle(entry.path);
       else if (rows[index].parent !== '/') {
@@ -864,7 +875,7 @@ export default function FileBrowser({
             className="icon-button"
             aria-label={translate('files:previousDirectory')}
             disabled={loading || history.index <= 0}
-            onClick={() => void load(history.paths[history.index - 1], history.index - 1)}
+            onClick={() => void browse(history.paths[history.index - 1], history.index - 1)}
           >
             <Icon name="back" width="15" />
           </button>
@@ -874,7 +885,7 @@ export default function FileBrowser({
             className="icon-button"
             aria-label={translate('files:nextDirectory')}
             disabled={loading || history.index >= history.paths.length - 1}
-            onClick={() => void load(history.paths[history.index + 1], history.index + 1)}
+            onClick={() => void browse(history.paths[history.index + 1], history.index + 1)}
           >
             <Icon name="back" width="15" style={{ transform: 'rotate(180deg)' }} />
           </button>
@@ -884,7 +895,7 @@ export default function FileBrowser({
             className="icon-button"
             aria-label={translate('files:parentDirectory')}
             disabled={loading || directory === '/'}
-            onClick={() => void load(parent)}
+            onClick={() => void browse(parent)}
           >
             <Icon name="up" width="15" />
           </button>
@@ -924,7 +935,7 @@ export default function FileBrowser({
             ]}
             onAction={(key) => {
               if (key === 'toggle') void toggleBookmark();
-              else void load(String(key));
+              else void browse(String(key));
             }}
           >
             {(item) => <DropdownItem key={item.key}>{item.name}</DropdownItem>}
@@ -940,13 +951,28 @@ export default function FileBrowser({
             <Icon name="paste" width="15" />
           </button>
         </Tooltip>
+        <Tooltip content={translate('files:directoryList')}>
+          <button
+            className="icon-button"
+            aria-label={translate('files:directoryList')}
+            aria-pressed={listView}
+            onClick={() => {
+              setListView(!listView);
+              setSelection([]);
+              anchor.current = '';
+              void load(directory, undefined, listView);
+            }}
+          >
+            <Icon name="list" width="15" />
+          </button>
+        </Tooltip>
       </div>
       {editingPath ? (
         <form
           className="path-form"
           onSubmit={(e) => {
             e.preventDefault();
-            void load(String(new FormData(e.currentTarget).get('path')));
+            void browse(String(new FormData(e.currentTarget).get('path')));
             setEditingPath(false);
           }}
         >
@@ -965,7 +991,7 @@ export default function FileBrowser({
       ) : (
         <div className="path-bar">
           <div className="breadcrumbs" aria-label={directory}>
-            <button onClick={() => void load('/')} aria-label={translate('files:rootDirectory')}>
+            <button onClick={() => void browse('/')} aria-label={translate('files:rootDirectory')}>
               /
             </button>
             {pathParts.length > 2 && (
@@ -975,7 +1001,7 @@ export default function FileBrowser({
                 </DropdownTrigger>
                 <DropdownMenu
                   aria-label={translate('files:parentDirectories')}
-                  onAction={(key) => void load(String(key))}
+                  onAction={(key) => void browse(String(key))}
                 >
                   {pathParts.slice(0, -2).map((part, index) => (
                     <DropdownItem key={`/${pathParts.slice(0, index + 1).join('/')}`}>
@@ -989,7 +1015,7 @@ export default function FileBrowser({
               const path = `/${pathParts.slice(0, Math.max(0, pathParts.length - 2) + index + 1).join('/')}`;
               return (
                 <Tooltip key={path} content={path}>
-                  <button onClick={() => void load(path)}>
+                  <button onClick={() => void browse(path)}>
                     {part}
                     <span>/</span>
                   </button>
@@ -1020,8 +1046,14 @@ export default function FileBrowser({
       )}
       <div className="file-filters" hidden={!filterOpen && !filter}>
         <input
-          aria-label={translate('files:filterFileNamesInExpandedDirectories')}
-          placeholder={translate('files:filterExpandedDirectories')}
+          aria-label={translate(
+            listView
+              ? 'files:filterCurrentDirectory'
+              : 'files:filterFileNamesInExpandedDirectories',
+          )}
+          placeholder={translate(
+            listView ? 'files:filterCurrentDirectory' : 'files:filterExpandedDirectories',
+          )}
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           onKeyDown={(e) => {
@@ -1044,14 +1076,47 @@ export default function FileBrowser({
           {translate('files:reading')}
         </p>
       )}
+      {listView && (
+        <div
+          className="directory-list-headings"
+          role="group"
+          aria-label={translate('files:fileViewOptions')}
+        >
+          {(
+            [
+              ['name', 'files:name'],
+              ['size', 'files:size'],
+              ['modified', 'files:modifiedAt'],
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              aria-pressed={sort === key}
+              aria-label={translate('connections:sortBy', {
+                value1: translate(label),
+                value2: translate(
+                  sort === key && !descending ? 'connections:descending' : 'connections:ascending',
+                ),
+              })}
+              onClick={() => {
+                setDescending(sort === key && !descending);
+                setSort(key);
+              }}
+            >
+              {translate(label)}
+              {sort === key && <span aria-hidden="true">{descending ? ' ↓' : ' ↑'}</span>}
+            </button>
+          ))}
+        </div>
+      )}
       <ul
-        className="file-list file-tree"
+        className={`file-list file-tree${listView ? ' directory-list' : ''}`}
         ref={list}
-        role="tree"
-        aria-label={translate('files:remoteDirectoryTree')}
-        aria-multiselectable="true"
+        role={listView ? 'list' : 'tree'}
+        aria-label={translate(listView ? 'files:directoryList' : 'files:remoteDirectoryTree')}
+        aria-multiselectable={listView ? undefined : true}
         onContextMenu={(event) => {
-          if ((event.target as HTMLElement).closest('[role=treeitem]')) return;
+          if ((event.target as HTMLElement).closest('[data-tree-path]')) return;
           event.preventDefault();
           setMenu('__panel__');
         }}
@@ -1108,13 +1173,15 @@ export default function FileBrowser({
               content={<FileMetadata entry={entry} />}
             >
               <li
-                role="treeitem"
+                role={listView ? 'listitem' : 'treeitem'}
                 aria-label={entry.name}
-                aria-level={depth + 1}
+                aria-level={listView ? undefined : depth + 1}
                 aria-posinset={position}
                 aria-setsize={siblings}
-                aria-expanded={entry.directory ? tree.expanded.has(entry.path) : undefined}
-                aria-selected={selection.includes(entry.path)}
+                aria-expanded={
+                  !listView && entry.directory ? tree.expanded.has(entry.path) : undefined
+                }
+                aria-selected={listView ? undefined : selection.includes(entry.path)}
                 data-tree-path={entry.path}
                 data-file-drop-target={readOnly || demoDirectories || !visible ? undefined : true}
                 data-workspace-id={demoDirectories ? undefined : id}
@@ -1133,31 +1200,32 @@ export default function FileBrowser({
                   setMenu(entry.path);
                 }}
               >
-                {entry.directory ? (
-                  <button
-                    className="tree-expand"
-                    tabIndex={-1}
-                    aria-label={translate('files:directory', {
-                      value1: tree.expanded.has(entry.path)
-                        ? translate('connections:collapse')
-                        : translate('connections:expand'),
-                      value2: entry.path,
-                    })}
-                    aria-expanded={tree.expanded.has(entry.path)}
-                    onClick={() => toggle(entry.path)}
-                  >
-                    <Icon
-                      name="chevron"
-                      width="11"
-                      height="11"
-                      style={{
-                        transform: tree.expanded.has(entry.path) ? 'rotate(90deg)' : undefined,
-                      }}
-                    />
-                  </button>
-                ) : (
-                  <span className="tree-expand" />
-                )}
+                {!listView &&
+                  (entry.directory ? (
+                    <button
+                      className="tree-expand"
+                      tabIndex={-1}
+                      aria-label={translate('files:directory', {
+                        value1: tree.expanded.has(entry.path)
+                          ? translate('connections:collapse')
+                          : translate('connections:expand'),
+                        value2: entry.path,
+                      })}
+                      aria-expanded={tree.expanded.has(entry.path)}
+                      onClick={() => toggle(entry.path)}
+                    >
+                      <Icon
+                        name="chevron"
+                        width="11"
+                        height="11"
+                        style={{
+                          transform: tree.expanded.has(entry.path) ? 'rotate(90deg)' : undefined,
+                        }}
+                      />
+                    </button>
+                  ) : (
+                    <span className="tree-expand" />
+                  ))}
                 {action?.kind === 'rename' && action.path === entry.path ? (
                   <form
                     className="inline-rename"
@@ -1204,6 +1272,7 @@ export default function FileBrowser({
                       onClick={(e) => {
                         pick(entry.path, e.ctrlKey || e.metaKey, e.shiftKey);
                         if (
+                          !listView &&
                           entry.directory &&
                           !e.ctrlKey &&
                           !e.metaKey &&
@@ -1213,10 +1282,10 @@ export default function FileBrowser({
                           void tree.expand(entry.path).catch((error) => setError(error));
                       }}
                       onDoubleClick={() => {
-                        if (!entry.directory) void open(entry);
+                        if (listView || !entry.directory) void open(entry);
                       }}
                     >
-                      <FileIcon {...entry} expanded={tree.expanded.has(entry.path)} />
+                      <FileIcon {...entry} expanded={!listView && tree.expanded.has(entry.path)} />
                       <span className="file-entry-name">{entry.name}</span>
                       {entry.symlink && (
                         <span className="file-link-target">
@@ -1224,13 +1293,17 @@ export default function FileBrowser({
                         </span>
                       )}
                     </button>
-                    <span className="file-metadata">
-                      {entry.directory ? '' : entry.size.toLocaleString(currentLocale())}
+                    <span className="file-metadata file-entry-size">
+                      {entry.directory
+                        ? listView
+                          ? '—'
+                          : ''
+                        : entry.size.toLocaleString(currentLocale())}
                     </span>
-                    <span className="file-metadata">
+                    <span className="file-metadata file-entry-modified">
                       {new Date(entry.modified).toLocaleDateString(currentLocale())}
                     </span>
-                    <span className="file-metadata">{entry.mode}</span>
+                    {!listView && <span className="file-metadata">{entry.mode}</span>}
                     <Dropdown
                       isOpen={menu === entry.path}
                       onOpenChange={(open) => setMenu(open ? entry.path : '')}
@@ -1389,7 +1462,7 @@ export default function FileBrowser({
                 )}
               </li>
             </Tooltip>
-            {entry.directory && tree.expanded.has(entry.path) && (
+            {!listView && entry.directory && tree.expanded.has(entry.path) && (
               <>
                 {tree.nodes[entry.path]?.loading && (
                   <li
@@ -1677,7 +1750,7 @@ export default function FileBrowser({
             directory={directory}
             onClose={() => setSearchOpen(false)}
             onOpen={async (match) => {
-              if (match.directory) await load(match.path);
+              if (match.directory) await browse(match.path);
               else await onOpenFile?.(match.path, match.line || 1);
             }}
           />

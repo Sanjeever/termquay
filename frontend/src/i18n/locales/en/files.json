@@ -295,6 +295,8 @@
   "directory2": "Directory",
   "searchMethod": "Search method",
   "fileName": "File name",
+  "directoryList": "Directory list",
+  "filterCurrentDirectory": "Filter current directory",
   "fileContents": "File contents",
   "searchText": "Search text",
   "search": "Search",

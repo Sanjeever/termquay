@@ -295,6 +295,8 @@
   "directory2": "目录",
   "searchMethod": "搜索方式",
   "fileName": "文件名",
+  "directoryList": "目录列表",
+  "filterCurrentDirectory": "筛选当前目录",
   "fileContents": "文件内容",
   "searchText": "搜索内容",
   "search": "搜索",
