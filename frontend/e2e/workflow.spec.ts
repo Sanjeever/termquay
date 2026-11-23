@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { demoSamples } from '../src/features/demo/data';
 
 test('catalog column controls preserve the row connection action', async ({ page }) => {
   await page.route('**/wails/runtime*', (route) =>
@@ -213,6 +214,146 @@ test('narrow monitoring and workspace controls remain readable in both languages
       true,
     );
   }
+});
+
+test('monitor trends link sample readouts and expand beside or over the workspace', async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.route('**/wails/runtime*', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: 'null' }),
+  );
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto('/e2e/workflow.html?scene=terminal&language=en&theme=dark');
+
+  const panel = page.getByRole('complementary', { name: 'Server monitoring' });
+  const plots = panel.locator('.monitor-plot');
+  const canvas = panel.locator('.monitor-canvas canvas');
+  const divider = panel.locator('..').getByRole('separator', { name: 'Monitoring panel width' });
+  await expect(canvas).toBeVisible();
+  await expect(plots).toHaveCount(4);
+  const cursor = panel.locator('.monitor-cursor-time time');
+  const values = panel.locator('.monitor-chart-heading');
+  const currentCPU = await values.nth(0).innerText();
+  const currentNetwork = await values.nth(2).innerText();
+  const plot = (await plots.first().boundingBox())!;
+  const x = plot.x + 56 + (plot.width - 73) * 0.65;
+  const y = plot.y + 18;
+  await page.mouse.move(x, y);
+  await expect(cursor).toBeVisible();
+  await expect(values.nth(0)).not.toHaveText(currentCPU);
+  await expect(values.nth(2)).not.toHaveText(currentNetwork);
+  const time = await cursor.getAttribute('datetime');
+  await page.mouse.click(x, y);
+  const live = panel.getByRole('button', { name: 'Live' });
+  await expect(live).toHaveAttribute('aria-pressed', 'false');
+  await live.press('ArrowLeft');
+  await expect(cursor).not.toHaveAttribute('datetime', time!);
+  const lockedTime = await cursor.getAttribute('datetime');
+
+  await divider.press('End');
+  await expect
+    .poll(async () => (await plots.nth(0).boundingBox())!.y - (await plots.nth(1).boundingBox())!.y)
+    .toBe(0);
+  const expand = panel.getByRole('button', { name: 'Expand CPU trend' });
+  await expand.click();
+  await expect(plots).toHaveCount(1);
+  await expect(cursor).toHaveAttribute('datetime', lockedTime!);
+  const center = page.locator('.ssh-center');
+  const terminal = page.locator('.xterm');
+  const previousTerminal = await terminal.elementHandle();
+  const back = panel.getByRole('button', { name: 'Back to overview' });
+  await expect(back).toBeFocused();
+  expect((await center.boundingBox())!.x + (await center.boundingBox())!.width).toBeLessThanOrEqual(
+    (await panel.boundingBox())!.x,
+  );
+
+  await page.setViewportSize({ width: 760, height: 650 });
+  await expect.poll(async () => (await panel.boundingBox())!.width).toBeGreaterThan(680);
+  await back.click();
+  await expect(expand).toBeFocused();
+  await expect(plots).toHaveCount(4);
+  expect(
+    await terminal.evaluate((element, original) => element === original, previousTerminal),
+  ).toBe(true);
+  await live.press('Escape');
+  await expect(live).toHaveAttribute('aria-pressed', 'true');
+  await expect(cursor).toHaveCount(0);
+  await panel.getByText('3 min', { exact: true }).click();
+  await expect(panel.getByRole('radio', { name: '3 min' })).toBeChecked();
+  await panel.getByRole('button', { name: 'Expand Disk I/O trend' }).click();
+  await expect(plots).toHaveCount(1);
+  const detail = (await panel.locator('.monitor-canvas').boundingBox())!;
+  const handleX = detail.x + 56;
+  const handleY = detail.y + detail.height - 14;
+  await page.mouse.move(handleX, handleY);
+  await page.mouse.down();
+  await page.mouse.move(handleX + detail.width * 0.3, handleY, { steps: 6 });
+  await page.mouse.up();
+  await expect(live).toHaveAttribute('aria-pressed', 'false');
+  await page.mouse.move(detail.x + detail.width * 0.75, detail.y + detail.height / 2);
+  await expect(cursor).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('monitor keeps locked readings and history through live updates and collection failure', async ({
+  page,
+}) => {
+  const subscriptions: number[] = [];
+  await page.route('**/wails/runtime*', (route) => {
+    const method = route.request().postDataJSON()?.args?.methodID;
+    if (method === 510329004 || method === 86316371) subscriptions.push(method);
+    return route.fulfill({ status: 200, contentType: 'application/json', body: 'null' });
+  });
+  await page.goto('/e2e/workflow.html?monitor=runtime');
+  const panel = page.getByRole('complementary', { name: 'Server monitoring' });
+  const cpu = panel.getByRole('region', { name: 'CPU', exact: true });
+  const canvas = panel.locator('.monitor-canvas canvas');
+  const live = panel.getByRole('button', { name: 'Live' });
+  await expect.poll(() => subscriptions).toEqual([510329004]);
+
+  const started = Date.now() - 8000;
+  async function emit(cpu: number | null, offset: number, error = '') {
+    await page.evaluate(
+      (update) =>
+        Reflect.get(window, '_wails').dispatchWailsEvent({
+          name: 'monitor:sample',
+          data: update,
+        }),
+      {
+        id: 'fixture',
+        sample: error
+          ? null
+          : {
+              ...demoSamples[0],
+              cpu,
+              time: new Date(started + offset).toISOString(),
+            },
+        error,
+      },
+    );
+  }
+
+  await emit(null, 0);
+  await expect(cpu).toContainText('—');
+  await emit(0, 3000);
+  await expect(cpu).toContainText('0.0%');
+  await live.press('Enter');
+  await emit(73, 6000);
+  await expect(cpu).toContainText('0.0%');
+  await live.press('Escape');
+  await expect(cpu).toContainText('73.0%');
+  await emit(null, 0, 'Collection timed out');
+  await expect(panel.getByRole('alert')).toContainText('Monitoring collection failed');
+  await expect(canvas).toBeVisible();
+  await expect(cpu).toContainText('—');
+  await live.press('ArrowLeft');
+  await expect(cpu).toContainText('73.0%');
+
+  await panel.getByRole('button', { name: 'Collapse monitoring panel' }).click();
+  await expect.poll(() => subscriptions).toEqual([510329004, 86316371]);
+  await expect(canvas).toHaveCount(0);
 });
 
 async function fileWorkspace(page: Page) {

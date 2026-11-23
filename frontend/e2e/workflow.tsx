@@ -178,7 +178,7 @@ function Fixture() {
             <MonitorPanel
               id="fixture"
               visible={monitor}
-              demoSamples={demoSamples}
+              demoSamples={parameters.get('monitor') === 'runtime' ? undefined : demoSamples}
               onClose={() => setMonitor(false)}
             />
           </div>
