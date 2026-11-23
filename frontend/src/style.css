@@ -55,6 +55,24 @@
     left: 42px;
     max-width: calc(100% - 84px);
   }
+  .ssh-panels > .monitor-dock:not(.monitor-dock-expanded) {
+    max-width: min(380px, calc(100% - 74px));
+  }
+  .monitor-dock > .panel-separator {
+    display: none;
+  }
+  .ssh-panels > .monitor-dock.monitor-dock-expanded {
+    inset: 0;
+    min-width: 0;
+    width: auto;
+    max-width: none;
+  }
+  .ssh-panels:has(> .workspace-tool-rail) > .monitor-dock.monitor-dock-expanded {
+    right: 42px;
+  }
+  .ssh-panels:has(> .workspace-tool-rail-left) > .monitor-dock.monitor-dock-expanded {
+    left: 42px;
+  }
 }
 
 @media (prefers-reduced-transparency: reduce) {

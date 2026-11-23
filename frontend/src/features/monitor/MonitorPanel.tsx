@@ -1,32 +1,63 @@
-import { eventError, errorMessage } from '../../lib/errors.ts';
-import { t as translate, currentLocale } from '../../i18n/index.ts';
-import { useMessageState } from '../../i18n/useMessageState.ts';
-import { useTranslation } from 'react-i18next';
-import Tooltip from '../../components/Tooltip';
-
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Button } from '@heroui/react';
 import { Events } from '@wailsio/runtime';
+import { useTranslation } from 'react-i18next';
 import {
   SubscribeMonitor,
   UnsubscribeMonitor,
 } from '../../../bindings/github.com/Sanjeever/termquay/internal/app/appservice';
-import type { Sample } from '../../../bindings/github.com/Sanjeever/termquay/internal/monitor/models';
-import ResizeHandle from '../../components/layout/ResizeHandle';
+import type {
+  Counter,
+  Sample,
+} from '../../../bindings/github.com/Sanjeever/termquay/internal/monitor/models';
 import Icon from '../../components/Icon';
-import MonitorTrend from './MonitorTrend';
-import { createHistory, historyPoints, recordSample, sampleGap } from './history';
+import ResizeHandle from '../../components/layout/ResizeHandle';
+import Tooltip from '../../components/Tooltip';
+import { currentLocale, t } from '../../i18n';
+import { useMessageState } from '../../i18n/useMessageState';
+import { errorMessage, eventError } from '../../lib/errors';
+import { bytes, rate } from './chartData';
+import { createHistory, historyPoints, recordSample, sampleGap, type Point } from './history';
+import type { PlotId } from './MonitorCharts';
 
+const MonitorCharts = lazy(() => import('./MonitorCharts'));
 const LinuxInspectionDialog = lazy(() => import('./LinuxInspectionDialog'));
+const widthKey = 'termquay.layout.monitor-width';
+const minWidth = 220;
+const maxWidth = 680;
 
-function bytes(value: number | null | undefined) {
-  if (value == null) return '—';
-  if (value >= 1024 ** 3) return `${(value / 1024 ** 3).toFixed(1)} GiB`;
-  if (value >= 1024 ** 2) return `${(value / 1024 ** 2).toFixed(1)} MiB`;
-  return `${(value / 1024).toFixed(1)} KiB`;
-}
-function rate(value: number | null | undefined) {
-  return value == null ? '—' : `${bytes(value)}/s`;
+function DeviceDetails({
+  items,
+  fresh,
+  network,
+}: {
+  items: Counter[] | null | undefined;
+  fresh: boolean;
+  network?: boolean;
+}) {
+  if (!items?.length) return null;
+  return (
+    <details className="monitor-details">
+      <summary>{network ? t('monitor:networkInterfaces') : t('monitor:blockDevices')}</summary>
+      <dl className="monitor-device-list">
+        {items.map((item) => (
+          <div key={item.name}>
+            <dt>{item.name}</dt>
+            <dd>
+              {t(network ? 'monitor:downloadRate' : 'monitor:readRate', {
+                rate: rate(fresh ? item.read_rate : null),
+              })}
+            </dd>
+            <dd>
+              {t(network ? 'monitor:uploadRate' : 'monitor:writeRate', {
+                rate: rate(fresh ? item.write_rate : null),
+              })}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </details>
+  );
 }
 
 export default function MonitorPanel({
@@ -36,6 +67,7 @@ export default function MonitorPanel({
   onDirectory,
   onFile,
   demoSamples,
+  leadingDockWidth = 0,
 }: {
   id: string;
   visible: boolean;
@@ -43,36 +75,42 @@ export default function MonitorPanel({
   onDirectory?(path: string): void;
   onFile?(path: string): Promise<void>;
   demoSamples?: Sample[];
+  leadingDockWidth?: number;
 }) {
   useTranslation();
   const [sample, setSample] = useState<Sample>();
+  const [points, setPoints] = useState<Point[]>([]);
   const [error, setError] = useMessageState('');
   const [retry, setRetry] = useState(0);
-  const [now, setNow] = useState(Date.now());
-  const [width, setWidth] = useState(
-    demoSamples ? 260 : Number(localStorage.getItem('termquay.layout.monitor-width')) || 260,
+  const [now, setNow] = useState(Date.now);
+  const [expanded, setExpanded] = useState<PlotId>();
+  const [width, setWidth] = useState(() =>
+    demoSamples
+      ? 260
+      : Math.max(minWidth, Math.min(maxWidth, Number(localStorage.getItem(widthKey)) || 260)),
   );
   const [inspection, setInspection] = useState<'cpu' | 'memory' | 'services'>();
-  useEffect(() => {
-    setInspection(undefined);
-  }, [id]);
-  useEffect(() => {
-    if (!visible) setInspection(undefined);
-  }, [visible]);
   const operations = useRef(Promise.resolve());
   const history = useRef(createHistory());
+  const content = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    setInspection(undefined);
+    setExpanded(undefined);
+  }, [id, visible]);
   useEffect(() => {
     history.current = createHistory();
-    if (demoSamples) {
-      for (const sample of demoSamples)
-        recordSample(history.current, sample, Date.parse(sample.time));
-      const latest = demoSamples[demoSamples.length - 1];
-      setSample(latest);
-      if (latest) setNow(Date.parse(latest.time));
-    } else setSample(undefined);
+    for (const entry of demoSamples ?? [])
+      recordSample(history.current, entry, Date.parse(entry.time));
+    setPoints(historyPoints(history.current));
+    const latest = demoSamples?.[demoSamples.length - 1];
+    setSample(latest);
+    setNow(latest ? Date.parse(latest.time) : Date.now());
   }, [id, demoSamples]);
   useEffect(() => {
-    if (!demoSamples) localStorage.setItem('termquay.layout.monitor-width', String(width));
+    if (demoSamples) return;
+    const timer = window.setTimeout(() => localStorage.setItem(widthKey, String(width)), 180);
+    return () => clearTimeout(timer);
   }, [width, demoSamples]);
   useEffect(() => {
     if (!visible || demoSamples) return;
@@ -86,66 +124,81 @@ export default function MonitorPanel({
       recordSample(
         history.current,
         update.sample,
-        update.sample ? new Date(update.sample.time).getTime() : Date.now(),
+        update.sample ? Date.parse(update.sample.time) : Date.now(),
       );
-      setSample(update.sample || undefined);
+      setPoints(historyPoints(history.current));
+      setSample((previous) => update.sample ?? previous);
       setError(eventError(update));
       setNow(Date.now());
     });
-    operations.current = operations.current
-      .then(async () => {
-        if (!disposed) await SubscribeMonitor(id);
-      })
-      .catch((e) => {
-        if (!disposed) setError(e);
-      });
+    const subscription = operations.current.then(async () => {
+      if (disposed) return false;
+      await SubscribeMonitor(id);
+      return true;
+    });
+    const active = subscription.catch((reason) => {
+      if (!disposed) setError(reason);
+      return false;
+    });
     const timer = window.setInterval(() => setNow(Date.now()), 3000);
     return () => {
       disposed = true;
       off();
       clearInterval(timer);
-      operations.current = operations.current
-        .then(() => UnsubscribeMonitor(id))
-        .catch((e) => {
-          if (!disposed) setError(e);
-        });
+      operations.current = active
+        .then(async (subscribed) => {
+          if (subscribed) await UnsubscribeMonitor(id);
+        })
+        .catch((reason) => console.error(reason));
     };
   }, [id, visible, retry, demoSamples, setError]);
+
   const sampleTime = sample ? Date.parse(sample.time) : undefined;
   const stale = sampleTime !== undefined && now - sampleTime > sampleGap;
-  const points = historyPoints(history.current);
   const latest = points[points.length - 1];
-  const current = !stale && latest?.time === sampleTime ? latest : undefined;
-  const filesystems = sample?.file_systems;
-  const filesystemError = errorMessage(eventError(filesystems));
-  const freshFilesystems = !stale && filesystems && now - Date.parse(filesystems.time) <= 45000;
-  const rootFS =
-    freshFilesystems && !filesystemError
-      ? filesystems.items?.find((fs) => fs.target === '/')
-      : undefined;
+  const current = !error && !stale && latest?.time === sampleTime ? latest : undefined;
+  const fileSystems = sample?.file_systems;
+  const filesystemError = errorMessage(eventError(fileSystems));
+  const freshFilesystems =
+    !!fileSystems && !filesystemError && now - Date.parse(fileSystems.time) <= 45000;
+  const rootFS = freshFilesystems ? fileSystems.items?.find((fs) => fs.target === '/') : undefined;
+
   return (
-    <div className="monitor-dock" hidden={!visible} style={{ width }}>
-      <ResizeHandle
-        label={translate('monitor:monitoringPanelWidth')}
-        value={width}
-        min={220}
-        max={380}
-        onChange={setWidth}
-        reverse
-      />
-      <aside className="monitor-panel" aria-label={translate('monitor:serverMonitoring')}>
+    <div
+      className={`monitor-dock${expanded ? ' monitor-dock-expanded' : ''}`}
+      hidden={!visible}
+      style={
+        {
+          '--monitor-width': `${width}px`,
+          '--monitor-leading-dock': `${leadingDockWidth}px`,
+        } as CSSProperties
+      }
+    >
+      {!expanded && (
+        <ResizeHandle
+          label={t('monitor:monitoringPanelWidth')}
+          value={width}
+          min={minWidth}
+          max={maxWidth}
+          onChange={setWidth}
+          reverse
+        />
+      )}
+      <aside ref={content} className="monitor-panel" aria-label={t('monitor:serverMonitoring')}>
         <div className="sidebar-heading">
-          <h2>{translate('monitor:monitoring')}</h2>
+          <h2>{t('monitor:monitoring')}</h2>
           <button
+            type="button"
             className="session-tool"
             disabled={!!demoSamples}
             onClick={() => setInspection('services')}
           >
-            {translate('monitor:processesAndServices')}
+            {t('monitor:processesAndServices')}
           </button>
           <button
+            type="button"
             className="icon-button"
-            aria-label={translate('monitor:collapseMonitoringPanel')}
+            aria-label={t('monitor:collapseMonitoringPanel')}
             onClick={onClose}
           >
             <Icon name="close" width="15" />
@@ -154,184 +207,103 @@ export default function MonitorPanel({
         {error ? (
           <div className="monitor-error">
             <p className="error" role="alert">
-              {translate('monitor:monitoringCollectionFailed')}
+              {t('monitor:monitoringCollectionFailed')}
             </p>
             <Button size="sm" variant="bordered" onPress={() => setRetry((v) => v + 1)}>
-              {translate('monitor:retry')}
+              {t('monitor:retry')}
             </Button>
             <details>
-              <summary>{translate('monitor:technicalDetails')}</summary>
+              <summary>{t('monitor:technicalDetails')}</summary>
               <p className="error">{error}</p>
             </details>
           </div>
-        ) : !sample ? (
-          <p className="muted" role="status">
-            {translate('monitor:waitingForFirstSample')}
-          </p>
         ) : (
+          !sample && (
+            <p className="muted" role="status">
+              {t('monitor:waitingForFirstSample')}
+            </p>
+          )
+        )}
+        {visible && points.length > 0 && (
+          <Suspense
+            fallback={
+              <p role="status" className="muted">
+                {t('monitor:loadingTrends')}
+              </p>
+            }
+          >
+            <MonitorCharts
+              key={id}
+              points={points}
+              current={current}
+              expanded={expanded}
+              onExpand={(plot) => {
+                setExpanded(plot);
+                if (plot && content.current) content.current.scrollTop = 0;
+              }}
+              onInspect={demoSamples ? undefined : setInspection}
+            />
+          </Suspense>
+        )}
+        {!expanded && sample && (
           <>
-            <p className="system-info">{sample.system}</p>
-            <div className="metric monitor-overview-metric">
-              <button
-                className="metric-inspect"
-                aria-label={translate('monitor:viewProcessesUsingTheMostCPU')}
-                disabled={!!demoSamples}
-                onClick={() => setInspection('cpu')}
-              >
-                CPU
-              </button>
-              <strong className="metric-primary">
-                {stale || sample.cpu == null ? '—' : `${sample.cpu.toFixed(1)}%`}
-              </strong>
-              <MonitorTrend
-                points={points}
-                metrics={['cpu']}
-                now={now}
-                label={translate('monitor:cPUUsageTrend')}
-                ceiling={100}
-                format={(value) => `${value}%`}
-              />
-            </div>
-            <div className="metric monitor-overview-metric">
-              <button
-                className="metric-inspect"
-                aria-label={translate('monitor:viewProcessesUsingTheMostMemory')}
-                disabled={!!demoSamples}
-                onClick={() => setInspection('memory')}
-              >
-                {translate('monitor:memory')}
-              </button>
-              <strong className="metric-primary">
-                {stale || !sample.memory_total
-                  ? '—'
-                  : `${(((sample.memory_total - sample.memory_available) / sample.memory_total) * 100).toFixed(1)}%`}
-              </strong>
-              <span>
-                {stale
-                  ? '—'
-                  : `${bytes(sample.memory_total - sample.memory_available)} / ${bytes(sample.memory_total)}`}
-              </span>
-              <MonitorTrend
-                points={points}
-                metrics={['memory']}
-                now={now}
-                label={translate('monitor:memoryUsageTrend')}
-                ceiling={100}
-                format={(value) => `${value}%`}
-              />
-            </div>
-            <details className="monitor-details">
+            <details className="monitor-details monitor-capacity">
               <summary>
-                {translate('monitor:network')}
-                <span className="monitor-summary-values">
-                  <span>
-                    {translate('monitor:downloadRate', { rate: rate(current?.networkRead) })}
-                  </span>
-                  <span>
-                    {translate('monitor:uploadRate', { rate: rate(current?.networkWrite) })}
-                  </span>
+                <span>{t('monitor:filesystems')}</span>
+                <span className="monitor-capacity-value">
+                  / {rootFS ? `${bytes(rootFS.used)} / ${bytes(rootFS.size)}` : '—'}
                 </span>
-              </summary>
-              <div className="trend-legend">
-                <span>{translate('monitor:received')}</span>
-                <span>{translate('monitor:sentDashed')}</span>
-              </div>
-              <MonitorTrend
-                points={points}
-                metrics={['networkRead', 'networkWrite']}
-                now={now}
-                label={translate('monitor:totalNetworkReceiveAndSendRateTrends')}
-                format={(value) => rate(value)}
-              />
-              {sample.network?.map((n) => (
-                <div className="metric" key={n.name}>
-                  <span>{n.name}</span>
-                  <div>↓ {stale ? '—' : rate(n.read_rate)}</div>
-                  <div>↑ {stale ? '—' : rate(n.write_rate)}</div>
-                </div>
-              ))}
-            </details>
-            <details className="monitor-details">
-              <summary>
-                {translate('monitor:diskIO')}
-                <span className="monitor-summary-values">
-                  <span>
-                    {translate('monitor:read2')}
-                    {rate(current?.diskRead)}
-                  </span>
-                  <span>
-                    {translate('monitor:written')}
-                    {rate(current?.diskWrite)}
-                  </span>
-                </span>
-              </summary>
-              <div className="trend-legend">
-                <span>{translate('monitor:read')}</span>
-                <span>{translate('monitor:writtenDashed')}</span>
-              </div>
-              <MonitorTrend
-                points={points}
-                metrics={['diskRead', 'diskWrite']}
-                now={now}
-                label={translate('monitor:totalDiskReadAndWriteRateTrends')}
-                format={(value) => rate(value)}
-              />
-              {sample.disks?.map((d) => (
-                <div className="metric" key={d.name}>
-                  <span>{d.name}</span>
-                  <div>
-                    {translate('monitor:read2')}
-                    {stale ? '—' : rate(d.read_rate)}
-                  </div>
-                  <div>
-                    {translate('monitor:written')}
-                    {stale ? '—' : rate(d.write_rate)}
-                  </div>
-                </div>
-              ))}
-            </details>
-            <details className="monitor-details">
-              <summary>
-                {translate('monitor:filesystems')}
-                <span className="monitor-summary-values">
-                  <span>/</span>
-                  <span>{rootFS ? `${bytes(rootFS.used)} / ${bytes(rootFS.size)}` : '—'}</span>
-                </span>
+                {rootFS && rootFS.size > 0 && (
+                  <meter
+                    className="monitor-root-meter"
+                    min={0}
+                    max={rootFS.size}
+                    value={rootFS.used}
+                    aria-label={t('monitor:rootCapacityUsed')}
+                  />
+                )}
               </summary>
               {filesystemError ? (
                 <p className="error" role="alert">
                   {filesystemError}
                 </p>
               ) : (
-                sample.file_systems?.items?.map((fs, index) => (
+                fileSystems?.items?.map((fs, index) => (
                   <div className="metric filesystem-metric" key={`${fs.target}:${index}`}>
                     <Tooltip content={`${fs.source} · ${fs.type}`}>
                       <strong>{fs.target}</strong>
                     </Tooltip>
                     <span>{freshFilesystems ? `${bytes(fs.used)} / ${bytes(fs.size)}` : '—'}</span>
                     <span className="muted">
-                      {translate('monitor:available')}
+                      {t('monitor:available')}
                       {freshFilesystems ? bytes(fs.available) : '—'}
                     </span>
                   </div>
                 ))
               )}
             </details>
-            <div className={`sample-time ${stale ? 'error' : ''}`}>
-              {stale
-                ? translate('monitor:sampleExpired')
-                : sample.cpu == null
-                  ? translate('monitor:waitingForIncrementalSample')
-                  : translate('monitor:updatedAt')}
-              {new Date(sample.time).toLocaleTimeString(currentLocale())}
-            </div>
+            <DeviceDetails items={sample.network} fresh={!!current} network />
+            <DeviceDetails items={sample.disks} fresh={!!current} />
           </>
+        )}
+        {sample && (
+          <div className="monitor-status">
+            <span>{sample.system}</span>
+            <span className={`sample-time ${stale || error ? 'error' : ''}`}>
+              {stale || error
+                ? t('monitor:sampleExpired')
+                : sample.cpu == null
+                  ? t('monitor:waitingForIncrementalSample')
+                  : t('monitor:updatedAt')}
+              {new Date(sample.time).toLocaleTimeString(currentLocale())}
+            </span>
+          </div>
         )}
         {inspection && visible && !demoSamples && (
           <Suspense
             fallback={
               <p role="status" className="muted">
-                {translate('monitor:loadingDiagnostics')}
+                {t('monitor:loadingDiagnostics')}
               </p>
             }
           >

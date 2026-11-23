@@ -958,6 +958,9 @@ const SSHWorkspace = forwardRef<
     const media = window.matchMedia('(max-width: 1100px)');
     const update = () => {
       const active = document.activeElement;
+      const expanded = center.current?.parentElement?.querySelector(
+        '.monitor-dock-expanded:not([hidden])',
+      );
       const panel = active?.closest('.file-dock')
         ? 'files'
         : active?.closest('.monitor-dock')
@@ -966,7 +969,9 @@ const SSHWorkspace = forwardRef<
             ? 'ai'
             : active?.closest('.tunnel-dock')
               ? 'tunnels'
-              : null;
+              : expanded
+                ? 'monitor'
+                : null;
       setNarrow(media.matches);
       if (media.matches) setNarrowPanel(panel);
       else {
@@ -2231,6 +2236,7 @@ const SSHWorkspace = forwardRef<
         <MonitorPanel
           id={sessionID}
           visible={visible && monitorShown}
+          leadingDockWidth={filesShown && !narrow ? filesWidth : 0}
           onDirectory={(path) => {
             showFiles();
             setDirectoryRequest((previous) => ({

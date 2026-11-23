@@ -117,7 +117,8 @@ export default function DemoWorkbench({
     const media = matchMedia('(max-width: 1100px)');
     const resize = () => {
       setNarrow(media.matches);
-      setNarrowPanel(null);
+      const expanded = root.current?.querySelector('.monitor-dock-expanded:not([hidden])');
+      setNarrowPanel(media.matches && expanded ? 'monitor' : null);
     };
     media.addEventListener('change', resize);
     return () => media.removeEventListener('change', resize);
@@ -712,6 +713,7 @@ export default function DemoWorkbench({
             <MonitorPanel
               id="demo-monitor"
               visible={visible && monitorShown}
+              leadingDockWidth={filesShown && !narrow ? filesWidth : 0}
               demoSamples={demoSamples}
               onClose={() => {
                 if (narrow) setNarrowPanel(null);

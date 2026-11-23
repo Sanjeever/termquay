@@ -40,14 +40,20 @@
   display: flex;
   min-width: 220px;
   flex-shrink: 0;
+  width: var(--monitor-width);
+  max-width: max(220px, calc(100% - var(--monitor-leading-dock) - 410px));
+}
+.monitor-dock-expanded {
+  width: min(760px, 56%);
 }
 .monitor-panel {
   min-width: 0;
   flex: 1;
-  padding: 0 16px 16px;
+  padding: 0 12px 12px;
   overflow: auto;
   background: var(--color-surface);
   overflow-wrap: anywhere;
+  container: monitoring / inline-size;
 }
 .monitor-error {
   display: flex;
@@ -58,33 +64,134 @@
 }
 .monitor-details {
   border-top: 1px solid var(--color-border);
-  padding: 14px 0;
+  padding: 7px 0;
 }
-.monitor-summary-values {
+.monitor-chart-toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 12px;
-  padding-block-start: 4px;
-  padding-inline-start: 14px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  margin-top: 8px;
+}
+.monitor-ranges {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  min-width: 0;
+  padding: 2px;
+  border-radius: 5px;
+  background: var(--color-background);
+}
+.monitor-ranges label {
+  cursor: pointer;
+}
+.monitor-ranges span {
+  display: block;
+  padding: 4px 7px;
+  border-radius: 3px;
+  font-size: 11px;
+  color: var(--color-muted);
+}
+.monitor-ranges input:checked + span {
+  background: var(--color-elevated);
   color: var(--color-text);
+}
+.monitor-ranges input:focus-visible + span {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+.monitor-live[aria-pressed='true'] {
+  color: var(--color-success);
+}
+.monitor-live[aria-pressed='false'] {
+  background: var(--color-elevated);
+}
+.monitor-cursor-time {
+  min-height: 17px;
+  color: var(--color-muted);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
+  text-align: end;
 }
-.compact-ssh .monitor-panel {
-  padding-inline: 12px;
+.monitor-chart-layout {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  column-gap: 14px;
 }
-.compact-ssh .monitor-overview-metric {
+.monitor-chart-tile {
+  min-width: 0;
+  border-top: 1px solid var(--color-border);
+}
+.monitor-chart-heading {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
   gap: 5px;
-  margin-block: 12px;
+  min-height: 26px;
+  font-size: 12px;
+  line-height: 1.2;
 }
-.compact-ssh .monitor-overview-metric .metric-primary {
-  font-size: 22px;
+.monitor-chart-heading > :first-child {
+  margin-right: auto;
 }
-.compact-ssh .monitor-overview-metric .monitor-trend {
-  block-size: 32px;
+.monitor-chart-heading strong,
+.monitor-series-values,
+.monitor-capacity-value,
+.monitor-device-list {
+  font-variant-numeric: tabular-nums;
 }
-.compact-ssh .monitor-details {
-  padding-block: 8px;
+.monitor-chart-heading > .icon-button {
+  display: grid;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+}
+.monitor-series-values {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  column-gap: 7px;
+  font-size: 11px;
+}
+.monitor-series-values > span {
+  white-space: nowrap;
+}
+.monitor-dual-series > span::before {
+  display: inline-block;
+  width: 8px;
+  margin-right: 3px;
+  vertical-align: middle;
+  border-top: 1px solid var(--color-primary);
+  content: '';
+}
+.monitor-dual-series > span + span::before {
+  border-top: 1px dashed var(--color-success);
+}
+.monitor-plot {
+  height: 59px;
+}
+.monitor-chart-layout[data-expanded='true'] .monitor-plot {
+  height: clamp(220px, 48vh, 560px);
+}
+.monitor-canvas {
+  position: absolute;
+  inset: 0;
+}
+.monitor-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+@container monitoring (min-width: 480px) {
+  .monitor-chart-layout[data-expanded='false'] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 .monitor-details summary,
 .monitor-error summary {
@@ -96,57 +203,66 @@
   overflow-wrap: anywhere;
   font-weight: 500;
 }
-.monitor-trend {
-  position: relative;
-  height: 54px;
+.monitor-capacity summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 4px 8px;
 }
-.monitor-trend svg {
+.monitor-capacity summary > :first-child::before {
+  display: inline-block;
+  content: '▸';
+  margin-right: 5px;
+}
+.monitor-capacity[open] summary > :first-child::before {
+  content: '▾';
+}
+.monitor-capacity-value {
+  text-align: end;
+  font-size: 11px;
+  color: var(--color-text);
+}
+.monitor-root-meter {
+  grid-column: 1 / -1;
   width: 100%;
-  height: 100%;
-  overflow: visible;
+  height: 7px;
+  appearance: none;
+  border: 0;
+  border-radius: 3px;
+  background: var(--color-elevated);
 }
-.trend-scale {
-  position: absolute;
-  right: 0;
-  top: -6px;
-  font-size: 10px;
-  color: var(--color-muted);
-  font-variant-numeric: tabular-nums;
+.monitor-root-meter::-webkit-meter-bar {
+  border: 0;
+  border-radius: 3px;
+  background: var(--color-elevated);
 }
-.trend-baseline {
-  stroke: var(--color-border);
-  stroke-width: 1;
+.monitor-root-meter::-webkit-meter-optimum-value {
+  background: var(--color-primary);
 }
-.trend-series {
-  color: var(--color-primary);
+.monitor-root-meter::-moz-meter-bar {
+  background: var(--color-primary);
 }
-.trend-series-1 {
-  color: var(--color-success);
+.monitor-device-list {
+  display: grid;
+  gap: 5px;
+  margin: 6px 0 0;
+  font-size: 11px;
 }
-.trend-series path {
-  stroke: currentColor;
-  stroke-width: 1.5;
-  fill: none;
-  vector-effect: non-scaling-stroke;
-}
-.trend-series circle {
-  fill: currentColor;
-}
-.trend-series-1 path {
-  stroke-dasharray: 4 3;
-}
-.trend-legend {
+.monitor-device-list > div {
   display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  color: var(--color-muted);
-  font-size: 10px;
-  margin: 14px 0 8px;
+  flex-wrap: wrap;
+  gap: 3px 8px;
 }
-.metric .metric-primary {
-  font-size: 26px;
-  line-height: 1.2;
-  font-variant-numeric: tabular-nums;
+.monitor-device-list dt {
+  margin-right: auto;
+}
+.monitor-status {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  color: var(--color-muted);
+  font-size: 11px;
 }
 .transfer-dock {
   display: flex;

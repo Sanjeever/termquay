@@ -10,7 +10,8 @@ import {
   demoSamples,
   demoTime,
 } from './data.ts';
-import { createHistory, historyPoints, recordSample, trendSegments } from '../monitor/history.ts';
+import { chartSeries } from '../monitor/chartData.ts';
+import { createHistory, historyPoints, recordSample } from '../monitor/history.ts';
 
 test('演示目录独立使用示例域名与空凭据，分组和偏好引用完整', () => {
   const groups = new Set(demoGroups.map((group) => group.id));
@@ -56,5 +57,8 @@ test('固定监控样本在演示时钟下形成连续趋势，运行时间不�
   assert.equal(points.length, demoSamples.length);
   assert.equal(points[points.length - 1].time, demoTime);
   for (const metric of ['cpu', 'memory', 'networkRead', 'networkWrite'] as const)
-    assert.equal(trendSegments(points, metric, demoTime)[0].length, demoSamples.length);
+    assert.equal(
+      chartSeries(points, metric).filter(([, value]) => value !== null).length,
+      demoSamples.length,
+    );
 });
