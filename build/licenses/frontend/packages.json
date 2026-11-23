@@ -2434,6 +2434,7 @@
   {
     "name": "tslib",
     "versions": [
+      "2.3.0",
       "2.9.1"
     ],
     "license": "0BSD",
@@ -3691,5 +3692,23 @@
     "license": "Apache-2.0",
     "homepage": "https://www.typescriptlang.org/",
     "author": "Microsoft Corp."
+  },
+  {
+    "name": "echarts",
+    "versions": [
+      "6.1.0"
+    ],
+    "license": "Apache-2.0",
+    "homepage": "https://echarts.apache.org",
+    "author": null
+  },
+  {
+    "name": "zrender",
+    "versions": [
+      "6.1.0"
+    ],
+    "license": "BSD-3-Clause",
+    "homepage": "https://github.com/ecomfe/zrender#readme",
+    "author": null
   }
 ]

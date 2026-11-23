@@ -2,9 +2,13 @@
   "inputs": {
     "go.mod": "0a951ac612ba5346da42b8a6a1aab560d9c97afdb7bf37e3cb0e5a7d78d14baf",
     "go.sum": "cc5057fd8467af8ee42e503a11552ba4e9ddda40b7550c862cb81d0ad9878b6e",
-    "frontend/pnpm-lock.yaml": "ab71065615002ed70666c42f5791c6a34fcb7acd062cf87f4a348fc600d2be79",
+    "frontend/pnpm-lock.yaml": "9b34e9fcc2049dd97e89a9b3b30795f8925cd2b0e8bcb9af28fd2df81e975d43",
     "frontend/patches/@xterm__addon-webgl@0.19.0.patch": "0ec2191e0bb422ffed48f568ad1c8ac80421bb925930a3303053cd4b2dd0e1b8",
     "frontend/patches/@devolutions__iron-remote-desktop@0.11.0.patch": "53b4e282385f535f908c6399947350bff05c762c268b5060a9bba9d998fa0168"
+  },
+  "monitor_chart_dependencies": {
+    "baseline": "b14d573",
+    "verification": "The lockfile adds Apache ECharts 6.1.0 (Apache-2.0), zrender 6.1.0 (BSD-3-Clause), and tslib 2.3.0 (0BSD). Existing resolutions are unchanged. The frontend inventory and the published packages' license texts, including the Apache ECharts NOTICE, are collected under build/licenses/frontend."
   },
   "terminal_fractional_dpi_patch": {
     "reviewed_at": "2026-11-12",
