@@ -641,6 +641,8 @@ test('compact SSH starts with a wide terminal and supports docking and splitting
   await page.setViewportSize({ width: 1000, height: 900 });
   await expect(page.locator('.monitor-dock')).toBeHidden();
   const monitoring = page.getByRole('button', { name: 'Monitoring', exact: true });
+  const input = terminal.first().locator('.xterm-helper-textarea');
+  await input.focus();
   await monitoring.click();
   await expect(page.locator('.monitor-dock')).toBeVisible();
   await expect(page.locator('.ssh-center')).toHaveAttribute('aria-hidden', 'true');
@@ -649,7 +651,7 @@ test('compact SSH starts with a wide terminal and supports docking and splitting
   expect((await page.locator('.monitor-dock').boundingBox())!.width).toBeGreaterThan(900);
   await page.keyboard.press('Escape');
   await expect(page.locator('.monitor-dock')).toBeHidden();
-  await expect(monitoring).toBeFocused();
+  await expect(input).toBeFocused();
   expect(await terminal.first().evaluate((element, handle) => element === handle, original)).toBe(
     true,
   );
@@ -665,6 +667,9 @@ test('activating an editor toolbar keeps focus on the chosen control', async ({ 
   const history = page.getByRole('button', { name: 'History and validation', exact: true });
   await history.focus();
   await expect(history).toBeFocused();
+  await editor.locator('.cm-content').focus();
+  await page.getByRole('button', { name: 'Quick input', exact: true }).click();
+  await expect(page.getByRole('textbox', { name: 'Command draft', exact: true })).toBeFocused();
 });
 
 test('SSH layouts keep an editor and two independent terminals alive', async ({ page }) => {

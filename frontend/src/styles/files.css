@@ -303,6 +303,13 @@
   font-size: 11px;
   color: var(--color-muted);
 }
+.ssh-panels-tool-view .file-toolbar {
+  justify-content: flex-start;
+  gap: 4px;
+}
+.ssh-panels-tool-view .file-toolbar > :last-child {
+  margin-inline-start: auto;
+}
 .file-toolbar .icon-button {
   width: 26px;
   height: 28px;

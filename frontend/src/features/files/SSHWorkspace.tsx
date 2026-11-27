@@ -507,6 +507,7 @@ const SSHWorkspace = forwardRef<
   const currentDirty = useRef(false);
   const panels = useRef<HTMLDivElement>(null);
   const center = useRef<HTMLDivElement>(null);
+  const lastContentFocus = useRef<HTMLElement>();
   const panelReturnFocus = useRef<HTMLElement>();
   const previousToolView = useRef<WorkspacePanel | null>(null);
   const terminalHandles = useRef(new Map<string, TerminalHandle>());
@@ -905,7 +906,11 @@ const SSHWorkspace = forwardRef<
 
   function showNarrowPanel(panel: WorkspacePanel, toggle = false) {
     if (!narrowPanel && document.activeElement instanceof HTMLElement) {
-      panelReturnFocus.current = document.activeElement;
+      const focused = document.activeElement;
+      const pointerTrigger =
+        focused.closest('.workspace-tool-rail') && !focused.matches(':focus-visible');
+      panelReturnFocus.current =
+        focused === document.body || pointerTrigger ? lastContentFocus.current : focused;
     }
     setNarrowPanel(toggle && narrowPanel === panel ? null : panel);
   }
@@ -1428,6 +1433,23 @@ const SSHWorkspace = forwardRef<
     setActive(path);
     requestAnimationFrame(() => focusTab(path));
   }
+  function paneActivation(path: string) {
+    function activatePane(
+      event: React.FocusEvent<HTMLDivElement> | React.MouseEvent<HTMLDivElement>,
+    ) {
+      const target = event.target;
+      if (!(target instanceof Element) || !event.currentTarget.contains(target)) return;
+      // Keep a pointer press on a toolbar control intact until it dispatches its click.
+      if (
+        event.type === 'focus' &&
+        target.closest('button, [role=button]') &&
+        !target.matches(':focus-visible')
+      )
+        return;
+      setActivePane(paneFor(path));
+    }
+    return { onFocusCapture: activatePane, onClickCapture: activatePane };
+  }
   function closeTab(path: string) {
     if (!terminals.includes(path)) {
       close(path);
@@ -1729,7 +1751,16 @@ const SSHWorkspace = forwardRef<
             onChange={setFilesWidth}
           />
         )}
-        <div className="ssh-center" ref={center} aria-hidden={toolView ? true : undefined}>
+        <div
+          className="ssh-center"
+          ref={center}
+          aria-hidden={toolView ? true : undefined}
+          onFocusCapture={(event) => {
+            if (event.target instanceof HTMLElement && event.currentTarget.contains(event.target)) {
+              lastContentFocus.current = event.target;
+            }
+          }}
+        >
           <ErrorNotice
             message={error}
             onDismiss={() => setError('')}
@@ -1830,7 +1861,7 @@ const SSHWorkspace = forwardRef<
                   data-tab-id={terminal}
                   hidden={!shown(terminal)}
                   style={panePosition(paneFor(terminal))}
-                  onFocusCapture={() => setActivePane(paneFor(terminal))}
+                  {...paneActivation(terminal)}
                   key={terminal}
                 >
                   <TerminalView
@@ -1992,7 +2023,7 @@ const SSHWorkspace = forwardRef<
                 data-tab-id={path}
                 hidden={!shown(path)}
                 style={panePosition(paneFor(path))}
-                onFocusCapture={() => setActivePane(paneFor(path))}
+                {...paneActivation(path)}
               >
                 <Suspense
                   fallback={
@@ -2024,7 +2055,7 @@ const SSHWorkspace = forwardRef<
                   data-tab-id={d.path}
                   hidden={!shown(d.path) || imageFile(d.path)}
                   style={panePosition(paneFor(d.path))}
-                  onFocusCapture={() => setActivePane(paneFor(d.path))}
+                  {...paneActivation(d.path)}
                 >
                   <ErrorNotice
                     message={downloadErrors[d.path] ? translate('files:draftDownloadFailed') : ''}
