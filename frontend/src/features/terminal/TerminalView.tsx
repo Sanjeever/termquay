@@ -12,6 +12,7 @@ import {
   Suspense,
   useEffect,
   useCallback,
+  useId,
   useImperativeHandle,
   useLayoutEffect,
   useMemo,
@@ -31,7 +32,6 @@ import {
   ModalBody,
   ModalFooter,
   PopoverContent,
-  PopoverTrigger,
 } from '@heroui/react';
 import { Dropdown, Popover } from '../../components/Popover';
 import { Terminal } from '@xterm/xterm';
@@ -249,6 +249,8 @@ const TerminalView = forwardRef<
   const pendingPaste = useRef<{ text: string; onInserted?(): void }>();
   const [quickInputOpen, setQuickInputOpen] = useState(false);
   const [quickInput, setQuickInput] = useState('');
+  const quickInputTrigger = useRef<HTMLButtonElement>(null);
+  const quickInputID = useId();
   useEffect(() => {
     if (visible) return;
     setQuickInputOpen(false);
@@ -1284,17 +1286,23 @@ const TerminalView = forwardRef<
               placement="bottom-end"
               isOpen={visible && quickInputOpen}
               onOpenChange={setQuickInputOpen}
+              triggerRef={quickInputTrigger}
             >
-              <PopoverTrigger>
-                <button
-                  className="icon-button"
-                  title={translate('terminal:quickInput')}
-                  aria-label={translate('terminal:quickInput')}
-                >
-                  <Icon name="code" width="15" />
-                </button>
-              </PopoverTrigger>
+              <button
+                ref={quickInputTrigger}
+                type="button"
+                className="icon-button"
+                title={translate('terminal:quickInput')}
+                aria-label={translate('terminal:quickInput')}
+                aria-haspopup="dialog"
+                aria-expanded={visible && quickInputOpen}
+                aria-controls={visible && quickInputOpen ? quickInputID : undefined}
+                onClick={() => setQuickInputOpen((open) => !open)}
+              >
+                <Icon name="code" width="15" />
+              </button>
               <PopoverContent
+                id={quickInputID}
                 className="terminal-quick-input"
                 aria-label={translate('terminal:quickInput')}
               >

@@ -118,7 +118,7 @@
   box-shadow: none;
   transition: none;
 }
-.ssh-panels-tool-view > [data-workspace-panel][hidden] {
+.ssh-panels-narrow > [data-workspace-panel][hidden] {
   transition: none;
 }
 .ssh-panels-tool-view > [data-workspace-panel] > .panel-separator {

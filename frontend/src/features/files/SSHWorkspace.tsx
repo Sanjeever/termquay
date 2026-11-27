@@ -574,7 +574,10 @@ const SSHWorkspace = forwardRef<
       panelReturnFocus.current = undefined;
       // If another control took focus while closing the panel, keep that focus.
       const focused = document.activeElement;
-      if (focused === document.body || focused?.closest('.workspace-tool-rail')) {
+      if (
+        focused === document.body ||
+        focused?.closest('.workspace-tool-rail, [data-workspace-panel][hidden]')
+      ) {
         if (target?.isConnected && target.getClientRects().length) {
           target.focus({ preventScroll: true });
         } else {
@@ -1672,7 +1675,7 @@ const SSHWorkspace = forwardRef<
       )}
       <div
         ref={panels}
-        className={`ssh-panels ssh-panels-live${toolView ? ' ssh-panels-tool-view' : ''}`}
+        className={`ssh-panels ssh-panels-live${narrow ? ' ssh-panels-narrow' : ''}${toolView ? ' ssh-panels-tool-view' : ''}`}
       >
         <WorkspaceToolRail
           side="left"
