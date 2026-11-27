@@ -1687,6 +1687,28 @@ export default function App() {
       </Tooltip>
     </>
   );
+  const workspacePriority = (id: string) => {
+    if (id === active) return recentWorkspaces.current.length + 1;
+    const index = recentWorkspaces.current.indexOf(id);
+    return index < 0 ? 0 : recentWorkspaces.current.length - index;
+  };
+  const paletteConnections = useMemo(() => {
+    if (!palette || !catalog) return [];
+    return catalog.connections
+      .map((connection) => {
+        const preference = preferences[connection.id];
+        return {
+          connection,
+          favorite: !!preference?.favorite,
+          lastConnected: Date.parse(preference?.last_connected || '') || 0,
+        };
+      })
+      .sort((a, b) => Number(b.favorite) - Number(a.favorite) || b.lastConnected - a.lastConnected);
+  }, [catalog, palette, preferences]);
+  const paletteGroups = useMemo(
+    () => new Map(catalog?.groups.map((group) => [group.id, group.name])),
+    [catalog?.groups],
+  );
   const commands: WorkbenchCommand[] = [
     ...(filesTab
       ? [
@@ -1694,6 +1716,7 @@ export default function App() {
             id: 'workspace-files',
             label: translate('files:fileTransfers'),
             kind: 'workspace' as const,
+            priority: workspacePriority(filesTabID),
             run: () => select(filesTabID),
           },
         ]
@@ -1704,6 +1727,7 @@ export default function App() {
             id: 'workspace-docker',
             label: 'Docker',
             kind: 'workspace' as const,
+            priority: workspacePriority(dockerTabID),
             run: () => select(dockerTabID),
           },
         ]
@@ -1714,6 +1738,7 @@ export default function App() {
             id: 'workspace-logs',
             label: translate('common:multiSourceLogs2'),
             kind: 'workspace' as const,
+            priority: workspacePriority(logsTabID),
             run: () => select(logsTabID),
           },
         ]
@@ -1724,6 +1749,7 @@ export default function App() {
             id: 'workspace-multi-host',
             label: translate('common:multiHostOperations2'),
             kind: 'workspace' as const,
+            priority: workspacePriority(commandTasksTabID),
             run: () => select(commandTasksTabID),
           },
         ]
@@ -1754,21 +1780,20 @@ export default function App() {
         ]
           .filter(Boolean)
           .join(' · '),
-        search: catalog?.groups.find((g) => g.id === c?.group_id)?.name,
+        search: c ? paletteGroups.get(c.group_id) : undefined,
         kind: 'workspace' as const,
+        priority: workspacePriority(w.id),
         run: () => select(w.id),
       };
     }),
-    ...(palette
-      ? (catalog?.connections || []).map((c) => ({
-          id: `connection-${c.id}`,
-          label: c.name,
-          detail: `${c.protocol.toUpperCase()} · ${c.username}@${c.host}:${c.port}`,
-          search: catalog?.groups.find((g) => g.id === c.group_id)?.name,
-          kind: 'connection' as const,
-          run: () => openSaved(c),
-        }))
-      : []),
+    ...paletteConnections.map(({ connection: c }) => ({
+      id: `connection-${c.id}`,
+      label: c.name,
+      detail: `${c.protocol.toUpperCase()} · ${c.username}@${c.host}:${c.port}`,
+      search: paletteGroups.get(c.group_id),
+      kind: 'connection' as const,
+      run: () => openSaved(c),
+    })),
     {
       id: 'new',
       label: translate('common:newConnection'),
@@ -1787,6 +1812,7 @@ export default function App() {
       label: scene.label,
       search: translate('common:demoMode'),
       kind: 'command' as const,
+      queryOnly: true,
       run: () => showDemo(scene.id),
     })),
     ...localShells.map((shell) => ({

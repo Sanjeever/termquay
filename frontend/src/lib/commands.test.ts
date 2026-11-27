@@ -36,3 +36,36 @@ test('the workspace switcher includes every open workspace', () => {
   assert.equal(commandResults(items, '', 'workspace').length, 75);
   assert.equal(commandResults(items, '74', 'workspace')[0].label, 'Workspace 74');
 });
+
+test('empty search puts active workspaces and saved connections before commands', () => {
+  const items = [
+    { label: 'New connection', kind: 'command' as const },
+    { label: 'Demo: SSH', kind: 'command' as const, queryOnly: true },
+    { label: 'Recent host', kind: 'connection' as const },
+    { label: 'Other workspace', kind: 'workspace' as const },
+    { label: 'Current workspace', kind: 'workspace' as const, priority: 2 },
+  ];
+  assert.deepEqual(
+    commandResults(items, '', 'all').map(({ label }) => label),
+    ['Current workspace', 'Other workspace', 'Recent host', 'New connection'],
+  );
+  assert.equal(commandResults(items, 'demo', 'all')[0].label, 'Demo: SSH');
+});
+
+test('name matches rank above connection details before the result limit is applied', () => {
+  const items = [
+    ...Array.from({ length: 20 }, (_, index) => ({
+      label: `Host ${index}`,
+      detail: 'deploy@server',
+      kind: 'connection' as const,
+    })),
+    { label: 'Server staging', kind: 'connection' as const },
+    { label: 'Server', kind: 'connection' as const },
+  ];
+  assert.deepEqual(
+    commandResults(items, 'server', 'all')
+      .slice(0, 2)
+      .map(({ label }) => label),
+    ['Server', 'Server staging'],
+  );
+});

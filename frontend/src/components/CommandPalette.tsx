@@ -12,6 +12,8 @@ export type WorkbenchCommand = {
   detail?: string;
   shortcut?: string;
   search?: string;
+  priority?: number;
+  queryOnly?: boolean;
   kind: CommandKind;
   run(): void;
 };
