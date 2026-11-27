@@ -1691,6 +1691,7 @@ const SSHWorkspace = forwardRef<
           style={{ width: filesWidth }}
         >
           <FileBrowser
+            defaultListView
             readOnly={browseOnly}
             onToggleReadOnly={() => void toggleBrowseOnly()}
             changingMode={changingMode}

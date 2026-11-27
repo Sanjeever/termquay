@@ -168,7 +168,7 @@ With the automatic layout, the first file opened in a new SSH workspace appears 
 
 New SSH workspaces open with files and monitoring collapsed. Restored workspaces use the saved panel layout. Enable **Settings → Appearance → Compact SSH workspace** for shorter controls and direct split buttons. In a narrow workspace, the active tool uses the main area. Close it or press Escape to return to the work area. See [compact layout controls](development.zh-CN.md#ssh-工作区与本地终端).
 
-The file header offers browsing mode, terminal directory following and **Directory list**. Use the list to sort and browse the current directory. For refresh, creation, selection and copy/paste, see [remote files and transfers](development.zh-CN.md#远端文件与传输).
+The file panel opens in **Directory list**. Enter a path to open it or use the folder menu to visit an ancestor. Toggle **Directory list** to reveal the current directory in the tree. The header also offers browsing mode and terminal directory following. For refresh, creation, selection and copy/paste, see [remote files and transfers](development.zh-CN.md#远端文件与传输).
 
 Middle-click a workspace, tool or terminal/file tab to close it without first selecting it. Local split-pane headers support the same action. Unsaved-file and running-local-terminal confirmations still apply, and closing remains disabled while the existing save, restore or busy state blocks it. The fixed connection center cannot be closed.
 

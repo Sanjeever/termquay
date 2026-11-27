@@ -233,57 +233,29 @@
     text-overflow: ellipsis;
   }
 }
-.path-bar {
+.path-form {
   display: flex;
   align-items: center;
   border: 1px solid transparent;
   border-radius: 5px;
-  min-height: 30px;
-  padding-left: 6px;
+  min-height: 32px;
   background: var(--color-selection-muted);
 }
-.path-bar:focus-within {
+.path-form:focus-within {
   border-color: var(--color-primary);
 }
-.breadcrumbs {
-  display: flex;
-  align-items: center;
-  gap: 2px;
+.path-form > .icon-button {
+  flex-shrink: 0;
+}
+.file-panel .path-form input {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
+  height: 30px;
+  border: 0;
+  border-radius: 0;
+  padding: 0 6px 0 2px;
+  background: transparent;
   font: 11px var(--font-mono);
-}
-.breadcrumbs > button {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.breadcrumbs > button:first-child,
-.breadcrumbs > button[aria-haspopup] {
-  flex-shrink: 0;
-}
-.breadcrumbs > button:last-child {
-  flex-shrink: 0;
-  max-width: 65%;
-}
-.breadcrumbs button:hover {
-  color: var(--color-primary);
-}
-.breadcrumbs span {
-  padding: 0 3px;
-  color: var(--color-muted);
-}
-.path-edit {
-  padding: 4px 6px;
-  color: var(--color-muted);
-}
-.path-form {
-  height: 32px;
-}
-.path-form input {
-  height: 32px;
 }
 .file-entry-name {
   overflow: hidden;

@@ -166,7 +166,7 @@ test('file selection actions collapse without leaving a gap above the directory 
         element.style.width = `${width}px`;
       }, width);
       await expect(actions).toBeHidden();
-      const path = await panel.locator('.path-bar').boundingBox();
+      const path = await panel.locator('.path-form').boundingBox();
       expect((await tree.boundingBox())!.y - path!.y - path!.height).toBeLessThanOrEqual(8);
       await file.focus();
       await page.keyboard.press('Space');
@@ -549,6 +549,13 @@ async function sshWorkflow(
   );
   if (showFiles) {
     await page.locator('.workspace-tool-rail-left').getByRole('button').first().click();
+    await page
+      .locator('.file-panel')
+      .getByRole('button', {
+        name: language === 'zh-CN' ? '目录列表' : 'Directory list',
+        exact: true,
+      })
+      .click();
     await expect(page.locator('.file-panel [data-tree-path="/config"]')).toBeVisible();
   }
   await expect.poll(() => sockets.length).toBe(2);
@@ -707,7 +714,9 @@ test('file refresh keeps the selected directory and reads its branch without rea
   const ssh = await sshWorkflow(page);
   const directory = page.locator('[data-tree-path="/config"]');
   await directory.locator('.file-name').click();
-  await expect(page.locator('.breadcrumbs')).toHaveAttribute('aria-label', '/config');
+  await expect(page.getByRole('textbox', { name: 'Remote directory', exact: true })).toHaveValue(
+    '/config',
+  );
   await expect(directory).toHaveAttribute('aria-selected', 'true');
   const rootReads = ssh.calls.filter(
     (call) => call.method === 504709045 && (!call.args[1] || call.args[1] === '/'),
@@ -734,22 +743,22 @@ test('directory following is explicit, pauses when disabled and rejects another 
   const ssh = await sshWorkflow(page);
   const follow = page.getByRole('button', { name: 'Follow terminal directory', exact: true });
   const cwd = page.locator('.terminal-view .session-status .file-path');
-  const breadcrumbs = page.locator('.breadcrumbs');
+  const path = page.getByRole('textbox', { name: 'Remote directory', exact: true });
   await expect(follow).toHaveAttribute('aria-pressed', 'false');
   ssh.directory('/config');
   await expect(cwd).toHaveText('/config');
-  await expect(breadcrumbs).toHaveAttribute('aria-label', '/');
+  await expect(path).toHaveValue('/');
   await follow.click();
-  await expect(breadcrumbs).toHaveAttribute('aria-label', '/config');
+  await expect(path).toHaveValue('/config');
   await follow.click();
   ssh.directory('/config/subdir');
   await expect(cwd).toHaveText('/config/subdir');
-  await expect(breadcrumbs).toHaveAttribute('aria-label', '/config');
+  await expect(path).toHaveValue('/config');
   await follow.click();
-  await expect(breadcrumbs).toHaveAttribute('aria-label', '/config/subdir');
+  await expect(path).toHaveValue('/config/subdir');
   ssh.directory('/other-host', 'other.example.invalid');
   await expect(cwd).toHaveText('/other-host');
-  await expect(breadcrumbs).toHaveAttribute('aria-label', '/config/subdir');
+  await expect(path).toHaveValue('/config/subdir');
   expect(
     ssh.calls
       .filter((call) => call.method === 504709045)
@@ -786,7 +795,9 @@ test('directory setup uses one preview, waits for Enter and follows only confirm
   await expect(status).toContainText('Waiting for terminal directory');
   ssh.directory('/config/subdir');
   await expect(status).toHaveCount(0);
-  await expect(page.locator('.breadcrumbs')).toHaveAttribute('aria-label', '/config/subdir');
+  await expect(page.getByRole('textbox', { name: 'Remote directory', exact: true })).toHaveValue(
+    '/config/subdir',
+  );
 });
 
 test('directory setup errors require the current token and allow retry after execution or cancellation', async ({
@@ -844,7 +855,9 @@ test('selected remote files open in transfers without replacing the other locati
   await page.getByRole('button', { name: 'Back to SSH', exact: true }).click();
   await expect(page.locator('.file-panel')).toBeVisible();
   ssh.directory('/config/subdir');
-  await expect(page.locator('.breadcrumbs')).toHaveAttribute('aria-label', '/config/subdir');
+  await expect(page.getByRole('textbox', { name: 'Remote directory', exact: true })).toHaveValue(
+    '/config/subdir',
+  );
   await page
     .locator('.workspace-tool-rail')
     .getByRole('button', { name: 'File transfers', exact: true })
@@ -878,10 +891,14 @@ test('directory readiness belongs to the active terminal and SSH instance', asyn
   await expect(page.locator('.file-follow-status')).toContainText('Waiting for terminal directory');
   ssh.directory('/config/subdir', 'app.example.invalid', 'host-a');
   await expect(page.locator('.file-follow-status')).toContainText('Waiting for terminal directory');
-  await expect(page.locator('.breadcrumbs')).toHaveAttribute('aria-label', '/config');
+  await expect(page.getByRole('textbox', { name: 'Remote directory', exact: true })).toHaveValue(
+    '/config',
+  );
   await page.getByRole('tab', { name: 'Terminal 1', exact: true }).click();
   await expect(page.locator('.file-follow-status')).toHaveCount(0);
-  await expect(page.locator('.breadcrumbs')).toHaveAttribute('aria-label', '/config/subdir');
+  await expect(page.getByRole('textbox', { name: 'Remote directory', exact: true })).toHaveValue(
+    '/config/subdir',
+  );
   await page.getByRole('button', { name: 'Disconnect SSH', exact: true }).click();
   await expect(page.locator('.file-follow-status')).toContainText('Select a connected terminal');
   await expect(
@@ -900,12 +917,12 @@ test('directory list reuses the file panel and browsing pauses terminal followin
 }) => {
   const ssh = await sshWorkflow(page);
   const files = page.locator('.file-panel');
-  const path = files.locator('.breadcrumbs');
+  const path = files.getByRole('textbox', { name: 'Remote directory', exact: true });
   const follow = files.getByRole('button', { name: 'Follow terminal directory', exact: true });
   const mode = files.getByRole('button', { name: 'Directory list', exact: true });
   await follow.click();
   ssh.directory('/config');
-  await expect(path).toHaveAttribute('aria-label', '/config');
+  await expect(path).toHaveValue('/config');
   const reads = ssh.calls.filter((call) => call.method === 504709045).length;
   await mode.click();
   const list = files.getByRole('list', { name: 'Directory list' });
@@ -915,16 +932,39 @@ test('directory list reuses the file panel and browsing pauses terminal followin
   expect(ssh.calls.filter((call) => call.method === 504709045)).toHaveLength(reads);
   const subdirectory = list.getByRole('listitem', { name: 'subdir', exact: true });
   await subdirectory.getByRole('button', { name: 'subdir', exact: true }).click();
-  await expect(path).toHaveAttribute('aria-label', '/config');
+  await expect(path).toHaveValue('/config');
   await subdirectory.getByRole('button', { name: 'subdir', exact: true }).dblclick();
-  await expect(path).toHaveAttribute('aria-label', '/config/subdir');
+  await expect(path).toHaveValue('/config/subdir');
   await expect(follow).toHaveAttribute('aria-pressed', 'false');
   await list.getByRole('button', { name: 'release.conf', exact: true }).dblclick();
   await expect(page.locator('.cm-content')).toContainText('original file');
   await mode.click();
   await expect(files.getByRole('tree')).toBeVisible();
-  await expect(path).toHaveAttribute('aria-label', '/config/subdir');
+  await expect(path).toHaveValue('/config/subdir');
   await expect(page.locator('.cm-content')).toContainText('original file');
+});
+
+test('typing a path opens its directory and reveals it when switching to the tree', async ({
+  page,
+}) => {
+  await sshWorkflow(page, 'en', false, false, false);
+  await page.setViewportSize({ width: 1280, height: 420 });
+  await page.getByRole('button', { name: 'Files', exact: true }).click();
+  const panel = page.getByRole('complementary', { name: 'Remote files' });
+  const list = panel.getByRole('list', { name: 'Directory list' });
+  const path = panel.getByRole('textbox', { name: 'Remote directory' });
+  const target = '/subdir/subdir/subdir/subdir';
+  await expect(list.getByRole('listitem', { name: 'release.conf', exact: true })).toBeVisible();
+  await path.fill(target);
+  await path.press('Enter');
+  await expect(path).toHaveValue(target);
+  await expect(list.locator(`[data-tree-path="${target}/release.conf"]`)).toBeVisible();
+  await panel.getByRole('button', { name: 'Directory list', exact: true }).click();
+  const row = panel.getByRole('tree').locator(`[data-tree-path="${target}"]`);
+  await expect(row).toBeInViewport({ ratio: 0.9 });
+  await path.fill('/discard-this');
+  await path.press('Escape');
+  await expect(path).toHaveValue(target);
 });
 
 test('quick input keeps its draft with the originating terminal and previews multiline text', async ({

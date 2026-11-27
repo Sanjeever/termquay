@@ -5,7 +5,7 @@ import { useMessageState } from '../../i18n/useMessageState.ts';
 import { useTranslation } from 'react-i18next';
 import { errorMessage, eventError } from '../../lib/errors.ts';
 import { Events } from '@wailsio/runtime';
-import { Fragment, lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { Fragment, lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   Button,
   DropdownTrigger,
@@ -76,6 +76,7 @@ export default function FileBrowser({
   onOpenFile,
   onClose,
   initialDirectory = '',
+  defaultListView = false,
   onDirectory,
   directoryRequest,
   followDirectory,
@@ -97,6 +98,7 @@ export default function FileBrowser({
   onOpenFile?(path: string, line: number): Promise<void>;
   onClose(): void;
   initialDirectory?: string;
+  defaultListView?: boolean;
   onDirectory?(path: string): void;
   directoryRequest?: { path: string; sequence: number; locate?: boolean };
   followDirectory?: boolean;
@@ -110,7 +112,7 @@ export default function FileBrowser({
 }) {
   useTranslation();
   const [directory, setDirectory] = useState(initialDirectory);
-  const [listView, setListView] = useState(false);
+  const [listView, setListView] = useState(defaultListView);
   const tree = useFileTree(id, visible, demoDirectories);
   const [selected, setSelected] = useState('');
   const [selection, setSelection] = useState<string[]>([]);
@@ -121,7 +123,8 @@ export default function FileBrowser({
   const [error, setError] = useMessageState('');
   const [navigationFailure, setNavigationFailure] = useState<{ path: string; message: unknown }>();
   const [loading, setLoading] = useState(false);
-  const [editingPath, setEditingPath] = useState(false);
+  const [pathDraft, setPathDraft] = useState<string>();
+  const [revealed, setRevealed] = useState<{ path: string; tree: boolean }>();
   const [action, setAction] = useState<{
     kind: 'mkdir' | 'create' | 'rename' | 'delete';
     path: string;
@@ -186,6 +189,17 @@ export default function FileBrowser({
   const pending = useRef<ReturnType<typeof tree.reveal>>();
   const list = useRef<HTMLUListElement>(null);
   const panel = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    const element = list.current;
+    if (!element?.getClientRects().length || !revealed) return;
+    if (revealed.tree) {
+      element
+        .querySelector<HTMLElement>(`[data-tree-path="${CSS.escape(revealed.path)}"]`)
+        ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    } else {
+      element.scrollTop = 0;
+    }
+  }, [revealed]);
   useEffect(() => {
     const element = panel.current;
     if (!element || demoDirectories) return;
@@ -242,6 +256,8 @@ export default function FileBrowser({
       onDirectory?.(result.path);
       setSelected(result.path);
       setSelection([]);
+      anchor.current = '';
+      setRevealed({ path: result.path, tree: showTree });
       loaded.current = true;
       setHistory((prev) => {
         if (historyIndex !== undefined) return { ...prev, index: historyIndex };
@@ -249,11 +265,6 @@ export default function FileBrowser({
         const paths = [...prev.paths.slice(0, prev.index + 1), result.path].slice(-100);
         return { paths, index: paths.length - 1 };
       });
-      requestAnimationFrame(() =>
-        list.current
-          ?.querySelector<HTMLElement>(`[data-tree-path="${CSS.escape(result.path)}"]`)
-          ?.scrollIntoView({ block: 'nearest' }),
-      );
     } catch (e) {
       if (pending.current === request) setNavigationFailure({ path, message: e });
     } finally {
@@ -549,7 +560,7 @@ export default function FileBrowser({
         if (entry) {
           pick(entry.path);
           setSelection([entry.path]);
-          if (action.kind === 'mkdir') {
+          if (action.kind === 'mkdir' && !listView) {
             setDirectory(entry.path);
             onDirectory?.(entry.path);
           }
@@ -967,73 +978,56 @@ export default function FileBrowser({
           </button>
         </Tooltip>
       </div>
-      {editingPath ? (
-        <form
-          className="path-form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void browse(String(new FormData(e.currentTarget).get('path')));
-            setEditingPath(false);
-          }}
-        >
-          <input
-            name="path"
-            aria-label={translate('files:remoteDirectory')}
-            defaultValue={directory}
-            autoFocus
-            onFocus={(e) => e.target.select()}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') setEditingPath(false);
-            }}
-            onBlur={() => setEditingPath(false)}
-          />
-        </form>
-      ) : (
-        <div className="path-bar">
-          <div className="breadcrumbs" aria-label={directory}>
-            <button onClick={() => void browse('/')} aria-label={translate('files:rootDirectory')}>
-              /
-            </button>
-            {pathParts.length > 2 && (
-              <Dropdown>
-                <DropdownTrigger>
-                  <button aria-label={translate('files:parentDirectories')}>…</button>
-                </DropdownTrigger>
-                <DropdownMenu
-                  aria-label={translate('files:parentDirectories')}
-                  onAction={(key) => void browse(String(key))}
-                >
-                  {pathParts.slice(0, -2).map((part, index) => (
-                    <DropdownItem key={`/${pathParts.slice(0, index + 1).join('/')}`}>
-                      {part}
-                    </DropdownItem>
-                  ))}
-                </DropdownMenu>
-              </Dropdown>
-            )}
-            {pathParts.slice(-2).map((part, index) => {
-              const path = `/${pathParts.slice(0, Math.max(0, pathParts.length - 2) + index + 1).join('/')}`;
-              return (
-                <Tooltip key={path} content={path}>
-                  <button onClick={() => void browse(path)}>
-                    {part}
-                    <span>/</span>
-                  </button>
-                </Tooltip>
-              );
+      <form
+        className="path-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (pathDraft === undefined) return;
+          void browse(pathDraft);
+          setPathDraft(undefined);
+        }}
+      >
+        <Dropdown>
+          <DropdownTrigger>
+            <Tooltip content={translate('files:parentDirectories')}>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label={translate('files:parentDirectories')}
+                disabled={!pathParts.length}
+              >
+                <Icon name="files" width="14" />
+              </button>
+            </Tooltip>
+          </DropdownTrigger>
+          <DropdownMenu
+            aria-label={translate('files:parentDirectories')}
+            onAction={(key) => void browse(String(key))}
+          >
+            {Array.from({ length: pathParts.length }, (_, index) => {
+              const path = `/${pathParts.slice(0, index).join('/')}`;
+              return <DropdownItem key={path}>{path}</DropdownItem>;
             })}
-          </div>
-          <Tooltip content={translate('files:editDirectoryPath', { value1: directory })}>
-            <button
-              className="path-edit"
-              aria-label={translate('files:editDirectoryPath2')}
-              onClick={() => setEditingPath(true)}
-            >
-              <Icon name="edit" width="13" />
-            </button>
-          </Tooltip>
-        </div>
-      )}
+          </DropdownMenu>
+        </Dropdown>
+        <input
+          aria-label={translate('files:remoteDirectory')}
+          value={pathDraft ?? directory}
+          onChange={(event) => setPathDraft(event.target.value)}
+          onFocus={(event) => event.target.select()}
+          onKeyDown={(event) => {
+            if (
+              event.key === 'Escape' &&
+              !event.nativeEvent.isComposing &&
+              pathDraft !== undefined
+            ) {
+              event.preventDefault();
+              setPathDraft(undefined);
+            }
+          }}
+          onBlur={() => setPathDraft(undefined)}
+        />
+      </form>
       {!batch && (!action || action.kind === 'rename') && (
         <ErrorNotice message={error} onDismiss={() => setError('')} className="file-error" />
       )}
