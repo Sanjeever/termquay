@@ -13,6 +13,7 @@ import {
   Suspense,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useRef,
   useState,
 } from 'react';
@@ -83,6 +84,8 @@ const FileHistoryDialog = lazy(() => import('./FileHistoryDialog'));
 const RemoteLogDialog = lazy(() => import('./RemoteLogDialog'));
 const LinuxInspectionDialog = lazy(() => import('../monitor/LinuxInspectionDialog'));
 const AIPanel = lazy(() => import('../ai/AIPanel'));
+
+type WorkspacePanel = 'files' | 'monitor' | 'ai' | 'tunnels';
 
 export type SSHWorkspaceHandle = {
   openResource(kind: string, target: string): Promise<void>;
@@ -498,13 +501,14 @@ const SSHWorkspace = forwardRef<
   );
   const [focus, setFocus] = useState(initialLayout?.focus || false);
   const [narrow, setNarrow] = useState(window.innerWidth <= 1100);
-  const [narrowPanel, setNarrowPanel] = useState<'files' | 'monitor' | 'ai' | 'tunnels' | null>(
-    null,
-  );
+  const [narrowPanel, setNarrowPanel] = useState<WorkspacePanel | null>(null);
   const previousInstance = useRef(sessionID);
   const viewReady = useRef<Promise<void>>();
   const currentDirty = useRef(false);
+  const panels = useRef<HTMLDivElement>(null);
   const center = useRef<HTMLDivElement>(null);
+  const panelReturnFocus = useRef<HTMLElement>();
+  const previousToolView = useRef<WorkspacePanel | null>(null);
   const terminalHandles = useRef(new Map<string, TerminalHandle>());
   const filesToggle = useRef<HTMLButtonElement>(null);
   const monitorToggle = useRef<HTMLButtonElement>(null);
@@ -547,6 +551,40 @@ const SSHWorkspace = forwardRef<
   const aiShown = !tunnelsShown && aiEnabled && !focus && (narrow ? narrowPanel === 'ai' : aiOpen);
   const monitorShown =
     !tunnelsShown && !aiShown && !focus && (narrow ? narrowPanel === 'monitor' : monitorOpen);
+  const toolView =
+    narrow && (filesShown || tunnelsShown || aiShown || monitorShown) ? narrowPanel : null;
+  useLayoutEffect(() => {
+    if (center.current) center.current.inert = !!toolView;
+    if (!visible) {
+      previousToolView.current = null;
+      return;
+    }
+    const previous = previousToolView.current;
+    previousToolView.current = toolView;
+    if (toolView) {
+      const panel = panels.current?.querySelector<HTMLElement>(
+        `[data-workspace-panel="${toolView}"]`,
+      );
+      if (previous !== toolView && !panel?.contains(document.activeElement)) {
+        panel?.focus({ preventScroll: true });
+      }
+    } else if (previous) {
+      const target = panelReturnFocus.current;
+      panelReturnFocus.current = undefined;
+      // If another control took focus while closing the panel, keep that focus.
+      const focused = document.activeElement;
+      if (focused === document.body || focused?.closest('.workspace-tool-rail')) {
+        if (target?.isConnected && target.getClientRects().length) {
+          target.focus({ preventScroll: true });
+        } else {
+          const trigger = panels.current?.querySelector<HTMLButtonElement>(
+            `[data-workspace-tool="${previous}"]`,
+          );
+          trigger?.focus({ preventScroll: true });
+        }
+      }
+    }
+  }, [toolView, visible]);
   const tabIDs = [...terminals, ...fileOrder];
   const paneCount = splitColumns === 'grid' ? 4 : splitColumns === 'bottom' ? 3 : split ? 2 : 1;
   const paneFor = (path: string) => (split ? paneAssignments[path] || 0 : 0);
@@ -865,14 +903,20 @@ const SSHWorkspace = forwardRef<
     };
   }
 
+  function showNarrowPanel(panel: WorkspacePanel, toggle = false) {
+    if (!narrowPanel && document.activeElement instanceof HTMLElement) {
+      panelReturnFocus.current = document.activeElement;
+    }
+    setNarrowPanel(toggle && narrowPanel === panel ? null : panel);
+  }
   function showFiles() {
     setFocus(false);
-    if (narrow) setNarrowPanel('files');
+    if (narrow) showNarrowPanel('files');
     else setFilesOpen(true);
   }
   function toggleFiles() {
     setFocus(false);
-    if (narrow) setNarrowPanel((prev) => (prev === 'files' ? null : 'files'));
+    if (narrow) showNarrowPanel('files', true);
     else setFilesOpen((prev) => !prev);
   }
   function toggleMonitor() {
@@ -881,15 +925,15 @@ const SSHWorkspace = forwardRef<
     if (aiShown || tunnelsShown) {
       setAIOpen(false);
       setMonitorOpen(true);
-      if (narrow) setNarrowPanel('monitor');
-    } else if (narrow) setNarrowPanel((prev) => (prev === 'monitor' ? null : 'monitor'));
+      if (narrow) showNarrowPanel('monitor');
+    } else if (narrow) showNarrowPanel('monitor', true);
     else setMonitorOpen((prev) => !prev);
   }
   function toggleAI() {
     setFocus(false);
     setTunnelsOpen(false);
     setAIVisited(true);
-    if (narrow) setNarrowPanel((previous) => (previous === 'ai' ? null : 'ai'));
+    if (narrow) showNarrowPanel('ai', true);
     else setAIOpen((previous) => !previous);
   }
   function closeAI() {
@@ -901,7 +945,7 @@ const SSHWorkspace = forwardRef<
     setFocus(false);
     setAIOpen(false);
     setMonitorOpen(false);
-    if (narrow) setNarrowPanel((previous) => (previous === 'tunnels' ? null : 'tunnels'));
+    if (narrow) showNarrowPanel('tunnels', true);
     else setTunnelsOpen((previous) => !previous);
   }
   function closeTunnels() {
@@ -925,20 +969,10 @@ const SSHWorkspace = forwardRef<
       setAIVisited(true);
       setTunnelsOpen(false);
       setAIOpen(true);
-      if (narrow) setNarrowPanel('ai');
+      if (narrow) showNarrowPanel('ai');
     } catch (e) {
       setError(e);
     }
-  }
-  function focusPanelToggle(panel: 'files' | 'monitor' | 'ai' | 'tunnels' | null) {
-    (panel === 'files'
-      ? filesToggle
-      : panel === 'ai'
-        ? aiToggle
-        : panel === 'tunnels'
-          ? tunnelsToggle
-          : monitorToggle
-    ).current?.focus();
   }
   useEffect(() => {
     localStorage.setItem('termquay.layout.ai-width', String(aiWidth));
@@ -947,25 +981,22 @@ const SSHWorkspace = forwardRef<
     localStorage.setItem('termquay.layout.files-width', String(filesWidth));
   }, [filesWidth]);
   useEffect(() => {
-    const media = window.matchMedia('(max-width: 1100px)');
-    const update = () => {
+    const element = panels.current;
+    if (!element) return;
+    const observer = new ResizeObserver(([entry]) => {
+      const width = entry.contentRect.width;
+      const next = width <= 1100;
+      if (!width || next === narrow) return;
       const active = document.activeElement;
-      const expanded = center.current?.parentElement?.querySelector(
-        '.monitor-dock-expanded:not([hidden])',
+      const expanded = element.querySelector('.monitor-dock-expanded:not([hidden])');
+      const activePanel = active?.closest<HTMLElement>(
+        '[data-workspace-panel], [data-workspace-tool][aria-pressed=true]',
       );
-      const panel = active?.closest('.file-dock')
-        ? 'files'
-        : active?.closest('.monitor-dock')
-          ? 'monitor'
-          : active?.closest('.ai-dock')
-            ? 'ai'
-            : active?.closest('.tunnel-dock')
-              ? 'tunnels'
-              : expanded
-                ? 'monitor'
-                : null;
-      setNarrow(media.matches);
-      if (media.matches) setNarrowPanel(panel);
+      const panel = (activePanel?.dataset.workspacePanel ||
+        activePanel?.dataset.workspaceTool ||
+        (expanded ? 'monitor' : null)) as WorkspacePanel | null;
+      setNarrow(next);
+      if (next) setNarrowPanel(panel);
       else {
         if (narrowPanel === 'files') setFilesOpen(true);
         if (narrowPanel === 'monitor') {
@@ -976,10 +1007,10 @@ const SSHWorkspace = forwardRef<
         if (narrowPanel === 'tunnels') setTunnelsOpen(true);
         setNarrowPanel(null);
       }
-    };
-    media.addEventListener('change', update);
-    return () => media.removeEventListener('change', update);
-  }, [narrowPanel]);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [narrow, narrowPanel]);
 
   useEffect(() => {
     disposed.current = false;
@@ -1409,6 +1440,10 @@ const SSHWorkspace = forwardRef<
   }
   function workspaceAction(action: 'switchPane' | 'closeContent' | 'newTerminal') {
     if (restoring) return true;
+    if (toolView) {
+      if (action === 'closeContent') setNarrowPanel(null);
+      return true;
+    }
     if (action === 'newTerminal') void newTerminal();
     if (action === 'closeContent') {
       if (!active) return false;
@@ -1451,15 +1486,15 @@ const SSHWorkspace = forwardRef<
       onKeyDown={(event) => {
         if (
           event.key === 'Escape' &&
-          narrowPanel &&
+          toolView &&
           !event.defaultPrevented &&
           !event.nativeEvent.isComposing &&
-          !(event.target as HTMLElement).closest('input,textarea,[role=dialog]')
+          !(event.target as HTMLElement).closest(
+            'input,textarea,[role=dialog],[role=menu],[role=listbox]',
+          )
         ) {
           event.preventDefault();
-          const panel = narrowPanel;
           setNarrowPanel(null);
-          focusPanelToggle(panel);
         }
       }}
     >
@@ -1613,7 +1648,10 @@ const SSHWorkspace = forwardRef<
           </button>
         </div>
       )}
-      <div className="ssh-panels">
+      <div
+        ref={panels}
+        className={`ssh-panels ssh-panels-live${toolView ? ' ssh-panels-tool-view' : ''}`}
+      >
         <WorkspaceToolRail
           side="left"
           tools={[
@@ -1645,19 +1683,13 @@ const SSHWorkspace = forwardRef<
             },
           ]}
         />
-        {narrow && narrowPanel && (
-          <button
-            className="panel-scrim"
-            aria-label={translate('files:closeAuxiliaryPanel')}
-            tabIndex={-1}
-            onClick={() => {
-              const panel = narrowPanel;
-              setNarrowPanel(null);
-              focusPanelToggle(panel);
-            }}
-          />
-        )}
-        <div className="file-dock" hidden={!filesShown} style={{ width: filesWidth }}>
+        <div
+          className="file-dock"
+          data-workspace-panel="files"
+          tabIndex={-1}
+          hidden={!filesShown}
+          style={{ width: filesWidth }}
+        >
           <FileBrowser
             readOnly={browseOnly}
             onToggleReadOnly={() => void toggleBrowseOnly()}
@@ -1696,7 +1728,7 @@ const SSHWorkspace = forwardRef<
             onChange={setFilesWidth}
           />
         )}
-        <div className="ssh-center" ref={center}>
+        <div className="ssh-center" ref={center} aria-hidden={toolView ? true : undefined}>
           <ErrorNotice
             message={error}
             onDismiss={() => setError('')}
@@ -2202,6 +2234,8 @@ const SSHWorkspace = forwardRef<
         )}
         <div
           className="tunnel-dock"
+          data-workspace-panel="tunnels"
+          tabIndex={-1}
           hidden={!tunnelsShown}
           style={{ width: tunnelsWidth }}
           onKeyDown={(event) => {
@@ -2254,7 +2288,13 @@ const SSHWorkspace = forwardRef<
           />
         )}
         {aiSettings.settings?.enabled && aiVisited && (
-          <div className="ai-dock" hidden={!aiShown} style={{ width: aiWidth }}>
+          <div
+            className="ai-dock"
+            data-workspace-panel="ai"
+            tabIndex={-1}
+            hidden={!aiShown}
+            style={{ width: aiWidth }}
+          >
             <Suspense
               fallback={
                 <div className="view-loading" role="status">

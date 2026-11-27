@@ -98,6 +98,32 @@
   display: flex;
   position: relative;
 }
+.ssh-panels-live {
+  --workspace-rail-width: 42px;
+}
+.compact-ssh .ssh-panels-live {
+  --workspace-rail-width: 34px;
+}
+.ssh-panels-tool-view > .ssh-center {
+  position: absolute;
+  inset: 0 var(--workspace-rail-width);
+  visibility: hidden;
+}
+.ssh-panels.ssh-panels-tool-view > [data-workspace-panel]:not([hidden]) {
+  position: static;
+  flex: 1 1 0%;
+  min-width: 0;
+  max-width: none;
+  border: 0;
+  box-shadow: none;
+  transition: none;
+}
+.ssh-panels-tool-view > [data-workspace-panel][hidden] {
+  transition: none;
+}
+.ssh-panels-tool-view > [data-workspace-panel] > .panel-separator {
+  display: none;
+}
 .workspace-tool-rail {
   display: flex;
   flex-direction: column;

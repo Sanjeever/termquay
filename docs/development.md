@@ -166,7 +166,7 @@ The SSH workspace's left rail opens files, file transfers and snippets. The righ
 
 With the automatic layout, the first file opened in a new SSH workspace appears above the terminal. **Pane layout** rearranges open tabs into stacked or side-by-side panes, an editor above two terminal panes, or a four-pane grid. Use a pane's **+** to open another terminal. Layout changes retain terminal instances and editor drafts. Restored workspaces start disconnected. See [pane controls and reconnect](development.zh-CN.md#ssh-工作区与本地终端) and the [layout compatibility contract](architecture.md#communication-backpressure-and-lifecycle).
 
-New SSH workspaces open with files and monitoring collapsed. Restored workspaces use the saved panel layout. Enable **Settings → Appearance → Compact SSH workspace** for shorter controls and direct split buttons. Narrow windows use drawers. See [compact layout controls](development.zh-CN.md#ssh-工作区与本地终端).
+New SSH workspaces open with files and monitoring collapsed. Restored workspaces use the saved panel layout. Enable **Settings → Appearance → Compact SSH workspace** for shorter controls and direct split buttons. In a narrow workspace, the active tool uses the main area. Close it or press Escape to return to the work area. See [compact layout controls](development.zh-CN.md#ssh-工作区与本地终端).
 
 The file header offers browsing mode, terminal directory following and **Directory list**. Use the list to sort and browse the current directory. For refresh, creation, selection and copy/paste, see [remote files and transfers](development.zh-CN.md#远端文件与传输).
 

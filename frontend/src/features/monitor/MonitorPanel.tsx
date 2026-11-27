@@ -166,6 +166,8 @@ export default function MonitorPanel({
   return (
     <div
       className={`monitor-dock${expanded ? ' monitor-dock-expanded' : ''}`}
+      data-workspace-panel="monitor"
+      tabIndex={-1}
       hidden={!visible}
       style={
         {

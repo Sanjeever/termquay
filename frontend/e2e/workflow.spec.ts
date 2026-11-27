@@ -633,9 +633,16 @@ test('compact SSH starts with a wide terminal and supports docking and splitting
   const monitoring = page.getByRole('button', { name: 'Monitoring', exact: true });
   await monitoring.click();
   await expect(page.locator('.monitor-dock')).toBeVisible();
+  await expect(page.locator('.ssh-center')).toHaveAttribute('aria-hidden', 'true');
+  await expect(page.locator('.monitor-dock')).toBeFocused();
+  await expect(page.locator('.ssh-center')).toHaveAttribute('inert', '');
+  expect((await page.locator('.monitor-dock').boundingBox())!.width).toBeGreaterThan(900);
   await page.keyboard.press('Escape');
   await expect(page.locator('.monitor-dock')).toBeHidden();
   await expect(monitoring).toBeFocused();
+  expect(await terminal.first().evaluate((element, handle) => element === handle, original)).toBe(
+    true,
+  );
 });
 
 test('activating an editor toolbar keeps focus on the chosen control', async ({ page }) => {

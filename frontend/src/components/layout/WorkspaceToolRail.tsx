@@ -49,6 +49,7 @@ export default function WorkspaceToolRail({
           <button
             ref={tool.buttonRef}
             className="icon-button workspace-tool"
+            data-workspace-tool={tool.id}
             aria-label={tool.label}
             aria-pressed={tool.active}
             aria-description={tool.count ? `${tool.label}: ${tool.count}` : undefined}
