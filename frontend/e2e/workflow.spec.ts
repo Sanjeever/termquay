@@ -48,14 +48,14 @@ test('address copy is independent of connection selection and excludes the port'
 });
 
 for (const language of ['en', 'zh-CN']) {
-  test(`connection states remain readable in compact and wide catalogs (${language})`, async ({
+  test(`connection actions and states stay visible through resizing and zoom (${language})`, async ({
     page,
   }) => {
     await page.route('**/wails/runtime*', (route) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: 'null' }),
     );
     await page.goto(`/e2e/workflow.html?scene=connections&language=${language}`);
-    for (const width of [1440, 900, 620]) {
+    for (const width of [1440, 1024, 900]) {
       await page.setViewportSize({ width, height: 900 });
       const states = page
         .locator('.connection-session-state')
@@ -67,22 +67,22 @@ for (const language of ['en', 'zh-CN']) {
           true,
         );
       }
-      const protocol = page.locator('.connection-protocol.catalog-column-sort');
-      await protocol.click();
+      const list = page.getByRole('region', {
+        name: language === 'en' ? 'Saved connections' : '已保存连接',
+      });
+      const connect = list.locator('.catalog-connect:enabled').first();
       for (const zoom of [1, 1.5, 2]) {
         await page.evaluate((value) => {
           document.documentElement.style.zoom = String(value);
         }, zoom);
-        expect(
-          await protocol.evaluate((element) => {
-            const range = document.createRange();
-            range.selectNodeContents(element.firstChild!);
-            return range.getClientRects().length;
-          }),
-        ).toBe(1);
-        expect(
-          await protocol.evaluate((element) => element.scrollWidth <= element.clientWidth),
-        ).toBe(true);
+        const compact = width !== 1440 || zoom > 1;
+        const protocol = list.locator('.connection-protocol.catalog-column-sort');
+        if (compact) await expect(protocol).toBeHidden();
+        else await expect(protocol).toBeVisible();
+        await expect(connect).toBeInViewport();
+        expect(await list.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+          true,
+        );
       }
       await page.evaluate(() => {
         document.documentElement.style.zoom = '';
@@ -91,6 +91,9 @@ for (const language of ['en', 'zh-CN']) {
         true,
       );
     }
+    await page.setViewportSize({ width: 900, height: 600 });
+    await page.locator('.catalog-connect:enabled').first().click();
+    await expect(page.locator('.xterm:visible')).toBeVisible();
   });
 
   test(`workspace tools retain editor content and remain reachable beside narrow panels (${language})`, async ({

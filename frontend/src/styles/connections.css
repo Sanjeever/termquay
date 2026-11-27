@@ -460,6 +460,38 @@
   color: var(--color-muted);
   font-size: 11px;
 }
+.connection-list-compact :is(.connection-columns, .connection-row) {
+  min-inline-size: 0;
+  grid-template-columns: minmax(0, 1fr) max-content;
+}
+.connection-list-compact :is(.latency-heading, .connection-latency),
+.connection-list-compact .connection-name-columns > :not(:first-child, .connection-name-heading),
+.connection-list-compact
+  .connection-name
+  > :is(.connection-port, .connection-user, .connection-protocol) {
+  display: none;
+}
+.connection-list-compact :is(.connection-name, .connection-name-columns) {
+  grid-template-columns: 18px minmax(0, 1fr) fit-content(35%);
+  column-gap: 8px;
+}
+.connection-list-compact .connection-row {
+  min-block-size: 46px;
+}
+.connection-list-compact .connection-name > svg {
+  grid-area: 1 / 1 / span 2;
+}
+.connection-list-compact .connection-name > strong {
+  grid-area: 1 / 2;
+}
+.connection-list-compact .connection-address-text {
+  grid-area: 2 / 2;
+  font-size: 11px;
+}
+.connection-list-compact .connection-session-state {
+  grid-area: 1 / 3 / span 2;
+  overflow-wrap: anywhere;
+}
 .connection-inline-user {
   display: none;
 }

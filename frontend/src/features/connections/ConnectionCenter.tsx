@@ -10,6 +10,7 @@ import SelectControl from '../../components/SelectControl';
 import {
   useDeferredValue,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -26,6 +27,7 @@ import {
   DropdownTrigger,
   DropdownMenu,
   DropdownItem,
+  DropdownSection,
   Input,
   ModalContent,
   ModalHeader,
@@ -192,6 +194,18 @@ export default function ConnectionCenter({
   useEffect(() => () => clearTimeout(copyTimer.current), []);
   const [groupMenu, setGroupMenu] = useState('');
   const list = useRef<HTMLDivElement>(null);
+  const [compact, setCompact] = useState(false);
+  useLayoutEffect(() => {
+    const element = list.current;
+    if (!element) return;
+    const measure = () => {
+      if (element.clientWidth) setCompact(element.clientWidth < 900);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
   const query = useDeferredValue(search);
   const selectedTags = tag.split(',').filter(Boolean);
   const filtered = !!(search || environment || tag || protocol !== 'all');
@@ -239,7 +253,7 @@ export default function ConnectionCenter({
   /* oxlint-enable react/exhaustive-deps */
   const latency = useConnectionLatency(
     connections,
-    active && !demo && !loading && !loadError,
+    active && !compact && !demo && !loading && !loadError,
     demo ? [] : visible,
   );
   const tags = [...new Set(Object.values(preferences).flatMap((value) => value?.tags || []))].sort(
@@ -289,6 +303,7 @@ export default function ConnectionCenter({
     return children;
   }, [groups]);
   const selectedIDs = visible.filter((c) => selectedSet.has(c.id)).map((c) => c.id);
+  const focusedRow = visible.findIndex((connection) => connection.id === selected);
   const selectedConnection =
     selectedIDs.length === 1 ? visible.find((c) => c.id === selectedIDs[0]) : undefined;
   function pick(id: string, toggle = false, range = false) {
@@ -903,7 +918,7 @@ export default function ConnectionCenter({
           <ErrorNotice message={error} onDismiss={() => setError('')} />
         )}
         <div
-          className="connection-list"
+          className={`connection-list${compact ? ' connection-list-compact' : ''}`}
           aria-label={translate('connections:savedConnections')}
           role="region"
           tabIndex={0}
@@ -927,7 +942,7 @@ export default function ConnectionCenter({
                       : id === 'username'
                         ? 'connection-user'
                         : id === 'name'
-                          ? ''
+                          ? 'connection-name-heading'
                           : `connection-${id}`,
                   )
                 ),
@@ -1017,14 +1032,14 @@ export default function ConnectionCenter({
               onDragStart={(e) => {
                 e.dataTransfer.setData(
                   'application/x-termquay-connections',
-                  JSON.stringify(selectedIDs.includes(c.id) ? selectedIDs : [c.id]),
+                  JSON.stringify(selectedSet.has(c.id) ? selectedIDs : [c.id]),
                 );
                 e.dataTransfer.effectAllowed = 'move';
               }}
-              className={`connection-row ${selectedIDs.includes(c.id) ? 'selected' : ''}`}
+              className={`connection-row ${selectedSet.has(c.id) ? 'selected' : ''}`}
               onContextMenu={(e) => {
                 e.preventDefault();
-                if (!selectedIDs.includes(c.id)) pick(c.id);
+                if (!selectedSet.has(c.id)) pick(c.id);
                 if (!demo) setMenu(c.id);
               }}
             >
@@ -1035,16 +1050,9 @@ export default function ConnectionCenter({
                   <button
                     className="connection-select"
                     aria-label={c.name}
-                    aria-pressed={selectedIDs.includes(c.id)}
-                    tabIndex={
-                      visible.some((c) => c.id === selected)
-                        ? selected === c.id
-                          ? 0
-                          : -1
-                        : index === 0
-                          ? 0
-                          : -1
-                    }
+                    aria-description={`${c.protocol.toUpperCase()} · ${c.username}@${c.host}:${c.port}`}
+                    aria-pressed={selectedSet.has(c.id)}
+                    tabIndex={index === Math.max(0, focusedRow) ? 0 : -1}
                     onClick={(e) => pick(c.id, e.ctrlKey || e.metaKey, e.shiftKey)}
                     onDoubleClick={() => !busy && (!demo || c.protocol === 'ssh') && onOpen(c)}
                     onKeyDown={(e) => {
@@ -1119,7 +1127,13 @@ export default function ConnectionCenter({
                   </strong>
                   {!columns.address?.hidden && (
                     <span className="connection-address-text">
-                      <span className="connection-host">{c.host}</span>
+                      <span className="connection-host">
+                        {compact && !columns.username?.hidden && c.username && `${c.username}@`}
+                        {compact && !columns.port?.hidden && c.host.includes(':')
+                          ? `[${c.host}]`
+                          : c.host}
+                        {compact && !columns.port?.hidden && `:${c.port}`}
+                      </span>
                       <Tooltip content={translate('connections:copyAddress')}>
                         <button
                           className="icon-button connection-copy-address"
@@ -1388,8 +1402,27 @@ export default function ConnectionCenter({
                   void ClearRecentConnections()
                     .then(onReload)
                     .catch((e) => setError(e));
+                if (key !== 'recent' && key !== 'clear') sortBy(key as CatalogSort);
               }}
             >
+              <DropdownSection>
+                {shownColumns
+                  .filter(({ id }) => id !== 'status')
+                  .map(({ id, label }) => (
+                    <DropdownItem
+                      key={id}
+                      endContent={sort === id ? (descending ? '↑' : '↓') : null}
+                    >
+                      {translate('connections:sortBy', {
+                        value1: translate(label),
+                        value2:
+                          sort === id && !descending
+                            ? translate('connections:descending')
+                            : translate('connections:ascending'),
+                      })}
+                    </DropdownItem>
+                  ))}
+              </DropdownSection>
               <DropdownItem key="recent" endContent={sort === 'recent' ? '✓' : null}>
                 {translate('connections:sortByRecentConnections')}
               </DropdownItem>

@@ -172,7 +172,7 @@ The file header offers browsing mode, terminal directory following and **Directo
 
 Middle-click a workspace, tool or terminal/file tab to close it without first selecting it. Local split-pane headers support the same action. Unsaved-file and running-local-terminal confirmations still apply, and closing remains disabled while the existing save, restore or busy state blocks it. The fixed connection center cannot be closed.
 
-Use **Connect** in a catalog row to open or locate its workspace. Use the header settings to show, hide and resize columns on this device. Address and port sort separately. The address action copies the host name or IP and preserves selection. Narrow catalogs scroll horizontally.
+Use **Connect** in a catalog row to open or locate its workspace. Use the header settings to show, hide and resize columns on this device. A narrow catalog combines the enabled address fields beneath the connection name and keeps **Connect** visible. Use the list menu to sort by individual fields. The address action copies the host name or IP and preserves selection. TCP latency appears and refreshes in the wide catalog.
 
 **Follow terminal directory** uses reports from the active terminal. If the panel is waiting for a report, use **Enable directory reporting** to set up the current shell. See [directory following](development.zh-CN.md#远端文件与传输).
 
