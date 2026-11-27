@@ -465,9 +465,7 @@ const SSHWorkspace = forwardRef<
     }
   }
   const [creating, setCreating] = useState(false);
-  const [filesOpen, setFilesOpen] = useState(
-    initialLayout?.files_open ?? localStorage.getItem('termquay.layout.files-open') !== 'false',
-  );
+  const [filesOpen, setFilesOpen] = useState(initialLayout?.files_open ?? false);
   const [filesWidth, setFilesWidth] = useState(
     initialLayout?.files_width ??
       Math.max(
@@ -483,7 +481,7 @@ const SSHWorkspace = forwardRef<
   );
   const { appearance } = useAppearance();
   const compact = appearance.compactSSH;
-  const [monitorOpen, setMonitorOpen] = useState(initialLayout?.monitor_open ?? compact);
+  const [monitorOpen, setMonitorOpen] = useState(initialLayout?.monitor_open ?? false);
   const aiSettings = useAISettings();
   const aiEnabled = !!aiSettings.settings?.enabled && !aiSettings.locked;
   const [aiOpen, setAIOpen] = useState(false);
@@ -946,14 +944,8 @@ const SSHWorkspace = forwardRef<
     localStorage.setItem('termquay.layout.ai-width', String(aiWidth));
   }, [aiWidth]);
   useEffect(() => {
-    localStorage.setItem('termquay.layout.files-open', String(filesOpen));
-  }, [filesOpen]);
-  useEffect(() => {
     localStorage.setItem('termquay.layout.files-width', String(filesWidth));
   }, [filesWidth]);
-  useEffect(() => {
-    localStorage.setItem('termquay.layout.monitor', String(monitorOpen));
-  }, [monitorOpen]);
   useEffect(() => {
     const media = window.matchMedia('(max-width: 1100px)');
     const update = () => {

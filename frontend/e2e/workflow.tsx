@@ -25,8 +25,6 @@ if (demoScene === 'ssh') {
     socket.binaryType = 'arraybuffer';
     return socket;
   };
-  localStorage.setItem('termquay.layout.monitor', 'false');
-  localStorage.setItem('termquay.layout.files-open', 'true');
 }
 localStorage.setItem(
   appearanceKey,

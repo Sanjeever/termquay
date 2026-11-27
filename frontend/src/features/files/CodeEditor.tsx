@@ -367,12 +367,16 @@ export default function CodeEditor({
     }
   }, [content, format.encoding, format.line_ending, format.bom]);
   /* oxlint-enable react/exhaustive-deps */
+  const focusWhenShown = useRef(focusOnShow);
+  focusWhenShown.current = focusOnShow;
   useEffect(() => {
     if (visible) {
       view.current?.requestMeasure();
-      if (focusOnShow && !document.activeElement?.closest('[role=tablist]')) view.current?.focus();
+      if (focusWhenShown.current && !document.activeElement?.closest('[role=tablist]')) {
+        view.current?.focus();
+      }
     }
-  }, [visible, focusOnShow]);
+  }, [visible]);
   const jumpLine = jumpTo?.line;
   const jumpSequence = jumpTo?.sequence;
   useEffect(() => {

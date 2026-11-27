@@ -425,7 +425,13 @@ async function fileWorkspace(page: Page) {
   return calls;
 }
 
-async function sshWorkflow(page: Page, language = 'en', autoForward = false, compactSSH = false) {
+async function sshWorkflow(
+  page: Page,
+  language = 'en',
+  autoForward = false,
+  compactSSH = false,
+  showFiles = true,
+) {
   const calls: { method: number; args: unknown[] }[] = [];
   const forwards: unknown[] = [];
   const inputs: string[] = [];
@@ -538,7 +544,10 @@ async function sshWorkflow(page: Page, language = 'en', autoForward = false, com
   await page.goto(
     `/e2e/workflow.html?scene=ssh&language=${language}&theme=${autoForward && language === 'zh-CN' ? 'dark' : 'light'}&compactSSH=${compactSSH}`,
   );
-  await expect(page.locator('.file-panel [data-tree-path="/config"]')).toBeVisible();
+  if (showFiles) {
+    await page.locator('.workspace-tool-rail-left').getByRole('button').first().click();
+    await expect(page.locator('.file-panel [data-tree-path="/config"]')).toBeVisible();
+  }
   await expect.poll(() => sockets.length).toBe(2);
   return {
     calls,
@@ -588,13 +597,19 @@ test('SSH file opening stacks the editor above the live terminal and layout chan
   await page.screenshot({ path: test.info().outputPath('ssh-stacked-workspace.png') });
 });
 
-test('the compact SSH workspace shows its docks and splits from the focused pane', async ({
+test('compact SSH starts with a wide terminal and supports docking and splitting', async ({
   page,
 }) => {
-  await sshWorkflow(page, 'en', false, true);
+  await sshWorkflow(page, 'en', false, true, false);
   const terminal = page.locator('.terminal-tab:visible .xterm');
   await expect(terminal).toBeVisible();
   const original = await terminal.elementHandle();
+  await page.setViewportSize({ width: 1280, height: 820 });
+  await expect(page.locator('.file-dock')).toBeHidden();
+  await expect(page.locator('.monitor-dock')).toBeHidden();
+  expect((await terminal.boundingBox())!.width).toBeGreaterThan(1150);
+  await page.getByRole('button', { name: 'Files', exact: true }).click();
+  await page.getByRole('button', { name: 'Monitoring', exact: true }).click();
   for (const width of [1280, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     const files = await page.locator('.file-dock').boundingBox();
@@ -621,6 +636,18 @@ test('the compact SSH workspace shows its docks and splits from the focused pane
   await page.keyboard.press('Escape');
   await expect(page.locator('.monitor-dock')).toBeHidden();
   await expect(monitoring).toBeFocused();
+});
+
+test('activating an editor toolbar keeps focus on the chosen control', async ({ page }) => {
+  await sshWorkflow(page);
+  await page.locator('[data-tree-path="/release.conf"] .file-name').dblclick();
+  const editor = page.locator('.cm-editor:visible');
+  await expect(editor).toBeVisible();
+  const terminal = page.locator('.terminal-tab:visible .xterm-helper-textarea');
+  await terminal.focus();
+  const history = page.getByRole('button', { name: 'History and validation', exact: true });
+  await history.focus();
+  await expect(history).toBeFocused();
 });
 
 test('SSH layouts keep an editor and two independent terminals alive', async ({ page }) => {
