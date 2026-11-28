@@ -69,3 +69,16 @@ test('name matches rank above connection details before the result limit is appl
     ['Server', 'Server staging'],
   );
 });
+
+test('exact names outrank other groups and renamed workspaces still match their saved host', () => {
+  const items = [
+    { label: 'Server staging', kind: 'workspace' as const, priority: 4 },
+    { label: 'Database', kind: 'workspace' as const, alternateName: 'Server', priority: 1 },
+    { label: 'Server', kind: 'connection' as const },
+    { label: 'New workspace for Server', kind: 'connection' as const, queryOnly: true },
+  ];
+  assert.deepEqual(
+    commandResults(items, 'server', 'all').map(({ label }) => label),
+    ['Database', 'Server', 'Server staging', 'New workspace for Server'],
+  );
+});

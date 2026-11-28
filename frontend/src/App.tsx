@@ -1178,8 +1178,12 @@ export default function App() {
       });
       return;
     }
+    const matching =
+      client !== 'system' && !another ? workspaces.filter((w) => w.connectionID === c.id) : [];
     const existing =
-      client !== 'system' && !another && workspaces.find((w) => w.connectionID === c.id);
+      matching.find((w) => w.id === active) ||
+      recentWorkspaces.current.map((id) => matching.find((w) => w.id === id)).find(Boolean) ||
+      matching[0];
     if (existing) {
       select(existing.id);
       return;
@@ -1709,6 +1713,7 @@ export default function App() {
     () => new Map(catalog?.groups.map((group) => [group.id, group.name])),
     [catalog?.groups],
   );
+  const openConnections = new Set(workspaces.map((workspace) => workspace.connectionID));
   const commands: WorkbenchCommand[] = [
     ...(filesTab
       ? [
@@ -1769,6 +1774,7 @@ export default function App() {
       return {
         id: `workspace-${w.id}`,
         label: localLabels.get(w.id) || w.name,
+        alternateName: c?.name,
         detail: [
           w.local
             ? `${w.local.shell} · ${w.local.directory}`
@@ -1786,14 +1792,18 @@ export default function App() {
         run: () => select(w.id),
       };
     }),
-    ...paletteConnections.map(({ connection: c }) => ({
-      id: `connection-${c.id}`,
-      label: c.name,
-      detail: `${c.protocol.toUpperCase()} · ${c.username}@${c.host}:${c.port}`,
-      search: paletteGroups.get(c.group_id),
-      kind: 'connection' as const,
-      run: () => openSaved(c),
-    })),
+    ...paletteConnections.map(({ connection: c }) => {
+      const another = openConnections.has(c.id);
+      return {
+        id: `connection-${c.id}`,
+        label: another ? translate('common:openAnotherWorkspaceFor', { name: c.name }) : c.name,
+        detail: `${c.protocol.toUpperCase()} · ${c.username}@${c.host}:${c.port}`,
+        search: `${c.name} ${paletteGroups.get(c.group_id) || ''}`,
+        queryOnly: another,
+        kind: 'connection' as const,
+        run: () => openSaved(c, another),
+      };
+    }),
     {
       id: 'new',
       label: translate('common:newConnection'),
@@ -1866,12 +1876,14 @@ export default function App() {
           {
             id: 'files',
             label: translate('common:showRemoteFiles'),
+            priority: 2,
             kind: 'command' as const,
             run: () => current.ssh?.current?.showFiles(),
           },
           {
             id: 'monitor',
             label: translate('common:toggleMonitoringPanel'),
+            priority: 2,
             kind: 'command' as const,
             run: () => current.ssh?.current?.toggleMonitor(),
           },
@@ -2047,6 +2059,7 @@ export default function App() {
           {
             id: 'newTerminal',
             label: translate('common:newTerminal'),
+            priority: current?.ssh ? 2 : 0,
             shortcut: shortcutLabel(shortcuts.newTerminal),
             kind: 'command' as const,
             run: newTerminal,

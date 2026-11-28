@@ -6,6 +6,7 @@ export function commandResults<
     label: string;
     detail?: string;
     search?: string;
+    alternateName?: string;
     priority?: number;
     queryOnly?: boolean;
   },
@@ -15,25 +16,29 @@ export function commandResults<
   const limits = normalized
     ? { workspace: 16, command: 20, connection: 14 }
     : { workspace: 4, command: 8, connection: 5 };
-  return commandKinds.flatMap((kind) => {
+  const results = commandKinds.flatMap((kind) => {
     if (scope !== 'all' && kind !== scope) return [];
     const matches = commands
       .filter((command) => command.kind === kind && (!command.queryOnly || !!normalized))
       .flatMap((command) => {
         const label = command.label.toLowerCase();
-        const text = `${label} ${command.detail || ''} ${command.search || ''}`.toLowerCase();
+        const alternate = command.alternateName?.toLowerCase() || '';
+        const text =
+          `${label} ${alternate} ${command.detail || ''} ${command.search || ''}`.toLowerCase();
         if (!terms.every((term) => text.includes(term))) return [];
         const relevance = !normalized
           ? 0
-          : label === normalized
+          : label === normalized || alternate === normalized
             ? 2
-            : +label.startsWith(normalized);
+            : Number(label.startsWith(normalized) || alternate.startsWith(normalized));
         return [{ command, relevance }];
       });
     matches.sort(
       (a, b) => b.relevance - a.relevance || (b.command.priority ?? 0) - (a.command.priority ?? 0),
     );
     const limit = scope === 'workspace' ? matches.length : scope === 'all' ? limits[kind] : 50;
-    return matches.slice(0, limit).map(({ command }) => command);
+    return matches.slice(0, limit);
   });
+  if (normalized && scope === 'all') results.sort((a, b) => b.relevance - a.relevance);
+  return results.map(({ command }) => command);
 }

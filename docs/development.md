@@ -164,7 +164,7 @@ Follow the [localization contract](architecture.md#localization-and-collaboratio
 
 The SSH workspace's left rail opens files, file transfers and snippets. The right rail opens monitoring, AI when enabled, port forwarding and Docker. Use Tab or arrow keys within each rail. Find **Pane layout**, focus mode and reconnect in the workspace header.
 
-Command search lists the active and recent workspaces first, then favorite and recently connected hosts. With a search term, exact names and name prefixes rank ahead of other matches in each group. Search for **demo** to find the demo scenes.
+Command search lists the active and recent workspaces first, then favorite and recently connected hosts and contextual actions. With a search term, exact names and name prefixes rank ahead of other matches across all results. Search a saved connection by name to switch to its open workspace or choose **New workspace for …** to make a separate connection. Search for **demo** to find the demo scenes.
 
 Files open as tabs. Closing the active tab returns to the most recently used tab in the same pane when one is available. Use **Pane layout** to arrange open tabs into stacked or side-by-side panes, an editor above two terminal panes, or a four-pane grid. Use a pane's **+** to open another terminal. Layout changes retain terminal instances and editor drafts. Restored workspaces start disconnected. See [pane controls and reconnect](development.zh-CN.md#ssh-工作区与本地终端) and the [layout compatibility contract](architecture.md#communication-backpressure-and-lifecycle).
 

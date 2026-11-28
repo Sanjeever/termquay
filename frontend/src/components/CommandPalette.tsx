@@ -12,11 +12,19 @@ export type WorkbenchCommand = {
   detail?: string;
   shortcut?: string;
   search?: string;
+  alternateName?: string;
   priority?: number;
   queryOnly?: boolean;
   kind: CommandKind;
   run(): void;
 };
+
+function scopeLabel(scope: 'all' | CommandKind) {
+  if (scope === 'all') return translate('common:all');
+  if (scope === 'workspace') return translate('common:workspaces2');
+  if (scope === 'connection') return translate('common:connect');
+  return translate('common:commands');
+}
 
 export default function CommandPalette({
   commands,
@@ -35,11 +43,13 @@ export default function CommandPalette({
   const [query, setQuery] = useState(initialQuery);
   const [selected, setSelected] = useState(0);
   const [scope, setScope] = useState(initialScope);
+  const input = useRef<HTMLInputElement>(null);
   const list = useRef<HTMLDivElement>(null);
   const filtered = commandResults(commands, query, scope);
+  const activeIndex = Math.min(selected, Math.max(0, filtered.length - 1));
   useEffect(() => {
-    list.current?.querySelector(`#command-${selected}`)?.scrollIntoView({ block: 'nearest' });
-  }, [selected]);
+    list.current?.querySelector(`#command-${activeIndex}`)?.scrollIntoView({ block: 'nearest' });
+  }, [activeIndex, query, scope]);
   function run(index: number) {
     const command = filtered[index];
     if (command) {
@@ -47,11 +57,43 @@ export default function CommandPalette({
       command.run();
     }
   }
+  function option(command: WorkbenchCommand, index: number) {
+    return (
+      <div
+        role="option"
+        aria-selected={index === activeIndex}
+        id={`command-${index}`}
+        key={command.id}
+        className={`command-result${index === activeIndex ? ' selected' : ''}`}
+        onMouseMove={() => setSelected(index)}
+        onClick={() => run(index)}
+      >
+        <Icon
+          name={
+            command.kind === 'workspace'
+              ? 'terminal'
+              : command.kind === 'connection'
+                ? 'connections'
+                : 'chevron'
+          }
+          width="16"
+        />
+        <span>
+          {command.label}
+          {command.detail && <small>{command.detail}</small>}
+        </span>
+        {command.shortcut && command.shortcut !== translate('common:unassigned') && (
+          <kbd>{command.shortcut}</kbd>
+        )}
+      </div>
+    );
+  }
   return (
     <Modal
       isOpen
       onClose={onClose}
       hideCloseButton
+      disableAnimation
       className="app-dialog command-palette"
       placement="top"
       aria-label={translate('common:commandSearch2')}
@@ -70,6 +112,7 @@ export default function CommandPalette({
         }}
       >
         <Input
+          ref={input}
           autoFocus
           aria-label={translate('common:searchConnectionsAndCommands')}
           placeholder={translate('common:searchConnectionsWorkspacesAndCommands')}
@@ -82,19 +125,16 @@ export default function CommandPalette({
           role="combobox"
           aria-expanded="true"
           aria-controls="command-results"
-          aria-activedescendant={filtered.length ? `command-${selected}` : undefined}
+          aria-activedescendant={filtered.length ? `command-${activeIndex}` : undefined}
           onKeyDown={(e) => {
             if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
               e.preventDefault();
-              setSelected(
-                (prev) =>
-                  (prev + (e.key === 'ArrowDown' ? 1 : -1) + filtered.length) %
-                  (filtered.length || 1),
-              );
+              const step = e.key === 'ArrowDown' ? 1 : -1;
+              setSelected((activeIndex + step + filtered.length) % (filtered.length || 1));
             }
             if (e.key === 'Enter') {
               e.preventDefault();
-              run(selected);
+              run(activeIndex);
             }
           }}
         />
@@ -115,15 +155,10 @@ export default function CommandPalette({
               onClick={() => {
                 setScope(kind);
                 setSelected(0);
+                input.current?.focus();
               }}
             >
-              {kind === 'all'
-                ? translate('common:all')
-                : kind === 'workspace'
-                  ? translate('common:workspaces2')
-                  : kind === 'connection'
-                    ? translate('common:connect')
-                    : translate('common:commands')}
+              {scopeLabel(kind)}
             </button>
           ))}
         </div>
@@ -134,60 +169,21 @@ export default function CommandPalette({
           id="command-results"
           aria-label={translate('common:searchResults')}
         >
-          {commandKinds.map((kind) => (
-            <div
-              key={kind}
-              role="group"
-              aria-label={
-                kind === 'workspace'
-                  ? translate('common:workspaces2')
-                  : kind === 'connection'
-                    ? translate('common:connect')
-                    : translate('common:commands')
-              }
-            >
-              {filtered.some((c) => c.kind === kind) && (
-                <div className="command-group-heading" aria-hidden="true">
-                  {kind === 'workspace'
-                    ? translate('common:workspaces2')
-                    : kind === 'connection'
-                      ? translate('common:connect')
-                      : translate('common:commands')}
-                </div>
-              )}
-              {filtered.map((c, i) =>
-                c.kind !== kind ? null : (
-                  <div
-                    role="option"
-                    aria-selected={i === selected}
-                    id={`command-${i}`}
-                    key={c.id}
-                    className={`command-result ${i === selected ? 'selected' : ''}`}
-                    onMouseMove={() => setSelected(i)}
-                    onClick={() => run(i)}
-                  >
-                    <Icon
-                      name={
-                        c.kind === 'workspace'
-                          ? 'terminal'
-                          : c.kind === 'connection'
-                            ? 'connections'
-                            : 'chevron'
-                      }
-                      width="16"
-                    />
-                    <span>
-                      {c.label}
-                      {c.detail && <small>{c.detail}</small>}
-                    </span>
-                    {c.shortcut && c.shortcut !== translate('common:unassigned') && (
-                      <kbd>{c.shortcut}</kbd>
-                    )}
+          {query.trim() || scope !== 'all'
+            ? filtered.map(option)
+            : commandKinds.map((kind) => {
+                const options = filtered.map((command, index) =>
+                  command.kind === kind ? option(command, index) : null,
+                );
+                return options.some(Boolean) ? (
+                  <div key={kind} role="group" aria-label={scopeLabel(kind)}>
+                    <div className="command-group-heading" aria-hidden="true">
+                      {scopeLabel(kind)}
+                    </div>
+                    {options}
                   </div>
-                ),
-              )}
-            </div>
-          ))}
+                ) : null;
+              })}
           {filtered.length === 0 && (
             <p className="sidebar-empty">{translate('common:noMatchingResults')}</p>
           )}

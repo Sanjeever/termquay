@@ -619,13 +619,15 @@
   padding-top: 12px;
   border-top: 1px solid var(--color-border);
 }
-.command-palette {
-  margin-top: 12vh;
+.app-dialog.command-palette {
+  margin-top: clamp(24px, 8vh, 88px);
   padding: 10px;
+  background: var(--color-elevated);
 }
 .command-results {
-  max-height: 420px;
+  max-height: min(420px, calc(100dvh - 190px));
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding-top: 8px;
 }
 .command-scopes {

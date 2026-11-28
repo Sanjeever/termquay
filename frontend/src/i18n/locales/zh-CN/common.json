@@ -166,6 +166,7 @@
   "searchScope": "搜索范围",
   "all": "全部",
   "workspaces2": "工作区",
+  "openAnotherWorkspaceFor": "为 {{name}} 新建工作区",
   "commands": "命令",
   "searchResults": "搜索结果",
   "noMatchingResults": "无匹配结果",

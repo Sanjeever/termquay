@@ -166,6 +166,7 @@
   "searchScope": "Search scope",
   "all": "All",
   "workspaces2": "Workspaces",
+  "openAnotherWorkspaceFor": "New workspace for {{name}}",
   "commands": "Commands",
   "searchResults": "Search results",
   "noMatchingResults": "No matching results",
