@@ -176,6 +176,8 @@ Middle-click a workspace, tool or terminal/file tab to close it without first se
 
 Use **Connect** in a catalog row to open or locate its workspace. Use the header settings to show, hide and resize columns on this device. A narrow catalog combines the enabled address fields beneath the connection name and keeps **Connect** visible. Use the list menu to sort by individual fields. The address action copies the host name or IP and preserves selection. TCP latency appears and refreshes in the wide catalog.
 
+Connection progress and errors appear on the matching catalog row or workspace. From the row, cancel a pending connection, open diagnostics, or retry a failed saved SSH connection. TCP probe results describe the route measurement. The workspace state shows whether a session is connected.
+
 **Follow terminal directory** uses reports from the active terminal. If the panel is waiting for a report, use **Enable directory reporting** to set up the current shell. See [directory following](development.zh-CN.md#远端文件与传输).
 
 **Save and validate** saves the draft before running the configured validation command. If the command is missing, it opens configuration without saving. Reload requires successful validation and separate confirmation. See the [editor guide](development.zh-CN.md#文件编辑) for ordinary Save, health checks, and disconnect behavior.

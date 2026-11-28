@@ -40,11 +40,7 @@ export default function ConnectionLatency({
         : milliseconds! < 300
           ? 'moderate'
           : 'slow'
-      : result?.status === 'jump_required'
-        ? 'unknown'
-        : result
-          ? 'slow'
-          : 'unknown';
+      : 'unknown';
   const title = [
     translate('connections:tCPConnectionTimeIncludingDNSAndProxyOr'),
     errorMessage(eventError(result)),

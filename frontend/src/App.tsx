@@ -2273,6 +2273,50 @@ export default function App() {
       </AnimatePresence>
     </Suspense>
   );
+  const attemptError = errorMessage(eventError(attempt));
+  const savedAttempt = catalog?.connections.find(
+    (connection) => connection.id === attempt.connectionID,
+  );
+  const showCatalogAttempt = !settings && active === '' && !attempt.workspaceID && !!savedAttempt;
+  const attemptWorkspace = !settings && active === attempt.workspaceID ? active : '';
+  const lastAttemptStep = attempt.steps[attempt.steps.length - 1];
+  const attemptFeedback = !dialog && (attempt.busy || (attemptError && !current?.rdp)) && (
+    <div className="connection-attempt">
+      <span className={attemptError ? 'error' : ''} role={attemptError ? 'alert' : 'status'}>
+        <span className="connection-attempt-target">{attempt.target} · </span>
+        {attemptError ||
+          statusLabel(lastAttemptStep?.stage_code, lastAttemptStep?.stage) ||
+          translate('common:connecting2')}
+      </span>
+      <div className="button-row">
+        {!!attempt.steps.length && (
+          <Button size="sm" variant="light" onPress={() => setConnectionDiagnosticsOpen(true)}>
+            {translate('common:connectionDiagnostics')}
+          </Button>
+        )}
+        {attempt.busy ? (
+          <Button size="sm" variant="light" onPress={attempt.cancel}>
+            {translate('common:cancelConnection')}
+          </Button>
+        ) : (
+          <>
+            {savedAttempt?.protocol === 'ssh' && !attempt.workspaceID && (
+              <Button size="sm" variant="light" onPress={() => openSaved(savedAttempt, true)}>
+                {translate('connections:retry')}
+              </Button>
+            )}
+            <button
+              className="icon-button"
+              aria-label={translate('common:dismissConnectionError')}
+              onClick={attempt.clearError}
+            >
+              <Icon name="close" />
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
   return (
     <>
       <div className="live-workbench" hidden={demoScene !== null}>
@@ -2427,47 +2471,6 @@ export default function App() {
             </Suspense>
           )}
           {storageError && catalog && <ErrorNotice message={storageError} />}
-          {!dialog && (attempt.busy || (errorMessage(eventError(attempt)) && !current?.rdp)) && (
-            <div
-              className="connection-feedback"
-              role={errorMessage(eventError(attempt)) ? 'alert' : 'status'}
-            >
-              <span className={errorMessage(eventError(attempt)) ? 'error' : ''}>
-                {attempt.target} ·{' '}
-                {errorMessage(eventError(attempt)) ||
-                  statusLabel(
-                    attempt.steps[attempt.steps.length - 1]?.stage_code,
-                    attempt.steps[attempt.steps.length - 1]?.stage,
-                  ) ||
-                  translate('common:connecting2')}
-              </span>
-              <div className="button-row">
-                {!!attempt.steps.length && (
-                  <Button
-                    size="sm"
-                    variant="light"
-                    onPress={() => setConnectionDiagnosticsOpen(true)}
-                  >
-                    {translate('common:connectionDiagnostics')}
-                  </Button>
-                )}
-                {attempt.busy && (
-                  <Button size="sm" variant="light" onPress={attempt.cancel}>
-                    {translate('common:cancelConnection')}
-                  </Button>
-                )}
-                {!attempt.busy && (
-                  <button
-                    className="icon-button"
-                    aria-label={translate('common:dismissConnectionError')}
-                    onClick={attempt.clearError}
-                  >
-                    <Icon name="close" />
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
           {settings && (
             <Suspense
               fallback={
@@ -2654,6 +2657,11 @@ export default function App() {
               systemRDP={systemRDP}
               localTerminalAction={localLauncher()}
               active={!demoScene && !settings && active === ''}
+              attempt={
+                showCatalogAttempt && attemptFeedback
+                  ? { connectionID: attempt.connectionID, content: attemptFeedback }
+                  : undefined
+              }
             />
           </div>
           {commandTasksCreated && (
@@ -2715,6 +2723,9 @@ export default function App() {
           )}
           {workspaces.map((w) => (
             <div className="workspace" hidden={settings || active !== w.id} key={w.id}>
+              {attemptWorkspace === w.id && attemptFeedback && (
+                <div className="workspace-attempt">{attemptFeedback}</div>
+              )}
               <Suspense
                 fallback={
                   <div className="view-loading" role="status">
@@ -2851,6 +2862,9 @@ export default function App() {
               </Suspense>
             </div>
           ))}
+          {!showCatalogAttempt && !attemptWorkspace && attemptFeedback && (
+            <div className="workspace-attempt">{attemptFeedback}</div>
+          )}
           {!filesOpen && transferPanel}
         </Workbench>
         <UploadDialog

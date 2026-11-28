@@ -65,6 +65,7 @@ export default function useConnectionAttempt(
   const [busy, setBusy] = useState(false);
   const [error, setError] = useMessageState('');
   const [target, setTarget] = useState('');
+  const [connectionID, setConnectionID] = useState('');
   const [workspaceID, setWorkspaceID] = useState('');
   const [trust, setTrust] = useState<HostTrust>();
   const [challenge, setChallenge] = useState<SSHChallenge>();
@@ -108,6 +109,7 @@ export default function useConnectionAttempt(
     current.current = attempt;
     setBusy(true);
     setWorkspaceID(reuse || '');
+    setConnectionID(connection.id);
     setError('');
     setTarget(connection.name || connection.host);
     setSteps([]);
@@ -355,6 +357,7 @@ export default function useConnectionAttempt(
     workspaceID,
     error,
     target,
+    connectionID,
     trust,
     confirm,
     challenge,

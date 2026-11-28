@@ -403,6 +403,16 @@
 .catalog-row-actions .row-menu {
   opacity: 1;
 }
+.catalog-attempt {
+  grid-column: 1 / -1;
+  padding: 4px 10px;
+}
+.connection-row > .catalog-attempt {
+  border-top: 1px solid var(--color-border);
+}
+.connection-row .connection-attempt-target {
+  display: none;
+}
 .catalog-connect {
   min-block-size: 24px;
   color: var(--color-primary);
@@ -672,6 +682,25 @@
   gap: 12px;
   flex-shrink: 0;
   background: var(--color-surface);
+}
+.workspace-attempt {
+  flex-shrink: 0;
+  padding: 4px 12px;
+  border-block: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+.connection-attempt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.connection-attempt > span {
+  min-inline-size: 0;
+  flex: 1 1 180px;
 }
 .app-dialog {
   background: var(--color-elevated);

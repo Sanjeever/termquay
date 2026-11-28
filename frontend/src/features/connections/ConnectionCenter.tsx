@@ -111,6 +111,7 @@ export default function ConnectionCenter({
   localTerminalAction,
   active,
   demoLatency,
+  attempt,
 }: {
   connections: Connection[];
   groups: Group[];
@@ -129,6 +130,7 @@ export default function ConnectionCenter({
   localTerminalAction?: ReactNode;
   active: boolean;
   demoLatency?: ReturnType<typeof useConnectionLatency>['measurements'];
+  attempt?: { connectionID: string; content: ReactNode };
 }) {
   useTranslation();
   const demo = demoLatency !== undefined;
@@ -917,6 +919,9 @@ export default function ConnectionCenter({
         {!groupDialog && !deleting && !duplicating && !moveOpen && (
           <ErrorNotice message={error} onDismiss={() => setError('')} />
         )}
+        {attempt && !visible.some((connection) => connection.id === attempt.connectionID) && (
+          <div className="catalog-attempt">{attempt.content}</div>
+        )}
         <div
           className={`connection-list${compact ? ' connection-list-compact' : ''}`}
           aria-label={translate('connections:savedConnections')}
@@ -1254,6 +1259,9 @@ export default function ConnectionCenter({
                   </DropdownMenu>
                 </Dropdown>
               </div>
+              {attempt?.connectionID === c.id && (
+                <div className="catalog-attempt">{attempt.content}</div>
+              )}
             </div>
           ))}
         </div>
