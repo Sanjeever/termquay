@@ -352,9 +352,11 @@ export default function TransferPanel({
                       <td className="transfer-file">
                         {errorMessage(t.name_message || t.name)}
                         <span className="transfer-compact-target">{t.target}</span>
-                        <Tooltip content={t.destination_path}>
-                          <span className="transfer-destination">{t.destination_path}</span>
-                        </Tooltip>
+                        <div className="transfer-route">
+                          <span>{t.source_path}</span>
+                          <span>→</span>
+                          <span>{t.destination_path}</span>
+                        </div>
                         <details>
                           <summary>{translate('files:path')}</summary>
                           <p className="file-path">

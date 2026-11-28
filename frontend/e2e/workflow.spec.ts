@@ -1,4 +1,72 @@
 import { expect, test, type Page } from '@playwright/test';
+
+test('an exact host search connects from its catalog row and leaves retry beside the error', async ({
+  page,
+}) => {
+  const calls: string[] = [];
+  let finishAttempt!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    finishAttempt = resolve;
+  });
+  await page.route('**/wails/runtime*', async (route) => {
+    const request = route.request().postDataJSON()?.args;
+    const method = request?.methodID;
+    let value: unknown = null;
+    if (method === 3198086081)
+      value = {
+        groups: [],
+        session_only: true,
+        connections: ['Build server mirror', 'Build server'].map((name, index) => ({
+          id: `build-${index}`,
+          name,
+          group_id: '',
+          protocol: 'ssh',
+          host: `build-${index}.example.invalid`,
+          port: 22,
+          username: 'deploy',
+          credential_id: '',
+        })),
+      };
+    else if (method === 3288919527) value = { locked: false, available: false, idle_minutes: 0 };
+    else if (method === 1509178199) value = { enabled: false, drafts: [] };
+    else if (method === 2326168153 || method === 2007269789) value = {};
+    else if (method === 841988121) value = { entries: [], active: '' };
+    else if (method === 1921920895) {
+      calls.push(request.args[0]);
+      await pending;
+      await route.fulfill({
+        status: 500,
+        json: { kind: 'RuntimeError', message: 'SSH authentication failed' },
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(value),
+    });
+  });
+  await page.goto('/');
+  const target = page.locator('.connection-row').filter({
+    has: page.getByRole('button', { name: 'Connect to Build server', exact: true }),
+  });
+  await expect(target).toBeVisible();
+  await page.getByRole('button', { name: 'Command search', exact: true }).click();
+  const search = page.getByRole('combobox');
+  await search.fill('Build server');
+  await expect(page.getByRole('option').first()).toContainText('build-1.example.invalid');
+  await search.press('Enter');
+  await expect(target.getByRole('status')).toContainText(/connecting/i);
+  await expect(
+    target.getByRole('button', { name: 'Cancel connection', exact: true }),
+  ).toBeVisible();
+  finishAttempt();
+  await expect(target.getByRole('alert')).toHaveText('SSH authentication failed', {
+    useInnerText: true,
+  });
+  await target.getByRole('button', { name: 'Retry', exact: true }).click();
+  await expect.poll(() => calls).toEqual(['build-1', 'build-1']);
+});
 import { demoSamples } from '../src/features/demo/data';
 
 test('catalog column controls preserve the row connection action', async ({ page }) => {
@@ -1226,6 +1294,11 @@ for (const language of ['en', 'zh-CN']) {
     await expect(dock).toBeHidden();
     await expect(button.locator('.workspace-tool-count')).toHaveText('1');
     const terminal = await page.locator('.terminal-view').first().elementHandle();
+    const terminalInput = page.getByRole('textbox', {
+      name: language === 'en' ? 'Terminal input' : '终端输入',
+      exact: true,
+    });
+    await terminalInput.focus();
     const before = await page.locator('.ssh-panels').boundingBox();
     await button.click();
     await expect(dock).toBeVisible();
@@ -1263,7 +1336,7 @@ for (const language of ['en', 'zh-CN']) {
     await page.screenshot({ path: test.info().outputPath(`forwarding-narrow-${language}.png`) });
     await input.press('Escape');
     await expect(dock).toBeHidden();
-    await expect(button).toBeFocused();
+    await expect(terminalInput).toBeFocused();
     await button.click();
     await expect(input).toHaveValue('127.0.0.2');
     expect(await terminal!.evaluate((element) => element.isConnected)).toBe(true);
@@ -1370,6 +1443,9 @@ test('the file tool owns its task view while transfers survive closing the tool'
   await expect(page.getByRole('heading', { name: 'Transfers', exact: true })).toHaveCount(0);
   await page.locator('.file-tool-tasks-toggle').click();
   await expect(page.locator('.file-tool-workspace .transfer-panel')).toBeVisible();
+  const route = page.locator('[data-transfer-id="active-transfer"] .transfer-route');
+  await expect(route).toContainText('/local/archive.zip');
+  await expect(route).toContainText('/remote/archive.zip');
   await expect(page.locator('.transfer-panel')).toHaveCount(1);
   await page.getByRole('tab', { name: 'Connection center', exact: true }).click();
   await page

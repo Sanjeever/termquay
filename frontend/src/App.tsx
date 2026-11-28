@@ -2278,13 +2278,14 @@ export default function App() {
     </Suspense>
   );
   const attemptError = errorMessage(eventError(attempt));
-  const savedAttempt = catalog?.connections.find(
-    (connection) => connection.id === attempt.connectionID,
-  );
+  const savedAttempt = attempt.connectionID
+    ? catalog?.connections.find((connection) => connection.id === attempt.connectionID)
+    : undefined;
   const showCatalogAttempt = !settings && active === '' && !attempt.workspaceID && !!savedAttempt;
   const attemptWorkspace = !settings && active === attempt.workspaceID ? active : '';
   const lastAttemptStep = attempt.steps[attempt.steps.length - 1];
-  const attemptFeedback = !dialog && (attempt.busy || (attemptError && !current?.rdp)) && (
+  const showAttemptError = attemptError && !(attemptWorkspace && current?.rdp);
+  const attemptFeedback = !dialog && (attempt.busy || showAttemptError) && (
     <div className="connection-attempt">
       <span className={attemptError ? 'error' : ''} role={attemptError ? 'alert' : 'status'}>
         <span className="connection-attempt-target">{attempt.target} · </span>

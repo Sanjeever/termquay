@@ -316,7 +316,8 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
-  padding: 6px 12px;
+  min-block-size: var(--workspace-toolbar-height);
+  padding: 3px 10px;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-surface);
 }
@@ -372,7 +373,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   height: auto;
-  min-height: 36px;
+  min-block-size: var(--workspace-toolbar-height);
   gap: 4px 8px;
   padding: 4px 0;
 }

@@ -208,7 +208,7 @@
   max-width: 65%;
 }
 .file-heading {
-  height: 36px;
+  block-size: var(--workspace-toolbar-height);
   gap: 0;
 }
 .file-heading h2 {
@@ -217,7 +217,7 @@
 }
 .file-heading .icon-button {
   width: 26px;
-  height: 28px;
+  block-size: var(--compact-control-height);
 }
 .file-metadata {
   display: none;
@@ -567,7 +567,7 @@
   display: flex;
   flex-shrink: 0;
   align-items: center;
-  min-height: 36px;
+  min-block-size: var(--workspace-toolbar-height);
   padding: 3px 6px;
   gap: 2px;
   flex-wrap: wrap;

@@ -16,7 +16,7 @@
 }
 .compact-ssh .workspace-tool-rail .workspace-tool {
   inline-size: 26px;
-  block-size: 28px;
+  block-size: var(--compact-control-height);
 }
 .compact-ssh .workspace-tool[aria-pressed='true']::before {
   inset-inline-start: -3px;
@@ -29,11 +29,11 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 4px;
-  min-height: 38px;
+  min-block-size: var(--workspace-toolbar-height);
   flex-shrink: 0;
   padding: 3px 10px;
   border-bottom: 1px solid var(--color-border);
-  background: var(--color-background);
+  background: var(--color-surface);
 }
 .session-target {
   flex: 1 1 160px;
@@ -58,7 +58,7 @@
   display: flex;
   gap: 6px;
   align-items: center;
-  min-height: 28px;
+  min-block-size: var(--compact-control-height);
   padding: 5px 9px;
   border-radius: 6px;
   color: var(--color-muted);
@@ -1736,9 +1736,10 @@
   display: flex;
   align-items: center;
   gap: 2px;
-  min-height: 34px;
+  min-block-size: var(--workspace-toolbar-height);
   padding: 2px 8px;
   border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
   flex-shrink: 0;
 }
 .local-terminal-tabs {

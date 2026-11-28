@@ -281,6 +281,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  min-block-size: var(--workspace-toolbar-height);
   margin-bottom: 8px;
 }
 .transfer-heading h2 {
@@ -356,6 +357,7 @@
   overflow-wrap: anywhere;
 }
 .transfer-panel {
+  container: transfers / inline-size;
   height: 200px;
   min-height: 100px;
   flex-shrink: 0;
@@ -519,15 +521,18 @@
   margin-top: 6px;
   accent-color: var(--color-primary);
 }
-.transfer-destination {
-  display: block;
-  max-width: 260px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.transfer-route {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 4px;
   color: var(--color-muted);
   font: 11px var(--font-mono);
   margin-top: 4px;
+}
+.transfer-route > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .transfer-progress {
   min-width: 200px;
@@ -594,8 +599,8 @@
   color: var(--color-muted);
   font-size: 11px;
 }
-@media (max-width: 1000px) {
-  .transfer-panel .transfer-target {
+@container transfers (max-width: 968px) {
+  .transfer-target {
     display: none;
   }
   .transfer-compact-target {
@@ -612,8 +617,7 @@
     flex-wrap: wrap;
     gap: 8px;
   }
-  .transfer-panel td,
-  .transfer-panel th {
+  .transfer-panel :is(td, th) {
     padding-inline: 8px;
   }
 }
