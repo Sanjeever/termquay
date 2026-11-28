@@ -147,6 +147,14 @@ export const shortcutDefinitions = [
     key: 'Mod+Alt+KeyW',
   },
   {
+    id: 'focusRemotePath',
+    get label() {
+      return translate('common:showRemoteFiles');
+    },
+    scope: 'workspace',
+    key: 'Mod+KeyL',
+  },
+  {
     id: 'newLocalTerminal',
     get label() {
       return translate('common:newLocalTerminal');

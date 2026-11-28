@@ -11,6 +11,7 @@ import {
   forwardRef,
   lazy,
   Suspense,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useLayoutEffect,
@@ -103,7 +104,7 @@ export type SSHWorkspaceHandle = {
   focus(): void;
   saveAll(): Promise<boolean>;
   prepareReconnect(): Promise<boolean>;
-  showFiles(): void;
+  showFiles(focusPath?: boolean): void;
   locateDirectory(path: string): void;
   toggleMonitor(): void;
   toggleFocus(): void;
@@ -514,6 +515,8 @@ const SSHWorkspace = forwardRef<
   const center = useRef<HTMLDivElement>(null);
   const lastContentFocus = useRef<HTMLElement>();
   const panelReturnFocus = useRef<HTMLElement>();
+  const filePathInput = useRef<HTMLInputElement>(null);
+  const focusFilePathOnOpen = useRef(false);
   const previousToolView = useRef<WorkspacePanel | null>(null);
   const terminalHandles = useRef(new Map<string, TerminalHandle>());
   const filesToggle = useRef<HTMLButtonElement>(null);
@@ -568,43 +571,6 @@ const SSHWorkspace = forwardRef<
   const tunnelsShown = rightShown === 'tunnels';
   const aiShown = rightShown === 'ai';
   const monitorShown = rightShown === 'monitor';
-  useLayoutEffect(() => {
-    if (center.current) center.current.inert = !!toolView;
-    if (!visible) {
-      previousToolView.current = null;
-      return;
-    }
-    const previous = previousToolView.current;
-    previousToolView.current = toolView;
-    if (toolView) {
-      const panel = panels.current?.querySelector<HTMLElement>(
-        `[data-workspace-panel="${toolView}"]`,
-      );
-      if (previous !== toolView && !panel?.contains(document.activeElement)) {
-        panel?.focus({ preventScroll: true });
-      }
-    } else if (previous) {
-      const target = panelReturnFocus.current;
-      panelReturnFocus.current = undefined;
-      // If another control took focus while closing the panel, keep that focus.
-      const focused = document.activeElement;
-      if (
-        focused === document.body ||
-        focused?.closest(
-          '.workspace-tool-rail, [data-workspace-panel][hidden], [data-workspace-return]',
-        )
-      ) {
-        if (target?.isConnected && target.getClientRects().length) {
-          target.focus({ preventScroll: true });
-        } else {
-          const trigger = panels.current?.querySelector<HTMLButtonElement>(
-            `[data-workspace-tool="${previous}"]`,
-          );
-          trigger?.focus({ preventScroll: true });
-        }
-      }
-    }
-  }, [toolView, visible]);
   const tabIDs = [...terminals, ...fileOrder];
   const paneCount = splitColumns === 'grid' ? 4 : splitColumns === 'bottom' ? 3 : split ? 2 : 1;
   const paneFor = (path: string) => (split ? paneAssignments[path] || 0 : 0);
@@ -635,6 +601,61 @@ const SSHWorkspace = forwardRef<
       });
   }, [terminals, fileOrder, restoring]);
   const active = paneSelected[activePane] || '';
+  const focusTab = useCallback(
+    (path = active) => {
+      if (!path || document.querySelector('[role=dialog][data-open=true]')) return false;
+      const selector = `[data-tab-id="${CSS.escape(path)}"]`;
+      const target = Array.from(
+        center.current?.querySelectorAll<HTMLElement>(
+          `${selector} :is(.terminal-search > input, .xterm-helper-textarea, .cm-content, [data-image-preview], [data-markdown-preview])`,
+        ) || [],
+      ).find((element) => element.getClientRects().length > 0);
+      target?.focus({ preventScroll: true });
+      return !!target;
+    },
+    [active],
+  );
+  useLayoutEffect(() => {
+    if (center.current) center.current.inert = !!toolView;
+    if (!visible) {
+      previousToolView.current = null;
+      return;
+    }
+    const previous = previousToolView.current;
+    previousToolView.current = toolView;
+    if (toolView) {
+      const panel = panels.current?.querySelector<HTMLElement>(
+        `[data-workspace-panel="${toolView}"]`,
+      );
+      if (previous !== toolView && !panel?.contains(document.activeElement)) {
+        panel?.focus({ preventScroll: true });
+      }
+    } else if (previous) {
+      const target = panelReturnFocus.current;
+      panelReturnFocus.current = undefined;
+      const focused = document.activeElement;
+      if (
+        focused === document.body ||
+        focused?.closest(
+          '.workspace-tool-rail, [data-workspace-panel][hidden], [data-workspace-return]',
+        )
+      ) {
+        if (target?.isConnected && target.getClientRects().length) {
+          target.focus({ preventScroll: true });
+        } else if (!focusTab()) {
+          panels.current
+            ?.querySelector<HTMLButtonElement>(`[data-workspace-tool="${previous}"]`)
+            ?.focus({ preventScroll: true });
+        }
+      }
+    }
+  }, [focusTab, toolView, visible]);
+  useLayoutEffect(() => {
+    if (visible && filesShown && focusFilePathOnOpen.current) {
+      focusFilePathOnOpen.current = false;
+      filePathInput.current?.focus({ preventScroll: true });
+    }
+  }, [filesShown, visible]);
   useLayoutEffect(() => {
     if (!active) return;
     tabHistory.current.delete(active);
@@ -747,17 +768,6 @@ const SSHWorkspace = forwardRef<
   }
   function imageFile(path: string) {
     return fileViews[path] ? fileViews[path] === 'image' : isImagePath(path);
-  }
-  function focusTab(path = active) {
-    if (document.querySelector('[role=dialog][data-open=true]')) return;
-    const selector = `[data-tab-id="${CSS.escape(path)}"]`;
-    Array.from(
-      center.current?.querySelectorAll<HTMLElement>(
-        `${selector} .terminal-search > input, ${selector} .xterm-helper-textarea, ${selector} .cm-content, ${selector} [data-image-preview], ${selector} [data-markdown-preview]`,
-      ) || [],
-    )
-      .find((element) => element.getClientRects().length > 0)
-      ?.focus();
   }
   function moveActive() {
     if (!active) return;
@@ -926,22 +936,25 @@ const SSHWorkspace = forwardRef<
   }
 
   function showNarrowPanel(panel: WorkspacePanel, toggle = false) {
-    if (!narrowPanel && document.activeElement instanceof HTMLElement) {
-      const focused = document.activeElement;
-      panelReturnFocus.current =
-        lastContentFocus.current || (focused !== document.body ? focused : undefined);
-    }
+    if (!narrowPanel) panelReturnFocus.current = lastContentFocus.current;
     setNarrowPanel(toggle && narrowPanel === panel ? null : panel);
   }
-  function showFiles() {
+  function showFiles(focusPath = false) {
     setFocus(false);
     setPreferredDock('files');
+    if (focusPath) {
+      if (filesShown) filePathInput.current?.focus({ preventScroll: true });
+      else focusFilePathOnOpen.current = true;
+    }
     if (narrow) showNarrowPanel('files');
     else setFilesOpen(true);
   }
   function toggleFiles() {
     setFocus(false);
-    if (!filesShown) setPreferredDock('files');
+    if (!filesShown) {
+      setPreferredDock('files');
+      focusFilePathOnOpen.current = true;
+    }
     if (narrow) showNarrowPanel('files', true);
     else setFilesOpen(!filesShown);
   }
@@ -1375,7 +1388,14 @@ const SSHWorkspace = forwardRef<
       target === active && terminalOwners.current.get(target) === sessionID
         ? terminalHandles.current.get(target)?.appendQuickInput?.(text) || false
         : false,
-    focus: () => focusTab(),
+    focus: () => {
+      const focused = document.activeElement;
+      if (
+        !panels.current?.contains(focused) ||
+        !focused?.closest('[data-workspace-panel]:not([hidden])')
+      )
+        focusTab();
+    },
     showFiles,
     locateDirectory: (path) => {
       showFiles();
@@ -1544,7 +1564,7 @@ const SSHWorkspace = forwardRef<
           !event.defaultPrevented &&
           !event.nativeEvent.isComposing &&
           !(event.target as HTMLElement).closest(
-            'input,textarea,[role=dialog],[role=menu],[role=listbox]',
+            'input:not([data-remote-path-input]),textarea,[role=dialog],[role=menu],[role=listbox]',
           )
         ) {
           event.preventDefault();
@@ -1772,6 +1792,7 @@ const SSHWorkspace = forwardRef<
         >
           <FileBrowser
             defaultListView
+            pathInputRef={filePathInput}
             readOnly={browseOnly}
             onToggleReadOnly={() => void toggleBrowseOnly()}
             changingMode={changingMode}

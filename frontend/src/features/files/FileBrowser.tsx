@@ -5,7 +5,16 @@ import { useMessageState } from '../../i18n/useMessageState.ts';
 import { useTranslation } from 'react-i18next';
 import { errorMessage, eventError } from '../../lib/errors.ts';
 import { Events } from '@wailsio/runtime';
-import { Fragment, lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import {
+  Fragment,
+  lazy,
+  Suspense,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type Ref,
+} from 'react';
 import {
   Button,
   DropdownTrigger,
@@ -87,6 +96,7 @@ export default function FileBrowser({
   onTerminalDirectory,
   onTransfers,
   demoDirectories,
+  pathInputRef,
 }: {
   id: string;
   connectionID: string;
@@ -109,6 +119,7 @@ export default function FileBrowser({
   onTerminalDirectory?(path: string): void;
   onTransfers?(directory: string, selected: string[]): void;
   demoDirectories?: Record<string, Entry[]>;
+  pathInputRef?: Ref<HTMLInputElement>;
 }) {
   useTranslation();
   const [directory, setDirectory] = useState(initialDirectory);
@@ -622,6 +633,7 @@ export default function FileBrowser({
     }
     if (e.key === 'Enter') {
       e.preventDefault();
+      if (!entry.directory && !selection.includes(entry.path)) pick(entry.path);
       void open(entry);
     }
     if (e.key === 'F2' && selectedEntries.length <= 1 && !demoDirectories && !readOnly) {
@@ -1011,18 +1023,24 @@ export default function FileBrowser({
           </DropdownMenu>
         </Dropdown>
         <input
+          ref={pathInputRef}
+          data-remote-path-input=""
           aria-label={translate('files:remoteDirectory')}
           value={pathDraft ?? directory}
+          spellCheck={false}
+          autoCapitalize="off"
+          autoComplete="off"
           onChange={(event) => setPathDraft(event.target.value)}
           onFocus={(event) => event.target.select()}
           onKeyDown={(event) => {
-            if (
-              event.key === 'Escape' &&
-              !event.nativeEvent.isComposing &&
-              pathDraft !== undefined
-            ) {
+            if (event.nativeEvent.isComposing) return;
+            if (event.key === 'Escape' && pathDraft !== undefined) {
               event.preventDefault();
               setPathDraft(undefined);
+            }
+            if (event.key === 'ArrowDown' && pathDraft === undefined && visibleEntries.length) {
+              event.preventDefault();
+              focusEntry(focusedVisible ? selected : visibleEntries[0].path);
             }
           }}
           onBlur={() => setPathDraft(undefined)}

@@ -1008,6 +1008,41 @@ test('typing a path opens its directory and reveals it when switching to the tre
   await expect(path).toHaveValue(target);
 });
 
+test('the SSH file tool opens at its path and keeps the selected file after editing', async ({
+  page,
+}) => {
+  await sshWorkflow(page, 'en', false, false, false);
+  await page.setViewportSize({ width: 900, height: 650 });
+  const files = page.getByRole('button', { name: 'Files', exact: true });
+  await files.click();
+  const path = page.getByRole('textbox', { name: 'Remote directory' });
+  await expect(path).toBeFocused();
+  await path.press('Escape');
+  await expect(path).toBeHidden();
+  await expect(page.getByRole('textbox', { name: 'Terminal input' })).toBeFocused();
+  await files.click();
+  await expect(path).toBeFocused();
+  await path.fill('/config');
+  await path.press('Enter');
+  const list = page.getByRole('list', { name: 'Directory list' });
+  const row = list.locator('[data-tree-path="/config/release.conf"]');
+  await expect(row).toBeVisible();
+  await path.press('ArrowDown');
+  await expect(list.getByRole('listitem', { name: 'config', exact: true })).toBeFocused();
+  await page.keyboard.press('End');
+  await expect(row).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.cm-content:visible')).toContainText('original file');
+  await page.getByRole('button', { name: 'Close File release.conf', exact: true }).click();
+  await files.click();
+  await expect(path).toBeFocused();
+  await expect(path).toHaveValue('/config');
+  await expect(row.getByRole('button', { name: 'release.conf', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+});
+
 test('quick input keeps its draft with the originating terminal and previews multiline text', async ({
   page,
 }) => {

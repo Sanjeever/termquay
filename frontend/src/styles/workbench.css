@@ -26,6 +26,7 @@ select:focus-visible,
 input:not([data-slot='input']):focus-visible,
 textarea:not([data-slot='input']):focus-visible,
 [role='treeitem']:focus-visible,
+.file-tree > [data-tree-path]:focus-visible,
 [role='separator']:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: -2px;

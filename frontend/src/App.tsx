@@ -1090,6 +1090,7 @@ export default function App() {
         (d) =>
           shortcutKey(shortcuts[d.id]) === key &&
           (d.id !== 'lineBreak' || current?.local) &&
+          (d.id !== 'focusRemotePath' || current?.ssh) &&
           (d.scope === 'app' ||
             (d.scope === 'workspace' && !settings && (current?.ssh || current?.local)) ||
             (d.scope === 'local' && !settings && current?.local) ||
@@ -1113,6 +1114,7 @@ export default function App() {
         setPalette(true);
       } else if (action.id === 'closeTab') shortcutActions.current.closeCurrentTab();
       else if (action.id === 'closeWorkspace') shortcutActions.current.closeWorkspace();
+      else if (action.id === 'focusRemotePath') current?.ssh?.current?.showFiles(true);
       else if (action.id === 'nextWorkspace' || action.id === 'previousWorkspace') {
         const ids = [
           '',
@@ -1876,9 +1878,10 @@ export default function App() {
           {
             id: 'files',
             label: translate('common:showRemoteFiles'),
+            shortcut: shortcutLabel(shortcuts.focusRemotePath),
             priority: 2,
             kind: 'command' as const,
-            run: () => current.ssh?.current?.showFiles(),
+            run: () => current.ssh?.current?.showFiles(true),
           },
           {
             id: 'monitor',
@@ -1912,6 +1915,7 @@ export default function App() {
       : []),
     ...(current?.ssh || current?.local
       ? shortcutDefinitions
+          .filter((d) => d.id !== 'focusRemotePath')
           .filter((d) => d.scope === 'workspace' || (d.scope === 'local' && current?.local))
           .map((d) => ({
             id: d.id,
