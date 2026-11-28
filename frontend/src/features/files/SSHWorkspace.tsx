@@ -267,7 +267,6 @@ const SSHWorkspace = forwardRef<
     return mode === 'bottom' || mode === 'grid' ? mode : undefined;
   });
   const [columnRatio, setColumnRatio] = useState(initialLayout?.split_columns?.ratio ?? 50);
-  const automaticSplit = useRef(!initialLayout);
   const [maximized, setMaximized] = useState(initialLayout?.maximized || false);
   const [ratio, setRatio] = useState(initialLayout?.ratio || 50);
   const [terminals, setTerminals] = useState<string[]>(
@@ -307,6 +306,7 @@ const SSHWorkspace = forwardRef<
   const [fileOrder, setFileOrder] = useState(
     (initialLayout?.tabs || []).filter((t) => t.kind === 'file').map((t) => t.path),
   );
+  const tabHistory = useRef(new Set<string>());
   const [fileViews, setFileViews] = useState<Record<string, 'text' | 'image'>>({});
   const [markdownAnchor, setMarkdownAnchor] = useState<{
     path: string;
@@ -455,8 +455,7 @@ const SSHWorkspace = forwardRef<
         delete next[path];
         return next;
       });
-      setFileOrder((previous) => (previous.includes(path) ? previous : [...previous, path]));
-      setActive(path);
+      revealFile(path);
       if (needsReview) {
         setSudoConflict(doc);
         applyConflict(path);
@@ -599,6 +598,9 @@ const SSHWorkspace = forwardRef<
   );
   useEffect(() => {
     const live = new Set(terminals);
+    for (const id of tabHistory.current) {
+      if (!live.has(id) && !fileOrder.includes(id)) tabHistory.current.delete(id);
+    }
     for (const key of terminalOwners.current.keys())
       if (!live.has(key)) terminalOwners.current.delete(key);
     for (const key of terminalDirectories.current.keys())
@@ -616,6 +618,11 @@ const SSHWorkspace = forwardRef<
       });
   }, [terminals, fileOrder, restoring]);
   const active = paneSelected[activePane] || '';
+  useLayoutEffect(() => {
+    if (!active) return;
+    tabHistory.current.delete(active);
+    tabHistory.current.add(active);
+  }, [active]);
   const activeTerminal =
     state === 'connected' &&
     terminals.includes(active) &&
@@ -691,20 +698,17 @@ const SSHWorkspace = forwardRef<
     setPaneAssignments((previous) => ({ ...previous, [path]: pane }));
   }
   function setActive(path: string) {
-    if (
-      !split &&
-      automaticSplit.current &&
-      splitDirection === 'rows' &&
-      !terminals.includes(path) &&
-      terminals.length
-    ) {
-      setSplit(true);
-      setPaneAssignments(Object.fromEntries(terminals.map((id) => [id, 1])));
-      setSelection([path, terminals[0], '', '']);
-      setActivePane(0);
-      return;
-    }
     selectInPane(paneFor(path), path);
+  }
+  function revealFile(path: string) {
+    if (fileOrder.includes(path)) setActive(path);
+    else {
+      const pane = split && splitDirection === 'columns' ? activePane : 0;
+      if (pane > 0) assignToPane(path, pane);
+      setFileOrder((previous) => (previous.includes(path) ? previous : [...previous, path]));
+      selectInPane(pane, path);
+    }
+    if (narrow) setNarrowPanel(null);
   }
   function shown(path: string) {
     return path === paneSelected[paneFor(path)] && (!maximized || paneFor(path) === activePane);
@@ -804,10 +808,7 @@ const SSHWorkspace = forwardRef<
       terminalOwners.current.set(result.id, sessionID);
       setTerminals((prev) => [...prev, result.id]);
       if (pane > 0) {
-        if (direction) {
-          automaticSplit.current = false;
-          setSplitDirection(direction);
-        }
+        if (direction) setSplitDirection(direction);
         if (columns) setSplitColumns(columns);
         setSplit(true);
         assignToPane(result.id, pane);
@@ -1282,24 +1283,15 @@ const SSHWorkspace = forwardRef<
     if (!fileOrder.includes(path) && new Set([...fileOrder, ...reads.current.keys()]).size >= 64)
       throw uiMessage('files:openFileLimitReached64');
     if (view) setFileViews((previous) => ({ ...previous, [path]: view }));
+    revealFile(path);
     if (view === 'image' || (view !== 'text' && imageFile(path))) {
       const request = reads.current.get(path);
       reads.current.delete(path);
       request?.cancel();
-      setFileOrder((previous) => (previous.includes(path) ? previous : [...previous, path]));
-      setActive(path);
-      if (narrow) setNarrowPanel(null);
       return true;
     }
-    if (draftsRef.current.some((d) => d.path === path)) {
-      setActive(path);
-      if (narrow) setNarrowPanel(null);
-      return true;
-    }
+    if (draftsRef.current.some((d) => d.path === path)) return true;
     if (reads.current.has(path)) return;
-    setFileOrder((prev) => (prev.includes(path) ? prev : [...prev, path]));
-    setActive(path);
-    if (narrow) setNarrowPanel(null);
     setPendingErrors((prev) => {
       const next = { ...prev };
       delete next[path];
@@ -1315,11 +1307,6 @@ const SSHWorkspace = forwardRef<
         ...prev,
         { ...doc, saved: doc.content, savedFormat: formatKey(doc), error: '', saving: false },
       ]);
-      setFileOrder((prev) => (prev.includes(path) ? prev : [...prev, path]));
-      if (split && splitDirection === 'columns' && activePane === 1 && !fileOrder.includes(path)) {
-        assignToPane(path, 1);
-        selectInPane(1, path);
-      } else setActive(path);
       return true;
     } catch (e) {
       if (
@@ -1404,6 +1391,20 @@ const SSHWorkspace = forwardRef<
     },
   }));
 
+  function selectAfterClose(path: string) {
+    tabHistory.current.delete(path);
+    if (path !== active) return;
+    const remaining = tabIDs.filter((id) => id !== path);
+    const recent = Array.from(tabHistory.current).reverse();
+    const next =
+      recent.find((id) => remaining.includes(id) && paneFor(id) === activePane) ||
+      remaining.find((id) => paneFor(id) === activePane) ||
+      paneSelected.find((id) => id && id !== path);
+    if (!next) return;
+    selectInPane(paneFor(next), next);
+    requestAnimationFrame(() => focusTab(next));
+  }
+
   function close(path: string, discard = false) {
     const draft = draftsRef.current.find((d) => d.path === path);
     if (draft?.saving) return;
@@ -1411,6 +1412,7 @@ const SSHWorkspace = forwardRef<
       setClosing(path);
       return;
     }
+    selectAfterClose(path);
     clearDownloadError(path);
     const request = reads.current.get(path);
     reads.current.delete(path);
@@ -1458,6 +1460,7 @@ const SSHWorkspace = forwardRef<
       close(path);
       return;
     }
+    selectAfterClose(path);
     terminalOwners.current.delete(path);
     tmuxAttached.current.delete(path);
     unbindTmux(path);
@@ -1569,7 +1572,6 @@ const SSHWorkspace = forwardRef<
               ...(!split ? ['maximize', 'merge'] : []),
             ]}
             onAction={(key) => {
-              automaticSplit.current = false;
               if (key === 'rows' || key === 'columns') applyTwoPanes(key);
               if (key === 'bottom' || key === 'grid') applyColumns(key);
               if (key === 'new') void newTerminal(splitColumns ? activePane : 1);

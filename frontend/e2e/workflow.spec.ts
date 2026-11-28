@@ -576,11 +576,30 @@ async function sshWorkflow(
   };
 }
 
-test('SSH file opening stacks the editor above the live terminal and layout changes preserve both', async ({
+test('an SSH file opens as a tab and closing it returns keyboard input to the originating terminal', async ({
   page,
 }) => {
+  const ssh = await sshWorkflow(page);
+  await page.getByRole('button', { name: 'New terminal in Main pane', exact: true }).click();
+  const terminal = page.locator('[data-tab-id="host-a-terminal-2"] .xterm');
+  await expect(terminal).toBeVisible();
+  const instance = await terminal.elementHandle();
+  await page.locator('[data-tree-path="/release.conf"] .file-name').dblclick();
+  await expect(page.locator('.cm-content:visible')).toContainText('original file');
+  await expect(page.locator('.pane-tabs:visible')).toHaveCount(1);
+  await expect(terminal).toBeHidden();
+  await page.getByRole('button', { name: 'Close File release.conf', exact: true }).click();
+  await expect(terminal.locator('.xterm-helper-textarea')).toBeFocused();
+  expect(await terminal.evaluate((element, original) => element === original, instance)).toBe(true);
+  await page.keyboard.type('pwd');
+  await expect.poll(() => ssh.inputs.join('')).toContain('pwd');
+});
+
+test('explicit SSH pane layouts preserve the editor and live terminal', async ({ page }) => {
   await sshWorkflow(page);
   await page.locator('[data-tree-path="/release.conf"] .file-name').dblclick();
+  await page.getByRole('button', { name: 'Pane layout', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Top and bottom panes', exact: true }).click();
   const editor = page.locator('.cm-editor:visible');
   await expect(editor).toBeVisible();
   const instance = await editor.elementHandle();
@@ -660,6 +679,8 @@ test('compact SSH starts with a wide terminal and supports docking and splitting
 test('activating an editor toolbar keeps focus on the chosen control', async ({ page }) => {
   await sshWorkflow(page);
   await page.locator('[data-tree-path="/release.conf"] .file-name').dblclick();
+  await page.getByRole('button', { name: 'Pane layout', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Top and bottom panes', exact: true }).click();
   const editor = page.locator('.cm-editor:visible');
   await expect(editor).toBeVisible();
   const terminal = page.locator('.terminal-tab:visible .xterm-helper-textarea');
@@ -682,6 +703,9 @@ test('SSH layouts keep an editor and two independent terminals alive', async ({ 
   const originalEditor = await editor.elementHandle();
   await editor.click();
   await page.keyboard.type('draft ');
+  const paneLayout = page.getByRole('button', { name: 'Pane layout', exact: true });
+  await paneLayout.click();
+  await page.getByRole('menuitem', { name: 'Top and bottom panes', exact: true }).click();
   await page.getByRole('button', { name: 'Split right', exact: true }).click();
   const secondTerminal = page.locator('[data-tab-id="host-a-terminal-2"] .xterm');
   await expect(secondTerminal).toBeVisible();
@@ -695,7 +719,6 @@ test('SSH layouts keep an editor and two independent terminals alive', async ({ 
   expect(firstBounds!.y).toBe(secondBounds!.y);
   await expect(page.getByRole('separator', { name: 'Split column ratio' })).toBeVisible();
   await page.screenshot({ path: test.info().outputPath('ssh-editor-and-terminals.png') });
-  const paneLayout = page.getByRole('button', { name: 'Pane layout', exact: true });
   await paneLayout.click();
   await page.getByRole('menuitem', { name: 'Four-pane grid', exact: true }).click();
   await expect(page.locator('.pane-tabs:visible')).toHaveCount(4);
