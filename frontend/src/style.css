@@ -13,7 +13,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @media (max-width: 1100px) {
-  .file-dock {
+  :where(.ssh-panels:not(.ssh-panels-live)) > .file-dock {
     position: absolute;
     top: 0;
     bottom: 0;
@@ -33,8 +33,7 @@
   }
 }
 @media (max-width: 1100px) {
-  .monitor-dock,
-  .tunnel-dock {
+  :where(.ssh-panels:not(.ssh-panels-live)) > :is(.monitor-dock, .tunnel-dock) {
     position: absolute;
     right: 0;
     top: 0;
@@ -42,35 +41,36 @@
     z-index: 5;
     box-shadow: -12px 0 32px #0005;
   }
-  .ssh-panels:has(> .workspace-tool-rail) > .monitor-dock,
-  .ssh-panels:has(> .workspace-tool-rail) > .tunnel-dock,
-  .ssh-panels:has(> .workspace-tool-rail) > .ai-dock {
+  .ssh-panels:not(.ssh-panels-live):has(> .workspace-tool-rail)
+    > :is(.monitor-dock, .tunnel-dock, .ai-dock) {
     right: 42px;
     max-width: calc(100% - 74px);
   }
-  .ssh-panels:has(> .workspace-tool-rail) > .file-dock {
+  .ssh-panels:not(.ssh-panels-live):has(> .workspace-tool-rail) > .file-dock {
     max-width: calc(100% - 42px);
   }
-  .ssh-panels:has(> .workspace-tool-rail-left) > .file-dock {
+  .ssh-panels:not(.ssh-panels-live):has(> .workspace-tool-rail-left) > .file-dock {
     left: 42px;
     max-width: calc(100% - 84px);
   }
-  .ssh-panels > .monitor-dock:not(.monitor-dock-expanded) {
+  .ssh-panels:not(.ssh-panels-live) > .monitor-dock:not(.monitor-dock-expanded) {
     max-width: min(380px, calc(100% - 74px));
   }
-  .monitor-dock > .panel-separator {
+  :where(.ssh-panels:not(.ssh-panels-live)) > .monitor-dock > .panel-separator {
     display: none;
   }
-  .ssh-panels > .monitor-dock.monitor-dock-expanded {
+  .ssh-panels:not(.ssh-panels-live) > .monitor-dock.monitor-dock-expanded {
     inset: 0;
     min-width: 0;
     width: auto;
     max-width: none;
   }
-  .ssh-panels:has(> .workspace-tool-rail) > .monitor-dock.monitor-dock-expanded {
+  .ssh-panels:not(.ssh-panels-live):has(> .workspace-tool-rail)
+    > .monitor-dock.monitor-dock-expanded {
     right: 42px;
   }
-  .ssh-panels:has(> .workspace-tool-rail-left) > .monitor-dock.monitor-dock-expanded {
+  .ssh-panels:not(.ssh-panels-live):has(> .workspace-tool-rail-left)
+    > .monitor-dock.monitor-dock-expanded {
     left: 42px;
   }
 }

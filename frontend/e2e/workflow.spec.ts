@@ -648,10 +648,11 @@ test('compact SSH starts with a wide terminal and supports docking and splitting
     expect(content!.x + content!.width).toBeLessThan(monitor!.x);
   }
   await page.screenshot({ path: test.info().outputPath('compact-ssh-workspace.png') });
-  await page.setViewportSize({ width: 1180, height: 900 });
+  await page.setViewportSize({ width: 1080, height: 900 });
   await expect(page.locator('.file-dock')).toBeHidden();
   await expect(page.locator('.monitor-dock')).toBeVisible();
   expect((await terminal.boundingBox())!.width).toBeGreaterThan(700);
+  expect((await terminal.boundingBox())!.width).toBeLessThan(800);
   await page.getByRole('button', { name: 'Files', exact: true }).click();
   await expect(page.locator('.file-dock')).toBeVisible();
   await expect(page.locator('.monitor-dock')).toBeHidden();
