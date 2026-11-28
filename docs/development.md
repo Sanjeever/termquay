@@ -333,6 +333,18 @@ Report unit tests, local protocol integration, browser substitutes, native deskt
 
 Historical evidence and unresolved gaps remain in the [Chinese acceptance ledger](development.zh-CN.md#已有验收记录与缺口), including [AI acceptance](development.zh-CN.md#内置-ai-验收2026-11-06) and [Windows SSH AI adaptation](development.zh-CN.md#windows-ssh-ai-适配验收2026-11-09). Platform input/IME, RDP clipboard/concurrency, native menus/dialogs, real multi-hop reconnect, provider behavior and sustained application-wide resource measurements need environment-specific evidence. Do not present historical results as current checks.
 
+### Release 1.4.11 verification (2026-11-28)
+
+Candidate `b769aec` passed version consistency, the license audit, `pnpm check` and `pnpm verify` on macOS 27.2.1 / arm64 with Go 1.26.10, Node 26.11.0 and pnpm 11.20.0. The frontend suite passed 153 tests with 5 skips. Chromium passed 92 tests with 2 skips.
+
+In the first Linux CI attempt, `TestAIRunContinuesBeyond32Tools` timed out waiting for the AI run to finish during `go test -race ./...`. The focused race test passed three times on macOS. The CI rerun passed the full Linux race suite and completed the three-platform checks for the same commit. [First Linux attempt](https://github.com/Sanjeever/termquay/actions/runs/46156162626/job/141013258995) · [CI rerun](https://github.com/Sanjeever/termquay/actions/runs/46156162626/attempts/2)
+
+The candidate and tag workflows built the same commit. The tag workflow published v1.4.11 as the latest stable release on 2026-11-28 UTC. Its public notes matched the bilingual version log. [Candidate workflow](https://github.com/Sanjeever/termquay/actions/runs/46156163880) · [Tag workflow](https://github.com/Sanjeever/termquay/actions/runs/46157383757) · [Public release](https://github.com/Sanjeever/termquay/releases/tag/v1.4.11)
+
+All three downloaded archives from each workflow matched their `SHA256SUMS`, expected top-level structure and target architectures. All four public downloads also matched GitHub's recorded digests. Both universal macOS bundles passed strict signature-integrity checks with ad-hoc signatures. Their plist version fields and executables reported 1.4.11, and both passed the CLI smoke suite on arm64.
+
+The Chromium fixtures substitute Wails calls and SSH streams. Native workbench interaction, real SSH/RDP/WebDAV and in-app upgrade acceptance remain open for this release.
+
 ### Release 1.4.9 verification (2026-11-22)
 
 Candidate `83eca4f` passed version consistency, the license audit and local `pnpm verify` on macOS 26.6.2 / arm64 with Go 1.26.10, Node 26.11.0 and pnpm 11.20.0. The frontend suite passed 149 tests with 5 skips. Chromium passed 85 regressions with 2 Windows font cases skipped. The focused keyboard confirmation check passed three repetitions. See [Quick Input multiline confirmation](#ssh-quick-input-multiline-confirmation) for the browser and local PTY evidence.
