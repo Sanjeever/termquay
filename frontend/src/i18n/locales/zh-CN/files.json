@@ -4,6 +4,8 @@
   "newTerminalBelow": "在下方新建终端",
   "bottom": "下方",
   "resourceTools": "文件与资源工具",
+  "returnToTab": "返回 {{name}}",
+  "returnToWorkspace": "返回工作区",
   "splitVertically": "上下分栏",
   "splitHorizontally": "左右分栏",
   "copyName": "{{path}} 的副本名称",

@@ -648,6 +648,15 @@ test('compact SSH starts with a wide terminal and supports docking and splitting
     expect(content!.x + content!.width).toBeLessThan(monitor!.x);
   }
   await page.screenshot({ path: test.info().outputPath('compact-ssh-workspace.png') });
+  await page.setViewportSize({ width: 1180, height: 900 });
+  await expect(page.locator('.file-dock')).toBeHidden();
+  await expect(page.locator('.monitor-dock')).toBeVisible();
+  expect((await terminal.boundingBox())!.width).toBeGreaterThan(700);
+  await page.getByRole('button', { name: 'Files', exact: true }).click();
+  await expect(page.locator('.file-dock')).toBeVisible();
+  await expect(page.locator('.monitor-dock')).toBeHidden();
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(page.locator('.monitor-dock')).toBeVisible();
   await page.getByRole('button', { name: 'Split right', exact: true }).click();
   await expect(terminal).toHaveCount(2);
   await expect(page.getByRole('separator', { name: 'Split pane ratio' })).toHaveAttribute(
@@ -670,6 +679,9 @@ test('compact SSH starts with a wide terminal and supports docking and splitting
   expect((await page.locator('.monitor-dock').boundingBox())!.width).toBeGreaterThan(900);
   await page.keyboard.press('Escape');
   await expect(page.locator('.monitor-dock')).toBeHidden();
+  await expect(input).toBeFocused();
+  await monitoring.click();
+  await page.getByRole('button', { name: 'Back to Terminal 1', exact: true }).click();
   await expect(input).toBeFocused();
   expect(await terminal.first().evaluate((element, handle) => element === handle, original)).toBe(
     true,

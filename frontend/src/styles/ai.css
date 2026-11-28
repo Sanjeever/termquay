@@ -341,7 +341,7 @@
   pointer-events: none;
 }
 @media (max-width: 1100px) {
-  .ai-dock {
+  .ssh-panels:not(.ssh-panels-live) > .ai-dock {
     position: absolute;
     right: 0;
     top: 0;

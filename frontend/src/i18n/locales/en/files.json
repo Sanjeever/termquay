@@ -4,6 +4,8 @@
   "newTerminalBelow": "New terminal below",
   "bottom": "Bottom",
   "resourceTools": "File and resource tools",
+  "returnToTab": "Back to {{name}}",
+  "returnToWorkspace": "Back to workspace",
   "splitVertically": "Top and bottom panes",
   "splitHorizontally": "Side by side panes",
   "copyName": "Copy name for {{path}}",

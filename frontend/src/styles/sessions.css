@@ -104,6 +104,33 @@
 .compact-ssh .ssh-panels-live {
   --workspace-rail-width: 34px;
 }
+.ssh-terminal-width {
+  position: absolute;
+  inset-inline-end: 100%;
+  inline-size: calc(80ch + 52px + 2 * var(--workspace-rail-width));
+  block-size: 0;
+  visibility: hidden;
+  font-family: var(--font-mono);
+}
+.ssh-panels-live:not(.ssh-panels-tool-view) > .file-dock {
+  max-inline-size: var(--workspace-dock-space);
+}
+.ssh-panels-live:not(.ssh-panels-tool-view) > :is(.monitor-dock, .tunnel-dock, .ai-dock) {
+  max-inline-size: var(--workspace-right-dock-space);
+}
+.workspace-return {
+  gap: 5px;
+  max-inline-size: min(40%, 240px);
+  flex-shrink: 1;
+  color: var(--color-text);
+}
+.workspace-return svg {
+  flex-shrink: 0;
+}
+.workspace-return span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .ssh-panels-tool-view > .ssh-center {
   position: absolute;
   inset: 0 var(--workspace-rail-width);

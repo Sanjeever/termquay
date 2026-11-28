@@ -16,6 +16,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type CSSProperties,
 } from 'react';
 import {
   Button,
@@ -86,6 +87,8 @@ const LinuxInspectionDialog = lazy(() => import('../monitor/LinuxInspectionDialo
 const AIPanel = lazy(() => import('../ai/AIPanel'));
 
 type WorkspacePanel = 'files' | 'monitor' | 'ai' | 'tunnels';
+const minimumDockSpace = 260;
+const rightDockMinimum = { monitor: 220, ai: 300, tunnels: 280 };
 
 export type SSHWorkspaceHandle = {
   openResource(kind: string, target: string): Promise<void>;
@@ -499,12 +502,15 @@ const SSHWorkspace = forwardRef<
     Math.max(300, Math.min(600, Number(localStorage.getItem('termquay.layout.ai-width')) || 380)),
   );
   const [focus, setFocus] = useState(initialLayout?.focus || false);
-  const [narrow, setNarrow] = useState(window.innerWidth <= 1100);
+  const [dockSpace, setDockSpace] = useState(0);
+  const narrow = dockSpace < minimumDockSpace;
   const [narrowPanel, setNarrowPanel] = useState<WorkspacePanel | null>(null);
+  const [preferredDock, setPreferredDock] = useState<WorkspacePanel>('files');
   const previousInstance = useRef(sessionID);
   const viewReady = useRef<Promise<void>>();
   const currentDirty = useRef(false);
   const panels = useRef<HTMLDivElement>(null);
+  const terminalWidth = useRef<HTMLDivElement>(null);
   const center = useRef<HTMLDivElement>(null);
   const lastContentFocus = useRef<HTMLElement>();
   const panelReturnFocus = useRef<HTMLElement>();
@@ -546,13 +552,22 @@ const SSHWorkspace = forwardRef<
   ]);
   const dirty = drafts.some((d) => isDirty(d));
   currentDirty.current = dirty;
-  const filesShown = !focus && (narrow ? narrowPanel === 'files' : filesOpen);
-  const tunnelsShown = !focus && (narrow ? narrowPanel === 'tunnels' : tunnelsOpen);
-  const aiShown = !tunnelsShown && aiEnabled && !focus && (narrow ? narrowPanel === 'ai' : aiOpen);
-  const monitorShown =
-    !tunnelsShown && !aiShown && !focus && (narrow ? narrowPanel === 'monitor' : monitorOpen);
-  const toolView =
-    narrow && (filesShown || tunnelsShown || aiShown || monitorShown) ? narrowPanel : null;
+  const rightDock = tunnelsOpen
+    ? 'tunnels'
+    : aiOpen && aiEnabled
+      ? 'ai'
+      : monitorOpen
+        ? 'monitor'
+        : null;
+  const bothFit = !rightDock || filesWidth + rightDockMinimum[rightDock] <= dockSpace;
+  const dockedFiles = filesOpen && (bothFit || preferredDock === 'files');
+  const dockedRight = !filesOpen || bothFit || preferredDock !== 'files' ? rightDock : null;
+  const toolView = narrow && !focus && (narrowPanel !== 'ai' || aiEnabled) ? narrowPanel : null;
+  const filesShown = !focus && (narrow ? toolView === 'files' : dockedFiles);
+  const rightShown = focus ? null : narrow ? toolView : dockedRight;
+  const tunnelsShown = rightShown === 'tunnels';
+  const aiShown = rightShown === 'ai';
+  const monitorShown = rightShown === 'monitor';
   useLayoutEffect(() => {
     if (center.current) center.current.inert = !!toolView;
     if (!visible) {
@@ -575,7 +590,9 @@ const SSHWorkspace = forwardRef<
       const focused = document.activeElement;
       if (
         focused === document.body ||
-        focused?.closest('.workspace-tool-rail, [data-workspace-panel][hidden]')
+        focused?.closest(
+          '.workspace-tool-rail, [data-workspace-panel][hidden], [data-workspace-return]',
+        )
       ) {
         if (target?.isConnected && target.getClientRects().length) {
           target.focus({ preventScroll: true });
@@ -911,39 +928,41 @@ const SSHWorkspace = forwardRef<
   function showNarrowPanel(panel: WorkspacePanel, toggle = false) {
     if (!narrowPanel && document.activeElement instanceof HTMLElement) {
       const focused = document.activeElement;
-      const pointerTrigger =
-        focused.closest('.workspace-tool-rail') && !focused.matches(':focus-visible');
       panelReturnFocus.current =
-        focused === document.body || pointerTrigger ? lastContentFocus.current : focused;
+        lastContentFocus.current || (focused !== document.body ? focused : undefined);
     }
     setNarrowPanel(toggle && narrowPanel === panel ? null : panel);
   }
   function showFiles() {
     setFocus(false);
+    setPreferredDock('files');
     if (narrow) showNarrowPanel('files');
     else setFilesOpen(true);
   }
   function toggleFiles() {
     setFocus(false);
+    if (!filesShown) setPreferredDock('files');
     if (narrow) showNarrowPanel('files', true);
-    else setFilesOpen((prev) => !prev);
+    else setFilesOpen(!filesShown);
   }
   function toggleMonitor() {
     setFocus(false);
+    if (!monitorShown) setPreferredDock('monitor');
     setTunnelsOpen(false);
     if (aiShown || tunnelsShown) {
       setAIOpen(false);
       setMonitorOpen(true);
       if (narrow) showNarrowPanel('monitor');
     } else if (narrow) showNarrowPanel('monitor', true);
-    else setMonitorOpen((prev) => !prev);
+    else setMonitorOpen(!monitorShown);
   }
   function toggleAI() {
     setFocus(false);
+    if (!aiShown) setPreferredDock('ai');
     setTunnelsOpen(false);
     setAIVisited(true);
     if (narrow) showNarrowPanel('ai', true);
-    else setAIOpen((previous) => !previous);
+    else setAIOpen(!aiShown);
   }
   function closeAI() {
     setAIOpen(false);
@@ -952,10 +971,11 @@ const SSHWorkspace = forwardRef<
   }
   function toggleTunnels() {
     setFocus(false);
+    if (!tunnelsShown) setPreferredDock('tunnels');
     setAIOpen(false);
     setMonitorOpen(false);
     if (narrow) showNarrowPanel('tunnels', true);
-    else setTunnelsOpen((previous) => !previous);
+    else setTunnelsOpen(!tunnelsShown);
   }
   function closeTunnels() {
     setTunnelsOpen(false);
@@ -975,6 +995,7 @@ const SSHWorkspace = forwardRef<
       aiReferencesRef.current = next;
       setAIReferences(next);
       setFocus(false);
+      setPreferredDock('ai');
       setAIVisited(true);
       setTunnelsOpen(false);
       setAIOpen(true);
@@ -989,13 +1010,16 @@ const SSHWorkspace = forwardRef<
   useEffect(() => {
     localStorage.setItem('termquay.layout.files-width', String(filesWidth));
   }, [filesWidth]);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const element = panels.current;
-    if (!element) return;
-    const observer = new ResizeObserver(([entry]) => {
-      const width = entry.contentRect.width;
-      const next = width <= 1100;
-      if (!width || next === narrow) return;
+    const reserve = terminalWidth.current;
+    if (!element || !reserve) return;
+    const observer = new ResizeObserver(() => {
+      if (!element.clientWidth) return;
+      const available = Math.max(0, element.clientWidth - reserve.clientWidth);
+      setDockSpace(available);
+      const next = available < minimumDockSpace;
+      if (next === narrow) return;
       const active = document.activeElement;
       const expanded = element.querySelector('.monitor-dock-expanded:not([hidden])');
       const activePanel = active?.closest<HTMLElement>(
@@ -1004,9 +1028,9 @@ const SSHWorkspace = forwardRef<
       const panel = (activePanel?.dataset.workspacePanel ||
         activePanel?.dataset.workspaceTool ||
         (expanded ? 'monitor' : null)) as WorkspacePanel | null;
-      setNarrow(next);
       if (next) setNarrowPanel(panel);
       else {
+        if (narrowPanel) setPreferredDock(narrowPanel);
         if (narrowPanel === 'files') setFilesOpen(true);
         if (narrowPanel === 'monitor') {
           setAIOpen(false);
@@ -1018,6 +1042,7 @@ const SSHWorkspace = forwardRef<
       }
     });
     observer.observe(element);
+    observer.observe(reserve);
     return () => observer.disconnect();
   }, [narrow, narrowPanel]);
 
@@ -1508,6 +1533,7 @@ const SSHWorkspace = forwardRef<
       closingDisabled: restoring || draft?.saving,
     };
   });
+  const activeTab = tabs.find((tab) => tab.id === active);
   return (
     <div
       className={compact ? 'ssh-workspace compact-ssh' : 'ssh-workspace'}
@@ -1527,6 +1553,21 @@ const SSHWorkspace = forwardRef<
       }}
     >
       <div className="workspace-toolbar" aria-label={translate('files:sSHWorkspaceTools')}>
+        {toolView && (
+          <button
+            type="button"
+            className="session-tool workspace-return"
+            data-workspace-return=""
+            onClick={() => setNarrowPanel(null)}
+          >
+            <Icon name="back" width="15" />
+            <span>
+              {activeTab
+                ? translate('files:returnToTab', { name: activeTab.label })
+                : translate('files:returnToWorkspace')}
+            </span>
+          </button>
+        )}
         <Tooltip content={target}>
           <span className="session-target">{target}</span>
         </Tooltip>
@@ -1678,7 +1719,19 @@ const SSHWorkspace = forwardRef<
       <div
         ref={panels}
         className={`ssh-panels ssh-panels-live${narrow ? ' ssh-panels-narrow' : ''}${toolView ? ' ssh-panels-tool-view' : ''}`}
+        style={
+          {
+            '--workspace-dock-space': `${dockSpace}px`,
+            '--workspace-right-dock-space': `${dockSpace - (filesShown ? Math.min(filesWidth, dockSpace) : 0)}px`,
+          } as CSSProperties
+        }
       >
+        <div
+          ref={terminalWidth}
+          className="ssh-terminal-width"
+          aria-hidden="true"
+          style={{ fontSize }}
+        />
         <WorkspaceToolRail
           side="left"
           tools={[
